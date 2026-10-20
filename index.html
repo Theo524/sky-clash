@@ -358,13 +358,13 @@ body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:.5;pointer-events:
 <div id="titleScreen" class="overlay show" role="dialog" aria-modal="true" aria-labelledby="titleH">
   <div class="panel">
     <h1 id="titleH">Sky Clash</h1>
-    <p class="sub">Version 35 · recorded animation upgrade</p>
+    <p class="sub">Version 36 · clean boost and martial arts</p>
     <div class="menu">
       <button class="mbtn primary" id="startBtn">Start fight</button>
       <button class="mbtn" id="trainBtn">Training</button>
       <button class="mbtn" id="titleSettingsBtn">Settings</button>
     </div>
-    <p class="hint">New recorded martial-arts hook, ninja jump, dodges, slides and landings from Quaternius Universal Animation Library 1 &amp; 2. Acrobatics remain optional in Settings.</p>
+    <p class="hint">V36: sharper martial-arts combinations and clean power dashes (no meteor shell). Ground and aerial Boost now use compact speed streaks. Acrobatics remain optional.</p>
     <p class="hint loadnote">Loading hero model…</p>
     <p class="hint credit">V35 integrates nine additional retargeted clips from the Quaternius Universal Animation Libraries 1 &amp; 2 (CC0). Hero VRM: Seed-san by VirtualCast, Inc. (VRM Public License 1.0). Other motion: CMU Graphics Lab mocap (mocap.cs.cmu.edu). Enhanced recorded motion currently applies to the VRM hero; rivals without VRM continue to use procedural movement.</p>
   </div>
@@ -2576,9 +2576,17 @@ class AnimLayer {
       const B = Anim.bones, ix = n => B.indexOf(n);
       const set = this._px || (this._px = { p: ['spine', 'chest', 'upperChest', 'leftShoulder', 'rightShoulder'].map(ix).filter(i => i >= 0),
         k: ['spine', 'chest', 'upperChest', 'leftUpperLeg', 'rightUpperLeg'].map(ix).filter(i => i >= 0) });
-      this.exaggerate(S, o.ref, punch ? set.p : set.k, 1 + (punch ? 0.45 : 0.22) * env);
-      if (punch) this.tiltUpper(S, (f.attackKind === 'hook' ? 0.31 : 0.16) * env);         // shoulder and chest drive through the target
-      else {
+      this.exaggerate(S, o.ref, punch ? set.p : set.k, 1 + (punch ? 0.55 : 0.27) * env);
+      if (punch) {
+        // Jab is a fast short reach; cross drives a larger shoulder rotation;
+        // hook carries a visible turning follow-through. Blend entire upper
+        // chain together so the neck/arms actually follow the chest.
+        const turn = (o.name === 'jab' ? -0.14 : o.name === 'cross' ? 0.28 : -0.43) * env;
+        const yawQ = this._strikeTurn || (this._strikeTurn = new THREE.Quaternion());
+        yawQ.setFromAxisAngle(_UP, turn);
+        for (let i = 0; i < Anim.NB; i++) if (this.UPPER[i]) S.q[i].premultiply(yawQ);
+        this.tiltUpper(S, (o.name === 'qHook' ? 0.25 : o.name === 'cross' ? 0.20 : 0.10) * env);
+      } else {
         // follow-through: the chest rolls over the kick after contact, then settles
         const r = t - c.imp, ft = r <= 0 ? 0 : Math.sin(Math.PI * Math.min(1, r / 0.45));
         this.tiltUpper(S, 0.18 * ft);
@@ -2620,17 +2628,19 @@ class AnimLayer {
     if (!dying) {
       if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && (f.attackKind === 'punch' || f.attackKind === 'hook')) {
         const name = f.attackKind === 'hook' ? 'qHook' : (f.punchSide === 1 ? 'jab' : 'cross'), c = Anim.clip(name);
-        // start just before the fist lands (the hit is instant in this game), then let the recovery play out
-        this.play(name, { from: name === 'qHook' ? 0 : Math.max(0, c.imp - 0.12),
-          rate: name === 'qHook' ? 1.05 : 1.8,
-          end: name === 'qHook' ? c.d : Math.min(c.d, c.imp + 0.45),
-          mask: grounded && (hs < 3 || f.t - (f.lungeAt || -9) < 0.1) ? null : this.UPPER,
-          fadeIn: 0.045, blendOut: 0.10 });
+        // V36: play the actual preparation + contact + follow-through, not just
+        // the last frames near impact. Clip speeds match Combat.melee's hit delays.
+        const rate = name === 'qHook' ? 2.15 : name === 'jab' ? 2.65 : 2.95;
+        this.play(name, { from: 0,
+          rate, end: name === 'qHook' ? c.d : name === 'jab' ? 0.65 : 0.77,
+          mask: grounded && hs < 6 ? null : this.UPPER,
+          fadeIn: 0.022, fadeOut: 0.095, blendOut: 0.10 });
       } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'kick') {
-        // combo finisher: a recorded martial-arts front kick on the ground, a jump kick in the air
-        // (motion capture from the CMU Graphics Lab library); starts just before the foot lands
+        // Recorded kick from preparation through extension and recovery;
+        // foot contact now matches the stage-4 damage window (~0.17s).
         const name = grounded ? 'kick' : 'airKick', c = Anim.clip(name);
-        this.play(name, { from: c.imp - 0.18, rate: 1.8, end: Math.min(c.d, c.imp + 0.5), mask: null, noH: !grounded, fadeIn: 0.04, fadeOut: 0.22, blendOut: 0.1, warp: true });
+        this.play(name, { from: 0, rate: 3.35, end: Math.min(c.d, 1.0),
+          mask: null, noH: !grounded, fadeIn: 0.025, fadeOut: 0.17, blendOut: 0.11, warp: false });
       } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.blastT > 0 && p.blastT <= 0) this.play('blast', { rate: 1.3, mask: grounded && hs < 3 ? null : this.UPPER, fadeIn: 0.04 });
@@ -2860,7 +2870,7 @@ class Fighter {
   constructor(name, pal, spawn) {
     this.name = name; this.pal = pal; this.spawn = spawn.clone();
     this.model = buildFighterModel(pal);
-    this.meteor = createMeteor(...(pal.meteor || [pal.ki, pal.ki]));
+    this.meteor = createBoostTrail(...(pal.meteor || [pal.ki, pal.ki]));
     scene.add(this.model.root, this.model.blob);
     // charge orb held between the hands while charging a blast
     this.orb = Effects.sprite(TEX.glow, pal.ki, 1, 0.95); this.orbCore = Effects.sprite(TEX.glow, 0xffffff, 0.5, 1);
@@ -3225,7 +3235,12 @@ class Fighter {
     else if (this.slamming) { pitchT = this.slamWindT > 0 ? -0.2 : 0.35; rollT = 0; }
     else
     if (this.dashing && !flying) { pitchT = 0.16; rollT = bank; }
-    else if (this.dashing || fastFly) { pitchT = fastFly ? clamp(1.25 - this.vel.y / 40, 0.5, 1.5) : 1.05; rollT = fastFly ? clamp(-lx / 14, -0.5, 0.5) : 0; }
+    else if (this.dashing || fastFly) {
+      // Controlled powered flight: upper body still faces travel direction instead
+      // of tipping nearly horizontal like a falling meteor.
+      pitchT = fastFly ? clamp(0.50 - this.vel.y / 100, 0.30, 0.70) : 0.48;
+      rollT = clamp(-lx / 30, -0.24, 0.24);
+    }
     else if (this.sprinting) { pitchT = 0.22; rollT = bank * 1.18; }
     else if (this.downT > 0) { pitchT = -1.45; rollT = 0.1; }
     else if (this.spiked) { pitchT = -1.2; rollT = 0; }
@@ -3354,8 +3369,8 @@ class Fighter {
       // braking: lead leg braced out front, weight back, arms out for balance
       P = { arm: [[-0.9, 0.65, -1.2], [-0.55, 0.8, -1.0]], leg: [[0.42, 1.12, 0.22], [-0.9, 0.48, 0.25]], spineY: 0.28, spineX: -0.05, headX: 0.12 };
     } else if (this.sprinting && flying) {
-      // fast flight: lead fist forward, other arm tucked, legs trailing
-      P = { arm: [[0.4, 0.15, -1.4], [-2.9, 0.05, -0.05]], leg: [[0.15, 0.25, 0.04], [0.35, 0.6, 0.04]], spineY: 0, spineX: 0, headX: -0.75 };
+      // Boosted aerial travel: relaxed martial-arts flight posture, not a dive.
+      P = { arm: [[-0.2, 0.28, -1.05], [-0.95, 0.20, -0.85]], leg: [[0.05, 0.38, 0.06], [-0.25, 0.66, 0.06]], spineY: 0.08, spineX: 0.20, headX: -0.12 };
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
@@ -3366,7 +3381,8 @@ class Fighter {
       const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = 0.31;
       P = r;
     } else if (this.dashing) {
-      P = { arm: [[0.9, 0.25, -0.25], [0.9, 0.25, -0.25]], leg: [[0.3, 0.55, 0.05], [0.12, 0.3, 0.05]], spineY: 0, spineX: 0, headX: -0.6 };
+      // Power-dash pose: streamlined but upright enough to look purposeful.
+      P = { arm: [[-0.2, 0.25, -1.15], [-1.05, 0.18, -0.95]], leg: [[0.15, 0.45, 0.06], [-0.25, 0.62, 0.06]], spineY: 0.08, spineX: 0.26, headX: -0.16 };
     } else if (this.brokenT > 0) {
       // guard broken: arms flung open, staggering
       const w = Math.sin(this.t * 9) * 0.15;
@@ -3457,9 +3473,13 @@ class Fighter {
           B.spineY = i ? -0.93 : 0.93; B.spineX = 0.38;
           B.leg[i] = [-0.18, 0.67, 0.28]; B.headX = -0.12;
         } else {
-          B.arm[i] = [-1.75, -0.12, -0.08]; B.arm[o] = [-0.65, 0.35, -1.9];
-          B.spineY = i ? -0.68 : 0.58; B.spineX = 0.22; B.headX = -0.05;
-          B.leg[i] = [0.12, 0.65, 0.12];
+          // Fast lead-hand jab versus fully committed rear-hand cross.
+          const jab = i === 1;
+          B.arm[i] = jab ? [-1.65, -0.15, -0.15] : [-2.25, -0.30, -0.05];
+          B.arm[o] = [-0.80, 0.45, -1.92];
+          B.spineY = jab ? -0.27 : 0.82;
+          B.spineX = jab ? 0.12 : 0.33; B.headX = jab ? -0.07 : -0.11;
+          B.leg[i] = [jab ? 0.10 : 0.32, 0.65, jab ? 0.10 : 0.23];
         }
       }
       P = mix(P, B, strength);
@@ -3519,10 +3539,11 @@ class Fighter {
       this.orb.material.opacity = 0.75;
       this.orb.material.color.setHex(aw ? this.pal.aura : this.pal.ki);
     }
-    // the upright flame aura is for charging / awakening; moving fast uses the meteor instead
-    const auraTarget = aw ? (this.dashing || (this.sprinting && flying) ? 0.35 : 1) : this.charging ? 0.12 + 0.22 * lvc : 0;
+    // Awakening/charging keeps its usual aura; Boost uses thin speed streaks, never a meteor.
+    const auraTarget = aw ? (this.dashing || (this.sprinting && flying) ? 0.65 : 1) : this.charging ? 0.12 + 0.22 * lvc : 0;
     const mc = this.meteorCol = (aw ? this.pal.meteorAw : this.pal.meteor) || [this.pal.ki, this.pal.ki];
-    const meteorT = this.dashing ? 1 : this.sprinting && flying ? 0.9 : this.slamming && this.slamWindT <= 0 ? 0.8 : this.chase ? 1 : 0;
+    // A ground slam is a separate impact attack, not a movement Boost effect.
+    const meteorT = this.dashing ? 1 : this.sprinting && flying ? 0.65 : this.chase ? 1 : 0;
     this.meteor.update(dt, this.t, meteorT, this.vel, this.center, root.visible, mc[0], mc[1]);
     m.aura.level = (m.aura.level || 0) + (auraTarget - (m.aura.level || 0)) * damp(aw ? 6 : 10, dt);
     m.aura.set(this.t, m.aura.level, aw ? this.pal.aura : this.pal.ki);
@@ -3600,15 +3621,19 @@ const Effects = (() => {
     }
   }
   function dashBurst(f) {
-    const c = f.center; const col = f.meteorCol ? f.meteorCol[0] : f.awakened ? f.pal.aura : f.pal.ki;
-    ring(c, col, 1.6);
-    // afterimages along the dash path
-    for (let i = 0; i < 6; i++) {
-      const s = sprite(TEX.glow, col, 2.2, 0.5);
-      let placed = false;
-      push(s, 0.32 + i * 0.03, (e) => {
-        if (!placed && e.t >= i * 0.03) { e.obj.position.copy(f.center); placed = true; }
-        e.obj.visible = placed; const k = e.t / e.life; e.obj.material.opacity = 0.45 * (1 - k);
+    // The dash is a motion impulse, not an explosive attack: retain a small
+    // launch ring and three compact directional echoes behind the character.
+    const col = f.awakened ? f.pal.aura : f.pal.ki;
+    ring(f.center, col, 0.8);
+    const dir = f.dashDir.lengthSq() > 0.01 ? f.dashDir : f.forward();
+    for (let i = 0; i < 3; i++) {
+      const s = sprite(TEX.glow, col, 0.75 - i * 0.12, 0.2);
+      s.position.copy(f.center).addScaledVector(dir, -0.5 - i * 0.5);
+      const initial = s.scale.x;
+      push(s, 0.13 + i * 0.025, (e) => {
+        const k = e.t / e.life;
+        e.obj.material.opacity = 0.20 * (1 - k) * (1 - k);
+        e.obj.scale.setScalar(initial * (1 - 0.55 * k));
       });
     }
   }
@@ -3740,11 +3765,15 @@ const Effects = (() => {
     sparks(p.clone().setY(p.y + 0.4), 0xffd9a0, 12);
   }
   // blocked hit: small blue-white shield flash
-  // fast flight: streaks of ki trailing behind
+  // Small residual speed traces: never cover the fighter or resemble a fireball.
   function sprintTrail(f) {
-    const col = f.meteorCol ? f.meteorCol[1] : f.awakened ? f.pal.aura : f.pal.ki;
-    const s = sprite(TEX.glow, col, 1.5, 0.45); s.position.copy(f.center);
-    push(s, 0.3, (e) => { const k = e.t / e.life; e.obj.material.opacity = 0.45 * (1 - k); e.obj.scale.setScalar(1.5 * (1 - k * 0.6)); });
+    const col = f.awakened ? f.pal.aura : f.pal.ki;
+    const vel = f.vel.clone(); const len = vel.length();
+    if (len < 2) return;
+    vel.divideScalar(len);
+    const s = sprite(TEX.glow, col, 0.55, 0.2);
+    s.position.copy(f.center).addScaledVector(vel, -0.9);
+    push(s, 0.14, e => { const k = e.t / e.life; e.obj.material.opacity = 0.2 * (1 - k); e.obj.scale.setScalar(0.55 * (1 - k * 0.5)); });
   }
   // teleport: a sharp pop where you were, a streak between, and a pop where you land
   function vanish(from, to, col, perfect) {
@@ -3762,92 +3791,59 @@ const Effects = (() => {
   return { kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 
-/* ---------------- Meteor aura ----------------
- * When dashing or flying fast, the fighter is wrapped in a streamlined fireball: white-hot at the nose,
- * flame streaks streaming back into a long tapering tail, with embers peeling off behind.
+/* ---------------- V36: clean directional Boost streaks ----------------
+ * No meteor/fireball geometry. Ground and aerial movement remain visually readable:
+ * six thin, semi-transparent streaks behind the shoulders/hips, following actual velocity.
+ * The model stays fully visible; all motion, flight and collision physics are untouched.
  */
-const METEOR_GEO = (() => {
-  const pts = [];
-  for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI / 2; pts.push(new THREE.Vector2(Math.sin(a) * 1.0, Math.cos(a) * 1.0)); }   // round nose
-  for (let i = 1; i <= 22; i++) { const s = i / 22; pts.push(new THREE.Vector2(Math.max(0.001, Math.pow(1 - s, 1.15)), -s * 4.4)); }   // tapering tail
-  const g = new THREE.LatheGeometry(pts, 32); g.rotateX(Math.PI / 2);   // nose points +Z
-  return g;
-})();
-function createMeteor(colA, colB) {
-  const noise = `
-    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-    float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
-      return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }`;
-  const make = (scale, k, additive) => new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uA: { value: new THREE.Color(colA) }, uB: { value: new THREE.Color(colB) }, uI: { value: 0 }, uK: { value: k } },
-    vertexShader: `uniform float uTime; varying vec2 vUv; varying vec3 vN; varying vec3 vV; ${noise}
-      void main(){
-        vUv = uv; vec3 p = position * ${scale.toFixed(2)};
-        float a = uv.x * 6.2831;
-        float n = noise(vec2(cos(a) * 2.0 + 3.0, sin(a) * 2.0 + uv.y * 7.0 - uTime * 9.0));
-        p.xy *= 1.0 + (n - 0.5) * 0.7 * smoothstep(0.15, 1.0, uv.y);   // flames lick outward toward the tail
-        vec4 mv = modelViewMatrix * vec4(p, 1.0);
-        vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: `uniform float uTime; uniform vec3 uA; uniform vec3 uB; uniform float uI; uniform float uK; varying vec2 vUv; varying vec3 vN; varying vec3 vV; ${noise}
-      void main(){
-        float a = vUv.x * 6.2831, y = vUv.y;
-        float n = noise(vec2(cos(a) * 3.0 + 7.0, sin(a) * 3.0 + y * 9.0 - uTime * 12.0));
-        float streak = noise(vec2(a * 2.5, y * 2.0 - uTime * 6.0));
-        float rim = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 1.4);
-        float fade = 1.0 - smoothstep(0.35, 1.0, y);
-        float body = 0.05 + pow(rim, 1.3) * 0.95;                        // glowing edge around the fighter, clear centre
-        float tongues = smoothstep(0.42, 0.72, n * 0.65 + streak * 0.6);   // flickering tongues of flame
-        float alpha = fade * mix(body * (0.55 + n * 0.6), tongues * 0.9 + pow(rim, 2.0) * 0.3, smoothstep(0.08, 0.45, y));
-        vec3 col = mix(vec3(1.0, 0.93, 0.7), uA, smoothstep(0.0, 0.18, y) * (1.0 - tongues * 0.35));
-        col = mix(col, uB, smoothstep(0.35, 0.85, y));
-        gl_FragColor = vec4(col * (0.85 + n * 0.35), clamp(alpha * uI * uK, 0.0, 1.0));
-        #include <colorspace_fragment>
-      }`,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, toneMapped: false,
-  });
-  const outer = make(1.0, 0.8, false), inner = make(0.8, 0.3, true);
+function createBoostTrail(colA, colB) {
   const group = new THREE.Group();
-  const m1 = new THREE.Mesh(METEOR_GEO, outer), m2 = new THREE.Mesh(METEOR_GEO, inner);
-  m1.renderOrder = 7; m2.renderOrder = 8; m1.frustumCulled = m2.frustumCulled = false;
-  const shell = new THREE.Group(); shell.add(m1, m2); group.add(shell);
-  const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0xfff2d0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  core.scale.set(3.4, 3.4, 1); group.add(core);
-  const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: colA, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-  halo.scale.set(6, 6, 1); group.add(halo);
+  const streaks = [];
+  const geo = new THREE.CylinderGeometry(0.012, 0.037, 1, 6, 1, false);
+  geo.rotateX(Math.PI / 2); // cylinder now extends along Z (negative Z is behind travel)
+  for (let i = 0; i < 6; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      color: i % 2 ? colA : colB, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    const angle = i * (Math.PI * 2 / 6) + 0.35;
+    mesh.position.set(Math.cos(angle) * (0.38 + (i % 2) * 0.18),
+                      Math.sin(angle) * (0.57 + (i % 2) * 0.09), -0.95);
+    mesh.renderOrder = 7;
+    group.add(mesh); streaks.push(mesh);
+  }
+  const center = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: TEX.glow, color: colA, transparent: true, opacity: 0,
+    depthWrite: false, blending: THREE.AdditiveBlending, fog: false
+  }));
+  center.scale.setScalar(1.25); center.position.z = -0.45; group.add(center);
   group.visible = false; scene.add(group);
-  const dir = new V3(0, 0, 1), tmp = new V3();
-  let level = 0, emberT = 0;
-  const cA = new THREE.Color(colA), cB = new THREE.Color(colB);
+  const dir = new V3(0, 0, 1), targetDir = new V3(), look = new V3();
+  let level = 0;
   return {
     group,
-    // target: 0..1 strength; vel: travel velocity; pos: fighter centre
     update(dt, t, target, vel, pos, visible, a = colA, b = colB) {
-      level += (target - level) * damp(target > level ? 18 : 7, dt);
-      const on = level > 0.02 && visible;
-      group.visible = on; if (!on) return;
+      level += (target - level) * damp(target > level ? 20 : 12, dt);
       const sp = vel.length();
-      if (sp > 2) { tmp.copy(vel).divideScalar(sp); dir.lerp(tmp, damp(14, dt)).normalize(); }
-      group.position.copy(pos).addScaledVector(dir, 0.35);
-      group.lookAt(tmp.copy(group.position).add(dir));
-      const len = clamp(0.45 + sp / 38, 0.5, 1.5);
-      shell.scale.set(0.95 + level * 0.15, 0.95 + level * 0.15, len * (0.5 + level * 0.5));
-      cA.setHex(a); cB.setHex(b);
-      [outer, inner].forEach((m, i) => { m.uniforms.uTime.value = t * (i ? 1.25 : 1); m.uniforms.uI.value = level; m.uniforms.uA.value.copy(cA); m.uniforms.uB.value.copy(cB); });
-      core.material.opacity = level * 0.22; halo.material.opacity = level * 0.07; halo.material.color.copy(cA);
-      const fl = 1 + Math.sin(t * 40) * 0.05 + Math.sin(t * 23) * 0.04; core.scale.set(2.0 * fl, 2.0 * fl, 1);
-      // embers peeling off the tail
-      emberT -= dt;
-      if (emberT <= 0 && level > 0.3) {
-        emberT = 0.018;
-        const e = Effects.sprite(TEX.glow, Math.random() < 0.5 ? a : b, 0.35 + Math.random() * 0.4, 0.9);
-        e.position.copy(pos).addScaledVector(dir, -0.6 - Math.random() * 1.2).add(tmp.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.3));
-        const v = dir.clone().multiplyScalar(-(3 + Math.random() * 6)).add(new V3(Math.random() - 0.5, Math.random() * 0.8, Math.random() - 0.5).multiplyScalar(3));
-        const s0 = e.scale.x;
-        Effects.push(e, 0.35 + Math.random() * 0.25, (ev, edt) => { const k = ev.t / ev.life; ev.obj.position.addScaledVector(v, edt || 0.016); ev.obj.material.opacity = 0.9 * (1 - k); ev.obj.scale.setScalar(s0 * (1 - k * 0.7)); });
+      group.visible = visible && level > 0.025 && sp > 2;
+      if (!group.visible) return;
+      targetDir.copy(vel).divideScalar(sp);
+      dir.lerp(targetDir, damp(18, dt)).normalize();
+      group.position.copy(pos);
+      group.lookAt(look.copy(group.position).add(dir));
+      const speed = Math.min(1, sp / 42);
+      for (let i = 0; i < streaks.length; i++) {
+        const st = streaks[i];
+        const len = (0.65 + speed * 0.85) * (0.76 + (i % 3) * 0.13);
+        st.scale.set(1, 1, len);
+        st.position.z = -0.55 - len * 0.5;
+        st.material.color.setHex(i % 2 ? a : b);
+        st.material.opacity = level * (0.25 + speed * 0.20) * (i % 2 ? 0.75 : 1);
       }
-    },
+      center.material.color.setHex(a);
+      center.material.opacity = level * 0.07;
+    }
   };
 }
 
@@ -4729,7 +4725,7 @@ const Game = {
     $('pHpNum').textContent = Math.ceil(p.hp); $('eHpNum').textContent = Math.ceil(e.hp);
     document.body.classList.toggle('low-hp', p.hp > 0 && p.hp < 25);
     $('pEnBar').classList.toggle('ready', p.energy >= TUNING.awakenCost);
-    const sl = $('speedLines'); sl.style.opacity = p.dashing ? 1 : p.sprinting ? (p.flying ? 0.8 : 0.45) : Math.max(0, (+sl.style.opacity || 0) - 0.08);
+    const sl = $('speedLines'); sl.style.opacity = p.dashing ? 0.27 : p.sprinting ? (p.flying ? 0.15 : 0.09) : Math.max(0, (+sl.style.opacity || 0) - 0.08);
     const cm = $('camMode');
     const locked = CameraRig.isLockActive();
     const mode = p.moving || (this.lockOn && !locked) ? 'dash' : locked ? 'locked' : 'free';
