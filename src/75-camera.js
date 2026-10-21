@@ -56,17 +56,20 @@ const CameraRig = (() => {
       mid.clampLength(0, 6); desired.add(mid);
     }
     if (instant) look.copy(desired); else look.lerp(desired, damp(14, dt));
-    const d = rig.dist + (p.dashing ? 1.2 : p.sprinting ? (p.flying ? 1.8 : 1) : 0);
+    const cameraDistances = { close: 6.15, standard: 8.5, far: 11.4 };
+    const desiredDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
+    rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
+    const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
     const cp = Math.cos(rig.pitch);
     camera.position.set(look.x + Math.sin(rig.yaw) * cp * d, look.y + Math.sin(rig.pitch) * d, look.z + Math.cos(rig.yaw) * cp * d);
     if (camera.position.y < 0.6) camera.position.y = 0.6;
     if (rig.shakeT > 0) {
-      rig.shakeT -= dt; const a = rig.shakeAmp * (rig.shakeT / 0.25);
+      rig.shakeT -= dt; const a = rig.shakeAmp * 0.48 * Math.max(0, rig.shakeT / 0.25);
       camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a;
     }
     camera.lookAt(look);
   }
-  return { update, forward, right, onDash, snapBehind, isLockActive, shake(a) { rig.shakeT = 0.25; rig.shakeAmp = a; }, rig };
+  return { update, forward, right, onDash, snapBehind, isLockActive, shake(a) { rig.shakeT = 0.25; rig.shakeAmp = Math.max(rig.shakeAmp * 0.40, a); }, rig };
 })();
 
 

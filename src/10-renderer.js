@@ -7,8 +7,8 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
-const SKY = { top: 0x2f6fd6, horizon: 0xbfdcf5, bottom: 0x9cc3e4, sun: 0xfff2d0 };
-scene.fog = new THREE.Fog(SKY.horizon, 85, 330);
+const SKY = { top: 0x5c7f9d, horizon: 0xd4ddd9, bottom: 0xc3c5b8, sun: 0xfff0c8 };
+scene.fog = new THREE.Fog(SKY.horizon, 95, 360);
 const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 700);
 
 /* deterministic random so the arena looks the same every load */
@@ -58,28 +58,28 @@ const TEX = {
   }),
   grass: canvasTex(512, 512, (g) => {
     const rnd = makeRng(3);
-    g.fillStyle = '#6aa64a'; g.fillRect(0, 0, 512, 512);
+    g.fillStyle = '#6c8662'; g.fillRect(0, 0, 512, 512);
     for (let i = 0; i < 60; i++) {   // soft patches
       const x = rnd() * 512, y = rnd() * 512, rad = 30 + rnd() * 70;
       const r = g.createRadialGradient(x, y, 0, x, y, rad);
-      const c = rnd() < 0.5 ? '120,180,80' : '84,140,60';
+      const c = rnd() < 0.5 ? '112,137,90' : '88,112,73';
       r.addColorStop(0, `rgba(${c},.5)`); r.addColorStop(1, `rgba(${c},0)`);
       g.fillStyle = r; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
     }
     for (let i = 0; i < 9000; i++) {  // blades
       const x = rnd() * 512, y = rnd() * 512, l = 2 + rnd() * 4;
-      g.strokeStyle = rnd() < 0.5 ? 'rgba(150,205,105,.55)' : 'rgba(60,110,45,.45)';
+      g.strokeStyle = rnd() < 0.5 ? 'rgba(151,169,124,.52)' : 'rgba(53,79,54,.45)';
       g.beginPath(); g.moveTo(x, y); g.lineTo(x + (rnd() - 0.5) * 2, y - l); g.stroke();
     }
   }, { repeat: 26 }),
   stone: canvasTex(512, 512, (g) => {
     const rnd = makeRng(11), n = 8, s = 512 / n;
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      const v = 196 + rnd() * 26 | 0;
-      g.fillStyle = `rgb(${v + 8},${v - 2},${v - 22})`; g.fillRect(x * s, y * s, s, s);
+      const v = 145 + rnd() * 46 | 0;
+      g.fillStyle = `rgb(${v + 11},${v + 9},${v + 2})`; g.fillRect(x * s, y * s, s, s);
       for (let k = 0; k < 40; k++) { g.fillStyle = `rgba(90,80,70,${rnd() * 0.12})`; g.fillRect(x * s + rnd() * s, y * s + rnd() * s, 2 + rnd() * 5, 2 + rnd() * 5); }
     }
-    g.strokeStyle = 'rgba(95,82,68,.32)'; g.lineWidth = 2;
+    g.strokeStyle = 'rgba(61,62,59,.42)'; g.lineWidth = 2;
     for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo(i * s, 0); g.lineTo(i * s, 512); g.stroke(); g.beginPath(); g.moveTo(0, i * s); g.lineTo(512, i * s); g.stroke(); }
   }, { repeat: 5 }),
 };
@@ -131,9 +131,9 @@ skyDome.renderOrder = -10;
 scene.add(skyDome);
 
 /* ---- lights ---- */
-const hemi = new THREE.HemisphereLight(0xcfe3ff, 0x5d7a3e, 1.1);
+const hemi = new THREE.HemisphereLight(0xdce8e4, 0x615e51, 0.94);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff0d8, 2.4);
+const sun = new THREE.DirectionalLight(0xfff1d9, 2.7);
 sun.position.set(45, 60, 30);
 Object.assign(sun.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 180 });
 sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.03;

@@ -12,22 +12,22 @@ const Arena = (() => {
   const rnd = makeRng(42);
   const animated = [];  // { obj, update(t, dt) }
   const qualityGroups = { grass: null, clouds: [] };
-  const flat = (c) => new THREE.MeshLambertMaterial({ color: c, flatShading: true });   // low-poly faceted look for rocks and foliage
+  const flat = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.98, metalness: 0, flatShading: false });
   const shadowy = (o, cast = true, recv = true) => { o.castShadow = cast; o.receiveShadow = recv; return o; };
 
   /* ground */
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(420, 64), toon(0xffffff, { map: TEX.grass }));
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(420, 128), new THREE.MeshStandardMaterial({color:0xc5c4b5,map:TEX.grass,roughness:1}));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
 
   /* stage */
-  const stoneTop = toon(0xffffff, { map: TEX.stone });
-  const stoneSide = flat(0x9a8f80);
+  const stoneTop = new THREE.MeshStandardMaterial({color:0xeeeeea,map:TEX.stone,roughness:0.98});
+  const stoneSide = flat(0x7c786c);
   const stage = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(STAGE_R, STAGE_R + 0.5, STAGE_H, 8), [stoneSide, stoneTop, stoneSide]));
   stage.position.y = STAGE_H / 2; stage.rotation.y = Math.PI / 8; scene.add(stage);
   const step = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(STAGE_R + 1.2, STAGE_R + 1.6, 0.14, 8), flat(0x857a6c)), false, true);
   step.position.y = 0.07; step.rotation.y = Math.PI / 8; scene.add(step);
   // emblem
-  const emblemMat = new THREE.MeshBasicMaterial({ color: 0xd9a441, transparent: true, opacity: 0.8 });
+  const emblemMat = new THREE.MeshBasicMaterial({ color: 0x3a3731, transparent: true, opacity: 0.24, depthWrite:false });
   const emblem = new THREE.Mesh(new THREE.RingGeometry(4.2, 4.7, 48), emblemMat);
   emblem.rotation.x = -Math.PI / 2; emblem.position.y = STAGE_H + 0.01; scene.add(emblem);
   const emblem2 = new THREE.Mesh(new THREE.RingGeometry(8.6, 8.85, 64), emblemMat);
@@ -49,31 +49,42 @@ const Arena = (() => {
     animated.push({ update: (t) => { halo.material.opacity = 0.55 + Math.sin(t * 3 + i) * 0.12; } });
   }
 
-  /* rock mesas with strata and crystals */
-  const strata = [0x9b7a5f, 0xb48d6b, 0x8a6a52, 0xc29b74];
-  const crystalMat = new THREE.MeshToonMaterial({ color: 0x7ff0ff, emissive: 0x2aa6c8, emissiveIntensity: 0.9, gradientMap: TOON_RAMP });
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * TAU + 0.35, r = ARENA_RADIUS * (0.62 + (i % 3) * 0.11);
-    const x = Math.cos(a) * r, z = Math.sin(a) * r;
-    const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = rnd() * TAU; scene.add(g);
-    let y = 0, rad = 3 + rnd() * 1.4;
-    const layers = 3 + (i % 2);
-    for (let k = 0; k < layers; k++) {
-      const h = 2.6 + rnd() * 3;
-      const top = rad * (0.78 + rnd() * 0.12);
-      const m = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(top, rad, h, 7), flat(strata[(i + k) % strata.length])));
-      m.position.y = y + h / 2; m.rotation.y = rnd(); g.add(m);
-      y += h; rad = top;
-    }
-    const grassCap = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(rad * 1.05, rad, 0.4, 7), flat(0x6fae4e)));
-    grassCap.position.y = y + 0.2; g.add(grassCap);
-    const c = new THREE.Mesh(new THREE.OctahedronGeometry(1.1), crystalMat); c.scale.set(0.8, 1.6, 0.8);
-    c.position.y = y + 2.2; g.add(c);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: TEX.glow, color: 0x6fe7ff, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    glow.scale.setScalar(5); glow.position.y = y + 2.2; g.add(glow);
-    const base = y + 2.2;
-    animated.push({ update: (t) => { c.rotation.y = t * (0.5 + i * 0.05); c.position.y = base + Math.sin(t * 1.4 + i) * 0.3; glow.position.y = c.position.y; } });
+  /* rugged weathered rock outcrops, moss and buried stone, instead of hovering crystals */
+  const rockColors = [0x817b70,0x75756b,0x8d8676,0x666960];
+  const rockGeo=new THREE.IcosahedronGeometry(1,2);
+  const rockMeshes=new THREE.InstancedMesh(rockGeo,new THREE.MeshStandardMaterial({color:0xffffff,roughness:1,flatShading:true}),85);
+  const rm=new THREE.Matrix4(),rq=new THREE.Quaternion(),rp=new V3(),rs=new V3(),rc=new THREE.Color();
+  for(let i=0;i<85;i++){
+    const a=rnd()*TAU,r=26+rnd()*63,s=0.7+rnd()*3.6;
+    rp.set(Math.cos(a)*r,s*0.38,Math.sin(a)*r);
+    rq.setFromEuler(new THREE.Euler(rnd()*2.0,rnd()*TAU,rnd()*1.4));
+    rs.set(s*(0.85+rnd()*0.5),s*(0.55+rnd()*0.95),s*(0.8+rnd()*0.6));
+    rockMeshes.setMatrixAt(i,rm.compose(rp,rq,rs));rockMeshes.setColorAt(i,rc.setHex(rockColors[i%rockColors.length]));
   }
+  rockMeshes.castShadow=true;rockMeshes.receiveShadow=true;scene.add(rockMeshes);
+  // Broken perimeter columns give the arena a believable ancient-ruins silhouette.
+  const ruinMat=flat(0x878477),capStone=flat(0x726f64);
+  for(let i=0;i<12;i++){
+    const a=TAU*i/12+0.2,rad=24+rnd()*5,h=2.2+rnd()*3.4;
+    const col=new THREE.Group();col.position.set(Math.cos(a)*rad,0,Math.sin(a)*rad);
+    const shaft=shadowy(new THREE.Mesh(new THREE.CylinderGeometry(0.45+0.04*rnd(),0.62,h,9),ruinMat));
+    shaft.position.y=h*0.5;shaft.rotation.z=(rnd()-0.5)*0.16;col.add(shaft);
+    const base=shadowy(new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.95,0.30,9),capStone));
+    base.position.y=0.15;col.add(base);
+    if(i%3===0){const top=shadowy(new THREE.Mesh(new THREE.BoxGeometry(1.3,0.23,1.3),capStone));top.position.y=h+0.06;top.rotation.y=rnd()*TAU;col.add(top);}
+    scene.add(col);
+  }
+  // Irregular paving stones near the edges of the fighting platform.
+  const tileMat=new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.98});
+  const tiles=new THREE.InstancedMesh(new THREE.BoxGeometry(1,0.025,1),tileMat,116);
+  for(let i=0;i<116;i++){
+    const r=9.5+rnd()*8.4,a=rnd()*TAU,sz=0.85+rnd()*1.5;
+    rp.set(Math.cos(a)*r,STAGE_H+0.004,Math.sin(a)*r);
+    rq.setFromEuler(new THREE.Euler(0,a+rnd()*0.6,0));rs.set(sz*1.2,1,sz*0.6);
+    tiles.setMatrixAt(i,rm.compose(rp,rq,rs));
+    tiles.setColorAt(i,rc.setHex([0x949185,0x868577,0x77796f,0xa09d92][i%4]));
+  }
+  tiles.receiveShadow=true;scene.add(tiles);
 
   /* boulders (instanced) */
   const boulderGeo = new THREE.DodecahedronGeometry(1, 0);
@@ -91,8 +102,8 @@ const Arena = (() => {
 
   /* trees (instanced trunks + two canopy layers) */
   const N_TREES = 60;
-  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.35, 0.55, 4, 6), flat(0x7a5236), N_TREES);
-  const canopyGeo = new THREE.IcosahedronGeometry(2.4, 0);
+  const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.35, 0.55, 4, 6), flat(0x574c3e), N_TREES);
+  const canopyGeo = new THREE.IcosahedronGeometry(2.4, 1);
   const can1 = new THREE.InstancedMesh(canopyGeo, flat(0xffffff), N_TREES), can2 = new THREE.InstancedMesh(canopyGeo, flat(0xffffff), N_TREES);
   for (let i = 0; i < N_TREES; i++) {
     const a = rnd() * TAU, r = ARENA_RADIUS + 6 + rnd() * 80, s = 0.8 + rnd() * 0.8;
@@ -101,7 +112,7 @@ const Arena = (() => {
     trunks.setMatrixAt(i, m4.compose(p3.set(x, 2 * s, z), q, sc.set(s, s, s)));
     can1.setMatrixAt(i, m4.compose(p3.set(x, 4.6 * s, z), q, sc.set(s * 1.2, s, s * 1.2)));
     can2.setMatrixAt(i, m4.compose(p3.set(x + 0.4 * s, 6.3 * s, z - 0.3 * s), q, sc.set(s * 0.8, s * 0.75, s * 0.8)));
-    const g = [0x4f9a43, 0x5aa84a, 0x3f8a3c, 0x6bb653][i % 4];
+    const g = [0x597c52, 0x687d54, 0x486b4d, 0x728c65][i % 4];
     can1.setColorAt(i, col.setHex(g)); can2.setColorAt(i, col.setHex(g).offsetHSL(0.01, 0, 0.06));
   }
   [trunks, can1, can2].forEach(o => { shadowy(o); scene.add(o); });
@@ -118,35 +129,37 @@ const Arena = (() => {
       q.setFromEuler(new THREE.Euler((r2() - 0.5) * 0.5, r2() * TAU, (r2() - 0.5) * 0.5));
       const s = 0.6 + r2() * 0.9;
       mesh.setMatrixAt(i, m4.compose(p3.set(x, 0, z), q, sc.set(s, s, s)));
-      mesh.setColorAt(i, col.setHex([0x7dbd57, 0x5e9e45, 0x93cc66][i % 3]));
+      mesh.setColorAt(i, col.setHex([0x81946c, 0x657f54, 0x98a680][i % 3]));
     }
     mesh.receiveShadow = true; scene.add(mesh); qualityGroups.grass = mesh;
   }
 
-  /* distant mountains (instanced) with snow caps */
-  const N_M = 34;
-  const mtn = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), flat(0xffffff), N_M);
-  const snow = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 7), flat(0xf4f8ff), N_M);
-  for (let i = 0; i < N_M; i++) {
-    const a = (i / N_M) * TAU + rnd() * 0.1, r = 230 + rnd() * 70;
-    const h = 45 + rnd() * 70, w = 30 + rnd() * 30;
-    q.setFromEuler(new THREE.Euler(0, rnd() * TAU, 0));
-    mtn.setMatrixAt(i, m4.compose(p3.set(Math.cos(a) * r, h / 2 - 1, Math.sin(a) * r), q, sc.set(w, h, w)));
-    mtn.setColorAt(i, col.setHex(i % 2 ? 0x6c7fa0 : 0x7b8cab));
-    const sh = h * 0.28;
-    snow.setMatrixAt(i, m4.compose(p3.set(Math.cos(a) * r, h - 1 - sh / 2 + 0.4, Math.sin(a) * r), q, sc.set(w * 0.29, sh, w * 0.29)));
-  }
-  scene.add(mtn, snow);
-
-  /* floating islands */
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * TAU + 0.6, r = 80 + rnd() * 60, y = 42 + rnd() * 30, s = 4 + rnd() * 5;
-    const g = new THREE.Group(); g.position.set(Math.cos(a) * r, y, Math.sin(a) * r); scene.add(g);
-    const rock = new THREE.Mesh(new THREE.ConeGeometry(s, s * 1.8, 7), flat(0x9b7a5f)); rock.rotation.x = Math.PI; rock.position.y = -s * 0.9; g.add(rock);
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(s * 1.02, s, s * 0.25, 7), flat(0x6fae4e)); g.add(top);
-    const tree = new THREE.Mesh(canopyGeo, flat(0x4f9a43)); tree.scale.setScalar(s * 0.3); tree.position.set(s * 0.2, s * 0.5, 0); g.add(tree);
-    const baseY = y;
-    animated.push({ update: (t) => { g.position.y = baseY + Math.sin(t * 0.4 + i) * 1.2; g.rotation.y = t * 0.02 + i; } });
+  /* highland mountain ridges: irregular sloped rock faces with snow accumulation */
+  const ridgeRnd=makeRng(3008);
+  for(let i=0;i<28;i++){
+    const a=TAU*i/28+(ridgeRnd()-0.5)*0.07,rad=205+ridgeRnd()*65;
+    const h=35+ridgeRnd()*92,w=34+ridgeRnd()*55;
+    const slices=11,positions=[];
+    const rings=[];
+    for(let j=0;j<3;j++){
+      const r=(j===0?1.0:j===1?0.58:0.09)*w;
+      const y=(j===0?-1:j===1?h*0.55:h);
+      const row=[];
+      for(let k=0;k<slices;k++){
+        const ang=TAU*k/slices;
+        row.push(new V3(Math.cos(ang)*r*(0.7+ridgeRnd()*0.52),y+(j===2?(ridgeRnd()-0.5)*h*0.10:ridgeRnd()*h*0.08),Math.sin(ang)*r*(0.74+ridgeRnd()*0.46)));
+      }
+      rings.push(row);
+    }
+    for(let j=0;j<2;j++)for(let k=0;k<slices;k++){
+      const u=rings[j][k],v=rings[j][(k+1)%slices],t=rings[j+1][k],q=rings[j+1][(k+1)%slices];
+      for(const p of [u,v,t,v,q,t])positions.push(p.x,p.y,p.z);
+    }
+    const geom=new THREE.BufferGeometry();geom.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geom.computeVertexNormals();
+    const mesh=new THREE.Mesh(geom,new THREE.MeshStandardMaterial({color:i%2?0x78867f:0x84877c,roughness:1,flatShading:true,side:THREE.DoubleSide}));
+    mesh.position.set(Math.cos(a)*rad,0,Math.sin(a)*rad);scene.add(mesh);
+    const snowcap=new THREE.Mesh(new THREE.ConeGeometry(w*0.24,h*0.26,9),new THREE.MeshStandardMaterial({color:0xbfc5bd,roughness:1,flatShading:true}));
+    snowcap.position.copy(mesh.position);snowcap.position.y=h*0.88;scene.add(snowcap);
   }
 
   /* clouds */

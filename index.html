@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V43</title>
-<link rel="stylesheet" href="css/game.css?v=42">
+<title>Sky Clash V44</title>
+<link rel="stylesheet" href="css/game.css?v=44">
 </head>
 <body>
 <div id="game"></div>
@@ -71,13 +71,13 @@
 <div id="titleScreen" class="overlay show" role="dialog" aria-modal="true" aria-labelledby="titleH">
   <div class="panel">
     <h1 id="titleH">Sky Clash</h1>
-    <p class="sub">Version 43 · Grounded Combat & Power Charge</p>
+    <p class="sub">Version 44 · Highland Arena & Energy Rework</p>
     <div class="menu">
       <button class="mbtn primary" id="startBtn">Start fight</button>
       <button class="mbtn" id="trainBtn">Training</button>
       <button class="mbtn" id="titleSettingsBtn">Settings</button>
     </div>
-    <p class="hint">V43: body-linked awakening energy, cracked stone charging, improved foot contact, side-dash animation, connected speed trails, and cinematic super-blast hit reactions. No new buttons.</p>
+    <p class="hint">V44: body-linked awakening energy, cracked stone charging, improved foot contact, side-dash animation, connected speed trails, and cinematic super-blast hit reactions. No new buttons.</p>
     <p class="hint loadnote">Loading hero model…</p>
     <p class="hint credit">Quaternius libraries provide twelve retargeted movement and combat clips from the Quaternius Universal Animation Libraries 1 &amp; 2 (CC0). Hero VRM: Seed-san by VirtualCast, Inc. (VRM Public License 1.0). Other motion: CMU Graphics Lab mocap (mocap.cs.cmu.edu). Recorded motion is used where the VRM retargeter is available; character-specific motion sets are still in progress.</p>
   </div>
@@ -155,6 +155,14 @@
             <button data-v="high">High</button>
           </div>
         </div>
+        <div class="row">
+          <span class="lbl">Camera distance</span>
+          <div class="seg" data-setting="cameraDist">
+            <button data-v="close">Close</button>
+            <button data-v="standard">Standard</button>
+            <button data-v="far">Far</button>
+          </div>
+        </div>
         <label class="row toggle"><span class="lbl">Start matches locked on</span><input type="checkbox" id="setLockDefault"></label>
         <label class="row toggle"><span class="lbl">Camera follows movement</span><input type="checkbox" id="setAutoCam"></label>
         <label class="row toggle"><span class="lbl">Invert vertical camera</span><input type="checkbox" id="setInvertY"></label>
@@ -211,6 +219,6 @@
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=42"></script>
+<script src="js/game.js?v=44"></script>
 </body>
 </html>

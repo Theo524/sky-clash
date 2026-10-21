@@ -85,107 +85,114 @@ const Effects = (() => {
       push(shard,0.11+i*0.018,(e)=>{e.obj.material.opacity=0.35*(1-e.t/e.life);},true);
     }
   }
-  // Natural awakening: concentrated light and dust, no straight radial lines or bubble shell.
+  // V44 body-attached awakening: translucent flames rising from limbs and torso,
+  // not a spherical shell. Each fighter keeps its own aura colour.
+  const auraFlameTex = canvasTex(96, 160, (g) => {
+    const grad = g.createLinearGradient(0, 145, 0, 12);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.16, 'rgba(255,255,255,.92)');
+    grad.addColorStop(0.45, 'rgba(255,255,255,.66)');
+    grad.addColorStop(0.80, 'rgba(255,255,255,.22)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.beginPath();g.moveTo(29,151);g.bezierCurveTo(5,103,40,87,34,58);
+    g.bezierCurveTo(32,33,46,21,53,2);g.bezierCurveTo(58,44,83,65,65,103);
+    g.bezierCurveTo(57,124,76,141,64,151);g.closePath();g.fill();
+  }, {srgb:false});
   function awakenBurst(f) {
     const c = f.center;
-    flash(c, 0xffffff, 2.4, 0.11);
-    flash(c, f.pal.aura, 3.9, 0.23);
+    flash(c, 0xffffff, 2.5, 0.09); flash(c, f.pal.aura, 3.6, 0.18);
     bodyAura(f, true);
-    if (!f.flying) {
-      chargeFracture(f, 1.35);
-      dust(f.pos, Settings.get('quality') === 'low' ? 5 : 13);
-    }
-    CameraRig.shake(0.60);
+    if (!f.flying) { chargeFracture(f, 1.32); dust(f.pos, Settings.get('quality') === 'low' ? 5 : 11); }
+    CameraRig.shake(0.27);
   }
-  // Energy wisps attached to actual limb locations. No enveloping geometry.
-  // Every fighter owns its colour through pal.aura, suitable for new characters.
   function bodyAura(f, burst = false) {
     if (!f || f.hp <= 0) return;
-    const rig = f.vrmRig;
-    const H = rig && rig.vrm && rig.vrm.humanoid;
-    const names = burst ? ['head','chest','leftUpperArm','rightUpperArm','leftHand','rightHand','leftUpperLeg','rightUpperLeg','leftFoot','rightFoot']
-      : (Settings.get('quality') === 'low' ? ['chest','leftHand','rightHand'] : ['head','chest','leftUpperArm','rightUpperArm','leftHand','rightHand']);
+    const rig = f.vrmRig, H = rig && rig.vrm && rig.vrm.humanoid;
+    const bones = ['head','chest','leftUpperArm','rightUpperArm','leftHand','rightHand','leftUpperLeg','rightUpperLeg'];
     if (H) rig.vrm.scene.updateMatrixWorld(true);
-    for (let i = 0; i < names.length; i++) {
-      const bone = H && H.getNormalizedBoneNode(names[i]);
-      let p;
-      if (bone) p = bone.getWorldPosition(new V3());
+    const count = burst ? (Settings.get('quality') === 'low' ? 10 : 24) : (Settings.get('quality') === 'low' ? 3 : 7);
+    const origins = [];
+    for (let i = 0; i < bones.length; i++) {
+      const bone = H && H.getNormalizedBoneNode(bones[i]);
+      if (bone) origins.push(bone.getWorldPosition(new V3()));
       else {
-        // Procedural fallback remains compatible with characters without a VRM.
-        const y = names[i] === 'head' ? 2.08 : names[i].includes('Foot') ? 0.25 : names[i].includes('Hand') ? 1.34 : names[i].includes('Leg') ? 0.78 : 1.54;
-        const side = names[i].startsWith('left') ? 1 : names[i].startsWith('right') ? -1 : 0;
-        p = f.pos.clone().add(new V3(side * 0.38, y, 0));
+        const side = bones[i].startsWith('left') ? 1 : bones[i].startsWith('right') ? -1 : 0;
+        const y = bones[i] === 'head' ? 2.04 : bones[i] === 'chest' ? 1.48 : bones[i].includes('UpperLeg') ? 0.66 : bones[i].includes('Hand') ? 1.04 : 1.56;
+        origins.push(f.pos.clone().add(new V3(side * 0.33, y, 0)));
       }
-      const col = i % 5 === 0 ? 0xffffff : f.pal.aura;
-      // A tight moving sheen on the bone, not a separate large glowing sphere.
-      const sz = burst ? 0.52 : names[i] === 'head' ? 0.35 : 0.28;
-      const sp = sprite(TEX.glow, col, sz, burst ? 0.52 : 0.32);
-      sp.position.copy(p).add(new V3((Math.random()-0.5)*0.12, (Math.random()-0.5)*0.08, (Math.random()-0.5)*0.12));
-      const lifetime = burst ? 0.30 : 0.18;
-      push(sp,lifetime,(e,dt)=>{
-        e.obj.position.y += dt * (burst ? 1.3 : 0.47);
-        const k=e.t/e.life;
-        e.obj.material.opacity=(burst?0.52:0.32)*(1-k)*(1-k);
-        e.obj.scale.setScalar(sz*(0.95+0.34*k));
-      });
     }
-    if (!burst && Math.random() < 0.4) {
-      const sp=sprite(TEX.glow, f.pal.aura, 0.21, 0.6);
-      const p = H && H.getNormalizedBoneNode('chest') ? H.getNormalizedBoneNode('chest').getWorldPosition(new V3()) : f.center;
-      sp.position.copy(p).add(new V3((Math.random()-0.5)*0.65, -0.1, (Math.random()-0.5)*0.3));
-      push(sp,0.26,(e,dt)=>{e.obj.position.y+=dt*2.1;e.obj.material.opacity=0.56*(1-e.t/e.life);});
+    for (let i = 0; i < count; i++) {
+      const boneIndex = burst ? i % bones.length : (Math.random() * bones.length) | 0;
+      const origin = origins[boneIndex];
+      const size = burst ? 0.80 : (boneIndex < 2 ? 0.73 : 0.56);
+      const wisp = new THREE.Sprite(new THREE.SpriteMaterial({map:auraFlameTex,
+        color:i % 6 === 0 ? 0xeafaff : f.pal.aura,transparent:true,
+        opacity:burst ? 0.44 : 0.26,depthWrite:false,
+        blending:THREE.AdditiveBlending, fog:false}));
+      const angle = Math.random() * TAU;
+      wisp.position.copy(origin).add(new V3(Math.cos(angle)*(0.10+Math.random()*0.17), -0.04,Math.sin(angle)*(0.10+Math.random()*0.17)));
+      wisp.scale.set(size * 0.77,size * 1.7,1);
+      const velocity = new V3(Math.cos(angle)*0.22,burst?2.6:1.65,Math.sin(angle)*0.22);
+      push(wisp,burst?0.36:0.39,(e,dt)=>{
+        const t=e.t/e.life;e.obj.position.addScaledVector(velocity,dt);
+        e.obj.scale.set(size*(0.77-0.15*t),size*(1.7+0.45*t),1);
+        e.obj.material.opacity=(burst?0.44:0.26)*(1-t)*(1-t);
+      });
     }
   }
   function auraSpark(f) { bodyAura(f); }
 
-  // Surface fracture: visual cracks and lifted chips, no persistent collision changes.
-  // Positioned on the arena's real floor height; dynamically tinted by fighter power.
+  // Subtle pressure phase: dust and air motion, not bright floor circles.
+  function chargePressure(f, lvl) {
+    if (!f || f.flying) return;
+    const center=f.pos, q=Settings.get('quality');
+    const n=q==='low'?1:2+(lvl>0.45?1:0);
+    for(let i=0;i<n;i++) {
+      const a=Math.random()*TAU, r=0.8+Math.random()*1.45;
+      const p=new V3(center.x+Math.cos(a)*r,groundAt(center.x,center.z)+0.06,center.z+Math.sin(a)*r);
+      const s=sprite(TEX.smoke,0xc3baa8,0.65+lvl*0.32,0.21,false);
+      s.position.copy(p);
+      const v=new V3(Math.cos(a)*0.55,0.55+lvl*0.38,Math.sin(a)*0.55);
+      push(s,0.38,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(v,dt);e.obj.scale.setScalar((0.66+lvl*0.3)*(1+t));e.obj.material.opacity=0.21*(1-t);});
+    }
+  }
+  // Fractures are actual irregular displaced stone plates, not bright lines painted
+  // onto the arena. The marks are decorative and do not change collision physics.
   function chargeFracture(f, strength = 1) {
     if (!f || f.flying) return;
-    const q = Settings.get('quality');
-    const center = f.pos.clone();
-    const rays = q === 'low' ? 5 : 9;
-    const col = Math.hypot(center.x, center.z) < STAGE_R * 0.90 ? 0x322f32 : 0x365537;
-    const glow = f.pal.aura;
-    const crackMaterial = color => new THREE.MeshBasicMaterial({ color, transparent:true, opacity:0.82, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-1 });
-    for (let j=0; j<rays; j++) {
-      const angle=TAU*j/rays+(Math.random()-0.5)*0.18;
-      let px=center.x, pz=center.z;
-      const parts=2+(j%2);
-      for(let k=0;k<parts;k++) {
-        const step=(0.33 + Math.random()*0.34) * strength;
-        const a=angle + (Math.random()-0.5)*0.4;
-        const nx=px+Math.cos(a)*step, nz=pz+Math.sin(a)*step;
-        const py=groundAt((px+nx)/2,(pz+nz)/2)+0.024;
-        if (Math.abs(groundAt(px,pz)-groundAt(nx,nz))>0.12) break;
-        const dx=nx-px,dz=nz-pz,dist=Math.hypot(dx,dz),w=0.027+0.013*(1-k/parts);
-        const ux=-dz/dist*w,uz=dx/dist*w;
-        const geo=new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute([
-          px+ux,py,pz+uz, nx+ux,py,nz+uz, nx-ux,py,nz-uz,
-          px+ux,py,pz+uz, nx-ux,py,nz-uz, px-ux,py,pz-uz],3));
-        geo.computeVertexNormals();
-        const crack=new THREE.Mesh(geo,crackMaterial(k%4===0?glow:col));
-        const alpha=k%4===0?0.50:0.82;
-        crack.material.opacity=alpha;
-        push(crack,2.35,(e)=>{ const t=e.t/e.life;e.obj.material.opacity=alpha*(1-smooth01((t-0.63)/0.37));},true);
-        px=nx; pz=nz;
+    const p = f.pos, stage = Math.hypot(p.x,p.z) < STAGE_R * 0.88;
+    const q=Settings.get('quality');
+    const pieces = q==='low'?7:q==='medium'?11:15;
+    const rand=makeRng(((Math.abs(p.x)*1489+Math.abs(p.z)*807+p.y*333)*97)|0);
+    const Y=groundAt(p.x,p.z);
+    const n=pieces,outer=1.25+0.85*strength;
+    for(let j=0;j<n;j++) {
+      const a0=TAU*j/n+0.035, a1=TAU*(j+1)/n-0.045, mid=(a0+a1)/2;
+      const r0=0.32+rand()*0.26,r1=outer*(0.75+rand()*0.30);
+      const x0=Math.cos(a0), z0=Math.sin(a0),x1=Math.cos(a1),z1=Math.sin(a1);
+      const shape=new THREE.Shape();shape.moveTo(Math.cos(mid)*r0,Math.sin(mid)*r0);
+      shape.lineTo(x0*(0.57*r1),z0*(0.57*r1));
+      shape.lineTo(x0*r1,z0*r1);
+      shape.lineTo(Math.cos(mid)*r1*(0.92+rand()*0.14),Math.sin(mid)*r1*(0.92+rand()*0.14));
+      shape.lineTo(x1*r1*(0.82+rand()*0.12),z1*r1*(0.82+rand()*0.12));
+      shape.lineTo(x1*(0.55*r1),z1*(0.55*r1));
+      shape.lineTo(Math.cos(mid)*r0,Math.sin(mid)*r0);shape.closePath();
+      const geo=new THREE.ExtrudeGeometry(shape,{depth:0.035+rand()*0.045,bevelEnabled:false,steps:1,curveSegments:1});
+      geo.computeVertexNormals();
+      const color=stage?[0x928d84,0xaca69b,0x78766e][j%3]:[0x786c57,0x6a6653,0x8c8168][j%3];
+      const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color,roughness:0.98,metalness:0,transparent:true,opacity:0.98}));
+      mesh.rotation.x=-Math.PI/2;mesh.rotation.z=(rand()-0.5)*0.055;
+      mesh.position.set(p.x,Y+0.012,p.z);mesh.receiveShadow=true;mesh.castShadow=false;
+      const base=mesh.position.y, lift=(0.025+rand()*0.11)*strength;
+      push(mesh,2.7,(e)=>{const t=e.t/e.life;e.obj.position.y=base+lift*smooth01(t/0.22)*(1-0.5*smooth01((t-0.38)/0.62));e.obj.material.opacity=0.98*(1-smooth01((t-0.76)/0.24));},true);
+      if(q!=='low' && j%3===0) {
+        const d=sprite(TEX.smoke,stage?0xb6afa1:0xa9a78d,0.8,0.22,false);
+        d.position.set(p.x+Math.cos(mid)*r1*0.9,Y+0.07,p.z+Math.sin(mid)*r1*0.9);
+        push(d,0.64,(e,dt)=>{const t=e.t/e.life;e.obj.position.y+=dt*0.62;e.obj.scale.setScalar(0.7+t*1.3);e.obj.material.opacity=0.22*(1-t);});
       }
     }
-    const chunks=q==='low'?4:10;
-    for(let i=0;i<chunks;i++) {
-      const ang=TAU*i/chunks+(Math.random()-0.5)*0.2;
-      const r=0.45+Math.random()*1.35;
-      const x=center.x+Math.cos(ang)*r, z=center.z+Math.sin(ang)*r, y=groundAt(x,z);
-      const mesh=new THREE.Mesh(new THREE.TetrahedronGeometry(0.08+Math.random()*0.14),
-        new THREE.MeshLambertMaterial({color:Math.hypot(x,z)<STAGE_R*0.90?0x928982:0x777563,transparent:true,opacity:0.9}));
-      mesh.position.set(x,y+0.06,z);
-      const peak=0.13+Math.random()*0.32;
-      push(mesh,0.92,(e)=>{const t=e.t/e.life;
-        e.obj.position.y=y+0.06+4*peak*t*(1-t);
-        e.obj.rotation.x+=0.03;e.obj.rotation.y+=0.06;
-        e.obj.material.opacity=0.9*(1-smooth01((t-0.6)/0.4));},true);
-    }
+    dust(p, q==='low'?3:7);
   }
   function trail(pos, color, size) {
     const s = sprite(TEX.glow, color, size, 0.55); s.position.copy(pos);
@@ -275,8 +282,8 @@ const Effects = (() => {
   }
   function chargeFull(f) {
     const col = f.awakened ? f.pal.aura : f.pal.ki;
-    flash(f.orb.position, 0xffffff, 3.8, 0.17); flash(f.center, col, 3.5, 0.22); sparks(f.orb.position, col, 14, new V3(0,1,0), 1.15); groundRing(f, 0.9);
-    if (f === Game.player) { CameraRig.shake(0.24); if (Settings.get('haptics') && navigator.vibrate) navigator.vibrate(24); }
+    flash(f.orb.position, 0xffffff, 3.8, 0.17); flash(f.center, col, 3.5, 0.22); sparks(f.orb.position, col, 14, new V3(0,1,0), 1.15); 
+    if (f === Game.player) { CameraRig.shake(0.10); if (Settings.get('haptics') && navigator.vibrate) navigator.vibrate(24); }
   }
   // big blast explosion
   // Cinematic super impact: a concentrated plasma detonation and smoke, not
@@ -332,32 +339,53 @@ const Effects = (() => {
   // blocked hit: small blue-white shield flash
   // Sustained sprint/flight has no per-frame particles: prevents a comet or meteor silhouette.
   function sprintTrail(f) {}
-  // DBZ-inspired vanish: instantaneous departure/arrival ghost streaks, no ring or long trail.
-  // The actual teleport remains in Fighter.tryVanish, purely cosmetic trails here.
-  function vanish(from, to, col, perfect) {
-    function residue(p, entering) {
-      flash(p, 0xffffff, entering ? 2.3 : 1.9, 0.07);
-      flash(p, col, entering ? 3.0 : 2.4, 0.12);
-      for (let j=0;j<4;j++) {
-        const a = (j/4)*TAU;
-        const ghost=sprite(TEX.glow, j === 0 ? 0xffffff : col, 0.3, 0.33);
-        ghost.position.copy(p).add(new V3(Math.sin(a)*0.21, 0.2 + (j%2)*0.72, Math.cos(a)*0.21));
-        const v = new V3((Math.random()-0.5)*2.3, entering ? 1.9 : -1.6, (Math.random()-0.5)*2.3);
-        const z=0.11+j*0.025;
-        push(ghost,z,(e,dt)=>{const k=e.t/e.life;e.obj.position.addScaledVector(v,dt);e.obj.scale.set(0.26*(1-k*0.5),1.55*(1-k),1);e.obj.material.opacity=0.33*(1-k)*(1-k);});
+  // V44 vanish: readable full-body afterimage + converging energy slashes, no ring.
+  const vanishSilhouette = canvasTex(96, 192, (g) => {
+    g.fillStyle='rgba(255,255,255,.88)';
+    g.beginPath();g.ellipse(48,30,13,15,0,0,TAU);g.fill();
+    g.beginPath();g.moveTo(33,50);g.lineTo(63,50);g.lineTo(69,106);g.lineTo(27,106);g.closePath();g.fill();
+    g.lineCap='round';g.lineJoin='round';g.lineWidth=14;
+    g.beginPath();g.moveTo(33,58);g.lineTo(20,100);g.moveTo(63,58);g.lineTo(78,100);g.stroke();
+    g.lineWidth=17;g.beginPath();g.moveTo(38,107);g.lineTo(34,160);g.moveTo(58,107);g.lineTo(63,160);g.stroke();
+  },{srgb:false});
+  function vanish(from,to,col,perfect) {
+    const travel=to.clone().sub(from);const flat=travel.clone().setY(0);
+    const dir=flat.lengthSq()>0.02?flat.normalize():new V3(0,0,1);
+    const side=new V3(-dir.z,0,dir.x);
+    const hue=col; // keep each fighter's existing ki / awakening colour, including perfect vanishes
+    const ghostAt=(at,departure)=>{
+      for(let j=0;j<2;j++){
+        const g=new THREE.Sprite(new THREE.SpriteMaterial({map:vanishSilhouette,
+          color:j?0xffffff:hue,transparent:true,opacity:j?0.24:0.58,depthWrite:false,
+          blending:THREE.AdditiveBlending,fog:false}));
+        g.position.copy(at).addScaledVector(side,(j?0.12:-0.12));
+        // Effect positions are at torso height: full silhouette aligns with fighter feet.
+        g.position.y+=0.05;g.scale.set(1.12,2.45,1);
+        push(g,departure?0.24:0.22,(e,dt)=>{
+          const t=e.t/e.life;e.obj.position.addScaledVector(dir,(departure?-1:1)*dt*2.2);
+          e.obj.scale.set(1.12*(1-t*0.1),2.45*(1-t*0.16),1);
+          e.obj.material.opacity=(j?0.24:0.58)*(1-t)*(1-t);
+        });
       }
-      sparks(p, col, perfect ? 10 : 5, new V3(0,1,0), 0.8);
-    }
-    residue(from, false);
-    // Show the new arrival a beat later: blink-out -> blink-in without a travelled ring.
-    const ghost = sprite(TEX.glow, col, 0.01, 0);
-    push(ghost, 0.11, (e)=>{
-      if (!e.done && e.t > 0.07) { e.done=true; residue(to, true); }
-    });
+      flash(at,0xffffff,1.6,0.07);flash(at,hue,2.3,0.13);
+      sparks(at,hue,perfect?17:11,dir,1.15);
+      for(let i=0;i<(Settings.get('quality')==='low'?5:10);i++){
+        const x=(i/9-0.5)*1.75;
+        const start=at.clone().addScaledVector(side,x).add(new V3(0,(i%5)*0.37-0.75,0));
+        const d=dir.clone().multiplyScalar((departure?-1:1)*(0.85+Math.random()*1.15));
+        const mesh=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.026,0.8+Math.random()*0.7,3),
+          new THREE.MeshBasicMaterial({color:i%4===0?0xffffff:hue,transparent:true,opacity:0.73,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+        mesh.position.copy(start);mesh.quaternion.setFromUnitVectors(new V3(0,1,0),d.clone().normalize());
+        push(mesh,0.20,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(d,dt*2.0);e.obj.material.opacity=0.73*(1-t)*(1-t);},true);
+      }
+    };
+    ghostAt(from,true);
+    const timer=sprite(TEX.glow,hue,0.01,0);
+    push(timer,0.14,(e)=>{if(!e.done && e.t>0.065){e.done=true;ghostAt(to,false);}});
   }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { bodyAura, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 

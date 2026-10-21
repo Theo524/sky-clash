@@ -43,7 +43,7 @@ const TUNING = {
 const Settings = (() => {
   const KEY = 'skyclash.v4.settings';
   const defaults = { sens: 1.0, dashLock: 'resume', difficulty: 'normal', quality: 'medium',
-    lockDefault: false, rival: 'fight', autoCam: true, invertY: false, haptics: true, sound: true, acrobatics: true, fps: false, rounds: '3', timer: '99' };
+    lockDefault: false, rival: 'fight', cameraDist: 'standard', autoCam: true, invertY: false, haptics: true, sound: true, acrobatics: true, fps: false, rounds: '3', timer: '99' };
   let data = { ...defaults };
   try { Object.assign(data, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   const listeners = [];

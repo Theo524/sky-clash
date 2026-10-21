@@ -154,12 +154,12 @@ class Fighter {
       if (this.flying && this.pos.y > this.floor + 3.5) this.startAcro('airRoll', 0.46, Math.sign(side));
       else if (!this.flying) this.startAcro('evade', 0.38, Math.sign(side));
     }
-    Sound.play('dash'); Spectacle.dashStart(this); CameraRig.shake(this === Game.player ? 0.085 : 0.045); this.dashWakeT = 0; if (!this.flying) Effects.dust(this.pos, 3);
+    Sound.play('dash'); if (this === Game.player) CameraRig.shake(0.028); Spectacle.dashStart(this); CameraRig.shake(this === Game.player ? 0.085 : 0.045); this.dashWakeT = 0; if (!this.flying) Effects.dust(this.pos, 3);
   }
   // hold Run: start running straight away (no dash needed)
   startRun() {
     if (this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
-    this.sprinting = true; return true;
+    this.sprinting = true; if (this === Game.player) CameraRig.shake(0.012); return true;
   }
   tryAwaken() {
     if (this.awakened || this.energy < TUNING.awakenCost) return false;
@@ -190,7 +190,7 @@ class Fighter {
     }
     // charged blast: hold to charge, release to fire; a quick tap fires a normal blast
     if (this.chargeHeld && !this.charging && this.blastCd <= 0 && this.stun <= 0 && !this.dashing && this.energy >= TUNING.blastCost && this.windT <= 0) {
-      this.charging = true; this.chargeT = 0; this.chargeFull = false; this.chargeCracked = false;
+      this.charging = true; this.chargeT = 0; this.chargeFull = false; this.chargeCracked = false; this.pressureT = 0;
     }
     if (this.charging) {
       if (this.stun > 0 || this.dashing) this.cancelCharge();
@@ -203,10 +203,15 @@ class Fighter {
         this.chargeT = Math.min(this.chargeT + dt, TUNING.chargeMin + TUNING.chargeTime * maxLvl);
         const lvl = this.chargeLevel;
         if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; Effects.chargeFull(this); }
-        // The arena reacts once per ground charge: cracks + lifting stone chips.
-        if (!this.chargeCracked && !this.flying && this.chargeT > 0.38) {
-          this.chargeCracked = true; Effects.chargeFracture(this);
-          if (this === Game.player) CameraRig.shake(0.14);
+        // Hybrid environment choreography: compressed air first, fractured flagstones
+        // only in the last moments of a powerful ground charge.
+        if (!this.flying && this.chargeT > 0.15) {
+          this.pressureT -= dt;
+          if (this.pressureT <= 0) { this.pressureT = 0.16; Effects.chargePressure(this, lvl); }
+        }
+        if (!this.chargeCracked && !this.flying && lvl >= 0.90) {
+          this.chargeCracked = true; Effects.chargeFracture(this, 0.95);
+          if (this === Game.player) CameraRig.shake(0.075);
         }
         this.chargeFx -= dt;
         if (this.chargeT > 0.12 && this.chargeFx <= 0) { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
@@ -765,12 +770,13 @@ class Fighter {
     const lvc = this.chargeLevel, showOrb = this.charging && this.chargeT > 0.08;
     this.orb.visible = this.orbCore.visible = showOrb;
     if (showOrb) {
-      const op = this.center.addScaledVector(this.forward(), 0.68); op.y -= 0.02;
-      const pulse = 1 + Math.sin(this.t * (lvc >= 1 ? 30 : 14)) * (lvc >= 1 ? 0.12 : 0.05);
-      const sz = (0.34 + 0.82 * lvc) * pulse;
+      const op = this.center.addScaledVector(this.forward(), 0.68); op.y -= 0.05;
+      // Visual cap independent of charge damage: compact, bright, never hides the torso.
+      const pulse = 1 + Math.sin(this.t * (lvc >= 1 ? 28 : 12)) * 0.045;
+      const sz = (0.22 + 0.26 * lvc) * pulse;
       this.orb.position.copy(op); this.orbCore.position.copy(op);
-      this.orb.scale.setScalar(sz * 1.26); this.orbCore.scale.setScalar(sz * 0.70);
-      this.orb.material.opacity = 0.52 + 0.10 * lvc;
+      this.orb.scale.setScalar(sz * 1.38); this.orbCore.scale.setScalar(sz * 0.66);
+      this.orb.material.opacity = 0.48 + 0.12 * lvc;
       this.orb.material.color.setHex(aw ? this.pal.aura : this.pal.ki);
     }
     // Awakening/charging keeps its usual aura; Boost uses thin speed streaks, never a meteor.

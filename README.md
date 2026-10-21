@@ -1,32 +1,35 @@
-# Sky Clash V42 — Living Energy & Arena Impact
+# Sky Clash V44 — Highland Arena & Energy Rework
 
-Single-file and modular browser builds for Sky Clash. V42 builds on V41, including all prior mechanics.
+The complete **modular browser game**, preserving the combat, VRM fighter, original small projectile, Quaternius animation data and existing touch/keyboard controls from V43.
 
-## V42 changes
-- Melee movement follows a short contact-timed step and plants at impact, rather than constantly driving forward.
-- Ground punch and aerial strike recorded clips apply to the upper body, leaving the lower-body footwork/air stance in control.
-- The aerial fourth combo is a compact driving air strike, not the full-body roundhouse clip. Launch/spike gameplay is unchanged.
-- Vanish uses a coloured near-instant blink with brief wisps, not a teleport ring or connecting trail.
-- Floor-dash air-pressure ring and trail remain; aerial dash and high-speed flight gain short upper-body speed streaks. Dash recovery stays upright.
-- Awakening aura contours the character's body with low alpha and per-fighter tint; less of a bubble.
-- Small blast visuals are preserved. Charged projectiles add an elongated plasma core, fins and stronger impact lighting without large rings.
-- The circular ground shadow fades out completely when sufficiently high above the floor.
+## Changes in V44
 
-### New in V42
-- Replaced the aura shell with animated bone-anchored energy highlights and wisps, recoloured per fighter.
-- Replaced straight awakening lines with burst light, dust, and ground fractures.
-- Ground charging fractures the stage visually and lifts small pieces of debris; no terrain collision changes.
-- Added a grounded VRM ankle/toe/knee contact correction after retargeted animation to reduce ground penetration.
-- Added two retargeted Quaternius UAL2 dash clips for lateral evasions (legs only, no weapon arm poses), plus the ninja aerial idle clip for gentle hovering.
-- Reduced recoil overlean after Boost and anchored flight/dash ribbons to character joints.
-- Fully charged hits now trigger a dedicated, recorded knockback pose and airborne recoil, plus a softer plasma/smoke explosion. The normal blast is unchanged.
-- Perf: the new effects respect the existing quality setting and despawn automatically.
+- **Charge-up choreography:** compact energy core which never grows to cover the torso; light pressure-driven dust starts early, with a one-time burst of actual irregular lifted floor plates at 90% charge. The ground geometry and physics do not change; the plates are temporary visual effects and fade out. Extra camera shake has been reduced.
+- **Awakening:** more visible translucent rising wisps anchored to limbs, upper torso and head; keeps per-character aura colours without a large bubble. The transformation uses a localized stone fracture and dust rather than initial straight glowing lines.
+- **Vanish:** stronger coloured full-body afterimages at departure/arrival and several brief directional energy strokes, no circle effect.
+- **Camera:** Settings → Camera distance → **Close / Standard / Far**, smooth transitions in free camera and lock-on; a very small shake on initial boost and less shake elsewhere.
+- **Arena:** weathered stone paving, irregular mountain ridges, rugged rock outcrops, broken ruins and quieter natural foliage/lighting; removed floating islands and crystal-topped mesas. Stylized procedural environment, **not photoreal scanned assets**. Collision layout remains unchanged.
+- **Preserved:** the ground Boost trail/pressure ring, compact standard blast, combat input layout and modular structure. V42's VRM-loading JavaScript fix remains present.
 
-## Publishing
-Upload **all contents** of this directory to the root of your GitHub Pages repository, or use the separately provided **V42 Update Only ZIP**, which contains the replacement `index.html` and `js/game.js` for an existing V38+ folder site.
+## Publish to GitHub Pages
 
-The `src/` modules are editable. Run `python tools/build.py` after editing source to regenerate `js/game.js`. Launch `index.html` through an HTTP server or GitHub Pages for the modular build, or use the standalone HTML file for local playback.
+If your repository already has a V38+ folder layout, download **Sky-Clash-V44-Update-Only.zip**, extract it, and upload the contained `index.html`, `js/game.js` and modified `src/*.js` files **to their matching existing paths**. The ZIP opens directly at the project root — there is no extra enclosing folder.
 
-## Validation
-`node --check js/game.js`, `node tests/smoke.js`, and `node tests/combat-effects.js`.
-Geometry and JavaScript checks are not a substitute for GPU/mobile animation tests.
+If the repository lacks those folders, upload the **Full Project ZIP** contents instead. Be careful not to put `index.html` inside a nested directory.
+
+Run `python tools/build.py` to rebuild `js/game.js` from all `src/*.js` files.
+
+For the modular project, use a local HTTP server (`python -m http.server`) or GitHub Pages. The separately provided standalone HTML embeds all necessary libraries/assets for offline testing.
+
+## Checks
+
+```sh
+node --check js/game.js
+node tests/smoke.js
+node tests/combat-effects.js
+node tests/fighter-flow.js
+node tests/v44-effects.js
+node tests/v44-arena.js
+```
+
+These checks exercise syntax, environment/effect construction, projectile geometry and cleanup but **do not visually validate** GPU rendering or Android performance.
