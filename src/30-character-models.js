@@ -466,7 +466,9 @@ class VRMRig {
     if (!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
       this.vrm.scene.updateMatrixWorld(true);
       const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
-      let correction = 0;
+      // Measure against the current mesh offset, so the lift settles to a stable
+      // support-foot height rather than repeatedly raising then dropping the rig.
+      let correction = -Infinity;
       const joint = this._floorJoint || (this._floorJoint = new V3());
       for (const name of footNames) {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
@@ -483,7 +485,9 @@ class VRMRig {
       }
       // Remove the previous frame's lift before re-measuring to avoid drift.
       this.footLift = (this.footLift || 0);
-      const wanted = clamp(correction, 0, 0.09);
+      // Small negative adjustments correct feet visibly hovering above the floor.
+      // Never move the gameplay hitbox, and keep the correction deliberately tiny.
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.055, 0.085);
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 18 : 12, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;

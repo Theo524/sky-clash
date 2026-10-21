@@ -306,8 +306,12 @@ const Game = {
   updateHUD() {
     const p = this.player, e = this.enemy;
     $('pHp').style.width = p.hp + '%'; $('pEn').style.width = p.energy + '%';
+    $('pSt').style.width = (p.stamina || 0) + '%';
     $('eHp').style.width = e.hp + '%'; $('eEn').style.width = e.energy + '%';
+    $('eSt').style.width = (e.stamina || 0) + '%';
     $('pGd').style.width = p.guard + '%'; $('eGd').style.width = e.guard + '%';
+    $('pStBar').classList.toggle('low', p.exhausted || p.stamina < 24);
+    $('eStBar').classList.toggle('low', e.exhausted || e.stamina < 24);
     $('pGdBar').classList.toggle('low', p.guard < 30); $('eGdBar').classList.toggle('low', e.guard < 30);
     $('pGdBar').classList.toggle('active', p.blocking); $('eGdBar').classList.toggle('active', e.blocking);
     document.querySelector('.cbtn.block').classList.toggle('on', p.blocking);
@@ -315,7 +319,7 @@ const Game = {
     const mb = document.querySelector('.cbtn.melee');
     const step = p.t - p.lastMelee > TUNING.comboWindow ? 0 : p.combo;
     mb.classList.toggle('combo-ready', step > 0 && p.stun <= 0);
-    $('meleeHint').textContent = step ? `${step + 1}/4 · ${step === 3 ? 'FINISH' : 'chain'}` : '4-hit combo';
+    $('meleeHint').textContent = step ? `${step + 1}/4 · ${step === 3 ? 'FINISH' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
     bb.style.setProperty('--charge', p.charging ? Math.max(0.04, p.chargeLevel) : 0);
     bb.classList.toggle('charging', p.charging); bb.classList.toggle('full', p.chargeFull);
     // white "recent damage" bar drains after a short delay

@@ -1,4 +1,4 @@
-# Sky Clash V46 · Dojo Hub
+# Sky Clash V47 · Dojo Hub
 
 ## Main menu / loading
 A dedicated startup loading screen reports model preparation. The menu opens after models finish or after a 12-second safe fallback, so slow model loading cannot trap the user. The menu offers **Enter the Dojo**, **Enter Battle**, and **Settings**.
@@ -10,9 +10,9 @@ A separate, indoor cedar-and-tatami training hall replaces the outdoor tournamen
 The `src/25-dojo.js` module owns equipment and training collision, not the fighter mesh. It can be replaced by character-specific spaces (e.g. firearm target range) without rebuilding matchmaking, menus or the main arena.
 
 ## Install
-Extract the V46 GitHub Update ZIP into your repository root while preserving folder structure. In particular overwrite `index.html`, `css/game.css`, `js/game.js`, and upload `src/25-dojo.js` plus the changed source modules. GitHub Pages displays V46 only after deployment.
+Extract the V47 GitHub Update ZIP into your repository root while preserving folder structure. In particular overwrite `index.html`, `css/game.css`, `js/game.js`, and upload `src/25-dojo.js` plus the changed source modules. GitHub Pages displays V47 only after deployment.
 
-# Sky Clash V46 — Awakening Unleashed
+# Sky Clash V47 — Awakening Unleashed
 
 This folder deploys directly to GitHub Pages. **Do not upload the ZIP itself**: extract and preserve folder paths.
 
@@ -35,3 +35,15 @@ From this directory run `python tools/build.py` to bundle the sequential `src/*.
 Check `node --check js/game.js` and `node tests/v45-awakening.js` before publishing.
 
 Model / animation credits remain in index.html. Runtime rendering quality requires Android/browser playtesting.
+
+
+## V47 — Combat Flow & Stamina
+
+- Separate 100-point **stamina bar**: sprinting consumes 16.5 points per second on the floor and 22 in the air, dash costs 17, Vanish 14. Stamina cannot be refilled by dojo KI bonuses. When exhausted, boost locks until stamina is back above 28.
+- Stamina recovers after a brief rest; walking and guarding do not require stamina. KI is still used by special abilities.
+- Five newly retargeted Quaternius Standard CC0 recordings: idle, crouch idle, crouch locomotion, airborne loop and overhand throw (reserved for high-charge blast release). These blend over the procedural rig and existing locomotion clips.
+- More stable aerial speed/turn posture, reduced exaggerated run lean, smoother landing/stop recovery and less noisy idle hover.
+- The third combo beat now alternates an animated hook and a short overhand, instead of repeating the exact same 4-hit choreography forever. The sparring AI now occasionally retreats to regain stamina.
+- Continue the V46 dojo, loading screen, match, Awakening and defensive Vanish systems.
+
+**Performance note:** CSS and motions are lightweight. These are authored blending improvements, not a full motion-matching database or realistic foot IK. The lower-leg/ground-contact system remains a bounded corrective, and visual device testing is necessary.

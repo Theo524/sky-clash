@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V46 — Dojo Hub</title>
-<link rel="stylesheet" href="css/game.css?v=46">
+<title>Sky Clash V47 — Combat Flow & Stamina</title>
+<link rel="stylesheet" href="css/game.css?v=47">
 </head>
 <body>
 <div id="game"></div>
@@ -48,7 +48,8 @@
     <div class="barstack">
       <div class="name">You <b id="pHpNum">100</b><span class="pips hidden" id="pPips"></span></div>
       <div class="bar hp"><s id="pLag"></s><i id="pHp"></i></div>
-      <div class="bar en" id="pEnBar"><i id="pEn"></i></div>
+      <div class="bar en" id="pEnBar" title="KI — abilities and blasts"><i id="pEn"></i></div>
+      <div class="bar st" id="pStBar" title="STAMINA — sprint and evasive movement"><i id="pSt"></i><span>STA</span></div>
       <div class="awaken-meter" id="pAwMeter" title="Awakening power — fill by fighting"><span>AWAKEN</span><div class="awaken-track"><i id="pAwGauge"></i></div></div>
       <div class="bar gd" id="pGdBar"><i id="pGd"></i></div>
     </div>
@@ -61,7 +62,8 @@
     <div class="barstack">
       <div class="name"><span class="pips hidden" id="ePips"></span><b id="eHpNum">100</b> Rival</div>
       <div class="bar hp"><s id="eLag"></s><i id="eHp"></i></div>
-      <div class="bar en"><i id="eEn"></i></div>
+      <div class="bar en" title="KI"><i id="eEn"></i></div>
+      <div class="bar st" id="eStBar" title="Stamina"><i id="eSt"></i><span>STA</span></div>
       <div class="bar gd" id="eGdBar"><i id="eGd"></i></div>
     </div>
   </div>
@@ -94,7 +96,7 @@
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
     <div class="home-identity"><span class="home-eyebrow">CHARACTER · MARTIAL ARTIST</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">V46 / THE DOJO UPDATE</div>
+    <div class="home-menu"><div class="home-version">V47 / COMBAT FLOW UPDATE</div>
       <button class="home-action home-primary" id="trainBtn"><span class="action-number">01</span><span><b>Enter the Dojo</b><small>Your training space · Props · Sparring</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="startBtn"><span class="action-number">02</span><span><b>Enter Battle</b><small>Fight in the Highland Arena</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="titleSettingsBtn"><span class="action-number">03</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
@@ -252,6 +254,6 @@ return{progress,finish};})();
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=46"></script>
+<script src="js/game.js?v=47"></script>
 </body>
 </html>

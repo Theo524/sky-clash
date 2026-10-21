@@ -336,3 +336,12 @@ body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:.5;pointer-events:
 @media(max-width:650px){#titleScreen .home-shell{grid-template-columns:1fr;padding:16px;gap:12px}.home-identity h1{font-size:clamp(49px,13vw,85px);margin:10px 0}.home-identity p{display:none}.home-menu{padding:12px;gap:7px}.home-action{min-height:57px;padding:9px 11px}.home-action b{font-size:16px}.home-footer{display:none}.dojo-tools{top:calc(105px + var(--safe-t));right:calc(6px + var(--safe-r));left:calc(6px + var(--safe-l));gap:5px;justify-content:center}.dojo-tools-title{display:none}.dojo-select select,.dojo-tools button{min-height:29px;font-size:10px;padding:4px 6px}}
 @media(max-height:530px) and (orientation:landscape){#titleScreen .home-shell{grid-template-columns:1fr minmax(280px,440px)}.home-identity h1{font-size:clamp(48px,8vw,110px)}.home-action{min-height:48px;padding:8px 11px}.home-menu{gap:4px;padding:10px}.home-tip{display:none}.dojo-tools{top:calc(75px + var(--safe-t));left:50%;transform:translateX(-50%);width:max-content}}
 body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:1;pointer-events:auto}
+
+/* V47 - Physical stamina is separate from energy and Awakening. */
+.bar.st{height:10px;width:77%;border-width:1px;border-color:rgba(198,245,163,.5);background:rgba(14,22,17,.78)}
+.bars.right .bar.st{margin-left:auto}
+.bar.st i{background:linear-gradient(180deg,#d3fca9,#85ca5e);transition:width .08s linear}
+.bar.st.low i{background:linear-gradient(180deg,#ffbca3,#df664e)}
+.bar.st span{position:absolute;right:5px;top:-1px;color:#0c2014;font-size:8px;line-height:10px;font-weight:900;letter-spacing:.08em;pointer-events:none}
+.bars.right .bar.st span{right:auto;left:5px}
+@media(max-width:700px){.bar.st{height:8px}.bar.st span{line-height:8px;font-size:7px}}

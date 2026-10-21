@@ -31,6 +31,10 @@ const TUNING = {
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
   awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
+  // Dedicated physical stamina. Unlike ki, it cannot be refilled by Dojo energy perks.
+  staminaMax: 100, staminaSprintGround: 16.5, staminaSprintAir: 22,
+  staminaDash: 17, staminaVanish: 14, staminaRecovery: 24,
+  staminaRestDelay: 0.72, staminaExhaustThreshold: 28,
   jumpVel: 14, gravity: 34, jumpToFly: 0.28, slamMinHeight: 1.6, slamWind: 0.14, slamSpeed: 42, slamRadius: 5.5, slamDamage: 12, slamUp: 10, slamLag: 0.3,
   sprintSpeed: 23, flySprintSpeed: 30, sprintTurn: 4.5, sprintDrainGround: 2, sprintDrainAir: 6, sprintMinEnergy: 4,
   vanishCost: 20, vanishRefund: 12, vanishCooldown: 0.9, vanishHide: 0.13, vanishInvuln: 0.32, vanishBehind: 2.6, vanishRange: 32, vanishStun: 0.55,

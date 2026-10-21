@@ -28,6 +28,10 @@ class Fighter {
     this.facing = yawFromDir(-this.spawn.x, -this.spawn.z);
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
+    this.stamina = TUNING.staminaMax; this.staminaRestT = 0;
+    this.exhausted = false; this.staminaNoticeT = 0;
+    this.flightBlend = 0; this.flightSpeedBlend = 0; this.airBank = 0;
+    this.comboCycle = 0; this.attackVariant = 'hook';
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
     this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
@@ -50,6 +54,32 @@ class Fighter {
     if (this.acro && this.acro.type === 'flip' && type !== 'landing') return;
     this.acro = { type, t: 0, duration, direction };
     this.lastAcroAt = this.t;
+  }
+  // Sprint lockout prevents immediately re-enabling boost every frame after depletion.
+  useStamina(cost) {
+    if (this.exhausted || this.stamina < cost) return false;
+    this.stamina = Math.max(0, this.stamina - cost);
+    this.staminaRestT = TUNING.staminaRestDelay;
+    if (this.stamina <= 0.001) this.exhausted = true;
+    return true;
+  }
+  updateStamina(dt) {
+    this.staminaNoticeT = Math.max(0, this.staminaNoticeT - dt);
+    if (this.sprinting || this.dashing) {
+      const drain = this.sprinting ? (this.flying ? TUNING.staminaSprintAir : TUNING.staminaSprintGround) : 0;
+      if (drain > 0) {
+        this.stamina = Math.max(0, this.stamina - drain * dt);
+        this.staminaRestT = TUNING.staminaRestDelay;
+        if (this.stamina < 0.001) { this.exhausted = true; this.sprinting = false;
+          this.sprintHeld = false; this.skidT = this.flying ? 0 : TUNING.skidTime * 0.45;
+          if (this === Game.player && this.staminaNoticeT <= 0) { Game.callout('Out of stamina', 'parry'); this.staminaNoticeT = 1.4; }
+        }
+      }
+    } else if ((this.staminaRestT = Math.max(0, this.staminaRestT - dt)) <= 0) {
+      const moving = this.moveIntent.lengthSq() > 0.08;
+      this.stamina = Math.min(TUNING.staminaMax, this.stamina + TUNING.staminaRecovery * (moving ? 0.72 : 1) * dt);
+    }
+    if (this.exhausted && this.stamina >= TUNING.staminaExhaustThreshold) this.exhausted = false;
   }
   get dashing() { return this.dashT > 0; }
   get moving() { return this.dashT > 0 || this.sprinting; }   // dash or sprint: camera stays free
@@ -75,6 +105,7 @@ class Fighter {
   tryVanish(foe, allowPerfect = true) {
     if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.awakenChargeT > 0 || this.energy < (this.guardCounterWindow > 0 ? Math.max(6,TUNING.vanishCost-7) : TUNING.vanishCost)) return false;
     const guardEscape = this.guardCounterWindow > 0 && (!this.guardHitBy || this.guardHitBy === foe);
+    if (!this.useStamina(guardEscape ? 9 : TUNING.staminaVanish)) return false;
     const perfect = allowPerfect && this.threatFrom(foe);
     if (guardEscape) this.guardCounterWindow = 0;
     this.energy -= guardEscape ? Math.max(6, TUNING.vanishCost - 7) : TUNING.vanishCost;
@@ -110,7 +141,7 @@ class Fighter {
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
   tryJump() {
-    if (this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
+    if (this.awakenChargeT > 0 || this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
     this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
     const speed = Math.hypot(this.vel.x, this.vel.z);
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
@@ -141,7 +172,7 @@ class Fighter {
 
   // a dash starts with a quick crouch-and-push (prep), then bursts; chase dashes skip the prep to keep combos flowing
   tryDash(dir, prep = TUNING.dashPrep) {
-    if (this.dashCd > 0 || this.stun > 0 || this.energy < TUNING.dashCost || this.dashPrep > 0) return false;
+    if (this.awakenChargeT > 0 || this.dashCd > 0 || this.stun > 0 || this.energy < TUNING.dashCost || this.dashPrep > 0 || !this.useStamina(TUNING.staminaDash)) return false;
     this.energy -= TUNING.dashCost;
     this.dashDir.copy(dir).normalize();
     this.dashCd = TUNING.dashCooldown; this.skidT = 0;
@@ -164,7 +195,7 @@ class Fighter {
   }
   // hold Run: start running straight away (no dash needed)
   startRun() {
-    if (this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
+    if (this.awakenChargeT > 0 || this.sprinting || this.exhausted || this.stamina < 8 || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
     this.sprinting = true; if (this === Game.player) CameraRig.shake(0.012); return true;
   }
   gainAwaken(amount) {
@@ -184,7 +215,7 @@ class Fighter {
     this.cancelCharge(); this.chargeHeld = false; this.blockHeld = false; this.blocking = false;
     this.invulnT = Math.max(this.invulnT, TUNING.awakenChargeTime + 0.12);
     if (this.vrmRig && this.vrmRig.anim) this.vrmRig.anim.stop();
-    Sound.play('awaken'); Effects.awakenIgnition(this);
+    Sound.play('awaken'); Sound.play('powerRise'); Effects.awakenIgnition(this);
     if (this === Game.player) Game.callout('POWER RISING', 'launch');
     return true;
   }
@@ -259,7 +290,7 @@ class Fighter {
       }
     }
     // guard: hold to block; a fresh block (not spammed) gets a short parry window
-    const canBlock = this.blockHeld && !this.charging && this.stun <= 0 && !this.dashing && this.punchT <= 0 && this.blastT <= 0 && this.windT <= 0 && this.guard > 0;
+    const canBlock = this.awakenChargeT <= 0 && this.blockHeld && !this.charging && this.stun <= 0 && !this.dashing && this.punchT <= 0 && this.blastT <= 0 && this.windT <= 0 && this.guard > 0;
     if (canBlock && !this.blocking) { this.blockT = 0; this.parryOk = this.t - this.lastBlockEnd > 0.35 ? TUNING.parryWindow : 0; }
     if (!canBlock && this.blocking) this.lastBlockEnd = this.t;
     this.blocking = canBlock;
@@ -275,19 +306,20 @@ class Fighter {
 
     const speedMul = this.awakened ? TUNING.awakenSpeed : 1;
     // sprint / fast flight: keep holding Dash after the dash to keep going fast
-    if (this.sprinting && (!this.sprintHeld || this.stun > 0 || this.blockHeld || this.charging || this.punchT > 0 || this.blastT > 0 || this.windT > 0 || this.launched || this.energy <= 0)) {
-      this.sprinting = false; this.vel.multiplyScalar(0.75);
+    if (this.sprinting && (!this.sprintHeld || this.stun > 0 || this.blockHeld || this.charging || this.punchT > 0 || this.blastT > 0 || this.windT > 0 || this.launched || this.energy <= 0 || this.exhausted || this.stamina < 0.1)) {
+      this.sprinting = false; this.vel.multiplyScalar(0.88);
       if (!this.flying && this.stun <= 0 && Math.hypot(this.vel.x, this.vel.z) > 9 && this.punchT <= 0) this.skidT = TUNING.skidTime;
     }
     // Restore held Boost once an attack's recovery ends (important for fast aerial combos).
     if (!this.sprinting && this.sprintHeld && this.dashT <= 0 && this.dashPrep <= 0 &&
         this.stun <= 0 && this.punchT <= 0 && this.meleeCd <= 0.07 &&
         this.blastT <= 0 && !this.charging && !this.blockHeld && !this.launched &&
-        this.energy >= TUNING.sprintMinEnergy && (this.moveIntent.lengthSq() > 0.04 || this.vert !== 0)) {
+        this.energy >= TUNING.sprintMinEnergy && !this.exhausted && this.stamina >= 8 && (this.moveIntent.lengthSq() > 0.04 || this.vert !== 0)) {
       this.sprinting = true;
     }
     const drain = this.sprinting ? (this.flying ? TUNING.sprintDrainAir : TUNING.sprintDrainGround) : 0;
-    if (drain) this.energy = Math.max(0, this.energy - (drain + TUNING.energyRegen) * dt);   // no regen while sprinting
+    if (drain) this.energy = Math.max(0, this.energy - (drain + TUNING.energyRegen) * dt);   // no ki regen while sprinting
+    this.updateStamina(dt);
     if (this.slamming && this.stun > 0) this.slamming = false;
     if (this.slamming) {
       // short hang in the air, then straight down, drifting toward the rival if they're close
@@ -386,7 +418,7 @@ class Fighter {
       if (!this.flying && hv0 > 7.5 && this.moveIntent.lengthSq() > 0.3 && (this.vel.x * this.moveIntent.x + this.vel.z * this.moveIntent.z) / hv0 < -0.45) this.skidT = TUNING.skidTime * 0.8;
       // build up speed with some weight, stop a little quicker; floatier in the air
       const speedingUp = target.lengthSq() > this.vel.lengthSq() * 0.9;
-      const rate = (speedingUp ? TUNING.accel : TUNING.decel) * (this.flying ? TUNING.airControl : 1);
+      const rate = this.flying ? (speedingUp ? 6.1 : 6.6) : (speedingUp ? TUNING.accel : TUNING.decel);
       this.vel.lerp(target, damp(rate, dt));
     }
     this.pos.addScaledVector(this.vel, dt);
@@ -455,6 +487,9 @@ class Fighter {
     // lean is relative to the body, so it always tips toward the direction of travel
     let pitchT, rollT;
     const fastFly = this.sprinting && flying;
+    this.flightSpeedBlend += (clamp(hspeed / 26, 0, 1) - this.flightSpeedBlend) * damp(4.3, dt);
+    this.flightBlend += ((flying ? 1 : 0) - this.flightBlend) * damp(flying ? 4.4 : 6.6, dt);
+    this.airBank += (clamp(-lx / 33, -0.28, 0.28) - this.airBank) * damp(5.2, dt);
     // forward acceleration (smoothed): lean in when speeding up, sit back when braking — gives the body weight
     const aF = dt > 0 ? (lz - this.prevLz) / dt : 0; this.prevLz = lz;
     this.accF += (clamp(aF, -60, 60) - this.accF) * damp(8, dt);
@@ -472,8 +507,8 @@ class Fighter {
     else if (this.dashing || fastFly) {
       // Controlled powered flight: upper body still faces travel direction instead
       // of tipping nearly horizontal like a falling meteor.
-      pitchT = fastFly ? clamp(0.50 - this.vel.y / 100, 0.30, 0.70) : 0.48;
-      rollT = clamp(-lx / 30, -0.24, 0.24);
+      pitchT = 0.27 + 0.22 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.12, 0.12);
+      rollT = this.airBank;
     }
     else if (this.sprinting) { pitchT = 0.22; rollT = bank * 1.18; }
     else if (this.dashRecoverT > 0) { pitchT = 0.08 + 0.13 * smooth01(this.dashRecoverT / 0.28); rollT = bank * 0.35; }
@@ -481,13 +516,16 @@ class Fighter {
     else if (this.spiked) { pitchT = -1.2; rollT = 0; }
     else if (this.launched) { pitchT = this.superHitT > 0 ? -0.34 : -0.75 + Math.sin(this.launchT * 7) * 0.15; rollT = Math.sin(this.launchT * 5) * 0.2; }
     else if (this.stun > 0) { pitchT = -0.45; rollT = 0; }
-    else if (flying) { pitchT = clamp(lz / 18, -0.35, 0.85); rollT = clamp(-lx / 22, -0.45, 0.45); }
+    else if (flying) {
+      pitchT = 0.06 + 0.34 * smooth01(Math.max(0, lz) / 15) - 0.12 * smooth01(Math.max(0, -lz) / 10) - clamp(this.vel.y / 115, -0.12, 0.12);
+      rollT = this.airBank * 0.86;
+    }
     else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.13 + clamp(lz / 100, -0.11, 0.11) + (this.stun > 0 ? 0 : clamp(this.accF / 160, -0.14, 0.16))) * rnL; rollT = clamp(-lx / 65, -0.19, 0.19) * rnL; }
     if (this.sprinting && !flying) pitchT += clamp(this.accF / 200, -0.1, 0.12);
     if (this.punchT > 0 && this.attackKind === 'kick') pitchT = 0.06;
     if (this.punchT > 0 && this.attackAir) pitchT = 0.14;
     if (this.slamLagT > 0) pitchT = 0.35;
-    this.lean.pitch += (pitchT - this.lean.pitch) * damp(this.downT > 0 || this.launched ? 12 : this.dashRecoverT > 0 ? 13 : 8, dt);
+    this.lean.pitch += (pitchT - this.lean.pitch) * damp(this.downT > 0 || this.launched ? 12 : this.flightBlend > 0.05 ? 6.5 : this.dashRecoverT > 0 ? 9 : 8, dt);
     this.lean.roll += (rollT - this.lean.roll) * damp(6, dt);
     body.rotation.x = this.lean.pitch; body.rotation.z = this.lean.roll;
     // Independent visual motion track; every pose has easing and can be cancelled by combat.
@@ -534,13 +572,13 @@ class Fighter {
     body.rotation.y = this.hipYaw;
     const runTarget = flying || this.dashing || this.dashPrep > 0 || this.skidT > 0 || this.punchT > 0 || (this.sprinting && flying) ? 0 : smooth01((hspeed - 0.12) / 1.0);
     this.runW += (runTarget - this.runW) * damp(10, dt);
-    this.flyW += ((flying ? 1 : 0) - this.flyW) * damp(8, dt);
+    this.flyW += ((flying ? 1 : 0) - this.flyW) * damp(flying ? 5.8 : 8, dt);
     const rw = this.runW, fw = this.flyW;
     const bounce = Math.abs(Math.sin(this.t * 3.6)) * 0.013;               // light boxer's bounce in stance
     // smooth body rise and fall per step (no sharp bounce); a walk barely bobs, a run bobs a bit more
     const runness = smooth01((hspeed - 5) / 9);
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
-    const hover = Math.sin(this.t * 2.4) * 0.08;
+    const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
     const groundY = 1.0 - 0.14 * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);

@@ -1,3 +1,8 @@
+## V47 — Combat Flow and Stamina
+- Stamina, sprint exhaustion, new HUD.
+- 5 CC0 baked animation clips; smoother air blend, recorded guard footwork, idle layers, charged blast release variant.
+- Softer sprint/stop lean and flight control; keeps V46 dojo and combat.
+
 # Sky Clash Changelog
 
 ## V44 — Highland Arena & Energy Rework
