@@ -23,7 +23,7 @@ Extract the ZIP, then drag the **contents** (not the ZIP file) into the correspo
 AvatarSample_C itself is a **non-CC0** VRoid Studio sample. Its official terms allow using, editing and freely redistributing it (but not selling the sample asset itself for a fee):
 https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z
 
-The **uploaded export's embedded VRM metadata** currently says `OnlyAuthor`, `violentUssageName: Disallow` and `licenseName: Redistribution_Prohibited`. We have **not silently changed** these user-selected fields. Since Sky Clash is a public fighting game with a downloadable VRM asset, check/update the export permissions to match your desired distribution before publishing. Do not label this sample CC0.
+The **published `assets/rin.vrm` metadata** has now been updated with your authorization for public fighting-game use: avatar users `Everyone`, violence `Allow`, and the VRM 0.x license set to `Other` with the official Sample C terms URL attached. This is **not a CC0 license**. We kept commercial and adult-content permissions `Disallow` as in the original export. The model geometry, rig, materials, and textures are identical to the V53 update.
 
 ## Tests
 
