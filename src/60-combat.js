@@ -15,6 +15,8 @@ const Combat = (() => {
       if (target.forward().dot(toA) > -0.05) return blocked(attacker, target, dmg, knock, kind, floorHp);
     }
     target.hp = Math.max(floorHp, target.hp - dmg);
+    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(13, 3 + dmg * 0.8));
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(13, 3 + dmg * 0.7));
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
@@ -34,6 +36,10 @@ const Combat = (() => {
   function blocked(attacker, target, dmg, knock, kind, floorHp) {
     const c = target.center.add(target.forward().multiplyScalar(0.7));
     target.hurtT = 0;
+    // After a real guarded hit, double-tap Guard to slip behind the attacker.
+    target.guardCounterWindow = TUNING.defensiveVanishWindow;
+    target.guardHitBy = attacker;
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(5);
     if (target.blockT < target.parryOk) {
       // parry: no damage; a parried punch leaves the attacker wide open
       target.guard = Math.min(TUNING.guardMax, target.guard + 20);
@@ -49,7 +55,7 @@ const Combat = (() => {
     target.hp = Math.max(floorHp, target.hp - dmg * TUNING.blockChip);
     target.guard -= dmg * (kind === 'charged' ? 3.7 : kind === 'blast' ? 2.4 : 4.2); target.guardDelay = TUNING.guardRegenDelay;
     target.vel.copy(knock).multiplyScalar(0.3).setY(0);
-    if (target.guard <= 0) {
+    if (target.guard <= 0) { target.guardCounterWindow = 0;
       Sound.play('heavy');
       target.guard = 0; target.guardDelay = 1.6;
       target.stun = TUNING.guardBreakStun; target.brokenT = TUNING.guardBreakStun; target.hitFlash = 0.2; target.blocking = false;
@@ -63,7 +69,7 @@ const Combat = (() => {
   // Four readable beats: jab > cross > turning hook > rising kick.
   // Input buffering happens in Game, contact is delayed until the corresponding active frame.
   function melee(attacker, target) {
-    if (attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
+    if (attacker.awakenChargeT > 0 || attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
     if (attacker.charging) attacker.cancelCharge();
     if (attacker.t - attacker.lastMelee > TUNING.comboWindow) attacker.combo = 0;
     const stage = attacker.combo;
@@ -160,7 +166,7 @@ const Combat = (() => {
   }
   function blast(attacker, target, aimMode, lvl = 0) {
     const cost = TUNING.blastCost + TUNING.chargeCost * lvl;
-    if (attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
+    if (attacker.awakenChargeT > 0 || attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
     attacker.cancelCharge();
     attacker.energy = Math.max(0, attacker.energy - cost); attacker.blastCd = TUNING.blastCooldown * (1 + lvl);
     Sound.play(lvl > 0.45 ? 'charge' : 'blast');

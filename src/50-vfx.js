@@ -106,6 +106,42 @@ const Effects = (() => {
     if (!f.flying) { chargeFracture(f, 1.32); dust(f.pos, Settings.get('quality') === 'low' ? 5 : 11); }
     CameraRig.shake(0.27);
   }
+  // Visible power-up is staged, not one instantaneous aura toggle.
+  // The visual envelope hugs articulated bones and concentrates above the feet.
+  function awakenIgnition(f) {
+    flash(f.center,0xffffff,1.65,.09);
+    if (!f.flying) { dust(f.pos,4); }
+    CameraRig.shake(f===Game.player?.04:.015);
+  }
+  function awakenCharge(f,progress) {
+    const low=Settings.get('quality')==='low';
+    const col=f.pal.aura;
+    const intensity=smooth01(progress);
+    // Small luminous flame tongues attached to the skeletal pose, building with the meter.
+    bodyAura(f,false);
+    if (progress>.35 && Math.random()<.55) bodyAura(f,false);
+    const p=f.center;
+    if (!f.flying && Math.random()<(progress<.72?.32:.80)) chargePressure(f,progress);
+    if (progress>.38) {
+      const n=low?1:progress>.78?4:2;
+      for(let i=0;i<n;i++) {
+        const a=Math.random()*TAU;
+        const r=.32+Math.random()*.48;
+        const at=p.clone().add(new V3(Math.cos(a)*r,(Math.random()-.6)*1.35,Math.sin(a)*r));
+        const s=sprite(TEX.glow,i%3?col:0xffffff,.18+.16*intensity,.46+.30*intensity);
+        s.position.copy(at);
+        const v=new V3(Math.cos(a)*.28,1.5+intensity*3.2,Math.sin(a)*.28);
+        push(s,.20,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(v,dt);
+          e.obj.scale.setScalar((.18+.16*intensity)*(1+t*.2));e.obj.material.opacity=(.46+.3*intensity)*(1-t);});
+      }
+    }
+    if(progress>.80&&!f.awakenRuptured) {
+      f.awakenRuptured=true;
+      if(!f.flying){ chargeFracture(f,.65); dust(f.pos,low?6:12); }
+      flash(p,col,2.6,.14);
+      if(f===Game.player) CameraRig.shake(.09);
+    }
+  }
   function bodyAura(f, burst = false) {
     if (!f || f.hp <= 0) return;
     const rig = f.vrmRig, H = rig && rig.vrm && rig.vrm.humanoid;
@@ -339,53 +375,96 @@ const Effects = (() => {
   // blocked hit: small blue-white shield flash
   // Sustained sprint/flight has no per-frame particles: prevents a comet or meteor silhouette.
   function sprintTrail(f) {}
-  // V44 vanish: readable full-body afterimage + converging energy slashes, no ring.
-  const vanishSilhouette = canvasTex(96, 192, (g) => {
-    g.fillStyle='rgba(255,255,255,.88)';
-    g.beginPath();g.ellipse(48,30,13,15,0,0,TAU);g.fill();
-    g.beginPath();g.moveTo(33,50);g.lineTo(63,50);g.lineTo(69,106);g.lineTo(27,106);g.closePath();g.fill();
-    g.lineCap='round';g.lineJoin='round';g.lineWidth=14;
-    g.beginPath();g.moveTo(33,58);g.lineTo(20,100);g.moveTo(63,58);g.lineTo(78,100);g.stroke();
-    g.lineWidth=17;g.beginPath();g.moveTo(38,107);g.lineTo(34,160);g.moveTo(58,107);g.lineTo(63,160);g.stroke();
-  },{srgb:false});
-  function vanish(from,to,col,perfect) {
-    const travel=to.clone().sub(from);const flat=travel.clone().setY(0);
-    const dir=flat.lengthSq()>0.02?flat.normalize():new V3(0,0,1);
-    const side=new V3(-dir.z,0,dir.x);
-    const hue=col; // keep each fighter's existing ki / awakening colour, including perfect vanishes
-    const ghostAt=(at,departure)=>{
-      for(let j=0;j<2;j++){
-        const g=new THREE.Sprite(new THREE.SpriteMaterial({map:vanishSilhouette,
-          color:j?0xffffff:hue,transparent:true,opacity:j?0.24:0.58,depthWrite:false,
-          blending:THREE.AdditiveBlending,fog:false}));
-        g.position.copy(at).addScaledVector(side,(j?0.12:-0.12));
-        // Effect positions are at torso height: full silhouette aligns with fighter feet.
-        g.position.y+=0.05;g.scale.set(1.12,2.45,1);
-        push(g,departure?0.24:0.22,(e,dt)=>{
-          const t=e.t/e.life;e.obj.position.addScaledVector(dir,(departure?-1:1)*dt*2.2);
-          e.obj.scale.set(1.12*(1-t*0.1),2.45*(1-t*0.16),1);
-          e.obj.material.opacity=(j?0.24:0.58)*(1-t)*(1-t);
-        });
+  // V45 Vanish: two articulate pose-imprints sampled from the actual VRM skeleton.
+  // Captures the departing pose, then flashes the same body pose at the destination;
+  // no flat humanoid cut-out, energy hoop, or geometry cloned from a skinned mesh.
+  const ghostConnections = [
+    ['hips','spine'],['spine','chest'],['chest','neck'],['neck','head'],
+    ['leftShoulder','leftUpperArm'],['leftUpperArm','leftLowerArm'],['leftLowerArm','leftHand'],
+    ['rightShoulder','rightUpperArm'],['rightUpperArm','rightLowerArm'],['rightLowerArm','rightHand'],
+    ['hips','leftUpperLeg'],['leftUpperLeg','leftLowerLeg'],['leftLowerLeg','leftFoot'],
+    ['hips','rightUpperLeg'],['rightUpperLeg','rightLowerLeg'],['rightLowerLeg','rightFoot']
+  ];
+  function vanish(from,to,col,perfect,fighter) {
+    const travel=to.clone().sub(from), len=travel.length();
+    const dir=len>0.01?travel.clone().normalize():new V3(0,0,1);
+    const right=new V3(-dir.z,0,dir.x).normalize();
+    const low=Settings.get('quality')==='low';
+    const points={};
+    const R=fighter && fighter.vrmRig && fighter.vrmRig.vrm;
+    if (R && R.humanoid) {
+      R.scene.updateMatrixWorld(true);
+      const names=new Set(ghostConnections.flat());
+      for (const n of names) {
+        const bone=R.humanoid.getNormalizedBoneNode(n);
+        if (bone) points[n]=bone.getWorldPosition(new V3());
       }
-      flash(at,0xffffff,1.6,0.07);flash(at,hue,2.3,0.13);
-      sparks(at,hue,perfect?17:11,dir,1.15);
-      for(let i=0;i<(Settings.get('quality')==='low'?5:10);i++){
-        const x=(i/9-0.5)*1.75;
-        const start=at.clone().addScaledVector(side,x).add(new V3(0,(i%5)*0.37-0.75,0));
-        const d=dir.clone().multiplyScalar((departure?-1:1)*(0.85+Math.random()*1.15));
-        const mesh=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.026,0.8+Math.random()*0.7,3),
-          new THREE.MeshBasicMaterial({color:i%4===0?0xffffff:hue,transparent:true,opacity:0.73,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
-        mesh.position.copy(start);mesh.quaternion.setFromUnitVectors(new V3(0,1,0),d.clone().normalize());
-        push(mesh,0.20,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(d,dt*2.0);e.obj.material.opacity=0.73*(1-t)*(1-t);},true);
+    }
+    if (Object.keys(points).length < 12) {
+      const at=(x,y,z)=>from.clone().add(new V3(x,y,z));
+      Object.assign(points,{hips:at(0,-.65,0),spine:at(0,-.36,0),chest:at(0,.12,0),neck:at(0,.54,0),head:at(0,.83,0),
+        leftShoulder:at(.32,.37,0),leftUpperArm:at(.44,.18,0),leftLowerArm:at(.49,-.15,0),leftHand:at(.50,-.36,.11),
+        rightShoulder:at(-.32,.37,0),rightUpperArm:at(-.44,.18,0),rightLowerArm:at(-.49,-.15,0),rightHand:at(-.50,-.36,.11),
+        leftUpperLeg:at(.16,-.80,0),leftLowerLeg:at(.19,-1.16,.05),leftFoot:at(.20,-1.5,.17),
+        rightUpperLeg:at(-.16,-.80,0),rightLowerLeg:at(-.19,-1.16,.05),rightFoot:at(-.20,-1.5,.17)});
+    }
+    function ghost(offset,delay,atArrival) {
+      const off=offset.clone();
+      const origin=from.clone().add(off);
+      let drawn=0;
+      for(const [a,b] of ghostConnections) {
+        if(low && drawn++ % 2) continue;
+        if(!points[a]||!points[b]) continue;
+        const p0=points[a].clone().add(off),p1=points[b].clone().add(off);
+        const delta=p1.clone().sub(p0),dist=delta.length();
+        if(dist<0.035) continue;
+        const radius=(a==='hips'||a==='spine'||a==='chest')?.135:.068;
+        const beam=new THREE.Mesh(new THREE.CylinderGeometry(radius*.8,radius,dist,5),
+          new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:atArrival?.70:.57,
+            depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+        beam.quaternion.setFromUnitVectors(new V3(0,1,0),delta.normalize());
+        beam.position.copy(p0).addScaledVector(p1.clone().sub(p0),.5);
+        beam.visible=delay===0;
+        const rest=beam.position.clone();
+        push(beam,(atArrival?.31:.29)+delay,(e,dt)=>{
+          const t=clamp((e.t-delay)/(e.life-delay),0,1);
+          e.obj.visible=e.t>=delay;
+          e.obj.position.copy(rest).addScaledVector(dir,(atArrival?1:-1)*t*.45);
+          e.obj.material.opacity=(atArrival?.70:.57)*(1-t)*(1-t);
+          e.obj.scale.set(1-t*.40,1-t*.14,1-t*.4);
+        },true);
       }
-    };
-    ghostAt(from,true);
-    const timer=sprite(TEX.glow,hue,0.01,0);
-    push(timer,0.14,(e)=>{if(!e.done && e.t>0.065){e.done=true;ghostAt(to,false);}});
+      const bright=atArrival?.75:.65;
+      const core=sprite(TEX.glow,0xffffff,1.2,bright);
+      core.position.copy(origin);
+      core.visible=delay===0;
+      push(core,0.16+delay,(e)=>{const t=clamp((e.t-delay)/(e.life-delay),0,1);e.obj.visible=e.t>=delay;e.obj.material.opacity=bright*(1-t);});
+      if(delay===0) sparks(origin,col,low?5:perfect?17:12,dir,1.2);
+    }
+    ghost(new V3(),0,false);
+    ghost(travel,.075,true);
+    // Travel exists only as offset streaks, so the fighter itself disappears immediately.
+    const count=low?6:14;
+    const span=Math.min(6.5,Math.max(.8,len));
+    for(let i=0;i<count;i++) {
+      const x=(Math.random()-.5)*1.2,y=(Math.random()-.5)*1.65;
+      const at=from.clone().addScaledVector(right,x).add(new V3(0,y,0));
+      const seg=.85+Math.random()*Math.min(2,span);
+      const beam=new THREE.Mesh(new THREE.CylinderGeometry(.009,.033,seg,3),
+        new THREE.MeshBasicMaterial({color:i%4===0?0xffffff:col,transparent:true,opacity:.64,
+          depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+      beam.quaternion.setFromUnitVectors(new V3(0,1,0),dir);
+      beam.position.copy(at).addScaledVector(dir,Math.min(span*.3,i*.10));
+      push(beam,.24,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(dir,dt*10);
+        e.obj.material.opacity=.64*(1-t)*(1-t);e.obj.scale.x=e.obj.scale.z=1-t*.5;},true);
+    }
+    // Delayed emergence sparks at the teleport destination.
+    const dummy=sprite(TEX.glow,col,.05,0);dummy.visible=false;
+    push(dummy,.085,(e)=>{if(!e.done&&e.t>.065){e.done=true;sparks(to,col,low?6:perfect?19:13,dir,1.25);}});
   }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 

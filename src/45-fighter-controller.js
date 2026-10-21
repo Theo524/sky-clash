@@ -29,16 +29,16 @@ class Fighter {
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
-    this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.stun = 0;
+    this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
     this.attackSerial = (this.attackSerial || 0) + 1; this.riposteT = 0; this.meleeQ = 0; this.meleeBuf = 0; this.superHitT = 0;
     this.blastT = 0; this.hitFlash = 0; this.t = Math.random() * 10;
     this.moveIntent = new V3(); this.vert = 0; this.wasFlying = false; this.dustT = 0;
     this.lean = { pitch: 0, roll: 0 };
     this.acro = null; this.acroClock = 0; this.lastAcroAt = -20; this.landingVariant = 0;
-    this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0;
+    this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
-    this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
+    this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
     this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
@@ -73,9 +73,12 @@ class Fighter {
   }
   // teleport dodge: vanish and reappear behind the rival; timed against an attack it's a perfect vanish
   tryVanish(foe, allowPerfect = true) {
-    if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.energy < TUNING.vanishCost) return false;
+    if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.awakenChargeT > 0 || this.energy < (this.guardCounterWindow > 0 ? Math.max(6,TUNING.vanishCost-7) : TUNING.vanishCost)) return false;
+    const guardEscape = this.guardCounterWindow > 0 && (!this.guardHitBy || this.guardHitBy === foe);
     const perfect = allowPerfect && this.threatFrom(foe);
-    this.energy -= TUNING.vanishCost; if (perfect) this.energy = Math.min(100, this.energy + TUNING.vanishRefund);
+    if (guardEscape) this.guardCounterWindow = 0;
+    this.energy -= guardEscape ? Math.max(6, TUNING.vanishCost - 7) : TUNING.vanishCost;
+    if (perfect) this.energy = Math.min(100, this.energy + TUNING.vanishRefund);
     const from = this.center;
     const flat = foe.pos.clone().sub(this.pos).setY(0); const d = flat.length();
     if (d > TUNING.vanishRange || d < 0.01) {
@@ -93,13 +96,16 @@ class Fighter {
     this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.cancelCharge(); this.blocking = false;
     this.vanishT = TUNING.vanishHide; this.invulnT = Math.max(this.invulnT, TUNING.vanishInvuln);
     this.vanishCd = TUNING.vanishCooldown;
-    Sound.play('vanish'); Effects.vanish(from, this.center, this.awakened ? this.pal.aura : this.pal.ki, perfect);
+    this.acro = null; this.dashRecoverT = 0; this.skidT = 0;
+    this.vanishRecoverT = 0.28; // visual arrival crouch before rising to guard
+    Sound.play('vanish'); Effects.vanish(from, this.center, this.awakened ? this.pal.aura : this.pal.ki, perfect || guardEscape, this);
     if (perfect) {
       // they lose sight of you for a moment: their attack is cancelled and they're left open
       foe.windT = 0; foe.stun = Math.max(foe.stun, TUNING.vanishStun); foe.meleeCd = Math.max(foe.meleeCd, 0.3);
       Game.hitStop(0.12); CameraRig.shake(0.2);
       Game.callout(this === Game.player ? 'Perfect vanish' : 'Rival vanished', 'parry');
-    } else if (this !== Game.player) Game.callout('Rival vanished', 'parry');
+    } else if (guardEscape && this === Game.player) Game.callout('GUARD VANISH!', 'parry');
+    else if (this !== Game.player) Game.callout('Rival vanished', 'parry');
     return true;
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
@@ -161,18 +167,53 @@ class Fighter {
     if (this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
     this.sprinting = true; if (this === Game.player) CameraRig.shake(0.012); return true;
   }
+  gainAwaken(amount) {
+    if (this.hp <= 0 || this.awakened || this.awakenChargeT > 0) return;
+    this.awakenGauge = clamp(this.awakenGauge + amount, 0, TUNING.awakenGaugeMax);
+  }
   tryAwaken() {
-    if (this.awakened || this.energy < TUNING.awakenCost) return false;
-    this.energy -= TUNING.awakenCost; this.awakenT = TUNING.awakenTime;
-    this.auraFxT = 0;
-    Sound.play('awaken'); Effects.awakenBurst(this);
+    if (this.awakened || this.awakenChargeT > 0 || this.awakenGauge < TUNING.awakenGaugeMax ||
+        this.hp <= 0 || this.stun > 0 || this.launched || this.spiked || this.downT > 0) return false;
+    // Separate combat-earned meter: does not drain ki needed for dashing and blasts.
+    this.awakenChargeT = TUNING.awakenChargeTime;
+    this.awakenChargeProgress = 0;
+    this.awakenChargeFxT = 0; this.awakenRuptured = false;
+    this.sprinting = false; this.dashT = 0; this.dashPrep = 0; this.chase = null;
+    this.skidT = 0; this.vel.set(0, 0, 0); this.acro = null;
+    this.meleeQ = 0; this.meleeBuf = 0; this.kickPend = null; this.punchT = 0; this.windT = 0;
+    this.cancelCharge(); this.chargeHeld = false; this.blockHeld = false; this.blocking = false;
+    this.invulnT = Math.max(this.invulnT, TUNING.awakenChargeTime + 0.12);
+    if (this.vrmRig && this.vrmRig.anim) this.vrmRig.anim.stop();
+    Sound.play('awaken'); Effects.awakenIgnition(this);
+    if (this === Game.player) Game.callout('POWER RISING', 'launch');
     return true;
   }
   // AI attacks wind up first so you can see them coming and block or parry
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
-    this.dashRecoverT = Math.max(0, this.dashRecoverT - dt);
+    this.guardCounterWindow = Math.max(0, this.guardCounterWindow - dt);
+    if (this.awakenChargeT > 0) {
+      this.awakenChargeT = Math.max(0, this.awakenChargeT - dt);
+      this.awakenChargeProgress = 1 - this.awakenChargeT / TUNING.awakenChargeTime;
+      this.blockHeld = this.blocking = this.chargeHeld = false;
+      this.sprinting = false; this.dashT = 0; this.chase = null; this.skidT = 0;
+      this.meleeQ = 0; this.meleeBuf = 0; this.windT = 0;
+      this.vel.multiplyScalar(1 - damp(24, dt));
+      this.invulnT = Math.max(this.invulnT, 0.16);
+      this.awakenChargeFxT -= dt;
+      if (this.awakenChargeFxT <= 0) {
+        this.awakenChargeFxT = Settings.get('quality') === 'low' ? 0.14 : 0.09;
+        Effects.awakenCharge(this, this.awakenChargeProgress);
+      }
+      if (this.awakenChargeT <= 0) {
+        this.awakenGauge = 0; this.awakenT = TUNING.awakenTime; this.auraFxT = 0;
+        this.awakenChargeProgress = 0;
+        Effects.awakenBurst(this); Sound.play('super');
+        if (this === Game.player) Game.callout('AWAKENED!', 'launch');
+      }
+    }
+    this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
@@ -189,7 +230,7 @@ class Fighter {
       else { this.windT -= dt; if (this.windT <= 0) { this.windT = 0; Combat.melee(this, this.windTarget); } }
     }
     // charged blast: hold to charge, release to fire; a quick tap fires a normal blast
-    if (this.chargeHeld && !this.charging && this.blastCd <= 0 && this.stun <= 0 && !this.dashing && this.energy >= TUNING.blastCost && this.windT <= 0) {
+    if (this.awakenChargeT <= 0 && this.chargeHeld && !this.charging && this.blastCd <= 0 && this.stun <= 0 && !this.dashing && this.energy >= TUNING.blastCost && this.windT <= 0) {
       this.charging = true; this.chargeT = 0; this.chargeFull = false; this.chargeCracked = false; this.pressureT = 0;
     }
     if (this.charging) {
@@ -322,6 +363,8 @@ class Fighter {
       } else this.vel.y = 0;
       // A moving strike faces its actual step, not the previous frame's run direction.
       if (impulse > 0.12) this.facing = lerpAngle(this.facing, yawFromDir(travel.x, travel.z), damp(12, dt));
+    } else if (this.awakenChargeT > 0) {
+      this.vel.multiplyScalar(1 - damp(28, dt));
     } else if (this.stun > 0) {
       if (this.spiked) { /* falling fast: keep the smash velocity */ }
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
@@ -634,6 +677,17 @@ class Fighter {
       }
       if (A) P = mix(P, A, smooth01(Math.min(1, acEnv * 1.6)));
     }
+    if (this.awakened && this.stun <= 0 && this.punchT <= 0 && !this.dashing && !this.charging && this.awakenChargeT <= 0) {
+      const powerStance = { arm: [[-0.75, 0.36, -1.30],[-1.06, 0.32, -1.30]],
+        leg: [[0.22, 0.55, 0.21],[-0.39, 0.62, 0.21]], spineY: -0.12, spineX: 0.10, headX: -0.16 };
+      P = mix(P, powerStance, (flying ? 0.14 : 0.38) * (1 - clamp(hspeed / 14, 0, 1)));
+    }
+    if (this.vanishRecoverT > 0 && this.stun <= 0) {
+      const w = smooth01(this.vanishRecoverT / 0.28);
+      const arrive = { arm: [[-0.91, 0.47, -1.55],[-1.15, 0.32, -1.75]],
+        leg: [[0.62, 1.03, 0.24],[-0.70, 0.69, 0.16]], spineY: -0.11, spineX: 0.22, headX: -0.12 };
+      P = mix(P, arrive, 0.62 * w);
+    }
     // block: forearms crossed in front of the face, knees bent
     if (this.blockW > 0.01 && this.brokenT <= 0 && this.stun <= 0) {
       const B = { arm: [[-1.3, -0.5, -1.75], [-1.4, -0.42, -1.9]], leg: fw > 0.5 ? P.leg : [[0.3, 0.6, 0.18], [-0.38, 0.62, 0.12]], spineY: -0.05, spineX: 0.28, headX: 0.18 };
@@ -722,6 +776,20 @@ class Fighter {
         if (this.attackKind === 'kick') B.leg[0] = [-1.55, 0.15, 0.06];
       }
       P = mix(P, B, strength);
+    }
+    // Transformation sequence: planted base, fists clench at hips, head lowered;
+    // peak breaks into an open-chest power stance. Entire body participates.
+    if (this.awakenChargeT > 0) {
+      const phase = this.awakenChargeProgress;
+      const open = smooth01((phase - 0.63) / 0.37);
+      const tremble = Math.sin(this.t * (16 + 14 * phase)) * 0.035 * smooth01(phase);
+      const C = { arm: [[0.27 - open * 1.08 + tremble, 0.24 + open * 0.55, -1.56 + open * 0.56],
+                         [0.27 - open * 1.08 - tremble, 0.24 + open * 0.55, -1.56 + open * 0.56]],
+        leg: [[0.27 - open * 0.16, 0.48, 0.23], [-0.42 + open * 0.12, 0.55, 0.25]],
+        spineY: 0, spineX: 0.25 - open * 0.39 + tremble, headX: 0.23 - open * 0.48 };
+      P = mix(P, C, smooth01(Math.min(1, phase * 6)));
+      // Small braced dip; don't lift the whole mesh from the ground.
+      body.position.y -= (0.055 - open * 0.03);
     }
     const fast = this.punchT > 0 || this.blastT > 0 ? 19 : this.moving || this.stun > 0 ? 18 : 11;
     const k = damp(fast, dt), kb = damp(12, dt);

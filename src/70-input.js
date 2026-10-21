@@ -17,6 +17,11 @@ const Input = (() => {
     if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); Game.togglePause(); return; }
     if (Game.state !== 'playing') return;
     if (keyAct[e.code] && !e.repeat) { if (keyAct[e.code] === 'dash') pressRun(e); else queued.add(keyAct[e.code]); }
+    if (['ShiftLeft','ShiftRight','KeyB'].includes(e.code) && !e.repeat && !keys.has(e.code)) {
+      const now = (e.timeStamp || performance.now()) / 1000;
+      if (now - lastBlockTap < TUNING.doubleTap) { queued.add('vanish'); lastBlockTap = -9; }
+      else lastBlockTap = now;
+    }
     keys.add(e.code);
     if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   });
@@ -120,7 +125,7 @@ const Input = (() => {
     get dragging() { return look.active; },
     consume(a) { if (queued.has(a)) { queued.delete(a); return true; } return false; },
     reset() {   // called on pause/restart so nothing sticks
-      keys.clear(); queued.clear(); held.up = held.down = held.block = held.blast = held.dash = false; resetStick();
+      lastBlockTap = lastRunTap = -9; keys.clear(); queued.clear(); held.up = held.down = held.block = held.blast = held.dash = false; resetStick();
       look.id = null; look.active = false; look.dx = look.dy = 0;
       document.querySelectorAll('.cbtn.pressed').forEach(b => b.classList.remove('pressed', 'descend'));
     },

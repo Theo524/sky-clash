@@ -29,7 +29,7 @@ const TUNING = {
   relockGrace: 0.45,
   meleeRange: 2.5, kickDelay: 0.1, kickHitStop: 0.105, meleeArc: 1.25, meleeDamage: 6, meleeCooldown: 0.3, lungeRange: 4.25,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
-  awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5,
+  awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
   jumpVel: 14, gravity: 34, jumpToFly: 0.28, slamMinHeight: 1.6, slamWind: 0.14, slamSpeed: 42, slamRadius: 5.5, slamDamage: 12, slamUp: 10, slamLag: 0.3,
   sprintSpeed: 23, flySprintSpeed: 30, sprintTurn: 4.5, sprintDrainGround: 2, sprintDrainAir: 6, sprintMinEnergy: 4,
@@ -1163,6 +1163,10 @@ class AnimLayer {
   }
   update(dt) {
     const f = this.f, p = this.prev, flying = f.flying, hs = Math.hypot(f.vel.x, f.vel.z);
+    if (f.awakenChargeT > 0) {
+      if (this.one) this.one.done = true;
+      this.prevOne = null;
+    }
     const grounded = !flying && !f.launched && !f.spiked;
 
     // ---- triggers for one-shots (rising edges of the fighter's state) ----
@@ -1231,8 +1235,8 @@ class AnimLayer {
     p.punchT = f.punchT; p.blastT = f.blastT; p.superHitT = f.superHitT || 0; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
 
     // ---- locomotion layer: walk / jog / sprint chosen by speed, phase locked to the ground covered ----
-    const busyLegs = !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
-    const busyArms = busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
+    const busyLegs = f.awakenChargeT > 0 || !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
+    const busyArms = f.awakenChargeT > 0 || busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
     const moveW = smooth01((hs - 0.25) / 1.0);
     // standing still uses the boxing guard stance clip; moving uses the walk/run clips
     // When strafing, prefer the directional procedural feet to the forward-walk mocap.
@@ -1286,7 +1290,7 @@ class AnimLayer {
       }
     }
     // standing: boxing guard (last frame of the punch-ready clip) with a slow breath
-    if ((this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
+    if (f.awakenChargeT <= 0 && (this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
       const S = Anim.sample('punchEnter', 0.86, false, this.tmp2 || (this.tmp2 = Anim.pose()));
       const br = this._br || (this._br = new THREE.Quaternion());
       br.setFromAxisAngle(this._X || (this._X = new V3(1, 0, 0)), Math.sin(f.t * 2.2) * 0.025);
@@ -1440,16 +1444,16 @@ class Fighter {
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
-    this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.stun = 0;
+    this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
     this.attackSerial = (this.attackSerial || 0) + 1; this.riposteT = 0; this.meleeQ = 0; this.meleeBuf = 0; this.superHitT = 0;
     this.blastT = 0; this.hitFlash = 0; this.t = Math.random() * 10;
     this.moveIntent = new V3(); this.vert = 0; this.wasFlying = false; this.dustT = 0;
     this.lean = { pitch: 0, roll: 0 };
     this.acro = null; this.acroClock = 0; this.lastAcroAt = -20; this.landingVariant = 0;
-    this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0;
+    this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
-    this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
+    this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
     this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
@@ -1484,9 +1488,12 @@ class Fighter {
   }
   // teleport dodge: vanish and reappear behind the rival; timed against an attack it's a perfect vanish
   tryVanish(foe, allowPerfect = true) {
-    if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.energy < TUNING.vanishCost) return false;
+    if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.awakenChargeT > 0 || this.energy < (this.guardCounterWindow > 0 ? Math.max(6,TUNING.vanishCost-7) : TUNING.vanishCost)) return false;
+    const guardEscape = this.guardCounterWindow > 0 && (!this.guardHitBy || this.guardHitBy === foe);
     const perfect = allowPerfect && this.threatFrom(foe);
-    this.energy -= TUNING.vanishCost; if (perfect) this.energy = Math.min(100, this.energy + TUNING.vanishRefund);
+    if (guardEscape) this.guardCounterWindow = 0;
+    this.energy -= guardEscape ? Math.max(6, TUNING.vanishCost - 7) : TUNING.vanishCost;
+    if (perfect) this.energy = Math.min(100, this.energy + TUNING.vanishRefund);
     const from = this.center;
     const flat = foe.pos.clone().sub(this.pos).setY(0); const d = flat.length();
     if (d > TUNING.vanishRange || d < 0.01) {
@@ -1504,13 +1511,16 @@ class Fighter {
     this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.cancelCharge(); this.blocking = false;
     this.vanishT = TUNING.vanishHide; this.invulnT = Math.max(this.invulnT, TUNING.vanishInvuln);
     this.vanishCd = TUNING.vanishCooldown;
-    Sound.play('vanish'); Effects.vanish(from, this.center, this.awakened ? this.pal.aura : this.pal.ki, perfect);
+    this.acro = null; this.dashRecoverT = 0; this.skidT = 0;
+    this.vanishRecoverT = 0.28; // visual arrival crouch before rising to guard
+    Sound.play('vanish'); Effects.vanish(from, this.center, this.awakened ? this.pal.aura : this.pal.ki, perfect || guardEscape, this);
     if (perfect) {
       // they lose sight of you for a moment: their attack is cancelled and they're left open
       foe.windT = 0; foe.stun = Math.max(foe.stun, TUNING.vanishStun); foe.meleeCd = Math.max(foe.meleeCd, 0.3);
       Game.hitStop(0.12); CameraRig.shake(0.2);
       Game.callout(this === Game.player ? 'Perfect vanish' : 'Rival vanished', 'parry');
-    } else if (this !== Game.player) Game.callout('Rival vanished', 'parry');
+    } else if (guardEscape && this === Game.player) Game.callout('GUARD VANISH!', 'parry');
+    else if (this !== Game.player) Game.callout('Rival vanished', 'parry');
     return true;
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
@@ -1572,18 +1582,53 @@ class Fighter {
     if (this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
     this.sprinting = true; if (this === Game.player) CameraRig.shake(0.012); return true;
   }
+  gainAwaken(amount) {
+    if (this.hp <= 0 || this.awakened || this.awakenChargeT > 0) return;
+    this.awakenGauge = clamp(this.awakenGauge + amount, 0, TUNING.awakenGaugeMax);
+  }
   tryAwaken() {
-    if (this.awakened || this.energy < TUNING.awakenCost) return false;
-    this.energy -= TUNING.awakenCost; this.awakenT = TUNING.awakenTime;
-    this.auraFxT = 0;
-    Sound.play('awaken'); Effects.awakenBurst(this);
+    if (this.awakened || this.awakenChargeT > 0 || this.awakenGauge < TUNING.awakenGaugeMax ||
+        this.hp <= 0 || this.stun > 0 || this.launched || this.spiked || this.downT > 0) return false;
+    // Separate combat-earned meter: does not drain ki needed for dashing and blasts.
+    this.awakenChargeT = TUNING.awakenChargeTime;
+    this.awakenChargeProgress = 0;
+    this.awakenChargeFxT = 0; this.awakenRuptured = false;
+    this.sprinting = false; this.dashT = 0; this.dashPrep = 0; this.chase = null;
+    this.skidT = 0; this.vel.set(0, 0, 0); this.acro = null;
+    this.meleeQ = 0; this.meleeBuf = 0; this.kickPend = null; this.punchT = 0; this.windT = 0;
+    this.cancelCharge(); this.chargeHeld = false; this.blockHeld = false; this.blocking = false;
+    this.invulnT = Math.max(this.invulnT, TUNING.awakenChargeTime + 0.12);
+    if (this.vrmRig && this.vrmRig.anim) this.vrmRig.anim.stop();
+    Sound.play('awaken'); Effects.awakenIgnition(this);
+    if (this === Game.player) Game.callout('POWER RISING', 'launch');
     return true;
   }
   // AI attacks wind up first so you can see them coming and block or parry
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
-    this.dashRecoverT = Math.max(0, this.dashRecoverT - dt);
+    this.guardCounterWindow = Math.max(0, this.guardCounterWindow - dt);
+    if (this.awakenChargeT > 0) {
+      this.awakenChargeT = Math.max(0, this.awakenChargeT - dt);
+      this.awakenChargeProgress = 1 - this.awakenChargeT / TUNING.awakenChargeTime;
+      this.blockHeld = this.blocking = this.chargeHeld = false;
+      this.sprinting = false; this.dashT = 0; this.chase = null; this.skidT = 0;
+      this.meleeQ = 0; this.meleeBuf = 0; this.windT = 0;
+      this.vel.multiplyScalar(1 - damp(24, dt));
+      this.invulnT = Math.max(this.invulnT, 0.16);
+      this.awakenChargeFxT -= dt;
+      if (this.awakenChargeFxT <= 0) {
+        this.awakenChargeFxT = Settings.get('quality') === 'low' ? 0.14 : 0.09;
+        Effects.awakenCharge(this, this.awakenChargeProgress);
+      }
+      if (this.awakenChargeT <= 0) {
+        this.awakenGauge = 0; this.awakenT = TUNING.awakenTime; this.auraFxT = 0;
+        this.awakenChargeProgress = 0;
+        Effects.awakenBurst(this); Sound.play('super');
+        if (this === Game.player) Game.callout('AWAKENED!', 'launch');
+      }
+    }
+    this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
@@ -1600,7 +1645,7 @@ class Fighter {
       else { this.windT -= dt; if (this.windT <= 0) { this.windT = 0; Combat.melee(this, this.windTarget); } }
     }
     // charged blast: hold to charge, release to fire; a quick tap fires a normal blast
-    if (this.chargeHeld && !this.charging && this.blastCd <= 0 && this.stun <= 0 && !this.dashing && this.energy >= TUNING.blastCost && this.windT <= 0) {
+    if (this.awakenChargeT <= 0 && this.chargeHeld && !this.charging && this.blastCd <= 0 && this.stun <= 0 && !this.dashing && this.energy >= TUNING.blastCost && this.windT <= 0) {
       this.charging = true; this.chargeT = 0; this.chargeFull = false; this.chargeCracked = false; this.pressureT = 0;
     }
     if (this.charging) {
@@ -1733,6 +1778,8 @@ class Fighter {
       } else this.vel.y = 0;
       // A moving strike faces its actual step, not the previous frame's run direction.
       if (impulse > 0.12) this.facing = lerpAngle(this.facing, yawFromDir(travel.x, travel.z), damp(12, dt));
+    } else if (this.awakenChargeT > 0) {
+      this.vel.multiplyScalar(1 - damp(28, dt));
     } else if (this.stun > 0) {
       if (this.spiked) { /* falling fast: keep the smash velocity */ }
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
@@ -2045,6 +2092,17 @@ class Fighter {
       }
       if (A) P = mix(P, A, smooth01(Math.min(1, acEnv * 1.6)));
     }
+    if (this.awakened && this.stun <= 0 && this.punchT <= 0 && !this.dashing && !this.charging && this.awakenChargeT <= 0) {
+      const powerStance = { arm: [[-0.75, 0.36, -1.30],[-1.06, 0.32, -1.30]],
+        leg: [[0.22, 0.55, 0.21],[-0.39, 0.62, 0.21]], spineY: -0.12, spineX: 0.10, headX: -0.16 };
+      P = mix(P, powerStance, (flying ? 0.14 : 0.38) * (1 - clamp(hspeed / 14, 0, 1)));
+    }
+    if (this.vanishRecoverT > 0 && this.stun <= 0) {
+      const w = smooth01(this.vanishRecoverT / 0.28);
+      const arrive = { arm: [[-0.91, 0.47, -1.55],[-1.15, 0.32, -1.75]],
+        leg: [[0.62, 1.03, 0.24],[-0.70, 0.69, 0.16]], spineY: -0.11, spineX: 0.22, headX: -0.12 };
+      P = mix(P, arrive, 0.62 * w);
+    }
     // block: forearms crossed in front of the face, knees bent
     if (this.blockW > 0.01 && this.brokenT <= 0 && this.stun <= 0) {
       const B = { arm: [[-1.3, -0.5, -1.75], [-1.4, -0.42, -1.9]], leg: fw > 0.5 ? P.leg : [[0.3, 0.6, 0.18], [-0.38, 0.62, 0.12]], spineY: -0.05, spineX: 0.28, headX: 0.18 };
@@ -2133,6 +2191,20 @@ class Fighter {
         if (this.attackKind === 'kick') B.leg[0] = [-1.55, 0.15, 0.06];
       }
       P = mix(P, B, strength);
+    }
+    // Transformation sequence: planted base, fists clench at hips, head lowered;
+    // peak breaks into an open-chest power stance. Entire body participates.
+    if (this.awakenChargeT > 0) {
+      const phase = this.awakenChargeProgress;
+      const open = smooth01((phase - 0.63) / 0.37);
+      const tremble = Math.sin(this.t * (16 + 14 * phase)) * 0.035 * smooth01(phase);
+      const C = { arm: [[0.27 - open * 1.08 + tremble, 0.24 + open * 0.55, -1.56 + open * 0.56],
+                         [0.27 - open * 1.08 - tremble, 0.24 + open * 0.55, -1.56 + open * 0.56]],
+        leg: [[0.27 - open * 0.16, 0.48, 0.23], [-0.42 + open * 0.12, 0.55, 0.25]],
+        spineY: 0, spineX: 0.25 - open * 0.39 + tremble, headX: 0.23 - open * 0.48 };
+      P = mix(P, C, smooth01(Math.min(1, phase * 6)));
+      // Small braced dip; don't lift the whole mesh from the ground.
+      body.position.y -= (0.055 - open * 0.03);
     }
     const fast = this.punchT > 0 || this.blastT > 0 ? 19 : this.moving || this.stun > 0 ? 18 : 11;
     const k = damp(fast, dt), kb = damp(12, dt);
@@ -2313,6 +2385,42 @@ const Effects = (() => {
     bodyAura(f, true);
     if (!f.flying) { chargeFracture(f, 1.32); dust(f.pos, Settings.get('quality') === 'low' ? 5 : 11); }
     CameraRig.shake(0.27);
+  }
+  // Visible power-up is staged, not one instantaneous aura toggle.
+  // The visual envelope hugs articulated bones and concentrates above the feet.
+  function awakenIgnition(f) {
+    flash(f.center,0xffffff,1.65,.09);
+    if (!f.flying) { dust(f.pos,4); }
+    CameraRig.shake(f===Game.player?.04:.015);
+  }
+  function awakenCharge(f,progress) {
+    const low=Settings.get('quality')==='low';
+    const col=f.pal.aura;
+    const intensity=smooth01(progress);
+    // Small luminous flame tongues attached to the skeletal pose, building with the meter.
+    bodyAura(f,false);
+    if (progress>.35 && Math.random()<.55) bodyAura(f,false);
+    const p=f.center;
+    if (!f.flying && Math.random()<(progress<.72?.32:.80)) chargePressure(f,progress);
+    if (progress>.38) {
+      const n=low?1:progress>.78?4:2;
+      for(let i=0;i<n;i++) {
+        const a=Math.random()*TAU;
+        const r=.32+Math.random()*.48;
+        const at=p.clone().add(new V3(Math.cos(a)*r,(Math.random()-.6)*1.35,Math.sin(a)*r));
+        const s=sprite(TEX.glow,i%3?col:0xffffff,.18+.16*intensity,.46+.30*intensity);
+        s.position.copy(at);
+        const v=new V3(Math.cos(a)*.28,1.5+intensity*3.2,Math.sin(a)*.28);
+        push(s,.20,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(v,dt);
+          e.obj.scale.setScalar((.18+.16*intensity)*(1+t*.2));e.obj.material.opacity=(.46+.3*intensity)*(1-t);});
+      }
+    }
+    if(progress>.80&&!f.awakenRuptured) {
+      f.awakenRuptured=true;
+      if(!f.flying){ chargeFracture(f,.65); dust(f.pos,low?6:12); }
+      flash(p,col,2.6,.14);
+      if(f===Game.player) CameraRig.shake(.09);
+    }
   }
   function bodyAura(f, burst = false) {
     if (!f || f.hp <= 0) return;
@@ -2547,54 +2655,97 @@ const Effects = (() => {
   // blocked hit: small blue-white shield flash
   // Sustained sprint/flight has no per-frame particles: prevents a comet or meteor silhouette.
   function sprintTrail(f) {}
-  // V44 vanish: readable full-body afterimage + converging energy slashes, no ring.
-  const vanishSilhouette = canvasTex(96, 192, (g) => {
-    g.fillStyle='rgba(255,255,255,.88)';
-    g.beginPath();g.ellipse(48,30,13,15,0,0,TAU);g.fill();
-    g.beginPath();g.moveTo(33,50);g.lineTo(63,50);g.lineTo(69,106);g.lineTo(27,106);g.closePath();g.fill();
-    g.lineCap='round';g.lineJoin='round';g.lineWidth=14;
-    g.beginPath();g.moveTo(33,58);g.lineTo(20,100);g.moveTo(63,58);g.lineTo(78,100);g.stroke();
-    g.lineWidth=17;g.beginPath();g.moveTo(38,107);g.lineTo(34,160);g.moveTo(58,107);g.lineTo(63,160);g.stroke();
-  },{srgb:false});
-  function vanish(from,to,col,perfect) {
-    const travel=to.clone().sub(from);const flat=travel.clone().setY(0);
-    const dir=flat.lengthSq()>0.02?flat.normalize():new V3(0,0,1);
-    const side=new V3(-dir.z,0,dir.x);
-    const hue=col; // keep each fighter's existing ki / awakening colour, including perfect vanishes
-    const ghostAt=(at,departure)=>{
-      for(let j=0;j<2;j++){
-        const g=new THREE.Sprite(new THREE.SpriteMaterial({map:vanishSilhouette,
-          color:j?0xffffff:hue,transparent:true,opacity:j?0.24:0.58,depthWrite:false,
-          blending:THREE.AdditiveBlending,fog:false}));
-        g.position.copy(at).addScaledVector(side,(j?0.12:-0.12));
-        // Effect positions are at torso height: full silhouette aligns with fighter feet.
-        g.position.y+=0.05;g.scale.set(1.12,2.45,1);
-        push(g,departure?0.24:0.22,(e,dt)=>{
-          const t=e.t/e.life;e.obj.position.addScaledVector(dir,(departure?-1:1)*dt*2.2);
-          e.obj.scale.set(1.12*(1-t*0.1),2.45*(1-t*0.16),1);
-          e.obj.material.opacity=(j?0.24:0.58)*(1-t)*(1-t);
-        });
+  // V45 Vanish: two articulate pose-imprints sampled from the actual VRM skeleton.
+  // Captures the departing pose, then flashes the same body pose at the destination;
+  // no flat humanoid cut-out, energy hoop, or geometry cloned from a skinned mesh.
+  const ghostConnections = [
+    ['hips','spine'],['spine','chest'],['chest','neck'],['neck','head'],
+    ['leftShoulder','leftUpperArm'],['leftUpperArm','leftLowerArm'],['leftLowerArm','leftHand'],
+    ['rightShoulder','rightUpperArm'],['rightUpperArm','rightLowerArm'],['rightLowerArm','rightHand'],
+    ['hips','leftUpperLeg'],['leftUpperLeg','leftLowerLeg'],['leftLowerLeg','leftFoot'],
+    ['hips','rightUpperLeg'],['rightUpperLeg','rightLowerLeg'],['rightLowerLeg','rightFoot']
+  ];
+  function vanish(from,to,col,perfect,fighter) {
+    const travel=to.clone().sub(from), len=travel.length();
+    const dir=len>0.01?travel.clone().normalize():new V3(0,0,1);
+    const right=new V3(-dir.z,0,dir.x).normalize();
+    const low=Settings.get('quality')==='low';
+    const points={};
+    const R=fighter && fighter.vrmRig && fighter.vrmRig.vrm;
+    if (R && R.humanoid) {
+      R.scene.updateMatrixWorld(true);
+      const names=new Set(ghostConnections.flat());
+      for (const n of names) {
+        const bone=R.humanoid.getNormalizedBoneNode(n);
+        if (bone) points[n]=bone.getWorldPosition(new V3());
       }
-      flash(at,0xffffff,1.6,0.07);flash(at,hue,2.3,0.13);
-      sparks(at,hue,perfect?17:11,dir,1.15);
-      for(let i=0;i<(Settings.get('quality')==='low'?5:10);i++){
-        const x=(i/9-0.5)*1.75;
-        const start=at.clone().addScaledVector(side,x).add(new V3(0,(i%5)*0.37-0.75,0));
-        const d=dir.clone().multiplyScalar((departure?-1:1)*(0.85+Math.random()*1.15));
-        const mesh=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.026,0.8+Math.random()*0.7,3),
-          new THREE.MeshBasicMaterial({color:i%4===0?0xffffff:hue,transparent:true,opacity:0.73,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
-        mesh.position.copy(start);mesh.quaternion.setFromUnitVectors(new V3(0,1,0),d.clone().normalize());
-        push(mesh,0.20,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(d,dt*2.0);e.obj.material.opacity=0.73*(1-t)*(1-t);},true);
+    }
+    if (Object.keys(points).length < 12) {
+      const at=(x,y,z)=>from.clone().add(new V3(x,y,z));
+      Object.assign(points,{hips:at(0,-.65,0),spine:at(0,-.36,0),chest:at(0,.12,0),neck:at(0,.54,0),head:at(0,.83,0),
+        leftShoulder:at(.32,.37,0),leftUpperArm:at(.44,.18,0),leftLowerArm:at(.49,-.15,0),leftHand:at(.50,-.36,.11),
+        rightShoulder:at(-.32,.37,0),rightUpperArm:at(-.44,.18,0),rightLowerArm:at(-.49,-.15,0),rightHand:at(-.50,-.36,.11),
+        leftUpperLeg:at(.16,-.80,0),leftLowerLeg:at(.19,-1.16,.05),leftFoot:at(.20,-1.5,.17),
+        rightUpperLeg:at(-.16,-.80,0),rightLowerLeg:at(-.19,-1.16,.05),rightFoot:at(-.20,-1.5,.17)});
+    }
+    function ghost(offset,delay,atArrival) {
+      const off=offset.clone();
+      const origin=from.clone().add(off);
+      let drawn=0;
+      for(const [a,b] of ghostConnections) {
+        if(low && drawn++ % 2) continue;
+        if(!points[a]||!points[b]) continue;
+        const p0=points[a].clone().add(off),p1=points[b].clone().add(off);
+        const delta=p1.clone().sub(p0),dist=delta.length();
+        if(dist<0.035) continue;
+        const radius=(a==='hips'||a==='spine'||a==='chest')?.135:.068;
+        const beam=new THREE.Mesh(new THREE.CylinderGeometry(radius*.8,radius,dist,5),
+          new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:atArrival?.70:.57,
+            depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+        beam.quaternion.setFromUnitVectors(new V3(0,1,0),delta.normalize());
+        beam.position.copy(p0).addScaledVector(p1.clone().sub(p0),.5);
+        beam.visible=delay===0;
+        const rest=beam.position.clone();
+        push(beam,(atArrival?.31:.29)+delay,(e,dt)=>{
+          const t=clamp((e.t-delay)/(e.life-delay),0,1);
+          e.obj.visible=e.t>=delay;
+          e.obj.position.copy(rest).addScaledVector(dir,(atArrival?1:-1)*t*.45);
+          e.obj.material.opacity=(atArrival?.70:.57)*(1-t)*(1-t);
+          e.obj.scale.set(1-t*.40,1-t*.14,1-t*.4);
+        },true);
       }
-    };
-    ghostAt(from,true);
-    const timer=sprite(TEX.glow,hue,0.01,0);
-    push(timer,0.14,(e)=>{if(!e.done && e.t>0.065){e.done=true;ghostAt(to,false);}});
+      const bright=atArrival?.75:.65;
+      const core=sprite(TEX.glow,0xffffff,1.2,bright);
+      core.position.copy(origin);
+      core.visible=delay===0;
+      push(core,0.16+delay,(e)=>{const t=clamp((e.t-delay)/(e.life-delay),0,1);e.obj.visible=e.t>=delay;e.obj.material.opacity=bright*(1-t);});
+      if(delay===0) sparks(origin,col,low?5:perfect?17:12,dir,1.2);
+    }
+    ghost(new V3(),0,false);
+    ghost(travel,.075,true);
+    // Travel exists only as offset streaks, so the fighter itself disappears immediately.
+    const count=low?6:14;
+    const span=Math.min(6.5,Math.max(.8,len));
+    for(let i=0;i<count;i++) {
+      const x=(Math.random()-.5)*1.2,y=(Math.random()-.5)*1.65;
+      const at=from.clone().addScaledVector(right,x).add(new V3(0,y,0));
+      const seg=.85+Math.random()*Math.min(2,span);
+      const beam=new THREE.Mesh(new THREE.CylinderGeometry(.009,.033,seg,3),
+        new THREE.MeshBasicMaterial({color:i%4===0?0xffffff:col,transparent:true,opacity:.64,
+          depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+      beam.quaternion.setFromUnitVectors(new V3(0,1,0),dir);
+      beam.position.copy(at).addScaledVector(dir,Math.min(span*.3,i*.10));
+      push(beam,.24,(e,dt)=>{const t=e.t/e.life;e.obj.position.addScaledVector(dir,dt*10);
+        e.obj.material.opacity=.64*(1-t)*(1-t);e.obj.scale.x=e.obj.scale.z=1-t*.5;},true);
+    }
+    // Delayed emergence sparks at the teleport destination.
+    const dummy=sprite(TEX.glow,col,.05,0);dummy.visible=false;
+    push(dummy,.085,(e)=>{if(!e.done&&e.t>.065){e.done=true;sparks(to,col,low?6:perfect?19:13,dir,1.25);}});
   }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 
 /* V39 — Cinematic effects. These are independent of gameplay: no movement,
@@ -2831,6 +2982,8 @@ const Combat = (() => {
       if (target.forward().dot(toA) > -0.05) return blocked(attacker, target, dmg, knock, kind, floorHp);
     }
     target.hp = Math.max(floorHp, target.hp - dmg);
+    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(13, 3 + dmg * 0.8));
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(13, 3 + dmg * 0.7));
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
@@ -2850,6 +3003,10 @@ const Combat = (() => {
   function blocked(attacker, target, dmg, knock, kind, floorHp) {
     const c = target.center.add(target.forward().multiplyScalar(0.7));
     target.hurtT = 0;
+    // After a real guarded hit, double-tap Guard to slip behind the attacker.
+    target.guardCounterWindow = TUNING.defensiveVanishWindow;
+    target.guardHitBy = attacker;
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(5);
     if (target.blockT < target.parryOk) {
       // parry: no damage; a parried punch leaves the attacker wide open
       target.guard = Math.min(TUNING.guardMax, target.guard + 20);
@@ -2865,7 +3022,7 @@ const Combat = (() => {
     target.hp = Math.max(floorHp, target.hp - dmg * TUNING.blockChip);
     target.guard -= dmg * (kind === 'charged' ? 3.7 : kind === 'blast' ? 2.4 : 4.2); target.guardDelay = TUNING.guardRegenDelay;
     target.vel.copy(knock).multiplyScalar(0.3).setY(0);
-    if (target.guard <= 0) {
+    if (target.guard <= 0) { target.guardCounterWindow = 0;
       Sound.play('heavy');
       target.guard = 0; target.guardDelay = 1.6;
       target.stun = TUNING.guardBreakStun; target.brokenT = TUNING.guardBreakStun; target.hitFlash = 0.2; target.blocking = false;
@@ -2879,7 +3036,7 @@ const Combat = (() => {
   // Four readable beats: jab > cross > turning hook > rising kick.
   // Input buffering happens in Game, contact is delayed until the corresponding active frame.
   function melee(attacker, target) {
-    if (attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
+    if (attacker.awakenChargeT > 0 || attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
     if (attacker.charging) attacker.cancelCharge();
     if (attacker.t - attacker.lastMelee > TUNING.comboWindow) attacker.combo = 0;
     const stage = attacker.combo;
@@ -2976,7 +3133,7 @@ const Combat = (() => {
   }
   function blast(attacker, target, aimMode, lvl = 0) {
     const cost = TUNING.blastCost + TUNING.chargeCost * lvl;
-    if (attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
+    if (attacker.awakenChargeT > 0 || attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
     attacker.cancelCharge();
     attacker.energy = Math.max(0, attacker.energy - cost); attacker.blastCd = TUNING.blastCooldown * (1 + lvl);
     Sound.play(lvl > 0.45 ? 'charge' : 'blast');
@@ -3141,6 +3298,11 @@ const Input = (() => {
     if (e.code === 'Escape' || e.code === 'KeyP') { e.preventDefault(); Game.togglePause(); return; }
     if (Game.state !== 'playing') return;
     if (keyAct[e.code] && !e.repeat) { if (keyAct[e.code] === 'dash') pressRun(e); else queued.add(keyAct[e.code]); }
+    if (['ShiftLeft','ShiftRight','KeyB'].includes(e.code) && !e.repeat && !keys.has(e.code)) {
+      const now = (e.timeStamp || performance.now()) / 1000;
+      if (now - lastBlockTap < TUNING.doubleTap) { queued.add('vanish'); lastBlockTap = -9; }
+      else lastBlockTap = now;
+    }
     keys.add(e.code);
     if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   });
@@ -3244,7 +3406,7 @@ const Input = (() => {
     get dragging() { return look.active; },
     consume(a) { if (queued.has(a)) { queued.delete(a); return true; } return false; },
     reset() {   // called on pause/restart so nothing sticks
-      keys.clear(); queued.clear(); held.up = held.down = held.block = held.blast = held.dash = false; resetStick();
+      lastBlockTap = lastRunTap = -9; keys.clear(); queued.clear(); held.up = held.down = held.block = held.blast = held.dash = false; resetStick();
       look.id = null; look.active = false; look.dx = look.dy = 0;
       document.querySelectorAll('.cbtn.pressed').forEach(b => b.classList.remove('pressed', 'descend'));
     },
@@ -3675,6 +3837,13 @@ const Game = {
     // tap Up on the ground to jump (holding it carries on into flight)
     if (p.vert > 0 && !this._upWas) p.tryJump();
     this._upWas = p.vert > 0;
+    if (p.awakenChargeT > 0) {
+      // Consume queued inputs without interrupting transformation or spamming an action afterward.
+      for (const act of ['dash','dash2','vanish','melee','blast','awaken']) Input.consume(act);
+      p.moveIntent.set(0,0,0); p.vert = 0; p.blockHeld = false;
+      p.sprintHeld = false; p.chargeHeld = false;
+      return;
+    }
     p.blockHeld = Input.block();
     // while guarding, turn to face a nearby rival so the block covers you
     if (p.blocking && p.pos.distanceTo(e.pos) < 15) p.facing = lerpAngle(p.facing, yawFromDir(e.pos.x - p.pos.x, e.pos.z - p.pos.z), damp(14, dt));
@@ -3728,7 +3897,7 @@ const Game = {
     p.chargeTarget = e; p.chargeAim = CameraRig.isLockActive() ? 'target' : 'facing';
     p.chargeHeld = Input.blastHeld();
     if (Input.consume('blast') && !p.chargeHeld && !p.charging) Combat.blast(p, e, p.chargeAim);
-    if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : 'Need 50 energy');
+    if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : p.awakenChargeT > 0 ? 'Powering up' : p.awakenGauge < 100 ? 'Build awakening power by fighting' : 'Cannot awaken while stunned');
   },
 
   update(dt) {
@@ -3778,22 +3947,36 @@ const Game = {
     $('pLag').style.width = this.lag.p + '%'; $('eLag').style.width = this.lag.e + '%';
     $('pHpNum').textContent = Math.ceil(p.hp); $('eHpNum').textContent = Math.ceil(e.hp);
     document.body.classList.toggle('low-hp', p.hp > 0 && p.hp < 25);
-    $('pEnBar').classList.toggle('ready', p.energy >= TUNING.awakenCost);
+    const awReady = p.awakenGauge >= TUNING.awakenGaugeMax;
+    const trans = p.awakenChargeT > 0;
+    $('pEnBar').classList.toggle('ready', awReady && !p.awakened);
+    const ag = $('pAwGauge'); ag.style.width = (trans ? p.awakenChargeProgress * 100 : p.awakened ? 100 : p.awakenGauge) + '%';
+    const am = $('pAwMeter'); am.classList.toggle('ready', awReady && !p.awakened); am.classList.toggle('transforming', trans);
+    $('awakenTag').textContent = trans ? 'POWER RISING  ' + Math.round(p.awakenChargeProgress * 100) + '%' : 'AWAKENED';
+    const ab = document.querySelector('.cbtn.awaken');
+    ab.classList.toggle('charging', trans); ab.classList.toggle('ready', awReady && !p.awakened);
+    ab.classList.toggle('gone', p.awakened && !trans);
+    ab.querySelector('span').textContent = trans ? 'POWERING' : awReady ? 'AWAKEN!' : 'POWER';
+    ab.querySelector('small').textContent = trans ? Math.round(p.awakenChargeProgress * 100) + '%' : awReady ? 'tap to transform' : Math.round(p.awakenGauge) + '%';
+    ab.style.setProperty('--awaken', (trans ? p.awakenChargeProgress * 100 : p.awakenGauge) + '%');
     const sl = $('speedLines'); sl.style.opacity = 0; // no radial meteor/speed cone
     const cm = $('camMode');
     const locked = CameraRig.isLockActive();
     const mode = p.moving || (this.lockOn && !locked) ? 'dash' : locked ? 'locked' : 'free';
     cm.className = 'cam-mode ' + mode;
     cm.textContent = mode === 'dash' ? (this.lockOn ? 'Dash · lock released' : 'Dash · free camera') : locked ? 'Locked on · tap to free' : 'Free camera · tap to lock';
-    $('awakenTag').classList.toggle('hidden', !p.awakened);
+    $('awakenTag').classList.toggle('hidden', !p.awakened && !trans);
     const tm = $('roundTimer'); tm.classList.toggle('hidden', !this.timed);
     if (this.timed) { const s = Math.ceil(this.timeLeft); tm.textContent = s; tm.classList.toggle('low', s <= 10 && this.timeLeft > 0); }
     const tr = Settings.get('rival');
     $('trainTag').classList.toggle('hidden', !this.training);
     if (this.training) $('trainTag').textContent = tr === 'moving' ? 'Training · rival moves, never attacks' : tr === 'attacks' ? 'Training · rival throws slow punches to block' : 'Training · rival stands still';
-    document.querySelector('.cbtn.block').classList.toggle('novanish', p.energy < TUNING.vanishCost || p.vanishCd > 0);
+    const gb = document.querySelector('.cbtn.block');
+    gb.classList.toggle('novanish', p.energy < (p.guardCounterWindow > 0 ? 13 : TUNING.vanishCost) || p.vanishCd > 0);
+    gb.classList.toggle('counter-ready', p.guardCounterWindow > 0 && p.vanishCd <= 0);
+    gb.querySelector('small').textContent = p.guardCounterWindow > 0 ? '2× COUNTER' : '2× vanish';
     // Awaken only shows up when it can be used
-    document.querySelector('.cbtn.awaken').classList.toggle('gone', p.awakened || p.energy < TUNING.awakenCost);
+    // Awakening power button stays visible while filling, then changes state.
     // off-screen rival arrow
     const arrow = $('rivalArrow');
     const v = e.center.project(camera);

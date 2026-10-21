@@ -177,6 +177,10 @@ class AnimLayer {
   }
   update(dt) {
     const f = this.f, p = this.prev, flying = f.flying, hs = Math.hypot(f.vel.x, f.vel.z);
+    if (f.awakenChargeT > 0) {
+      if (this.one) this.one.done = true;
+      this.prevOne = null;
+    }
     const grounded = !flying && !f.launched && !f.spiked;
 
     // ---- triggers for one-shots (rising edges of the fighter's state) ----
@@ -245,8 +249,8 @@ class AnimLayer {
     p.punchT = f.punchT; p.blastT = f.blastT; p.superHitT = f.superHitT || 0; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
 
     // ---- locomotion layer: walk / jog / sprint chosen by speed, phase locked to the ground covered ----
-    const busyLegs = !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
-    const busyArms = busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
+    const busyLegs = f.awakenChargeT > 0 || !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
+    const busyArms = f.awakenChargeT > 0 || busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
     const moveW = smooth01((hs - 0.25) / 1.0);
     // standing still uses the boxing guard stance clip; moving uses the walk/run clips
     // When strafing, prefer the directional procedural feet to the forward-walk mocap.
@@ -300,7 +304,7 @@ class AnimLayer {
       }
     }
     // standing: boxing guard (last frame of the punch-ready clip) with a slow breath
-    if ((this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
+    if (f.awakenChargeT <= 0 && (this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
       const S = Anim.sample('punchEnter', 0.86, false, this.tmp2 || (this.tmp2 = Anim.pose()));
       const br = this._br || (this._br = new THREE.Quaternion());
       br.setFromAxisAngle(this._X || (this._X = new V3(1, 0, 0)), Math.sin(f.t * 2.2) * 0.025);

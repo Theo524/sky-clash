@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V44</title>
-<link rel="stylesheet" href="css/game.css?v=44">
+<title>Sky Clash V45</title>
+<link rel="stylesheet" href="css/game.css?v=45">
 </head>
 <body>
 <div id="game"></div>
@@ -27,6 +27,7 @@
       <div class="name">You <b id="pHpNum">100</b><span class="pips hidden" id="pPips"></span></div>
       <div class="bar hp"><s id="pLag"></s><i id="pHp"></i></div>
       <div class="bar en" id="pEnBar"><i id="pEn"></i></div>
+      <div class="awaken-meter" id="pAwMeter" title="Awakening power — fill by fighting"><span>AWAKEN</span><div class="awaken-track"><i id="pAwGauge"></i></div></div>
       <div class="bar gd" id="pGdBar"><i id="pGd"></i></div>
     </div>
   </div>
@@ -58,7 +59,7 @@
     <div id="stickBase" class="stick-base"><div id="stickKnob" class="stick-knob"></div></div>
   </div>
   <div class="btn-cluster">
-    <button class="cbtn awaken gone" data-act="awaken">Awaken</button>
+    <button class="cbtn awaken" data-act="awaken" aria-label="Power: build the Awakening meter by fighting, then tap to transform"><span>POWER</span><small>0%</small></button>
     <button class="cbtn fly" data-act="fly" aria-label="Fly: hold to rise, slide down to descend"><span>Fly</span><small>slide &#9660; down</small></button>
     <button class="cbtn dash" data-act="dash" aria-label="Boost: hold to accelerate, double tap to dash"><span>Boost</span><small>2&times; dash</small></button>
     <button class="cbtn block" data-act="block" aria-label="Guard: hold to block, tap to parry, double-tap to vanish"><span>Guard</span><small>2&times; vanish</small></button>
@@ -71,13 +72,13 @@
 <div id="titleScreen" class="overlay show" role="dialog" aria-modal="true" aria-labelledby="titleH">
   <div class="panel">
     <h1 id="titleH">Sky Clash</h1>
-    <p class="sub">Version 44 · Highland Arena & Energy Rework</p>
+    <p class="sub">Version 45 · Awakening Unleashed</p>
     <div class="menu">
       <button class="mbtn primary" id="startBtn">Start fight</button>
       <button class="mbtn" id="trainBtn">Training</button>
       <button class="mbtn" id="titleSettingsBtn">Settings</button>
     </div>
-    <p class="hint">V44: body-linked awakening energy, cracked stone charging, improved foot contact, side-dash animation, connected speed trails, and cinematic super-blast hit reactions. No new buttons.</p>
+    <p class="hint">V45: earn Awakening power by fighting, transform through a dramatic charged stance, and counter-vanish by double-tapping Guard after blocking.</p>
     <p class="hint loadnote">Loading hero model…</p>
     <p class="hint credit">Quaternius libraries provide twelve retargeted movement and combat clips from the Quaternius Universal Animation Libraries 1 &amp; 2 (CC0). Hero VRM: Seed-san by VirtualCast, Inc. (VRM Public License 1.0). Other motion: CMU Graphics Lab mocap (mocap.cs.cmu.edu). Recorded motion is used where the VRM retargeter is available; character-specific motion sets are still in progress.</p>
   </div>
@@ -192,7 +193,7 @@
         <tr><td>Vanish (teleport behind the rival, 20 energy)</td><td>Double-tap Guard</td><td>V</td></tr>
         <tr><td>Guard (hold) / parry (tap just before a hit)</td><td>Guard</td><td>Shift / B</td></tr>
         
-        <tr><td>Awaken (50 energy; the button appears when ready)</td><td>Awaken</td><td>T</td></tr>
+        <tr><td>Awaken (build power by fighting, tap when the meter is full)</td><td>Awaken</td><td>T</td></tr>
         <tr><td>Toggle lock-on</td><td>Tap the camera label at the top</td><td>L</td></tr>
         <tr><td>Recorded acrobatics (automatic, when enabled): jump, roll, slide, dynamic landing</td><td>Boost + Fly / side dash</td><td>Space + R / sideways dash</td></tr>
         <tr><td>Pause</td><td>II button</td><td>Esc / P</td></tr>
@@ -219,6 +220,6 @@
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=44"></script>
+<script src="js/game.js?v=45"></script>
 </body>
 </html>

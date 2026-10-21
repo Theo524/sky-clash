@@ -29,7 +29,7 @@ const TUNING = {
   relockGrace: 0.45,
   meleeRange: 2.5, kickDelay: 0.1, kickHitStop: 0.105, meleeArc: 1.25, meleeDamage: 6, meleeCooldown: 0.3, lungeRange: 4.25,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
-  awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5,
+  awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
   jumpVel: 14, gravity: 34, jumpToFly: 0.28, slamMinHeight: 1.6, slamWind: 0.14, slamSpeed: 42, slamRadius: 5.5, slamDamage: 12, slamUp: 10, slamLag: 0.3,
   sprintSpeed: 23, flySprintSpeed: 30, sprintTurn: 4.5, sprintDrainGround: 2, sprintDrainAir: 6, sprintMinEnergy: 4,

@@ -66,7 +66,7 @@ const Game = {
     this.startRound();
   },
   startRound() {
-    this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); RivalAI.reset(); Input.reset();
+    this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); Spectacle.clear(); RivalAI.reset(); Input.reset();
     this.setLock(Settings.get('lockDefault'), false);
     CameraRig.snapBehind(this.player, this.enemy);
     this.koT = 0; this.hitStopT = 0; this.lag = { p: 100, e: 100 }; this.combo.t = 0; $('comboBox').classList.remove('show', 'hot'); this._mv = {x:0,y:0}; this._upWas = false;
@@ -144,6 +144,13 @@ const Game = {
     // tap Up on the ground to jump (holding it carries on into flight)
     if (p.vert > 0 && !this._upWas) p.tryJump();
     this._upWas = p.vert > 0;
+    if (p.awakenChargeT > 0) {
+      // Consume queued inputs without interrupting transformation or spamming an action afterward.
+      for (const act of ['dash','dash2','vanish','melee','blast','awaken']) Input.consume(act);
+      p.moveIntent.set(0,0,0); p.vert = 0; p.blockHeld = false;
+      p.sprintHeld = false; p.chargeHeld = false;
+      return;
+    }
     p.blockHeld = Input.block();
     // while guarding, turn to face a nearby rival so the block covers you
     if (p.blocking && p.pos.distanceTo(e.pos) < 15) p.facing = lerpAngle(p.facing, yawFromDir(e.pos.x - p.pos.x, e.pos.z - p.pos.z), damp(14, dt));
@@ -197,7 +204,7 @@ const Game = {
     p.chargeTarget = e; p.chargeAim = CameraRig.isLockActive() ? 'target' : 'facing';
     p.chargeHeld = Input.blastHeld();
     if (Input.consume('blast') && !p.chargeHeld && !p.charging) Combat.blast(p, e, p.chargeAim);
-    if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : 'Need 50 energy');
+    if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : p.awakenChargeT > 0 ? 'Powering up' : p.awakenGauge < 100 ? 'Build awakening power by fighting' : 'Cannot awaken while stunned');
   },
 
   update(dt) {
@@ -207,7 +214,7 @@ const Game = {
     // keep fighters from overlapping
     const sep = this.enemy.pos.clone().sub(this.player.pos); const d = sep.length();
     if (d < 1.1 && d > 0.0001) { sep.multiplyScalar((1.1 - d) / d / 2); this.enemy.pos.add(sep); this.player.pos.sub(sep); }
-    Combat.update(dt); Effects.update(dt);
+    Combat.update(dt); Effects.update(dt); Spectacle.update(dt);
     if (this.combo.t > 0) { this.combo.t -= dt; if (this.combo.t <= 0) $('comboBox').classList.remove('show'); }
     if (this.training) {
       // rival refills after a short break; you get near-unlimited energy to practise with
@@ -247,22 +254,36 @@ const Game = {
     $('pLag').style.width = this.lag.p + '%'; $('eLag').style.width = this.lag.e + '%';
     $('pHpNum').textContent = Math.ceil(p.hp); $('eHpNum').textContent = Math.ceil(e.hp);
     document.body.classList.toggle('low-hp', p.hp > 0 && p.hp < 25);
-    $('pEnBar').classList.toggle('ready', p.energy >= TUNING.awakenCost);
+    const awReady = p.awakenGauge >= TUNING.awakenGaugeMax;
+    const trans = p.awakenChargeT > 0;
+    $('pEnBar').classList.toggle('ready', awReady && !p.awakened);
+    const ag = $('pAwGauge'); ag.style.width = (trans ? p.awakenChargeProgress * 100 : p.awakened ? 100 : p.awakenGauge) + '%';
+    const am = $('pAwMeter'); am.classList.toggle('ready', awReady && !p.awakened); am.classList.toggle('transforming', trans);
+    $('awakenTag').textContent = trans ? 'POWER RISING  ' + Math.round(p.awakenChargeProgress * 100) + '%' : 'AWAKENED';
+    const ab = document.querySelector('.cbtn.awaken');
+    ab.classList.toggle('charging', trans); ab.classList.toggle('ready', awReady && !p.awakened);
+    ab.classList.toggle('gone', p.awakened && !trans);
+    ab.querySelector('span').textContent = trans ? 'POWERING' : awReady ? 'AWAKEN!' : 'POWER';
+    ab.querySelector('small').textContent = trans ? Math.round(p.awakenChargeProgress * 100) + '%' : awReady ? 'tap to transform' : Math.round(p.awakenGauge) + '%';
+    ab.style.setProperty('--awaken', (trans ? p.awakenChargeProgress * 100 : p.awakenGauge) + '%');
     const sl = $('speedLines'); sl.style.opacity = 0; // no radial meteor/speed cone
     const cm = $('camMode');
     const locked = CameraRig.isLockActive();
     const mode = p.moving || (this.lockOn && !locked) ? 'dash' : locked ? 'locked' : 'free';
     cm.className = 'cam-mode ' + mode;
     cm.textContent = mode === 'dash' ? (this.lockOn ? 'Dash · lock released' : 'Dash · free camera') : locked ? 'Locked on · tap to free' : 'Free camera · tap to lock';
-    $('awakenTag').classList.toggle('hidden', !p.awakened);
+    $('awakenTag').classList.toggle('hidden', !p.awakened && !trans);
     const tm = $('roundTimer'); tm.classList.toggle('hidden', !this.timed);
     if (this.timed) { const s = Math.ceil(this.timeLeft); tm.textContent = s; tm.classList.toggle('low', s <= 10 && this.timeLeft > 0); }
     const tr = Settings.get('rival');
     $('trainTag').classList.toggle('hidden', !this.training);
     if (this.training) $('trainTag').textContent = tr === 'moving' ? 'Training · rival moves, never attacks' : tr === 'attacks' ? 'Training · rival throws slow punches to block' : 'Training · rival stands still';
-    document.querySelector('.cbtn.block').classList.toggle('novanish', p.energy < TUNING.vanishCost || p.vanishCd > 0);
+    const gb = document.querySelector('.cbtn.block');
+    gb.classList.toggle('novanish', p.energy < (p.guardCounterWindow > 0 ? 13 : TUNING.vanishCost) || p.vanishCd > 0);
+    gb.classList.toggle('counter-ready', p.guardCounterWindow > 0 && p.vanishCd <= 0);
+    gb.querySelector('small').textContent = p.guardCounterWindow > 0 ? '2× COUNTER' : '2× vanish';
     // Awaken only shows up when it can be used
-    document.querySelector('.cbtn.awaken').classList.toggle('gone', p.awakened || p.energy < TUNING.awakenCost);
+    // Awakening power button stays visible while filling, then changes state.
     // off-screen rival arrow
     const arrow = $('rivalArrow');
     const v = e.center.project(camera);
