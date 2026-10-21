@@ -28,9 +28,22 @@ const Game = {
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
         if (rivalOK) {
-          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(90,'Preparing training hall');
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
           catch(err) { console.warn('Rival portrait',err); }
+        }
+        // Rin uses the same full-detail VRM skeleton, shaders and animation
+        // layers as Kairo. The dyed outfit texture is kept in her own asset;
+        // no geometric fallback unless the real model fails to load.
+        const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
+        const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
+          {hide:hiddenGear,ninja:true});
+        if (rinOK) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
+          try {
+            this.rinPortrait=renderVRMPortrait(this.heroes.rin_sable);
+            if(this.player===this.heroes.rin_sable)$('pPortrait').src=this.rinPortrait;
+          } catch(err) { console.warn('Ninja portrait',err); }
         }
         document.body.classList.remove('vrm-loading');
         if (typeof LoadScreen !== 'undefined') LoadScreen.finish();
@@ -68,7 +81,7 @@ const Game = {
     const fly=document.querySelector('.cbtn.fly');fly.querySelector('span').textContent=who.mobility.flight?'Fly':'Jump';
     fly.querySelector('small').textContent=who.mobility.flight?'slide ▼ down':'2× jump';
     fly.setAttribute('aria-label',who.mobility.flight?'Fly or descend':'Jump, release and tap again to double jump');
-    if(who.id==='rin_sable') $('pPortrait').src=renderPortrait(PALETTES.ninja);
+    if(who.id==='rin_sable') $('pPortrait').src=this.rinPortrait||renderPortrait(PALETTES.ninja);
     else $('pPortrait').src=this.kairoPortrait||renderPortrait(PALETTES.hero);
     document.querySelectorAll('[data-hero]').forEach(el=>{const selected=el.dataset.hero===who.id;el.classList.toggle('selected',selected);el.setAttribute('aria-pressed',String(selected));});
     const tip=$('heroTip');if(tip)tip.textContent=who.id==='rin_sable'? 'RIN · Twin jumps · Shurikens · Shadow Volley · Shadow Step · Nightveil.': 'KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.';

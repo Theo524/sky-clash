@@ -22,7 +22,7 @@ const CharacterRegistry = (() => {
     rin_sable: Object.freeze({
       id: 'rin_sable', name: 'Rin Sable', epithet: 'The Shade Runner',
       className: 'Shadow Ninja / Agile Skirmisher', style: 'agile',
-      model: 'procedural_ninja', dojo: 'windstone_dojo',
+      model: 'rin.vrm', dojo: 'windstone_dojo',
       mobility: Object.freeze({ flight: false, boost: true, vanish: true, doubleJump: true, wallRun: false }),
       resources: Object.freeze({ health: 'health', special: 'shadow', stamina: 'stamina', awakening: 'nightveil' }),
       moves: Object.freeze({

@@ -1,3 +1,7 @@
+## V52 — Rin anime avatar styling
+
+Rin now uses a proper fully articulated VRM model with unique ninja clothing colours and bone-attached accessories. Original ninja running pose preserved.
+
 ## V51 — Falling Fist & Rin Sable
 - Manual ground follow-up unlocked by Meteor Kick's actual ground impact. Includes bounded chase, hit-confirm damage, second crater/debris event, button hint, and knockdown duration.
 - Rin Sable ninja added to the character registry, title screen choice, distinctive procedural hood/mask, accelerated melee, physical double jump, no flight, shuriken and charged volley projectiles, violet Nightveil palette.

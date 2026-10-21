@@ -280,7 +280,12 @@ class AnimLayer {
     const forward = Math.abs(f.vel.x * fx + f.vel.z * fz);
     const sideW = grounded && hs > 1.5 && !f.sprinting ? smooth01((side - 0.58 * forward) / 6) : 0;
     this.strafeW = (this.strafeW || 0) + (sideW - (this.strafeW || 0)) * damp(10, dt);
-    const legT = busyLegs ? 0 : 1 - 0.88 * this.strafeW, upT = busyArms ? 0 : 1;
+    // Rin's procedural Shade Runner sprint/footwork is part of her identity.
+    // Transfer those original joint poses straight to the detailed VRM skeleton;
+    // keep the recorded clips for attacks, reactions and landing one-shots.
+    const ninjaRun = f.characterId === 'rin_sable';
+    const legT = ninjaRun ? 0 : busyLegs ? 0 : 1 - 0.88 * this.strafeW;
+    const upT = ninjaRun ? 0 : busyArms ? 0 : 1;
     this.moveW = moveW;
     this.locoLeg += (legT - this.locoLeg) * damp(12, dt);
     this.locoUp += (upT - this.locoUp) * damp(12, dt);

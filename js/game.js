@@ -92,7 +92,7 @@ const CharacterRegistry = (() => {
     rin_sable: Object.freeze({
       id: 'rin_sable', name: 'Rin Sable', epithet: 'The Shade Runner',
       className: 'Shadow Ninja / Agile Skirmisher', style: 'agile',
-      model: 'procedural_ninja', dojo: 'windstone_dojo',
+      model: 'rin.vrm', dojo: 'windstone_dojo',
       mobility: Object.freeze({ flight: false, boost: true, vanish: true, doubleJump: true, wallRun: false }),
       resources: Object.freeze({ health: 'health', special: 'shadow', stamina: 'stamina', awakening: 'nightveil' }),
       moves: Object.freeze({
@@ -1061,6 +1061,38 @@ function buildAnimeHero(pal, opts = {}) {
  */
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const ID_Q = new THREE.Quaternion();
+// V52: lightweight head/neck accessories mounted to the *skinned* detailed
+// VRM rig, so Rin keeps the same proportions, face and anime shading as Kairo.
+// They follow the animated bones throughout the ninja sprint and attacks.
+function attachRinNinjaDetails(rig) {
+  const H = rig.vrm.humanoid;
+  const head = H.getNormalizedBoneNode('head');
+  const neck = H.getNormalizedBoneNode('neck');
+  if (!head || !neck) return;
+  const fabric = new THREE.MeshToonMaterial({color:0x24253e,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
+  const violet = new THREE.MeshToonMaterial({color:0x7257ae,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
+  const edge = new THREE.MeshToonMaterial({color:0x15192b,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
+  function detail(parent, geo, mat, x,y,z, sx=1,sy=1,sz=1) {
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);
+    m.castShadow=true; parent.add(m);return m;
+  }
+  // Bone local units come from the original avatar; the tiny shapes are
+  // deliberately face-sized and will never form a large blocky helmet.
+  detail(head,new THREE.SphereGeometry(0.105,18,12),fabric,0,-0.001,0.097,1.12,0.35,0.52);
+  detail(head,new THREE.TorusGeometry(0.112,0.013,7,30),violet,0,0.133,0).rotation.x=Math.PI/2;
+  const emblem=detail(head,new THREE.OctahedronGeometry(0.025,0),violet,0,0.132,0.115,0.88,1.08,0.35);
+  emblem.rotation.z=Math.PI/4;
+  detail(neck,new THREE.TorusGeometry(0.106,0.028,7,24),edge,0,-0.016,0).rotation.x=Math.PI/2;
+  const tails=[];
+  for(const side of [-1,1]) {
+    const pivot=new THREE.Group();pivot.position.set(side*0.055,-0.045,-0.085);neck.add(pivot);
+    const ribbon=detail(pivot,new THREE.ConeGeometry(0.041,0.23,5),side<0?violet:fabric,0,-0.11,0,1,1,0.32);
+    ribbon.rotation.z=side*0.12;
+    tails.push({pivot,side});
+  }
+  rig.ninjaTails=tails;
+}
+
 class VRMRig {
   constructor(fighter, vrm, opts = {}) {
     this.f = fighter; this.vrm = vrm; const m = fighter.model;
@@ -1080,6 +1112,7 @@ class VRMRig {
     m.parts.forEach(p => p.visible = false);
     vrm.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
     (opts.hide || []).forEach(name => vrm.scene.traverse(o => { if (o.isMesh && (o.name.includes(name) || (o.material && [].concat(o.material).some(mt => mt.name.includes(name))))) o.visible = false; }));
+    if (opts.ninja) attachRinNinjaDetails(this);
     // Independent rival materials: both fighters get the same detailed VRM meshes,
     // but the rival has its own colouring and effects. Never recolour shared hero mats.
     this.rivalMaterials = [];
@@ -1145,6 +1178,15 @@ class VRMRig {
       b[p + 'Foot'].quaternion.copy(l.foot.quaternion);
     });
     if (this.anim) this.anim.update(dt);
+    if (this.ninjaTails) {
+      const speed=Math.hypot(this.f.vel.x,this.f.vel.z);
+      const trail=clamp(speed/21,0,1);
+      for(const {pivot,side} of this.ninjaTails) {
+        const desired=0.12+trail*0.82+Math.sin(this.f.t*9+side)*(.02+.07*trail);
+        pivot.rotation.x+=(desired-pivot.rotation.x)*damp(9,dt);
+        pivot.rotation.z+=(side*(.14+trail*.14)-pivot.rotation.z)*damp(9,dt);
+      }
+    }
     // World-space ground constraint AFTER retargeted animation and charge crouch.
     // Raises the VRM mesh if its ankle/sole or knee would intersect the real floor.
     // Does not move the hitbox or fighter's gameplay position.
@@ -1529,7 +1571,12 @@ class AnimLayer {
     const forward = Math.abs(f.vel.x * fx + f.vel.z * fz);
     const sideW = grounded && hs > 1.5 && !f.sprinting ? smooth01((side - 0.58 * forward) / 6) : 0;
     this.strafeW = (this.strafeW || 0) + (sideW - (this.strafeW || 0)) * damp(10, dt);
-    const legT = busyLegs ? 0 : 1 - 0.88 * this.strafeW, upT = busyArms ? 0 : 1;
+    // Rin's procedural Shade Runner sprint/footwork is part of her identity.
+    // Transfer those original joint poses straight to the detailed VRM skeleton;
+    // keep the recorded clips for attacks, reactions and landing one-shots.
+    const ninjaRun = f.characterId === 'rin_sable';
+    const legT = ninjaRun ? 0 : busyLegs ? 0 : 1 - 0.88 * this.strafeW;
+    const upT = ninjaRun ? 0 : busyArms ? 0 : 1;
     this.moveW = moveW;
     this.locoLeg += (legT - this.locoLeg) * damp(12, dt);
     this.locoUp += (upT - this.locoUp) * damp(12, dt);
@@ -4394,9 +4441,22 @@ const Game = {
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
         if (rivalOK) {
-          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(90,'Preparing training hall');
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
           catch(err) { console.warn('Rival portrait',err); }
+        }
+        // Rin uses the same full-detail VRM skeleton, shaders and animation
+        // layers as Kairo. The dyed outfit texture is kept in her own asset;
+        // no geometric fallback unless the real model fails to load.
+        const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
+        const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
+          {hide:hiddenGear,ninja:true});
+        if (rinOK) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
+          try {
+            this.rinPortrait=renderVRMPortrait(this.heroes.rin_sable);
+            if(this.player===this.heroes.rin_sable)$('pPortrait').src=this.rinPortrait;
+          } catch(err) { console.warn('Ninja portrait',err); }
         }
         document.body.classList.remove('vrm-loading');
         if (typeof LoadScreen !== 'undefined') LoadScreen.finish();
@@ -4434,7 +4494,7 @@ const Game = {
     const fly=document.querySelector('.cbtn.fly');fly.querySelector('span').textContent=who.mobility.flight?'Fly':'Jump';
     fly.querySelector('small').textContent=who.mobility.flight?'slide ▼ down':'2× jump';
     fly.setAttribute('aria-label',who.mobility.flight?'Fly or descend':'Jump, release and tap again to double jump');
-    if(who.id==='rin_sable') $('pPortrait').src=renderPortrait(PALETTES.ninja);
+    if(who.id==='rin_sable') $('pPortrait').src=this.rinPortrait||renderPortrait(PALETTES.ninja);
     else $('pPortrait').src=this.kairoPortrait||renderPortrait(PALETTES.hero);
     document.querySelectorAll('[data-hero]').forEach(el=>{const selected=el.dataset.hero===who.id;el.classList.toggle('selected',selected);el.setAttribute('aria-pressed',String(selected));});
     const tip=$('heroTip');if(tip)tip.textContent=who.id==='rin_sable'? 'RIN · Twin jumps · Shurikens · Shadow Volley · Shadow Step · Nightveil.': 'KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.';

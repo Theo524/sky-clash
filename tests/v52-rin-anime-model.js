@@ -1,0 +1,30 @@
+const assert=require('assert');
+const fs=require('fs');
+const path=require('path');
+const root=path.join(__dirname,'..');
+const b=fs.readFileSync(path.join(root,'assets/rin.vrm'));
+assert.strictEqual(b.toString('ascii',0,4),'glTF');
+assert.strictEqual(b.readUInt32LE(8),b.length,'GLB declared length');
+const jl=b.readUInt32LE(12),bl=b.readUInt32LE(20+jl),offset=28+jl;
+assert.strictEqual(offset+bl,b.length,'GLB image/data alignment');
+const gltf=JSON.parse(b.toString('utf8',20,20+jl));
+assert(gltf.extensions?.VRMC_vrm?.humanoid?.humanBones?.head);
+assert(gltf.extensions?.VRMC_vrm?.meta?.authors?.includes('VirtualCast, Inc.'));
+for(const i of [0,2]) {
+ const v=gltf.bufferViews[gltf.images[i].bufferView];
+ const p=offset+v.byteOffset;
+ assert.strictEqual(b.toString('hex',p,p+8),'89504e470d0a1a0a','hair/clothes stored as PNG');
+}
+const reg=fs.readFileSync(path.join(root,'src/05-character-registry.js'),'utf8');
+const game=fs.readFileSync(path.join(root,'src/95-game.js'),'utf8');
+const vrm=fs.readFileSync(path.join(root,'src/30-character-models.js'),'utf8');
+const animations=fs.readFileSync(path.join(root,'src/40-recorded-animations.js'),'utf8');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+assert(reg.includes("model: 'rin.vrm'"));
+assert(game.includes('loadVRMInto(this.heroes.rin_sable, rinSource'));
+assert(game.includes('this.rinPortrait=renderVRMPortrait'));
+assert(vrm.includes('if (opts.ninja) attachRinNinjaDetails(this)'));
+assert(animations.includes("const ninjaRun = f.characterId === 'rin_sable'"));
+assert(animations.includes('const legT = ninjaRun ? 0'));
+assert(html.includes('V52') && html.includes('js/game.js?v=52'));
+console.log('V52: same detailed VRM skeleton, recoloured outfit, bone-following ninja accessories, ninja sprint preserved');
