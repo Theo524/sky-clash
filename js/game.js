@@ -590,7 +590,7 @@ function createAura(color) {
         float twirl = sin(h * 8.0 - uTime * 2.6 + uPhase + uv.x * 12.566) * 0.065;
         float ripple = sin(h * 17.0 - uTime * 4.1 + uv.x * 18.85 + uPhase) * 0.05;
         float flutter = sin(h * 27.0 + uTime * 3.6 + uv.x * 31.4 + uPhase) * 0.026;
-        float taper = 1.0 - 0.42 * smoothstep(0.40, 1.0, h);
+        float taper = 1.0 - 0.10 * smoothstep(0.72, 1.0, h);
         p.xz *= uScale * (taper + twirl + ripple + flutter);
         p.x += sin(h * 8.0 + uTime * 1.7 + uPhase) * 0.09 * h;
         p.z += cos(h * 7.0 + uTime * 1.5 + uPhase) * 0.08 * h;
@@ -610,16 +610,37 @@ function createAura(color) {
         float flow = 0.74 + 0.16 * w + 0.14 * w2;
         float vertical = smoothstep(0.01,0.15,h) * (1.0-smoothstep(0.75,1.0,h));
         float rim = pow(1.0-abs(dot(normalize(vWorldNormal),normalize(vEye))),2.0);
-        float alpha = vertical * flow * (0.18+0.72*rim) * uStrength * uIntensity;
-        gl_FragColor = vec4(mix(uColor,vec3(1.0),0.16+0.22*rim),clamp(alpha,0.0,0.82));
+        float alpha = vertical * flow * (0.05+0.46*rim) * uStrength * uIntensity;
+        gl_FragColor = vec4(mix(uColor,vec3(1.0),0.16+0.22*rim),clamp(alpha,0.0,0.24));
         #include <colorspace_fragment>
       }`,
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending, toneMapped: false
   });
-  const geo = new THREE.CylinderGeometry(0.64,0.72,3.05,96,38,true);
+  // A humanoid contour instead of a uniform cylinder: lower legs, waist, torso, shoulders and head.
+  // Geometry is local to body pivot (~1m above the floor), so the sheath follows animation lean.
+  const positions=[], uvs=[], indices=[];
+  const rings=46, sides=72;
+  for (let k=0;k<=rings;k++) {
+    const h=k/rings, y=-1.48+h*3.05;
+    const profile=h<0.24?0.36+(h/0.24)*0.07:
+      h<0.43?0.43+(h-0.24)/0.19*0.02:
+      h<0.74?0.45+(h-0.43)/0.31*0.18:
+      h<0.84?0.63-(h-0.74)/0.10*0.17:
+      0.46-(h-0.84)/0.16*0.23;
+    for (let j=0;j<=sides;j++) {
+      const u=j/sides, a=u*Math.PI*2;
+      positions.push(Math.cos(a)*profile,y,Math.sin(a)*profile);
+      uvs.push(u,h);
+      if(k<rings && j<sides) { const n=k*(sides+1)+j;indices.push(n,n+sides+1,n+1,n+1,n+sides+1,n+sides+2); }
+    }
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+  geo.setIndex(indices); geo.computeVertexNormals();
   const group = new THREE.Group();
-  const layers = [makeMat(1.34,0.58,0),makeMat(1.12,0.52,1.25),makeMat(0.92,0.42,2.65),makeMat(0.76,0.24,4.0)];
+  const layers = [makeMat(1.10,0.30,0),makeMat(1.04,0.25,1.25),makeMat(0.97,0.17,2.65)];
   layers.forEach((mat,i)=>{const mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=6+i;group.add(mesh);});
   group.visible = false;
   return {group, set(t,intensity,c){
@@ -1164,20 +1185,20 @@ class AnimLayer {
     else if (f.hp > 0 && p.hp <= 0) this.one = null;
     const dying = f.hp <= 0;
     if (!dying) {
-      if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && (f.attackKind === 'punch' || f.attackKind === 'hook')) {
-        const name = f.attackKind === 'hook' ? 'qHook' : (f.punchSide === 1 ? 'jab' : 'cross'), c = Anim.clip(name);
+      if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && (f.attackKind === 'punch' || f.attackKind === 'hook' || f.attackKind === 'airStrike')) {
+        const name = f.attackKind === 'airStrike' ? 'cross' : f.attackKind === 'hook' ? 'qHook' : (f.punchSide === 1 ? 'jab' : 'cross'), c = Anim.clip(name);
         // V36: play the actual preparation + contact + follow-through, not just
         // the last frames near impact. Clip speeds match Combat.melee's hit delays.
         const rate = name === 'qHook' ? 0.72 : name === 'jab' ? 1.55 : 1.51;
         this.play(name, { from: 0, rate, end: name === 'qHook' ? c.d : name === 'jab' ? 0.65 : 0.76,
-          mask: grounded && hs < 6 ? null : this.UPPER, noH: true,
+          mask: this.UPPER, noH: true, 
           fadeIn: 0.065, fadeOut: 0.14, blendOut: 0.14 });
       } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'kick') {
         // Recorded kick from preparation through extension and recovery;
         // foot contact now matches the stage-4 damage window (~0.17s).
-        const name = grounded ? 'kick' : 'airKick', c = Anim.clip(name);
+        const name = 'kick', c = Anim.clip(name);
         this.play(name, { from: 0, rate: 1.28, end: c.d,
-          mask: null, noH: !grounded, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
+          mask: grounded && hs < 1.2 ? null : this.UPPER, noH: true, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
       } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.blastT > 0 && p.blastT <= 0) this.play('blast', { rate: 1.3, mask: grounded && hs < 3 ? null : this.UPPER, fadeIn: 0.04 });
@@ -1222,7 +1243,7 @@ class AnimLayer {
     p.punchT = f.punchT; p.blastT = f.blastT; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
 
     // ---- locomotion layer: walk / jog / sprint chosen by speed, phase locked to the ground covered ----
-    const busyLegs = !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || (f.punchT > 0 && f.attackKind !== 'punch') || dying;
+    const busyLegs = !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
     const busyArms = busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
     const moveW = smooth01((hs - 0.25) / 1.0);
     // standing still uses the boxing guard stance clip; moving uses the walk/run clips
@@ -1356,7 +1377,7 @@ class AnimLayer {
       layer(A, this.chargeW, this.ARMS, 0.6);
     }
     if (this.prevW > 0) layer(this.shotPrev, this.prevW, this.prevOne.mask, 1, this.prevOne.noH);
-    if (oneW > 0) layer(this.shot, oneW, this.one.mask, 1, this.one.noH);
+    if (oneW > 0) layer(this.shot, oneW, this.one.mask, this.one.name === 'qHook' ? 0.76 : 1, this.one.noH);
     // orient the clip with the procedural body: hips + legs follow the body (lean / strafe yaw), chest stays on target
     const yaw = f.hipYaw || 0;
     this.qy.setFromAxisAngle(_UP, -yaw);           // undo hip yaw for the torso
@@ -1432,7 +1453,7 @@ class Fighter {
     this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
     this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
-    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1);
+    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
   // Real positions remain under the physics engine, not the animation layer.
@@ -1539,7 +1560,7 @@ class Fighter {
     return true;
   }
   launchDash() {
-    this.dashPrep = 0; this.dashT = TUNING.dashTime;
+    this.dashPrep = 0; this.dashT = TUNING.dashTime; this.dashRecoverT = 0; this.sprinting = false;
     // Sideways dashes produce evasive footwork; aerial side dashes can roll.
     // Action remains entirely under the original dash movement code.
     const side = this._dashSide || 0;
@@ -1547,7 +1568,7 @@ class Fighter {
       if (this.flying && this.pos.y > this.floor + 3.5) this.startAcro('airRoll', 0.46, Math.sign(side));
       else if (!this.flying) this.startAcro('evade', 0.38, Math.sign(side));
     }
-    Sound.play('dash'); Spectacle.dashStart(this); this.dashWakeT = 0; if (!this.flying) Effects.dust(this.pos, 3);
+    Sound.play('dash'); Spectacle.dashStart(this); CameraRig.shake(this === Game.player ? 0.085 : 0.045); this.dashWakeT = 0; if (!this.flying) Effects.dust(this.pos, 3);
   }
   // hold Run: start running straight away (no dash needed)
   startRun() {
@@ -1564,6 +1585,7 @@ class Fighter {
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
+    this.dashRecoverT = Math.max(0, this.dashRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
     this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
@@ -1595,7 +1617,7 @@ class Fighter {
         const lvl = this.chargeLevel;
         if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; Effects.chargeFull(this); }
         this.chargeFx -= dt;
-        if (this.chargeT > 0.12 && this.chargeFx <= 0) { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); if (Math.random() < 0.18) Effects.groundRing(this, lvl); }
+        if (this.chargeT > 0.12 && this.chargeFx <= 0) { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
       }
     }
     // guard: hold to block; a fresh block (not spammed) gets a short parry window
@@ -1667,7 +1689,7 @@ class Fighter {
       if (this.dashT > 0) this.vel.copy(this.dashDir).multiplyScalar(TUNING.dashSpeed * speedMul * (this.chase ? 1.15 : 0.6 + 0.8 * prog));
       if (this.dashT <= 0) {
         if (this.sprintHeld && !this.chase && !this.dashWasChase && this.stun <= 0 && this.energy >= TUNING.sprintMinEnergy) this.sprinting = true;
-        else if (!this.chase) { this.vel.multiplyScalar(0.6); if (!this.flying) this.skidT = TUNING.skidTime; }
+        else if (!this.chase) { this.vel.multiplyScalar(0.58); this.skidT = 0; this.dashRecoverT = 0.19; }
         this.chase = null;
       }
     } else if (this.sprinting) {
@@ -1679,19 +1701,30 @@ class Fighter {
       const hv = Math.hypot(this.vel.x, this.vel.z);
       if (hv > 2) this.facing = lerpAngle(this.facing, yawFromDir(this.vel.x, this.vel.z), damp(8, dt));
       this.sprintFx -= dt;
-      if (this.sprintFx <= 0) { this.sprintFx = 0.045; this.flying ? Effects.sprintTrail(this) : Effects.dust(this.pos, 2); }
-    } else if (this.punchT > 0 && !this.flying && this.stun <= 0 && !this.launched && !this.spiked) {
-      // Flowing melee locomotion: attack steps carry you forward instead of playing 
-      // static standing strikes while the lower body drifts independently.
-      const dir = (this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone() : this.forward()).setY(0).normalize();
-      const prog = this.attackTotal > 0 ? clamp(this.attackElapsed / this.attackTotal, 0, 1) : 0;
-      const sustain = 1 - smooth01((prog - 0.55) / 0.45);
-      const base = this.attackKind === 'kick' ? 3.2 : this.attackKind === 'hook' ? 3.9 : 4.6;
-      const target = dir.multiplyScalar(base + this.attackDrive * 0.5 * sustain);
-      this.vel.x += (target.x - this.vel.x) * damp(12, dt);
-      this.vel.z += (target.z - this.vel.z) * damp(12, dt);
-      this.vel.y = 0;
-      if (target.lengthSq() > 1.0) this.facing = lerpAngle(this.facing, yawFromDir(target.x, target.z), damp(11, dt));
+      if (this.sprintFx <= 0) { this.sprintFx = this.flying ? 0.07 : 0.075; this.flying ? Spectacle.flightWake(this) : Effects.dust(this.pos, 2); }
+      if (this === Game.player && this.energy > 2 && Math.hypot(this.vel.x, this.vel.z) > 18) {
+        this.sprintShakeT -= dt;
+        if (this.sprintShakeT <= 0) { this.sprintShakeT = 0.38; CameraRig.shake(0.035); }
+      }
+    } else if (this.punchT > 0 && this.stun <= 0 && !this.launched && !this.spiked) {
+      // Contact-synced footwork, not a permanent sliding locomotion velocity.
+      // Quick first third: enter with a visible planted step. Contact and recovery: brake.
+      const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
+      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' ? 0.47 : this.attackKind === 'hook' ? 0.48 : 0.42;
+      const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
+      const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
+      const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
+      const targetH = hsp * impulse;
+      // Sufficient deceleration for a real planted strike even if the fighter approached at sprint speed.
+      const response = damp(p >= contact ? 28 : 20, dt);
+      this.vel.x += (travel.x * targetH - this.vel.x) * response;
+      this.vel.z += (travel.z * targetH - this.vel.z) * response;
+      if (this.attackAir) {
+        const yInput = this.vert * 2.2;
+        this.vel.y += (yInput - this.vel.y) * damp(p >= contact ? 22 : 12, dt);
+      } else this.vel.y = 0;
+      // A moving strike faces its actual step, not the previous frame's run direction.
+      if (impulse > 0.12) this.facing = lerpAngle(this.facing, yawFromDir(travel.x, travel.z), damp(12, dt));
     } else if (this.stun > 0) {
       if (this.spiked) { /* falling fast: keep the smash velocity */ }
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
@@ -1764,7 +1797,7 @@ class Fighter {
     const m = this.model, root = m.root, body = m.body;
     const flying = this.flying;
     root.position.set(this.pos.x, this.pos.y, this.pos.z);
-    root.visible = m.blob.visible = this.vanishT <= 0;
+    root.visible = this.vanishT <= 0;
     root.rotation.y = lerpAngle(root.rotation.y, this.facing, damp(this.dashing ? 22 : 13, dt));
 
     // velocity in the fighter's own frame: lz = forward, lx = toward its left (+X local)
@@ -1786,7 +1819,7 @@ class Fighter {
     this.turnR = (this.turnR || 0) + (clamp(dt > 0 ? dh / dt : 0, -6, 6) - (this.turnR || 0)) * damp(8, dt);
     const bank = clamp(-this.turnR * hspeed / 70, -0.26, 0.26);
     if (this.dashPrep > 0) { pitchT = 0.32; rollT = 0; }
-    else if (this.skidT > 0 && !flying) { pitchT = -0.3; rollT = 0; }
+    else if (this.skidT > 0 && !flying) { pitchT = 0.12; rollT = 0; }
     else if (this.slamming) { pitchT = this.slamWindT > 0 ? -0.2 : 0.35; rollT = 0; }
     else
     if (this.dashing && !flying) { pitchT = 0.16; rollT = bank; }
@@ -1797,6 +1830,7 @@ class Fighter {
       rollT = clamp(-lx / 30, -0.24, 0.24);
     }
     else if (this.sprinting) { pitchT = 0.22; rollT = bank * 1.18; }
+    else if (this.dashRecoverT > 0) { pitchT = 0.14; rollT = 0; }
     else if (this.downT > 0) { pitchT = -1.45; rollT = 0.1; }
     else if (this.spiked) { pitchT = -1.2; rollT = 0; }
     else if (this.launched) { pitchT = -0.75 + Math.sin(this.launchT * 7) * 0.15; rollT = Math.sin(this.launchT * 5) * 0.2; }
@@ -1804,7 +1838,8 @@ class Fighter {
     else if (flying) { pitchT = clamp(lz / 18, -0.35, 0.85); rollT = clamp(-lx / 22, -0.45, 0.45); }
     else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.13 + clamp(lz / 100, -0.11, 0.11) + (this.stun > 0 ? 0 : clamp(this.accF / 160, -0.14, 0.16))) * rnL; rollT = clamp(-lx / 65, -0.19, 0.19) * rnL; }
     if (this.sprinting && !flying) pitchT += clamp(this.accF / 200, -0.1, 0.12);
-    if (this.punchT > 0 && this.attackKind === 'kick') pitchT = -0.25;
+    if (this.punchT > 0 && this.attackKind === 'kick') pitchT = 0.06;
+    if (this.punchT > 0 && this.attackAir) pitchT = 0.14;
     if (this.slamLagT > 0) pitchT = 0.35;
     this.lean.pitch += (pitchT - this.lean.pitch) * damp(this.downT > 0 || this.launched ? 12 : 7, dt);
     this.lean.roll += (rollT - this.lean.roll) * damp(6, dt);
@@ -1851,7 +1886,7 @@ class Fighter {
     this.hipYaw += (yawT - this.hipYaw) * damp(10, dt);
     this.strideDir += (dirT - this.strideDir) * damp(10, dt);
     body.rotation.y = this.hipYaw;
-    const runTarget = flying || this.dashing || this.dashPrep > 0 || this.skidT > 0 || (this.sprinting && flying) ? 0 : smooth01((hspeed - 0.12) / 1.0);
+    const runTarget = flying || this.dashing || this.dashPrep > 0 || this.skidT > 0 || this.punchT > 0 || (this.sprinting && flying) ? 0 : smooth01((hspeed - 0.12) / 1.0);
     this.runW += (runTarget - this.runW) * damp(10, dt);
     this.flyW += ((flying ? 1 : 0) - this.flyW) * damp(8, dt);
     const rw = this.runW, fw = this.flyW;
@@ -1920,6 +1955,9 @@ class Fighter {
     } else if (this.dashPrep > 0) {
       // dash wind-up: sink low, load the back leg, arms pulled back
       P = { arm: [[0.65, 0.38, -0.72], [0.75, 0.28, -0.8]], leg: [[0.75, 1.25, 0.26], [-0.91, 1.48, 0.22]], spineY: -0.18, spineX: 0.48, headX: -0.32 };
+    } else if (this.dashRecoverT > 0 && !this.dashing && !this.sprinting && !flying) {
+      const t = smooth01(1 - this.dashRecoverT / 0.19);
+      const G = stance(); const R = run(); P = mix(R, G, t); P.spineX = 0.15; P.headX = -0.10;
     } else if (this.skidT > 0 && !flying && !this.sprinting && !this.dashing) {
       // braking: lead leg braced out front, weight back, arms out for balance
       P = { arm: [[-0.9, 0.65, -1.2], [-0.55, 0.8, -1.0]], leg: [[0.42, 1.12, 0.22], [-0.9, 0.48, 0.25]], spineY: 0.28, spineX: -0.05, headX: 0.12 };
@@ -2016,6 +2054,11 @@ class Fighter {
         B.arm = [[-0.3, 0.1, -0.2], [-0.8, 0.4, -1.6]];
         B.leg = [[-1.2, 1.9, 0.3], [-0.2, 1.4, 0.25]];
         B.spineX = 0.6; B.headX = -0.3; B.spineY = 0;
+      } else if (this.attackKind === 'airStrike') {
+        // Air finisher: forward driving elbow/knee with both feet tucked, never a rotating roundhouse.
+        B.arm = [[-1.60,-0.12,-0.38],[-0.80,0.32,-1.76]];
+        B.leg = [[-0.74,1.42,0.11],[-0.34,1.05,0.12]];
+        B.spineY = 0.20; B.spineX = 0.16; B.headX = -0.08;
       } else if (this.attackKind === 'kick') {
         B.leg[0] = [-1.6, 0.09, 0.05]; B.leg[1] = [0.35, 0.57, 0.12];
         B.arm = [[-0.35, 0.55, -1.65], [-0.8, 0.35, -1.6]];
@@ -2054,8 +2097,18 @@ class Fighter {
             step.leg = [[0.38, 0.84, 0.14], [-0.62, 0.64, 0.12]];
             step.spineX = 0.18;
           }
-          B = mix(B, step, moveW * 0.72);
+          const contactPlant = smooth01(progress / 0.35);
+          B = mix(B, step, moveW * (0.84 - 0.28 * contactPlant));
         }
+      }
+      if (!flying) {
+        // A visible support foot travels in during preparation and settles under the hips at contact.
+        const plant = smooth01(progress / 0.40);
+        const lead = this.punchSide;
+        const reach = this.attackMoving ? 0.58 : 0.30;
+        B.leg[lead] = [reach * (1 - 0.40 * plant), 0.65 + 0.28 * plant, 0.12];
+        B.leg[1 - lead] = [-0.52 + 0.20 * plant, 0.72, 0.12];
+        if (this.attackKind === 'kick') B.leg[0] = [-1.55, 0.15, 0.06];
       }
       P = mix(P, B, strength);
     }
@@ -2115,7 +2168,7 @@ class Fighter {
       this.orb.material.color.setHex(aw ? this.pal.aura : this.pal.ki);
     }
     // Awakening/charging keeps its usual aura; Boost uses thin speed streaks, never a meteor.
-    const auraTarget = aw ? (this.dashing || (this.sprinting && flying) ? 0.53 : 0.95) : this.charging ? 0.06 + 0.15 * lvc : 0;
+    const auraTarget = aw ? (this.dashing || (this.sprinting && flying) ? 0.38 : 0.72) : this.charging ? 0.025 + 0.06 * lvc : 0;
     // No meteor model or speed sphere during dashes or fast flight.
     // Boost is communicated through motion, audio and brief launch dust only.
     m.aura.level = (m.aura.level || 0) + (auraTarget - (m.aura.level || 0)) * damp(aw ? 6 : 10, dt);
@@ -2125,7 +2178,8 @@ class Fighter {
     const h = this.pos.y - this.floor;
     m.blob.position.set(this.pos.x, this.floor + 0.03, this.pos.z);
     const bs = clamp(1.2 - h * 0.025, 0.5, 1.2); m.blob.scale.set(bs, bs, bs);
-    m.blob.material.opacity = clamp(1 - h / 30, 0.25, 1);
+    m.blob.material.opacity = Math.max(0, 0.40 * (1 - smooth01((h - 0.35) / 4.0)));
+    m.blob.visible = this.vanishT <= 0 && h < 4.4;
   }
 }
 
@@ -2183,19 +2237,12 @@ const Effects = (() => {
     // Small white contact core + directional flares: less of a screen-filling blob.
     flash(pos,0xffffff,heavy?2.5:1.35,heavy?0.11:0.075);
     flash(pos,color,heavy?2.9:1.7,heavy?0.16:0.11);
-    ring(pos,heavy?color:0xffffff,heavy?1.55:0.95);
     sparks(pos,color,heavy?17:10,dir,heavy?1.38:1);
   }
   function kickImpact(pos, dir, color) {
     impact(pos, color, true, dir);
     flash(pos, 0xffffff, 2.6, 0.07);
-    // shockwave rings facing along the kick, pushed out the far side of the target
-    for (const [sz, life, off] of [[2.6, 0.3, 0.3], [1.6, 0.22, 0.9]]) {
-      const mesh = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.62, 40),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-      const at = pos.clone().addScaledVector(dir, off); mesh.position.copy(at); mesh.lookAt(at.clone().add(dir));
-      push(mesh, life, (e, dt) => { const k = e.t / e.life; e.obj.position.addScaledVector(dir, dt * 6); e.obj.scale.setScalar(1 + k * sz * 2); e.obj.material.opacity = 0.9 * (1 - k) * (1 - k); }, true);
-    }
+    // Keep a punchy core and sparks, not circular impact geometry.
     // sparks thrown forward in a cone
     sparks(pos, color, 11, dir, 1.55);
   }
@@ -2369,15 +2416,28 @@ const Effects = (() => {
   // blocked hit: small blue-white shield flash
   // Sustained sprint/flight has no per-frame particles: prevents a comet or meteor silhouette.
   function sprintTrail(f) {}
-  // teleport: a sharp pop where you were, a streak between, and a pop where you land
+  // DBZ-inspired vanish: instantaneous departure/arrival ghost streaks, no ring or long trail.
+  // The actual teleport remains in Fighter.tryVanish, purely cosmetic trails here.
   function vanish(from, to, col, perfect) {
-    flash(from, 0xffffff, 3.2, 0.1); ring(from, col, 1.4); sparks(from, col, 6);
-    for (let i = 1; i <= 5; i++) {
-      const s = sprite(TEX.glow, col, 0.9, 0.5); s.position.lerpVectors(from, to, i / 6);
-      push(s, 0.18 + i * 0.02, (e) => { e.obj.material.opacity = 0.5 * (1 - e.t / e.life); });
+    function residue(p, entering) {
+      flash(p, 0xffffff, entering ? 2.3 : 1.9, 0.07);
+      flash(p, col, entering ? 3.0 : 2.4, 0.12);
+      for (let j=0;j<4;j++) {
+        const a = (j/4)*TAU;
+        const ghost=sprite(TEX.glow, j === 0 ? 0xffffff : col, 0.3, 0.33);
+        ghost.position.copy(p).add(new V3(Math.sin(a)*0.21, 0.2 + (j%2)*0.72, Math.cos(a)*0.21));
+        const v = new V3((Math.random()-0.5)*2.3, entering ? 1.9 : -1.6, (Math.random()-0.5)*2.3);
+        const z=0.11+j*0.025;
+        push(ghost,z,(e,dt)=>{const k=e.t/e.life;e.obj.position.addScaledVector(v,dt);e.obj.scale.set(0.26*(1-k*0.5),1.55*(1-k),1);e.obj.material.opacity=0.33*(1-k)*(1-k);});
+      }
+      sparks(p, col, perfect ? 10 : 5, new V3(0,1,0), 0.8);
     }
-    const at = to.clone();
-    push(sprite(TEX.glow, 0xffffff, 0.1, 0), 0.13, (e) => { if (e.t >= 0.12 && !e.done) { e.done = true; flash(at, 0xffffff, perfect ? 4.5 : 3, 0.14); ring(at, perfect ? 0xffd166 : col, perfect ? 2.6 : 1.6); if (perfect) sparks(at, 0xffe08a, 12); } });
+    residue(from, false);
+    // Show the new arrival a beat later: blink-out -> blink-in without a travelled ring.
+    const ghost = sprite(TEX.glow, col, 0.01, 0);
+    push(ghost, 0.11, (e)=>{
+      if (!e.done && e.t > 0.07) { e.done=true; residue(to, true); }
+    });
   }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
@@ -2478,11 +2538,24 @@ const Spectacle = (() => {
   function dashWake(f) {
     if (!quality()) return;
     const d=f.vel.lengthSq()>0.01?f.vel.clone().normalize():f.dashDir.clone().normalize();
-    const side = new V3(-d.z,0,d.x), col = f.awakened ? f.pal.aura : 0xa7dfff;
-    const p=f.center.clone().addScaledVector(d,-0.6);
-    for(let i of [-1,1]) {
-      const a=p.clone().addScaledVector(side,i*0.42).add(new V3(0,(Math.random()-0.5)*0.55,0));
-      ribbon(a,a.clone().addScaledVector(d,-1.25),col,0.025,0.12,0.42);
+    const side=new V3(-d.z,0,d.x), col=f.awakened?f.pal.aura:0x98dfff;
+    // Twin torso/shoulder streams make aerial dash as legible as grounded dash.
+    const c=f.center.clone();
+    for (const i of [-1,1]) {
+      const a=c.clone().addScaledVector(side,i*0.37).add(new V3(0,0.18,0)).addScaledVector(d,-0.35);
+      ribbon(a,a.clone().addScaledVector(d,-(f.flying?2.8:1.75)),i<0?0xffffff:col,0.026,0.17,0.53);
+    }
+    const waist=c.clone().add(new V3(0,-0.58,0)).addScaledVector(d,-0.35);
+    ribbon(waist,waist.clone().addScaledVector(d,-(f.flying?2.5:1.6)),col,0.026,0.16,0.48);
+  }
+  function flightWake(f) {
+    if(!quality() || !f.flying || !f.sprinting || f.dashing) return;
+    const d=f.vel.lengthSq()>0.5?f.vel.clone().normalize():f.forward();
+    const p=f.center.clone(), side=new V3(-d.z,0,d.x);
+    const col=f.awakened?f.pal.aura:0x9edbff;
+    for(const i of [-1,1]) {
+      const start=p.clone().addScaledVector(side,i*0.34).addScaledVector(d,-0.30);
+      ribbon(start,start.clone().addScaledVector(d,-1.75),col,0.022,0.16,0.44);
     }
   }
   function muzzle(pos, dir, color, level) {
@@ -2533,7 +2606,7 @@ const Spectacle = (() => {
     if(x.mesh.material) x.mesh.material.dispose();
   }
   function clear() {live.forEach(dispose);live.length=0;}
-  return {swing,contact,dashStart,dashWake,muzzle,wake,explosion,update,clear};
+  return {swing,contact,dashStart,dashWake,flightWake,muzzle,wake,explosion,update,clear};
 })();
 /* ---------------- Lightweight combat audio (procedural/offline) ---------------- */
 const Sound = (() => {
@@ -2651,15 +2724,16 @@ const Combat = (() => {
     if (counter) attacker.riposteT = 0;
     attacker.lastMelee = attacker.t;
     attacker.combo = (stage + 1) % 4;
-    attacker.sprinting = false; attacker.skidT = 0;
+    attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0; attacker.dashPrep = 0; attacker.dashRecoverT = 0; attacker.chase = null;
     const moveDir = attacker.moveIntent.lengthSq() > 0.05 ? attacker.moveIntent.clone().setY(0).normalize() : (Math.hypot(attacker.vel.x, attacker.vel.z) > 0.1 ? attacker.vel.clone().setY(0).normalize() : attacker.forward());
     attacker.attackTravel = moveDir.clone();
+    attacker.attackAir = attacker.flying;
     attacker.attackDrive = Math.max(2.4, Math.min(8.0, Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? 2.4 : 0)));
     attacker.attackMoving = attacker.attackDrive > 2.8 || attacker.moveIntent.lengthSq() > 0.12;
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
     if (stage === 3) { attacker.meleeQ = 0; attacker.meleeBuf = 0; }
-    attacker.attackKind = kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
+    attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
     const cd = [0.43, 0.51, 0.69, 0.88][stage];
@@ -2675,10 +2749,10 @@ const Combat = (() => {
       if (dist > TUNING.meleeRange * 0.55 && dist < TUNING.meleeRange + 0.9) {
         // Small grounded follow-step, not a long-range homing punch.
         const dir = toT.setY(0).normalize();
-        const step = Math.min(9.0, 6.6 + stage * 0.75);
+        const step = Math.min(6.0, 4.8 + stage * 0.35);
         attacker.attackTravel = dir.clone();
         attacker.attackDrive = Math.max(attacker.attackDrive, step * 0.92);
-        attacker.vel.lerp(dir.multiplyScalar(step), 0.46);
+        attacker.vel.lerp(dir.multiplyScalar(step), 0.35);
         attacker.lungeAt = attacker.t;
       }
     }
@@ -2702,7 +2776,7 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.spiked = true; target.stun = 2;
-        Game.callout('Air smash', 'smash'); Effects.ring(target.center, 0xffd166, 2); }
+        Game.callout('Air smash', 'smash'); Effects.flash(target.center, 0xffd166, 2.4, 0.12); }
     } else if (air) {
       result = hit(attacker, target, base * 0.83, fwd.multiplyScalar(3).setY(4.5), stage === 2);
       if (result === 'hit') { target.juggle++; target.launched = true;
@@ -2754,6 +2828,7 @@ const Combat = (() => {
     if (aimMode === 'target') attacker.facing = yawFromDir(dir.x, dir.z);
     const color = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     const superShot = lvl > 0.93;
+    const bigShot = lvl > 0.55;
     const group = new THREE.Group();
     const core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false }));
     core.scale.setScalar((0.66 + 0.54 * lvl) * size); group.add(core);
@@ -2769,6 +2844,26 @@ const Combat = (() => {
     const halo = Effects.sprite(TEX.glow, color, 2.6 + lvl * 3.1, 0.17);
     const coreHalo = Effects.sprite(TEX.glow, 0xffffff, 1.0 + lvl * 1.0, 0.70);
     group.add(glow, halo, coreHalo);
+    const powerFins = [];
+    if (bigShot) {
+      // Charged blast silhouette: a bright elongated plasma spear with layered trailing fins.
+      // Normal small projectiles keep their existing appearance.
+      core.scale.set(1.0, 1.0, 1.55 + 1.2 * lvl);
+      shell.scale.set(size * 0.84, size * 0.84, size * (1.90 + lvl * 0.48));
+      shell2.scale.set(size * 0.76, size * 0.76, size * (2.32 + lvl * 0.58));
+      for (let j = 0; j < (superShot ? 8 : 5); j++) {
+        const a = (j / (superShot ? 8 : 5)) * Math.PI * 2;
+        const dist = 0.55 + lvl * 0.5;
+        const fin = new THREE.Mesh(new THREE.ConeGeometry(0.18 + lvl * 0.08, 1.9 + lvl * 2.5, 5, 1),
+          new THREE.MeshBasicMaterial({color: j % 3 === 0 ? 0xffffff : color, transparent: true,
+            opacity: j % 3 === 0 ? 0.80 : 0.48, depthWrite: false,
+            blending: THREE.AdditiveBlending, toneMapped: false}));
+        fin.rotation.x = Math.PI * 0.5;
+        fin.position.set(Math.cos(a) * dist, Math.sin(a) * dist, -1.25 * lvl);
+        group.add(fin); powerFins.push({ mesh: fin, angle: a, dist, alpha: fin.material.opacity });
+      }
+      halo.scale.multiplyScalar(1.25); coreHalo.scale.multiplyScalar(1.20);
+    }
     const orbiters = [];
     if (Settings.get('quality') !== 'low') {
       for (let j=0; j<(superShot?4:2); j++) {
@@ -2785,7 +2880,7 @@ const Combat = (() => {
       attacker.vel.addScaledVector(dir, -4 * lvl);
     }
     if (superShot) { Sound.play('super'); if (attacker === Game.player) Game.callout('SUPER BLAST', 'launch'); }
-    projectiles.push({ mesh: group, core, shell, shell2, glow, halo, orbiters, wakeT: 0,
+    projectiles.push({ mesh: group, core, shell, shell2, glow, halo, orbiters, powerFins, wakeT: 0,
       vel: dir.multiplyScalar(TUNING.blastSpeed - 14 * lvl), owner: attacker, target, life: 2.4 + lvl, color, lvl, size,
       dmg: (TUNING.blastDamage + TUNING.chargeDmg * lvl) * damageMul(attacker) * (superShot ? 1.12 : 1) });
   }
@@ -2799,6 +2894,12 @@ const Combat = (() => {
       p.glow.material.opacity = 0.72 + 0.16*Math.sin(p.life*28);
       if (p.halo) p.halo.material.opacity = 0.16 + 0.06*Math.sin(p.life*20);
       if (p.orbiters) p.orbiters.forEach((o,i)=> { const a = p.life*8 + i*Math.PI; o.position.set(Math.cos(a)*(0.34+p.lvl*0.12), Math.sin(a*1.2)*(0.22+p.lvl*0.08), -0.15); o.material.opacity = 0.62; });
+      if (p.powerFins) p.powerFins.forEach((q,i) => {
+        const a = q.angle + p.life * (i % 2 ? -1.2 : 1.0);
+        q.mesh.position.x = Math.cos(a) * q.dist;
+        q.mesh.position.y = Math.sin(a) * q.dist;
+        q.mesh.material.opacity = q.alpha * (0.83 + 0.17 * Math.sin(p.life * 24 + i));
+      });
       // Fixed-rate wake avoids creating dozens of sprites per frame on phones.
       p.wakeT -= dt;
       if (p.wakeT <= 0) {
@@ -2816,7 +2917,7 @@ const Combat = (() => {
           Effects.bigBlast(p.mesh.position, p.color, p.lvl);
           CameraRig.shake(0.22 + p.lvl * 0.26);
           if (p.lvl > 0.93) { Game.hitStop(0.11); Sound.play('superHit'); }
-        } else { Effects.ring(p.mesh.position, p.color, 1.65); Effects.flash(p.mesh.position, p.color, 2.7, 0.14); }
+        } else { Effects.flash(p.mesh.position, 0xffffff, 1.6, 0.09); Effects.flash(p.mesh.position, p.color, 2.7, 0.14); }
       }
       if (dead) { remove(p); projectiles.splice(i, 1); }
     }
