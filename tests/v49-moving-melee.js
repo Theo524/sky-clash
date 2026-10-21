@@ -36,7 +36,7 @@ function runCase(label,{attacker=[0,0,0],enemy=[0,0,3.2],foeVel=[0,0,0],move=[0,
  Combat.melee(me,foe);
  const contactedAt=me.kickPend.t;
  let health=foe.hp;
- for(let i=0;i<Math.ceil(0.184/dt);i++){
+ for(let i=0;i<Math.ceil(Math.max(0.184,contactedAt + 0.055)/dt);i++){
    // In flight tests the opponent actively rises or slides during anticipation.
    foe.pos.addScaledVector(new V3(...foeVel),dt);
    me.update(dt);

@@ -570,15 +570,15 @@ class Fighter {
     else if (this.skidT > 0 && !flying) { pitchT = 0.12; rollT = 0; }
     else if (this.slamming) { pitchT = this.slamWindT > 0 ? -0.2 : 0.35; rollT = 0; }
     else
-    if (this.dashing && !flying) { pitchT = 0.16; rollT = bank; }
+    if (this.dashing && !flying) { pitchT = 0.09; rollT = bank * 0.6; }
     else if (this.dashing || fastFly) {
       // Controlled powered flight: upper body still faces travel direction instead
       // of tipping nearly horizontal like a falling meteor.
-      pitchT = 0.27 + 0.22 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.12, 0.12);
+      pitchT = 0.15 + 0.13 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.10, 0.10);
       rollT = this.airBank;
     }
-    else if (this.sprinting) { pitchT = 0.22; rollT = bank * 1.18; }
-    else if (this.dashRecoverT > 0) { pitchT = 0.08 + 0.13 * smooth01(this.dashRecoverT / 0.28); rollT = bank * 0.35; }
+    else if (this.sprinting) { pitchT = 0.08; rollT = bank * 0.75; }
+    else if (this.dashRecoverT > 0) { pitchT = 0.04 + 0.05 * smooth01(this.dashRecoverT / 0.28); rollT = bank * 0.35; }
     else if (this.downT > 0) { pitchT = -1.45; rollT = 0.1; }
     else if (this.spiked) { pitchT = -1.2; rollT = 0; }
     else if (this.launched) { pitchT = this.superHitT > 0 ? -0.34 : -0.75 + Math.sin(this.launchT * 7) * 0.15; rollT = Math.sin(this.launchT * 5) * 0.2; }
@@ -587,8 +587,8 @@ class Fighter {
       pitchT = 0.06 + 0.34 * smooth01(Math.max(0, lz) / 15) - 0.12 * smooth01(Math.max(0, -lz) / 10) - clamp(this.vel.y / 115, -0.12, 0.12);
       rollT = this.airBank * 0.86;
     }
-    else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.13 + clamp(lz / 100, -0.11, 0.11) + (this.stun > 0 ? 0 : clamp(this.accF / 160, -0.14, 0.16))) * rnL; rollT = clamp(-lx / 65, -0.19, 0.19) * rnL; }
-    if (this.sprinting && !flying) pitchT += clamp(this.accF / 200, -0.1, 0.12);
+    else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.055 + clamp(lz / 180, -0.035, 0.035) + clamp(this.accF / 350, -0.025, 0.04)) * rnL; rollT = clamp(-lx / 95, -0.11, 0.11) * rnL; }
+    if (this.sprinting && !flying) pitchT += clamp(this.accF / 450, -0.025, 0.04);
     if (this.punchT > 0 && this.attackKind === 'kick') pitchT = 0.06;
     if (this.punchT > 0 && this.attackAir) pitchT = 0.14;
     if (this.slamLagT > 0) pitchT = 0.35;
@@ -642,7 +642,9 @@ class Fighter {
     this.hipYaw += (yawT - this.hipYaw) * damp(10, dt);
     this.strideDir += (dirT - this.strideDir) * damp(10, dt);
     body.rotation.y = this.hipYaw;
-    const runTarget = flying || this.dashing || this.dashPrep > 0 || this.skidT > 0 || this.punchT > 0 || (this.sprinting && flying) ? 0 : smooth01((hspeed - 0.12) / 1.0);
+    // Keep a real stepping cycle for moving punches; kicks/launchers still plant their support leg.
+    const mobilePunch = this.punchT > 0 && this.attackMoving && !flying && ['punch','hook','ninjaPalm','ninjaElbow'].includes(this.attackKind);
+    const runTarget = flying || this.dashing || this.dashPrep > 0 || this.skidT > 0 || (this.punchT > 0 && !mobilePunch) ? 0 : smooth01((hspeed - 0.12) / 1.0);
     this.runW += (runTarget - this.runW) * damp(10, dt);
     this.flyW += ((flying ? 1 : 0) - this.flyW) * damp(flying ? 5.8 : 8, dt);
     const rw = this.runW, fw = this.flyW;
@@ -651,7 +653,8 @@ class Fighter {
     const runness = smooth01((hspeed - 5) / 9);
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
     const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
-    const groundY = 1.0 - (this.characterId === 'rin_sable' ? 0.075 : 0.14) * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
+    // Raised baseline: the VRM's sole (below the ankle joint) must remain visible above terrain.
+    const groundY = 1.075 - (this.characterId === 'rin_sable' ? 0.035 : 0.065) * (1 - rw) - 0.025 * rw * runness + bounce * (1 - rw) + stepBob * rw;
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);
     // Add clearance during a flip; tuck to absorb a landing or sidestep.
@@ -669,15 +672,16 @@ class Fighter {
     const stance = () => {
       if (this.characterId === 'rin_sable') {
         const breathe = Math.sin(this.t*1.85)*0.024;
-        return { arm:[[-1.25+breathe,.18,-1.35],[-0.87-breathe,.29,-1.53]],
-          leg:[[.17,.26,.09],[-.22,.29,.11]],spineY:-.12,spineX:.085,headX:-.045 };
+        // Shade Runner: asymmetric open-hand guard, forward left hand, low right hand; upright and light on the feet.
+        return { arm:[[-0.69+breathe,.11,-1.22],[-1.19-breathe,.23,-1.40]],
+          leg:[[.22,.18,.10],[-.28,.22,.15]],spineY:-.16,spineX:.025,headX:.015 };
       }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
-      // Ninja guard: low asymmetrical base, elbows tucked and hands shielding the face.
+      // Storm Fist: readable high boxing guard, grounded without an exaggerated forward bow.
       // Subtle shifting weight keeps the character alive without idle foot-skating.
       const weight = Math.sin(this.t * 1.65) * 0.045;
-      return { arm: [[-0.92 + br, 0.28, -1.85], [-1.18 - br, 0.16, -1.82]],
-               leg: [[0.46 + weight, 0.73, 0.23], [-0.54 - weight, 0.76, 0.19]], spineY: -0.35 + sway, spineX: 0.24, headX: -0.11 };
+      return { arm: [[-0.88 + br, 0.24, -1.48], [-1.07 - br, 0.18, -1.55]],
+               leg: [[0.24 + weight, 0.31, 0.15], [-0.31 - weight, 0.38, 0.15]], spineY: -0.15 + sway * 0.5, spineX: 0.065, headX: 0.0 };
     };
     const run = () => {
       // knee folds most while the leg swings through (heel up under the hip), stays softly bent on the ground
@@ -690,7 +694,7 @@ class Fighter {
       const armA = A * (0.35 + 0.48 * rn), elb = -1.0 - 0.52 * rn;               // walk: relaxed arms, run: bent and pumping
       return { arm: [[sn * armA - 0.5 - 0.15 * rn, 0.19 + 0.06 * rn, elb], [-sn * armA - 0.55 - 0.13 * rn, 0.2 + 0.05 * rn, elb]],
                leg: [[-sn * A - 0.19 * rn, (kb + fold(ph) * kf) * sw + 0.13 * rn, 0.08 + 0.04 * rn], [sn * A - 0.19 * rn, (kb + fold(ph + Math.PI) * kf) * sw + 0.13 * rn, 0.08 + 0.04 * rn]],
-               spineY: -sn * (0.09 + 0.11 * rn), spineX: 0.17 + 0.12 * rn, headX: -0.14 - 0.08 * rn };
+               spineY: -sn * (0.06 + 0.065 * rn), spineX: 0.055 + 0.025 * rn, headX: -0.035 - 0.02 * rn };
     };
     const flyIdle = () => {
       const s2 = Math.sin(this.t * 2.4) * 0.06;
@@ -730,11 +734,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -769,7 +773,7 @@ class Fighter {
         const side = Math.sign(lx) || 1;
         const slide = { arm: [[-1.05, 0.28, -1.65], [-1.3, 0.15, -1.9]],
           leg: [[0.23 + 0.15 * Math.sin(this.runPh), 0.82, 0.3], [-0.38 - 0.12 * Math.sin(this.runPh), 0.78, 0.27]],
-          spineY: -0.32 * side, spineX: 0.22, headX: -0.1 };
+          spineY: -0.25 * side, spineX: 0.07, headX: -0.03 };
         P = mix(P, slide, lateral * 0.67);
       }
     }
@@ -826,7 +830,8 @@ class Fighter {
     // Poses blend onto locomotion instead of snapping arms/legs into fixed positions.
     if (this.blastT > 0) {
       const w = smooth01(Math.min(1, (0.26 - Math.min(this.blastT, 0.26)) / 0.09));
-      const B = { ...P, arm: [[-1.5, -0.12, -0.1], [-1.5, -0.12, -0.1]], spineY: 0 };
+      // Superblast uses a stable two-arm energy push, not a repurposed overhand/hook.
+      const B = { ...P, arm: [[-1.33, 0.16, -0.38], [-1.33, 0.16, -0.38]], spineY: 0, spineX: 0.025, headX: 0 };
       P = mix(P, B, w);
     } else if (this.punchT > 0) {
       const total = this.attackTotal || 0.235;
@@ -926,7 +931,9 @@ class Fighter {
           B = mix(B, step, moveW * (0.84 - 0.28 * contactPlant));
         }
       }
-      if (!flying) {
+      // During moving hand strikes, preserve the cyclic gait rather than holding a frozen lunge.
+      if (mobilePunch) B.leg = P.leg.map(leg => leg.slice());
+      if (!flying && !mobilePunch) {
         // A visible support foot travels in during preparation and settles under the hips at contact.
         const plant = smooth01(progress / 0.40);
         const lead = this.punchSide;

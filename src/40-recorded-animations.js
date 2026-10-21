@@ -251,9 +251,9 @@ class AnimLayer {
         noH: true, fadeIn: 0.045, fadeOut: 0.17, blendOut: 0.14 });
       if (f.blastT > 0 && p.blastT <= 0) {
         const big = (f.blastLvl || 0) > 0.65;
-        this.play(big ? 'qOverhand' : 'blast', big
-          ? { from: 0.08, rate: 2.4, end: 0.97, mask: this.UPPER, noH: true, fadeIn: 0.05, fadeOut: 0.22 }
-          : { rate: 1.3, mask: this.UPPER, noH: true, fadeIn: 0.04 });
+        // Keep the procedural blast release: unrelated boxing/overhand clips twist the arms.
+        // Clear any strike's lingering fade so the two-arm push has sole ownership.
+        this.one = null; this.prevOne = null; this.lastRecordedAction = 'clean-energy-release';
       }
       if (f.brokenT > 0 && p.brokenT <= 0) this.play('guardBreak', { rate: 1, hold: true, fadeIn: 0.05 });
       else if (f.downT > 0 && p.downT <= 0) this.play('qHitKnockback', { from: 0.10, rate: 1.35, hold: true, fadeIn: 0.055 });
@@ -310,7 +310,8 @@ class AnimLayer {
     p.punchT = f.punchT; p.blastT = f.blastT; p.superHitT = f.superHitT || 0; p.vanishRecoverT = f.vanishRecoverT; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
 
     // ---- locomotion layer: walk / jog / sprint chosen by speed, phase locked to the ground covered ----
-    const busyLegs = f.awakenChargeT > 0 || !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
+    const mobilePunch = f.punchT > 0 && f.attackMoving && grounded && ['punch','hook','ninjaPalm','ninjaElbow'].includes(f.attackKind);
+    const busyLegs = f.awakenChargeT > 0 || !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || (f.punchT > 0 && !mobilePunch) || dying;
     const busyArms = f.awakenChargeT > 0 || busyLegs || f.blockW > 0.05 || f.charging || f.windT > 0 || f.blastT > 0 || f.punchT > 0;
     const moveW = smooth01((hs - 0.25) / 1.0);
     // standing still uses the boxing guard stance clip; moving uses the walk/run clips
@@ -324,8 +325,11 @@ class AnimLayer {
     // Transfer those original joint poses straight to the detailed VRM skeleton;
     // keep the recorded clips for attacks, reactions and landing one-shots.
     const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing); // V53: Kairo-quality walk, preserve beloved sprint
-    const legT = ninjaRun ? 0 : busyLegs ? 0 : 1 - 0.88 * this.strafeW;
-    const upT = ninjaRun ? 0 : busyArms ? 0 : 1;
+    // Stance is procedural for both fighters, especially Rin: no boxing-entry pose at rest.
+    // Only drive imported legs while travelling, with strong strafe attenuation.
+    const legT = ninjaRun || busyLegs ? 0 : moveW * (1 - 0.88 * this.strafeW);
+    // Procedural shoulders keep the chest upright instead of stacking recorded running lean.
+    const upT = ninjaRun || busyArms ? 0 : moveW * (f.characterId === 'rin_sable' ? 0 : 0.18);
     this.moveW = moveW;
     this.locoLeg += (legT - this.locoLeg) * damp(12, dt);
     this.locoUp += (upT - this.locoUp) * damp(12, dt);
@@ -343,7 +347,8 @@ class AnimLayer {
     if (this.locoLeg > 0.001 || this.locoUp > 0.001) {
       Anim.sample('walk', at('walk'), true, W);
       // brisk walk: lengthen the stride a little (thighs and arms swing further) instead of breaking into a jog
-      const amp = 1 + 0.35 * smooth01((hs - 3) / 4) * (1 - this.runK);
+      // Make strides follow distance during moving attacks instead of shuffling in place.
+      const amp = 1 + (mobilePunch ? 0.42 : 0.35) * smooth01((hs - 2) / 5) * (1 - this.runK);
       if (amp > 1.001) this.stretch(W, amp);
       if (wJog > 0) Anim.blend(W, Anim.sample('jog', at('jog'), true, this.tmp), wJog);
       if (wSpr > 0) Anim.blend(W, Anim.sample('sprint', at('sprint'), true, this.tmp), wSpr);
@@ -351,7 +356,8 @@ class AnimLayer {
       const uc = this.leanI, v = this._v || (this._v = new V3());
       v.set(0, 1, 0).applyQuaternion(W.q[uc]);
       // jogging stays upright (walk feel); the Run / dash keeps the clip's lean and adds more on top (below)
-      const runL = grounded && running ? (f.dashing ? 1 : smooth01((hs - 8) / 9)) : 0;
+      // The recorded jog already has a forward lean. Never add a second one.
+      const runL = 0;
       this.runL = (this.runL || 0) + (runL - (this.runL || 0)) * damp(running ? 7 : 20, dt);
       const lean = Math.atan2(v.z, v.y) * Math.max(wJog, wSpr) * (1 - this.runL);
       this.leanAvg = this.leanAvg == null ? lean : this.leanAvg + (lean - this.leanAvg) * damp(3, dt);
@@ -369,24 +375,9 @@ class AnimLayer {
         W.h.y -= 0.035 * this.runL;
       }
     }
-    // standing: boxing guard (last frame of the punch-ready clip) with a slow breath
-    if (f.awakenChargeT <= 0 && (this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
-      const S = Anim.sample('punchEnter', 0.86, false, this.tmp2 || (this.tmp2 = Anim.pose()));
-      // V54: Kairo keeps a boxer guard; Rin settles into a separate ninja pose.
-      // Upper-only blend leaves feet on the floor and preserves V53 ninja sprint.
-      if (typeof SkyClashMixamo !== 'undefined') {
-        const idle = f.characterId==='rin_sable'?'mxRNinjaIdle':'mxKIdle';
-        if (SkyClashMixamo.has(idle)) {
-          const c=Anim.clip(idle);
-          Anim.blend(S,Anim.sample(idle,(f.t*0.68)%c.d,true,this.tmpIdle || (this.tmpIdle=Anim.pose())),
-            f.characterId==='rin_sable'?0.75:0.50,this.UPPER);
-        }
-      }
-      const br = this._br || (this._br = new THREE.Quaternion());
-      br.setFromAxisAngle(this._X || (this._X = new V3(1, 0, 0)), Math.sin(f.t * 2.2) * 0.025);
-      for (let i = 1; i < Anim.NB; i++) if (this.UPPER[i]) S.q[i].premultiply(br);
-      if (moveW <= 0.001) Anim.copy(W, S); else Anim.blend(S, W, moveW), Anim.copy(W, S);
-    }
+    // V54.2: idle remains the fighter-specific procedural guard.
+    // The imported Boxing Ready / Ninja Idle can still be previewed in the Dojo,
+    // but they must not be layered over a different VRM's torso at rest.
 
     // jump: hold the ninja-jump air pose (legs) while hopping
     const airW = f.jumping && flying ? 1 : 0;
@@ -403,7 +394,7 @@ class AnimLayer {
     const guardMoving = grounded && !busyLegs && (f.blockW > 0.14 || (hs > 2 && this.strafeW > 0.4));
     this.guardStepW += ((guardMoving ? smooth01(hs / 7) : 0) - this.guardStepW) * damp(8.0, dt);
     this.guardIdleW += ((grounded && f.blockW > 0.3 && hs < 1.2 && !busyLegs ? 1 : 0) - this.guardIdleW) * damp(7.0, dt);
-    this.idleBreathW += ((grounded && hs < 0.2 && !busyLegs && f.awakenChargeT <= 0 ? 1 : 0) - this.idleBreathW) * damp(3.2, dt);
+    this.idleBreathW += ((grounded && hs < 0.2 && !busyLegs && f.awakenChargeT <= 0 && f.characterId !== 'rin_sable' ? 1 : 0) - this.idleBreathW) * damp(3.2, dt);
 
     // ---- one-shot clip ----
     if (this.one && this.one.name === 'guardBreak' && f.brokenT <= 0) { this.one.hold = false; this.one.done = true; }
@@ -452,7 +443,12 @@ class AnimLayer {
     this.chargeW = (this.chargeW || 0) + (chargeT - (this.chargeW || 0)) * damp(10, dt);
     if (this.chargeW > 0.01) { this.chargeT = (this.chargeT || 0) + dt; } else this.chargeT = 0;
 
-    if (this.locoLeg < 0.001 && this.locoUp < 0.001 && oneW < 0.001 && this.prevW < 0.001 && this.airW < 0.01 && this.hoverW < 0.01 && this.flyTravelW < 0.01 && this.guardStepW < 0.01 && this.guardIdleW < 0.01 && this.idleBreathW < 0.01 && this.chargeW < 0.01) return;
+    // Reset auxiliary humanoid joints even on fully procedural idle frames.
+    // Otherwise the last imported attack can leave Rin's shoulders stuck in a twisted pose.
+    if (this.locoLeg < 0.001 && this.locoUp < 0.001 && oneW < 0.001 && this.prevW < 0.001 && this.airW < 0.01 && this.hoverW < 0.01 && this.flyTravelW < 0.01 && this.guardStepW < 0.01 && this.guardIdleW < 0.01 && this.idleBreathW < 0.01 && this.chargeW < 0.01) {
+      for (const i of this.unset) if (this.nodes[i]) this.nodes[i].quaternion.identity();
+      return;
+    }
     this.apply(oneW);
     this.strikeTrail(dt);
   }
@@ -522,7 +518,9 @@ class AnimLayer {
     }
     // hip height follows the clip (so the planted foot stays on the floor)
     if (f.charging && !f.flying) out.h.y = Math.max(out.h.y, -0.075);
-    const wh = Math.min(1, wb[0]) * (this.one && this.one.noH ? 1 - oneW : 1);
+    // Preserve the gameplay floor reference during ordinary locomotion. Imported root
+    // offsets can sink the feet and compound the VRM's separate ground correction.
+    const wh = (f.downT > 0 || f.launched || f.spiked || (this.one && !this.one.noH && oneW > 0.5)) ? Math.min(1, wb[0]) : 0;
     if (wh > 0.001) {
       const hp = rig.b.hips.position, r = rig.hipsRest, hh = rig.hipRestY;
       hp.x += (r.x + out.h.x * hh - hp.x) * wh;

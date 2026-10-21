@@ -1,0 +1,30 @@
+SKY CLASH V54.2 — POSTURE, FOOT CLEARANCE & MOVING MELEE
+=========================================================
+
+Requires V54.1 (or a working V54 install with the corrected Mixamo rotation data).
+Upload all included files to your GitHub repo with their relative paths intact.
+Do not upload the old uncorrected V54 Mixamo animation data.
+This update includes source and a rebuilt js/game.js but does NOT replace fighter VRMs.
+
+FIXED
+- Rin idle: uses distinct upright Shade Runner / open-hand ninja stance instead of
+  a blended Mixamo boxing-entry guard; clears leftover imported shoulder rotations.
+- Kairo blast: superblast release uses a coordinated two-arm energy push, not the
+  unrelated overhand animation that made his arms twist.
+- Feet: higher baseline, ankle/toe/leg floor checks with a larger, damped visual
+  height-correction range; normal walk clips do not drive the root under terrain.
+- Kairo combo: first jab and second strike slowed and made more readable; final kick
+  duration and underlying move are unchanged.
+- Forward lean: reduced compounded running/spine/root tilt in ground combat.
+- Moving punches: distance-driven gait stays active, including during moving hand
+  strikes, instead of locking both legs to a static planted lunge.
+
+TESTING
+All repository Node regression tests passed, including 30/60/120 FPS moving
+melee pursuit and V54.2-specific guard checks. Local browser WebGL launch was
+blocked by the execution environment, so these results do not establish that
+all motions look correct on an actual running VRM. Check both avatars in dojo.
+
+If Rin's ankles still clip on raised/sloped terrain or one individual imported
+attack looks distorted, report the particular location or Animation Testing
+Room clip name. This is not full independent IK on both legs.

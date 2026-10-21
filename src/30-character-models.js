@@ -546,21 +546,24 @@ class VRMRig {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.008 : 0.080);
+        // The joint is above the shoe sole; keep *visible footwear* clear of terrain.
+        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.070 : 0.150);
         correction = Math.max(correction, required - joint.y);
       }
       for (const name of ['leftLowerLeg', 'rightLowerLeg']) {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        correction = Math.max(correction, groundAt(joint.x, joint.z) + 0.05 - joint.y);
+        correction = Math.max(correction, groundAt(joint.x, joint.z) + 0.07 - joint.y);
       }
       // Remove the previous frame's lift before re-measuring to avoid drift.
       this.footLift = (this.footLift || 0);
       // Small negative adjustments correct feet visibly hovering above the floor.
       // Never move the gameplay hitbox, and keep the correction deliberately tiny.
-      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.075, 0.135);
-      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 18 : 12, dt);
+      // The earlier 13.5 cm lift cap could not correct buried feet on either VRM.
+      // Allow model-specific rest-pose offsets while keeping a damped correction.
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.025, 0.50);
+      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 24 : 12, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     } else if (this.footLift) {

@@ -150,8 +150,10 @@ const Combat = (() => {
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
     const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
-    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.43,0.51,0.69,0.88])[stage] * agile;
-    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.42,0.50,0.68,0.87])[stage] * agile;
+    // Kairo's opening jab needs an actual readable wind-up before the next strike.
+    // The later kick timing is deliberately unchanged.
+    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile;
+    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -163,7 +165,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.15,0.20,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.24,0.24,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
