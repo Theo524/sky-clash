@@ -46,7 +46,7 @@ class Fighter {
     this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
     this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
-    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
+    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.ninjaStep = { phase: 0, swing: [0, 0] }; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
   // Real positions remain under the physics engine, not the animation layer.
@@ -466,7 +466,7 @@ class Fighter {
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
       else this.vel.multiplyScalar(1 - damp(4, dt));
     } else {
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed * (this.characterId === 'rin_sable' ? 0.59 : 1)) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
@@ -641,9 +641,16 @@ class Fighter {
       }
     }
     // run cycle locked to distance: longer strides at speed, quick steps when slow, so feet don't skate
-    const stepLen = hspeed < 5 ? 0.55 + 0.19 * hspeed : Math.min(3.0, 1.5 + 0.075 * (hspeed - 5));
+    const isNinja = this.characterId === 'rin_sable';
+    // Successive ninja footprints are about 0.75 m apart at combat-walk speed;
+    // the old 1.5–3 m step length played the legs far too slowly (skating).
+    const stepLen = isNinja ? (this.sprinting || this.dashing ? 1.07 : 0.76)
+      : hspeed < 5 ? 0.55 + 0.19 * hspeed : Math.min(3.0, 1.5 + 0.075 * (hspeed - 5));
     this.stepLen = stepLen;
-    this.runPh += hspeed / stepLen * Math.PI * dt;
+    // Cap the cycle for anime boost speed; foot contacts are still tied to distance
+    // during ordinary walking and strafing.
+    this.runPh += Math.min(isNinja ? 27 : 100, hspeed / stepLen * Math.PI) * dt;
+    if (this.runPh > TAU * 200) this.runPh %= TAU;
     // hips turn toward the way you're actually moving (strafing / turning), chest stays on target
     let yawT = 0, dirT = 1;
     if (!flying && hspeed > 1.5 && !this.sprinting && !this.dashing) {
@@ -666,7 +673,11 @@ class Fighter {
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
     const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
     // Raised baseline: the VRM's sole (below the ankle joint) must remain visible above terrain.
-    const groundY = 1.075 - (this.characterId === 'rin_sable' ? 0.035 : 0.065) * (1 - rw) - 0.025 * rw * runness + bounce * (1 - rw) + stepBob * rw;
+    // Ninja carries his weight in *bent knees*, rather than an erect/locked-leg
+    // avatar with a fake forward lean. The shared game hitbox stays unchanged.
+    const groundY = isNinja
+      ? 0.920 - 0.018 * rw * runness + 0.008 * Math.sin(this.t * 1.8) * (1-rw) + 0.024 * rw * stepBob
+      : 1.075 - 0.065 * (1-rw) - 0.025 * rw * runness + bounce * (1-rw) + stepBob * rw;
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);
     // Add clearance during a flip; tuck to absorb a landing or sidestep.
@@ -683,10 +694,7 @@ class Fighter {
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
       if (this.characterId === 'rin_sable') {
-        const breathe = Math.sin(this.t*1.85)*0.024;
-        // Shade Runner: asymmetric open-hand guard, forward left hand, low right hand; upright and light on the feet.
-        return { arm:[[-0.63+breathe,.30,-1.42],[-1.12-breathe,.24,-1.18]],
-          leg:[[.17,.16,.07],[-.24,.23,.10]],spineY:-.08,spineX:.015,headX:-.015 };
+        return ninjaStance();
       }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Storm Fist: readable high boxing guard, grounded without an exaggerated forward bow.
@@ -695,7 +703,58 @@ class Fighter {
       return { arm: [[-0.88 + br, 0.24, -1.48], [-1.07 - br, 0.18, -1.55]],
                leg: [[0.24 + weight, 0.31, 0.15], [-0.31 - weight, 0.38, 0.15]], spineY: -0.15 + sway * 0.5, spineX: 0.065, headX: 0.0 };
     };
+    // V55.1: Rin-only two-bone leg solve. A named sole target determines the
+    // knee bend, instead of the previous almost-straight walking knee values.
+    // All angles are on the ORIGINAL guide rig; VRM0 axes are converted once
+    // by VRMRig. No Mixamo shoulder/hip rotation is blended on Rin.
+    const ninjaLegIK = (forward, lift, lateral, footRoll = 0) => {
+      const upper = 0.45, lower = 0.40;
+      const hipY = body.position.y - 0.06;
+      const down = Math.max(0.15, hipY - (0.15 + lift));
+      const reach = clamp(Math.hypot(forward, down), 0.16, upper + lower - 0.008);
+      const bend = Math.acos(clamp((reach * reach - upper * upper - lower * lower) / (2 * upper * lower), -1, 1));
+      const thigh = Math.atan2(forward, down) + Math.atan2(lower * Math.sin(bend), upper + lower * Math.cos(bend));
+      const lateralAngle = clamp(Math.atan2(lateral, down), -0.40, 0.40);
+      return [-clamp(thigh, -0.90, 1.48), clamp(bend, 0.22, 1.95), lateralAngle, footRoll];
+    };
+    const ninjaStance = () => {
+      const breath = Math.sin(this.t * 1.95), weight = Math.sin(this.t * 1.15) * 0.017;
+      return { arm: [[-0.54 - 0.045*breath, 0.26, -1.38],[-1.24 + 0.035*breath, 0.13, -0.92]],
+        leg: [ninjaLegIK(-0.245 - weight,0,0.105), ninjaLegIK(0.245 - weight,0,0.115)],
+        spineY: -0.23 + weight * 0.20, spineX: 0.015, headX: -0.02 };
+    };
+    const ninjaGait = () => {
+      const runFast = smooth01((hspeed - 5.5) / 13);
+      const lateralW = smooth01((Math.abs(lx) - Math.abs(lz)*0.55) / 5);
+      const backward = lz < -0.3 ? -1 : 1;
+      // Each foot spends 60% of its cycle on the floor (backwards travel
+      // relative to the hips) and 40% lifting/advancing into the next step.
+      const footStep = i => {
+        let c = ((this.runPh + (i === 1 ? Math.PI : 0)) % TAU + TAU) % TAU / TAU;
+        const stance = c < 0.60;
+        const swingT = stance ? 0 : (c - 0.60) / 0.40;
+        const travel = stance ? 1 - c / 0.60 * 2 : -1 + 2*smooth01(swingT);
+        // Match floor-contact travel to actual distance: ~0.86m stance
+        // sweep over 0.17s at ordinary ninja walk speed (~5m/s).
+        const reach = 0.425 + 0.020*runFast;
+        const moveForward = backward * reach * travel * (1 - 0.70*lateralW);
+        const swingLift = stance ? 0 : Math.sin(Math.PI * swingT) * (0.145 + 0.058*runFast);
+        // Side steps lead with the outside foot instead of crossing ankles.
+        const out = i === 1 ? 1 : -1;
+        const movingSide = Math.sign(lx) || 1;
+        const sideTravel = lateralW * movingSide * reach * travel * 0.32;
+        const footTarget = ninjaLegIK(moveForward, swingLift, 0.09 + out*sideTravel, stance ? 0.035*(c/0.60) : -0.11*Math.sin(Math.PI*swingT));
+        this.ninjaStep.swing[i] = stance ? 0 : Math.sin(Math.PI*swingT);
+        return footTarget;
+      };
+      const beat = Math.sin(this.runPh), arms =
+        [[-0.58 + beat*0.17,0.26,-1.33],[-1.08 - beat*0.15,0.12,-1.00]];
+      // Evasive shoulders stay guarded and counter-rotate against stepping hips.
+      return { arm:arms, leg:[footStep(0),footStep(1)],
+        spineY:-0.18 - 0.095*beat*(1-lateralW*0.4),spineX:0.025,headX:-0.035 };
+    };
     const run = () => {
+      if (isNinja) return ninjaGait();
       // knee folds most while the leg swings through (heel up under the hip), stays softly bent on the ground
       // stride angle matches the step length, so each foot covers exactly the ground travelled (no gliding)
       const ph = this.strideDir > 0 ? this.runPh : -this.runPh, sn = Math.sin(ph);   // backpedal runs the cycle in reverse
@@ -746,11 +805,15 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
+      const r = run(); r.arm = isNinja ? [[0.69 + 0.10*Math.sin(this.runPh),0.13,-0.78],[0.55 - 0.10*Math.sin(this.runPh),0.18,-0.84]] : r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]);
+      if (!isNinja) r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]);
+      r.headX = -0.035; r.spineX = isNinja ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
+      const r = run(); r.arm = isNinja ? [[0.69 + 0.10*Math.sin(this.runPh),0.13,-0.78],[0.55 - 0.10*Math.sin(this.runPh),0.18,-0.84]] : r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]);
+      if (!isNinja) r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]);
+      r.headX = -0.035; r.spineX = isNinja ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -780,7 +843,7 @@ class Fighter {
       const air = fz >= 0 ? mix(flyIdle(), flyFwd(), smooth01(fz)) : mix(flyIdle(), flyBack(), smooth01(-fz));
       P = mix(ground, air, fw);
       // Controlled lateral footwork: crossed arm guard, asymmetric sliding steps.
-      if (!flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
+      if (!isNinja && !flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
         const lateral = smooth01((Math.abs(lx) - Math.abs(lz) * 0.8) / 8) * (1 - smooth01((hspeed - 13) / 8));
         const side = Math.sign(lx) || 1;
         const sidePh = Math.sin(this.runPh), leadLift = Math.max(0, sidePh), trailLift = Math.max(0, -sidePh);
@@ -971,7 +1034,9 @@ class Fighter {
       // Small braced dip; don't lift the whole mesh from the ground.
       body.position.y -= (0.055 - open * 0.03);
     }
-    const fast = this.punchT > 0 || this.blastT > 0 ? 19 : this.moving || this.stun > 0 ? 18 : 11;
+    const fast = this.punchT > 0 || this.blastT > 0 ? 19
+      : isNinja && !flying && hspeed > 0.6 ? 24
+      : this.moving || this.stun > 0 ? 18 : 11;
     const k = damp(fast, dt), kb = damp(12, dt);
     m.arms.forEach((a, i) => {
       const [x, z, e] = P.arm[i];
@@ -984,7 +1049,11 @@ class Fighter {
       l.hip.rotation.x += (h - l.hip.rotation.x) * k;
       l.hip.rotation.z += (hz * l.side - l.hip.rotation.z) * k;
       l.knee.rotation.x += (kn - l.knee.rotation.x) * k;
-      l.foot.rotation.x += ((fw > 0.5 ? 0.5 : -(h + kn) * 0.85) - l.foot.rotation.x) * kb;   // keep boots flat on the ground
+      // The ninja foot target includes toe-off and swing foot pitch. Don't
+      // apply the generic ankle formula to him: it makes the sole point into
+      // the ground and cancels the footstep's visible lift.
+      const ankle = isNinja && !flying && rw > 0.02 ? -(h + kn) + (P.leg[i][3] || 0) : (fw > 0.5 ? 0.5 : -(h + kn) * 0.85);
+      l.foot.rotation.x += (ankle - l.foot.rotation.x) * kb;
       l.foot.rotation.z += ((fw > 0.5 ? 0 : -hz * l.side) - l.foot.rotation.z) * kb;
     });
     m.spine.rotation.y += (P.spineY - this.hipYaw - m.spine.rotation.y) * k;   // chest counter-turns against the hips
