@@ -4,7 +4,7 @@ const source=fs.readFileSync(path.join(root,'src/40-recorded-animations.js'),'ut
 const mixamo=fs.readFileSync(path.join(root,'src/41-mixamo-animations.js'),'utf8');
 const bundled=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
-assert(index.includes('js/game.js?v=54'));
+assert(index.includes('js/game.js?v=541'));
 assert(bundled.includes('const SkyClashMixamo = (() => {'));
 assert(!bundled.includes('Sky Clash V54 — NOT BUILT'));
 assert.strictEqual(bundled,fs.readdirSync(path.join(root,'src')).filter(x=>x.endsWith('.js')).sort().map(x=>fs.readFileSync(path.join(root,'src',x),'utf8')).join(''));
@@ -29,6 +29,18 @@ let result=vm.runInContext(`(()=>{
  }
  // Old CC0 animations remain fully available and unmodified.
  A.sample('qHook',0.15,false,A.pose());A.sample('walk',0.2,true,A.pose());
+ // Bind-axis regression: Mixamo FBX uses extrinsic xyz. The incorrect
+ // intrinsic XYZ import once twisted the elbows around their long axes.
+ // For a correctly retargeted boxing guard, elbow flexion is predominantly Y.
+ for (const name of ['mxKIdle','mxRNinjaIdle']) {
+   const P=A.sample(name,0,false,A.pose());
+   for(const [upper,lower] of [[7,8],[11,12]]){
+     const local=P.q[upper].clone().invert().multiply(P.q[lower]);
+     if(!(Math.abs(local.y)>Math.abs(local.x)*2.5)){
+       throw new Error(name+' elbow retarget axis mismatch: '+JSON.stringify(local));
+     }
+   }
+ }
  const rig={ f:{characterId:'kairo_venn',attackKind:'punch',punchSide:1,attackSerial:13,punchT:0.42,attackTotal:0.42,attackElapsed:0,kickPend:{t:0.15}},vrm:{humanoid:{getNormalizedBoneNode:()=>null}} };
  const layer=new AnimLayer(rig);if(!layer.playStrike()||layer.one.name!=='mxKJab'||!layer.one.sync)throw Error('Kairo strike not bound');
  const kairoHit=layer.one.sync.hitAt;
