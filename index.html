@@ -4,13 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V42 — Game Script Fixed</title>
+<title>Sky Clash V43</title>
 <link rel="stylesheet" href="css/game.css?v=42">
-<style>
-/* V42 startup rescue: models are cosmetic, never gate the Start/Training controls. */
-body.vrm-loading #startBtn,
-body.vrm-loading #trainBtn { opacity: 1 !important; pointer-events: auto !important; }
-</style>
 </head>
 <body>
 <div id="game"></div>
@@ -76,14 +71,14 @@ body.vrm-loading #trainBtn { opacity: 1 !important; pointer-events: auto !import
 <div id="titleScreen" class="overlay show" role="dialog" aria-modal="true" aria-labelledby="titleH">
   <div class="panel">
     <h1 id="titleH">Sky Clash</h1>
-    <p class="sub">Version 42 · Living Energy & Arena Impact</p>
+    <p class="sub">Version 43 · Grounded Combat & Power Charge</p>
     <div class="menu">
       <button class="mbtn primary" id="startBtn">Start fight</button>
       <button class="mbtn" id="trainBtn">Training</button>
       <button class="mbtn" id="titleSettingsBtn">Settings</button>
     </div>
-    <p class="hint">V42: body-linked awakening energy, cracked stone charging, improved foot contact, side-dash animation, connected speed trails, and cinematic super-blast hit reactions. No new buttons.</p>
-    <p class="hint loadnote">Detailed fighters are loading in the background. You can start a match now.</p>
+    <p class="hint">V43: body-linked awakening energy, cracked stone charging, improved foot contact, side-dash animation, connected speed trails, and cinematic super-blast hit reactions. No new buttons.</p>
+    <p class="hint loadnote">Loading hero model…</p>
     <p class="hint credit">Quaternius libraries provide twelve retargeted movement and combat clips from the Quaternius Universal Animation Libraries 1 &amp; 2 (CC0). Hero VRM: Seed-san by VirtualCast, Inc. (VRM Public License 1.0). Other motion: CMU Graphics Lab mocap (mocap.cs.cmu.edu). Recorded motion is used where the VRM retargeter is available; character-specific motion sets are still in progress.</p>
   </div>
 </div>
@@ -216,6 +211,6 @@ body.vrm-loading #trainBtn { opacity: 1 !important; pointer-events: auto !import
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=42-actual-fix-3"></script>
+<script src="js/game.js?v=42"></script>
 </body>
 </html>

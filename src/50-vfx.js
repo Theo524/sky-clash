@@ -246,25 +246,37 @@ const Effects = (() => {
   // charge: specks of energy drawn into the orb
   function chargeSpark(f, at, lvl) {
     const col = f.awakened ? f.pal.aura : f.pal.ki;
-    const n = 1 + Math.round(lvl * 2);
+    const n = 2 + Math.round(lvl * 4);
     for (let i = 0; i < n; i++) {
-      const s = sprite(TEX.glow, col, 0.3 + lvl * 0.25, 0.9);
-      const d = new V3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(1.6 + lvl * 1.4);
+      const s = sprite(TEX.glow, i % 3 === 0 ? 0xffffff : col, 0.22 + lvl * 0.16, 0.92);
+      const d = new V3(Math.random() - 0.5, Math.random() * 0.45 - 0.2, Math.random() - 0.5).normalize().multiplyScalar(1.3 + lvl * 1.1);
       const target = at.clone();
-      push(s, 0.28, (e) => { const k = e.t / e.life; e.obj.position.copy(target).addScaledVector(d, 1 - k); e.obj.material.opacity = 0.9 * k; });
+      push(s, 0.24, (e) => { const k = e.t / e.life; const kk = 1 - k; e.obj.position.copy(target).addScaledVector(d, kk * kk * 1.2); e.obj.material.opacity = 0.95 * k; e.obj.scale.setScalar((0.8 + k * 0.8) * (0.8 + lvl)); });
+    }
+    if (lvl > 0.2) {
+      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.05, 0.85 + lvl * 0.55, 4, 1), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      const a = Math.random() * TAU;
+      bolt.position.copy(at).add(new V3(Math.cos(a) * (0.18 + lvl * 0.22), 0, Math.sin(a) * (0.18 + lvl * 0.22)));
+      bolt.quaternion.setFromAxisAngle(new V3(Math.cos(a), 0, Math.sin(a)), Math.PI * 0.5);
+      push(bolt, 0.12, (e) => { const k = e.t / e.life; e.obj.material.opacity = 0.55 * (1 - k); e.obj.scale.set(1, 1 + k * 0.4, 1); }, true);
     }
   }
   function groundRing(f, lvl) {
     const col = f.awakened ? f.pal.aura : f.pal.ki;
-    const m = new THREE.Mesh(new THREE.RingGeometry(0.6, 0.78, 40), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.7,
-      side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
-    m.rotation.x = -Math.PI / 2; m.position.set(f.pos.x, f.pos.y + 0.06, f.pos.z);
-    push(m, 0.5, (e) => { const k = e.t / e.life; e.obj.scale.setScalar(1 + k * (1.5 + lvl * 2)); e.obj.material.opacity = 0.7 * (1 - k); }, true);
+    const p = new V3(f.pos.x, groundAt(f.pos.x, f.pos.z) + 0.05, f.pos.z);
+    for (let i = 0; i < 6; i++) {
+      const ang = TAU * i / 6 + Math.random() * 0.12;
+      const len = 0.7 + lvl * 1.25 + Math.random() * 0.35;
+      const end = p.clone().add(new V3(Math.cos(ang) * len, 0, Math.sin(ang) * len));
+      const crack = new THREE.Mesh(new THREE.BoxGeometry(len, 0.02, 0.06), new THREE.MeshBasicMaterial({ color: i % 2 ? col : 0xffffff, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+      crack.position.copy(p).lerp(end, 0.5); crack.rotation.y = -ang;
+      push(crack, 0.34, (e) => { const k = e.t / e.life; e.obj.material.opacity = 0.55 * (1 - k); e.obj.scale.set(1 + k * 0.3, 1, 1); }, true);
+    }
   }
   function chargeFull(f) {
     const col = f.awakened ? f.pal.aura : f.pal.ki;
-    flash(f.orb.position, 0xffffff, 3.2, 0.15); flash(f.center, col, 2.8, 0.18); sparks(f.orb.position, col, 10, new V3(0,1,0), 0.9);
-    if (f === Game.player) { CameraRig.shake(0.2); if (Settings.get('haptics') && navigator.vibrate) navigator.vibrate(20); }
+    flash(f.orb.position, 0xffffff, 3.8, 0.17); flash(f.center, col, 3.5, 0.22); sparks(f.orb.position, col, 14, new V3(0,1,0), 1.15); groundRing(f, 0.9);
+    if (f === Game.player) { CameraRig.shake(0.24); if (Settings.get('haptics') && navigator.vibrate) navigator.vibrate(24); }
   }
   // big blast explosion
   // Cinematic super impact: a concentrated plasma detonation and smoke, not

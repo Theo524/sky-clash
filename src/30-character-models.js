@@ -472,19 +472,19 @@ class VRMRig {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.045 : 0.105);
+        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.012 : 0.028);
         correction = Math.max(correction, required - joint.y);
       }
       for (const name of ['leftLowerLeg', 'rightLowerLeg']) {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        correction = Math.max(correction, groundAt(joint.x, joint.z) + 0.19 - joint.y);
+        correction = Math.max(correction, groundAt(joint.x, joint.z) + 0.05 - joint.y);
       }
       // Remove the previous frame's lift before re-measuring to avoid drift.
       this.footLift = (this.footLift || 0);
-      const wanted = clamp(this.footLift + correction, 0, 0.44);
-      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 27 : 14, dt);
+      const wanted = clamp(correction, 0, 0.09);
+      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 18 : 12, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     } else if (this.footLift) {

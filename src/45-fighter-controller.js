@@ -559,7 +559,7 @@ class Fighter {
       P.leg = mix(R, G, Math.min(1, t * 0.92 + 0.08)).leg;
     } else if (this.skidT > 0 && !flying && !this.sprinting && !this.dashing) {
       // braking: lead leg braced out front, weight back, arms out for balance
-      P = { arm: [[-0.9, 0.65, -1.2], [-0.55, 0.8, -1.0]], leg: [[0.42, 1.12, 0.22], [-0.9, 0.48, 0.25]], spineY: 0.28, spineX: -0.05, headX: 0.12 };
+      P = { arm: [[-0.82, 0.52, -1.18], [-0.58, 0.62, -1.02]], leg: [[0.28, 0.92, 0.20], [-0.62, 0.54, 0.18]], spineY: 0.12, spineX: 0.02, headX: 0.04 };
     } else if (this.sprinting && flying) {
       // Boosted aerial travel: relaxed martial-arts flight posture, not a dive.
       P = { arm: [[-0.2, 0.28, -1.05], [-0.95, 0.20, -0.85]], leg: [[0.05, 0.38, 0.06], [-0.25, 0.66, 0.06]], spineY: 0.08, spineX: 0.20, headX: -0.12 };
@@ -765,12 +765,12 @@ class Fighter {
     const lvc = this.chargeLevel, showOrb = this.charging && this.chargeT > 0.08;
     this.orb.visible = this.orbCore.visible = showOrb;
     if (showOrb) {
-      const op = this.center.addScaledVector(this.forward(), 0.85); op.y -= 0.05;
-      const pulse = 1 + Math.sin(this.t * (lvc >= 1 ? 30 : 14)) * (lvc >= 1 ? 0.14 : 0.07);
-      const sz = (0.45 + 1.1 * lvc) * pulse;
+      const op = this.center.addScaledVector(this.forward(), 0.68); op.y -= 0.02;
+      const pulse = 1 + Math.sin(this.t * (lvc >= 1 ? 30 : 14)) * (lvc >= 1 ? 0.12 : 0.05);
+      const sz = (0.34 + 0.82 * lvc) * pulse;
       this.orb.position.copy(op); this.orbCore.position.copy(op);
-      this.orb.scale.setScalar(sz * 1.5); this.orbCore.scale.setScalar(sz * 0.45);
-      this.orb.material.opacity = 0.75;
+      this.orb.scale.setScalar(sz * 1.26); this.orbCore.scale.setScalar(sz * 0.70);
+      this.orb.material.opacity = 0.52 + 0.10 * lvc;
       this.orb.material.color.setHex(aw ? this.pal.aura : this.pal.ki);
     }
     // Awakening/charging keeps its usual aura; Boost uses thin speed streaks, never a meteor.
