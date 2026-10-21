@@ -4,11 +4,13 @@
  */
 const STAGE_R = 19, STAGE_H = 0.35;
 function groundAt(x, z) {
+  if (typeof Arena !== 'undefined' && Arena.environment === 'dojo') return STAGE_H;
   // octagon inscribed radius is R·cos(π/8); close enough to treat as a circle
   return Math.hypot(x, z) < STAGE_R * 0.93 ? STAGE_H : 0;
 }
 
 const Arena = (() => {
+  const outdoorStart = new Set(scene.children);
   const rnd = makeRng(42);
   const animated = [];  // { obj, update(t, dt) }
   const qualityGroups = { grass: null, clouds: [] };
@@ -196,10 +198,22 @@ const Arena = (() => {
   edge.rotation.x = -Math.PI / 2; edge.position.y = 0.04; scene.add(edge);
   animated.push({ update: (t) => { wallMat.uniforms.uTime.value = t; } });
 
+  // Capture only the permanent highland environment, not fighters or transient VFX.
+  const highlandObjects = scene.children.filter(o => !outdoorStart.has(o));
+  let environment = 'highland';
+  function setEnvironment(which) {
+    environment = which;
+    const outside = which !== 'dojo';
+    highlandObjects.forEach(o => o.visible = outside);
+    if (qualityGroups.grass) qualityGroups.grass.visible = outside;
+    qualityGroups.clouds.forEach(o => o.visible = outside);
+  }
   let time = 0;
   return {
+    setEnvironment,
+    get environment() { return environment; },
     update(dt) { time += dt; animated.forEach(a => a.update(time, dt)); skyDome.position.copy(camera.position); },
-    setQuality(qv) { buildGrass(qv === 'low' ? 0 : qv === 'medium' ? 1400 : 3200); buildClouds(qv === 'low' ? 8 : 16); },
+    setQuality(qv) { buildGrass(qv === 'low' ? 0 : qv === 'medium' ? 1400 : 3200); buildClouds(qv === 'low' ? 8 : 16); if (environment === 'dojo') setEnvironment('dojo'); },
   };
 })();
 

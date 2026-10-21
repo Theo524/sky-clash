@@ -225,11 +225,13 @@ window.addEventListener('resize', resize);
  */
 const STAGE_R = 19, STAGE_H = 0.35;
 function groundAt(x, z) {
+  if (typeof Arena !== 'undefined' && Arena.environment === 'dojo') return STAGE_H;
   // octagon inscribed radius is R·cos(π/8); close enough to treat as a circle
   return Math.hypot(x, z) < STAGE_R * 0.93 ? STAGE_H : 0;
 }
 
 const Arena = (() => {
+  const outdoorStart = new Set(scene.children);
   const rnd = makeRng(42);
   const animated = [];  // { obj, update(t, dt) }
   const qualityGroups = { grass: null, clouds: [] };
@@ -417,13 +419,202 @@ const Arena = (() => {
   edge.rotation.x = -Math.PI / 2; edge.position.y = 0.04; scene.add(edge);
   animated.push({ update: (t) => { wallMat.uniforms.uTime.value = t; } });
 
+  // Capture only the permanent highland environment, not fighters or transient VFX.
+  const highlandObjects = scene.children.filter(o => !outdoorStart.has(o));
+  let environment = 'highland';
+  function setEnvironment(which) {
+    environment = which;
+    const outside = which !== 'dojo';
+    highlandObjects.forEach(o => o.visible = outside);
+    if (qualityGroups.grass) qualityGroups.grass.visible = outside;
+    qualityGroups.clouds.forEach(o => o.visible = outside);
+  }
   let time = 0;
   return {
+    setEnvironment,
+    get environment() { return environment; },
     update(dt) { time += dt; animated.forEach(a => a.update(time, dt)); skyDome.position.copy(camera.position); },
-    setQuality(qv) { buildGrass(qv === 'low' ? 0 : qv === 'medium' ? 1400 : 3200); buildClouds(qv === 'low' ? 8 : 16); },
+    setQuality(qv) { buildGrass(qv === 'low' ? 0 : qv === 'medium' ? 1400 : 3200); buildClouds(qv === 'low' ? 8 : 16); if (environment === 'dojo') setEnvironment('dojo'); },
   };
 })();
 
+/* ---------------- Character training space: Martial Dojo ----------------
+ * Environment and equipment are separate from the tournament map. Each prop
+ * exposes a hit volume and response that can later be replaced per character.
+ */
+const Dojo = (() => {
+  const room = new THREE.Group(); room.name = 'Martial Dojo'; room.visible = false; scene.add(room);
+  const objects = [];
+  const mat = (color, roughness=0.92, metalness=0) => new THREE.MeshStandardMaterial({color,roughness,metalness});
+  const wood = mat(0x654330), dark = mat(0x312720), pale = mat(0xcbb796), woodLight=mat(0x927052);
+  const tatami=mat(0xaca58a), matEdge=mat(0x50412f), cloth=mat(0x694032), rope=mat(0xbeb394);
+  const copper=mat(0xa27848,0.45,0.45), paper=mat(0xe6ddc7,0.8), red=mat(0x903d32);
+  const mk=(geo,m,parent=room,x=0,y=0,z=0)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.receiveShadow=true;o.castShadow=true;parent.add(o);return o;};
+  const cube=(w,h,d,m,x,y,z,parent=room)=>mk(new THREE.BoxGeometry(w,h,d),m,parent,x,y,z);
+  const cyl=(rt,rb,h,m,x,y,z,parent=room,n=12)=>mk(new THREE.CylinderGeometry(rt,rb,h,n),m,parent,x,y,z);
+  // Raised training platform matches the gameplay floor height (0.35), without new collision rules.
+  cube(43,0.35,43,dark,0,0.16,0);
+  cube(41,0.09,41,woodLight,0,0.34,0);
+  // One instanced draw call for the floor rather than hundreds of separate tiles.
+  const mats = new THREE.InstancedMesh(new THREE.BoxGeometry(2.35,0.015,2.35),tatami,289);
+  const tileMatrix=new THREE.Matrix4(), tilePos=new V3(),tileRot=new THREE.Quaternion(),tileScale=new V3(1,1,1),tileColor=new THREE.Color();
+  let tileIdx=0;
+  for(let i=-8;i<=8;i++)for(let j=-8;j<=8;j++){
+    const warm=((i+j)%4===0);
+    tilePos.set(i*2.36,0.397,j*2.36);
+    tileScale.set(1,1,warm?0.98:1);
+    mats.setMatrixAt(tileIdx,tileMatrix.compose(tilePos,tileRot,tileScale));
+    mats.setColorAt(tileIdx,tileColor.setHex(warm?0x857962:0xbcb296));
+    tileIdx++;
+  }
+  mats.receiveShadow=true; mats.castShadow=false;room.add(mats);
+  // Cedar posts, upper beams and recessed shoji paper panels.
+  for(const axis of ['x','z'])for(const sign of [-1,1]){
+    for(let i=-4;i<=4;i++){
+      const x=axis==='x'?i*5.05:sign*21.3, z=axis==='z'?i*5.05:sign*21.3;
+      cube(0.55,13.8,0.55,dark,x,7.1,z);
+    }
+    for(const y of [3.5,7.6,12.7]){
+      const o=axis==='x'?cube(43,0.32,0.45,woodLight,0,y,sign*21.3):cube(0.45,0.32,43,woodLight,sign*21.3,y,0);
+      o.castShadow=true;
+    }
+    for(let i=-4;i<4;i++)for(let level=0;level<2;level++){
+      const a=i*5.05+2.52;
+      const o=axis==='x'?cube(4.5,3.5,0.09,paper,a,5.45+level*3.9,sign*21.2):cube(0.09,3.5,4.5,paper,sign*21.2,5.45+level*3.9,a);
+      o.receiveShadow=false;
+      for(let line=-1;line<=1;line++){
+        if(axis==='x') cube(0.07,3.8,0.10,wood,a+line*1.1,5.45+level*3.9,sign*21.17);
+        else cube(0.10,3.8,0.07,wood,sign*21.17,5.45+level*3.9,a+line*1.1);
+      }
+    }
+  }
+  // Overhead crossbeams and rafters. Roof centre remains open to the game camera/flight.
+  for(const x of [-17,-9,-1,7,15]) cube(0.42,0.54,43,dark,x,13.3,0);
+  for(const z of [-17,-9,-1,7,15]) cube(43,0.54,0.42,dark,0,13.3,z);
+  for(let i=0;i<8;i++) {
+    const x=-17+i*4.8;
+    const lamp=cyl(0.32,0.32,0.8,paper,x,11.8,-18,room,8);lamp.material=paper;
+    cyl(0.41,0.41,0.12,wood,x,12.25,-18);cyl(0.41,0.41,0.12,wood,x,11.36,-18);
+  }
+  // Tokonoma training alcove and a deliberately readable title panel.
+  cube(14,0.18,1.2,wood,0,0.56,-19.3);
+  cube(10,4.7,0.12,dark,0,8,-20.98);
+  cube(9.2,4,0.14,paper,0,8,-20.91);
+  for(const xx of [-3.9,-1.3,1.3,3.9]) cube(0.08,4.2,0.17,wood,xx,8,-20.79);
+  // Equipment is positioned inside the playable stage and never obstructs the initial spawn.
+  function putTarget(id,type,x,z,h,r,parent,swing=null) {
+    const p=new V3(x,STAGE_H+h,z);
+    const target={id,type,pos:p,radius:r,group:parent,base:parent.rotation.z,hitT:0,recoil:0,velocity:0,hits:0,swing};
+    objects.push(target);return target;
+  }
+  // Two suspended heavy bags with canvas seams and decorative binding.
+  function bag(x,z,id) {
+    const rig=new THREE.Group();rig.position.set(x,7.3,z);room.add(rig);
+    cyl(0.06,0.06,2.9,rope,0,-1.5,0,rig,7);
+    const body=cyl(0.64,0.59,3.0,cloth,0,-4.3,0,rig,16);
+    cyl(0.64,0.64,0.18,dark,0,-2.76,0,rig,16);
+    cyl(0.61,0.61,0.20,dark,0,-5.8,0,rig,16);
+    for(let y=-5.55;y<-3.0;y+=0.48) cyl(0.649,0.649,0.023,rope,0,y,0,rig,16);
+    // Collision is fixed at the rest position: swinging is a visual response.
+    putTarget(id,'bag',x,z,2.5,1.45,rig,rig);
+  }
+  bag(-7,-2,'heavy-bag');bag(-12,-9,'speed-bag');
+  // Traditional wooden wing-chun practice dummy with arm pegs.
+  function dummy(x,z,id) {
+    const rig=new THREE.Group();rig.position.set(x,STAGE_H,z);room.add(rig);
+    cyl(0.18,0.21,0.45,dark,0,0.22,0,rig);
+    cyl(0.38,0.40,4.4,woodLight,0,2.6,0,rig,12);
+    cyl(0.46,0.42,0.42,wood,0,4.65,0,rig,12);
+    const arms=[[-0.9,3.6,0.63],[0.9,3.6,0.63],[0,2.45,0.85]];
+    arms.forEach(([ax,ay,az])=>{const arm=cyl(0.13,0.18,1.7,wood,ax,ay,az,rig,9);arm.rotation.z=ax>0?1.03:ax<0?-1.03:0; if(!ax)arm.rotation.x=1.02;});
+    const leg=cyl(0.16,0.21,1.65,wood,-0.25,1.1,0.65,rig);leg.rotation.x=0.5;
+    cyl(0.58,0.7,0.26,dark,0,0.12,0,rig);
+    putTarget(id,'dummy',x,z,2.45,1.05,rig,rig);
+  }
+  dummy(7,-4,'wood-dummy');
+  // Three round marked blast targets on stands. Their colour flashes on a clean hit.
+  const targetGeo=new THREE.CylinderGeometry(0.95,0.95,0.12,32);
+  const targetMats=[mat(0x2d4751),mat(0xaeb6ad),mat(0x9d5141)];
+  function blastTarget(x,z,id) {
+    const rig=new THREE.Group();rig.position.set(x,STAGE_H,z);room.add(rig);
+    cyl(0.10,0.12,2.1,dark,0,1.05,0,rig);
+    cube(1.9,0.14,1.15,wood,0,0.12,0,rig);
+    const disk=mk(targetGeo,targetMats[0],rig,0,2.20,0);disk.rotation.x=Math.PI/2;
+    for(const [rad,m] of [[0.72,targetMats[1]],[0.44,targetMats[2]],[0.16,targetMats[1]]]){
+      const ring=cyl(rad,rad,0.13,m,0,2.20,0.11,rig,32);ring.rotation.x=Math.PI/2;
+    }
+    putTarget(id,'target',x,z,2.2,1.22,rig,rig);
+  }
+  blastTarget(0,-12,'centre-target');blastTarget(10,-11,'right-target');
+  // Simple racks and scrolls make the place feel inhabited, not a blank test box.
+  for(const x of [-17,17]) {
+    cube(2.0,3.2,0.5,wood,x,2.0,7.5);
+    for(let y=1.6;y<=3.4;y+=0.9) cube(2.5,0.1,0.7,woodLight,x,y,7.5);
+    cyl(0.75,0.75,0.18,red,x,0.52,10.5);
+  }
+  // FX: hit counter, recoil and sparks; no continuously running heavyweight particle systems.
+  let score=0;
+  function hit(obj,damage,pos) {
+    if(!room.visible)return false;
+    obj.hits++;score++;obj.hitT=0.24;
+    obj.velocity += Math.min(1.4,0.35+damage*0.018)*(Math.random()>0.5?1:-1);
+    const c=pos || obj.pos;
+    Effects.sparks(c,0xffe0ad,5);
+    Effects.flash(c,0xfff0c5,0.7,0.10);
+    const stat=$('dojoHits');if(stat)stat.textContent=String(score);
+    if(score===1||score%5===0) toast(score===1?'Clean hit!':score+' dojo hits');
+    return true;
+  }
+  function hitMelee(f,stage,kick) {
+    if(!room.visible || f!==Game.player)return false;
+    const origin=f.center, facing=f.forward();let found=null,closest=Infinity;
+    for(const obj of objects) {
+      const delta=obj.pos.clone().sub(origin);const dist=delta.length();
+      const flat=delta.clone().setY(0);if(flat.lengthSq()<0.001)continue;
+      flat.normalize();
+      if(dist<3.9+(kick?0.3:0)&&dist<closest&&facing.dot(flat)>0.55){found=obj;closest=dist;}
+    }
+    return found?hit(found,9+stage*4,found.pos):false;
+  }
+  function hitBlast(a,b,lvl) {
+    if(!room.visible)return false;
+    for(const obj of objects) {
+      const v=b.clone().sub(a),w=obj.pos.clone().sub(a),length=v.lengthSq();
+      const t=length>0?Math.max(0,Math.min(1,w.dot(v)/length)):0;
+      const closest=a.clone().addScaledVector(v,t);
+      if(closest.distanceTo(obj.pos)<obj.radius+0.58+lvl*0.38) {
+        hit(obj,14+lvl*25,closest);
+        return true;
+      }
+    }
+    return false;
+  }
+  function resolveCollisions(f) {
+    if(!room.visible)return;
+    // Keep the player inside the wooden hall and below the camera-height rafters.
+    f.pos.x=Math.max(-19.5,Math.min(19.5,f.pos.x));
+    f.pos.z=Math.max(-19.5,Math.min(19.5,f.pos.z));
+    f.pos.y=Math.max(STAGE_H,Math.min(10.6,f.pos.y));
+    if(f.pos.y>STAGE_H+2.2)return;
+    for(const obj of objects) {
+      const r=obj.type==='bag'?0.94:0.8;
+      const dx=f.pos.x-obj.pos.x,dz=f.pos.z-obj.pos.z,d=Math.hypot(dx,dz);
+      if(d<r&&d>0.0001){f.pos.x+=(dx/d)*(r-d);f.pos.z+=(dz/d)*(r-d);}
+    }
+  }
+  function update(dt) {
+    if(!room.visible)return;
+    for(const obj of objects) {
+      obj.hitT=Math.max(0,obj.hitT-dt);
+      obj.velocity += (-obj.recoil*13-obj.velocity*5.4)*dt;
+      obj.recoil += obj.velocity*dt;
+      if(obj.swing){obj.group.rotation.z=obj.recoil*0.22;obj.group.rotation.x=obj.recoil*0.10;}
+    }
+  }
+  function show(on) {room.visible=!!on;if(on){score=0;const stat=$('dojoHits');if(stat)stat.textContent='0';}}
+  function resetProps() {score=0;objects.forEach(o=>{o.hits=0;o.hitT=0;o.recoil=0;o.velocity=0;if(o.swing){o.group.rotation.z=0;o.group.rotation.x=0;}});const el=$('dojoHits');if(el)el.textContent='0';}
+  return {room, objects, show, update, hitMelee, hitBlast, resolveCollisions, resetProps, get score(){return score;}, kind:'martial'};
+})();
 /* ---------------- Fighter model ----------------
  * Hierarchy (so yaw and lean never interfere):
  *   root  – world position + facing (yaw only)
@@ -1060,7 +1251,7 @@ class AnimLayer {
     this.ph = 0; this.locoLeg = 0; this.locoUp = 0;
     this.one = null;   // active one-shot: { name, t, rate, end, loop, mask, w, fade, hold }
     this.lastAttackSerial = -1;
-    this.prev = { punchT: 0, blastT: 0, superHitT: 0, brokenT: 0, downT: 0, stun: 0, flying: false, jumping: false, hp: 100 };
+    this.prev = { punchT: 0, blastT: 0, superHitT: 0, vanishRecoverT: 0, brokenT: 0, downT: 0, stun: 0, flying: false, jumping: false, hp: 100 };
     this.hitAlt = 0;
     this.lastAcro = null;
     this.evadeCount = 0;
@@ -1201,6 +1392,13 @@ class AnimLayer {
       else if (f.stun > 0 && p.stun <= 0 && !f.launched && !f.spiked && f.downT <= 0 && f.brokenT <= 0 && grounded && f.superHitT <= 0) {
         this.hitAlt ^= 1; this.play(this.hitAlt ? 'hitChest' : 'hitHead', { rate: 1.1, fadeIn: 0.04 });
       }
+      // A real quick Quaternius foot-plant on teleport arrival. Lower-body-only:
+      // retain the hand guard and procedural arrival crouch on the upper body.
+      if (f.vanishRecoverT > 0 && p.vanishRecoverT <= 0 && grounded && f.stun <= 0) {
+        this.play('qShieldDash', { from: 0.18, rate: 3.4, end: 0.73,
+          mask: this.LOWER, noH: true, fadeIn: 0.045, fadeOut: 0.11, blendOut: 0.10 });
+        this.lastRecordedAction = 'vanish-foot-plant';
+      }
       if (p.flying && !flying && grounded && f.downT <= 0 && !(this.one && !this.one.done && this.one.name !== 'jumpAir')) {
         // touchdown (hop or coming down from flight): knees absorb the landing, harder after a fast drop
         const hard = (p.vy || 0) < -9;
@@ -1232,7 +1430,7 @@ class AnimLayer {
     }
     this.lastSkidT = f.skidT;
     this.lastAcro = f.acro;
-    p.punchT = f.punchT; p.blastT = f.blastT; p.superHitT = f.superHitT || 0; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
+    p.punchT = f.punchT; p.blastT = f.blastT; p.superHitT = f.superHitT || 0; p.vanishRecoverT = f.vanishRecoverT; p.brokenT = f.brokenT; p.downT = f.downT; p.stun = f.stun; p.flying = flying; p.jumping = f.jumping; p.hp = f.hp; p.vy = f.vel.y;
 
     // ---- locomotion layer: walk / jog / sprint chosen by speed, phase locked to the ground covered ----
     const busyLegs = f.awakenChargeT > 0 || !grounded || f.dashPrep > 0 || (f.skidT > 0 && !f.sprinting && !f.dashing) || f.stun > 0 || f.downT > 0 || f.slamming || f.slamLagT > 0 || f.brokenT > 0 || f.punchT > 0 || dying;
@@ -1525,7 +1723,7 @@ class Fighter {
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
   tryJump() {
-    if (this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
+    if (this.awakenChargeT > 0 || this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
     this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
     const speed = Math.hypot(this.vel.x, this.vel.z);
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
@@ -1556,7 +1754,7 @@ class Fighter {
 
   // a dash starts with a quick crouch-and-push (prep), then bursts; chase dashes skip the prep to keep combos flowing
   tryDash(dir, prep = TUNING.dashPrep) {
-    if (this.dashCd > 0 || this.stun > 0 || this.energy < TUNING.dashCost || this.dashPrep > 0) return false;
+    if (this.awakenChargeT > 0 || this.dashCd > 0 || this.stun > 0 || this.energy < TUNING.dashCost || this.dashPrep > 0) return false;
     this.energy -= TUNING.dashCost;
     this.dashDir.copy(dir).normalize();
     this.dashCd = TUNING.dashCooldown; this.skidT = 0;
@@ -1579,7 +1777,7 @@ class Fighter {
   }
   // hold Run: start running straight away (no dash needed)
   startRun() {
-    if (this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
+    if (this.awakenChargeT > 0 || this.sprinting || this.stun > 0 || this.energy < TUNING.sprintMinEnergy || this.blocking || this.charging || this.punchT > 0 || this.launched) return false;
     this.sprinting = true; if (this === Game.player) CameraRig.shake(0.012); return true;
   }
   gainAwaken(amount) {
@@ -1599,7 +1797,7 @@ class Fighter {
     this.cancelCharge(); this.chargeHeld = false; this.blockHeld = false; this.blocking = false;
     this.invulnT = Math.max(this.invulnT, TUNING.awakenChargeTime + 0.12);
     if (this.vrmRig && this.vrmRig.anim) this.vrmRig.anim.stop();
-    Sound.play('awaken'); Effects.awakenIgnition(this);
+    Sound.play('awaken'); Sound.play('powerRise'); Effects.awakenIgnition(this);
     if (this === Game.player) Game.callout('POWER RISING', 'launch');
     return true;
   }
@@ -1674,7 +1872,7 @@ class Fighter {
       }
     }
     // guard: hold to block; a fresh block (not spammed) gets a short parry window
-    const canBlock = this.blockHeld && !this.charging && this.stun <= 0 && !this.dashing && this.punchT <= 0 && this.blastT <= 0 && this.windT <= 0 && this.guard > 0;
+    const canBlock = this.awakenChargeT <= 0 && this.blockHeld && !this.charging && this.stun <= 0 && !this.dashing && this.punchT <= 0 && this.blastT <= 0 && this.windT <= 0 && this.guard > 0;
     if (canBlock && !this.blocking) { this.blockT = 0; this.parryOk = this.t - this.lastBlockEnd > 0.35 ? TUNING.parryWindow : 0; }
     if (!canBlock && this.blocking) this.lastBlockEnd = this.t;
     this.blocking = canBlock;
@@ -2939,6 +3137,8 @@ const Sound = (() => {
     superHit: [165, 42, 0.42, 'triangle', 0.11],
     vanish: [750, 170, 0.12, 'sine', 0.065],
     awaken: [180, 760, 0.6, 'triangle', 0.095],
+    powerRise: [72, 960, 1.95, 'sawtooth', 0.042],
+    powerRise: [83, 355, 1.95, 'triangle', 0.058],
   };
   function play(which) {
     if (!Settings.get('sound')) return;
@@ -2982,8 +3182,8 @@ const Combat = (() => {
       if (target.forward().dot(toA) > -0.05) return blocked(attacker, target, dmg, knock, kind, floorHp);
     }
     target.hp = Math.max(floorHp, target.hp - dmg);
-    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(13, 3 + dmg * 0.8));
-    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(13, 3 + dmg * 0.7));
+    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(22, 5 + dmg * 1.3));
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(16, 3 + dmg * 0.65));
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
@@ -3082,6 +3282,12 @@ const Combat = (() => {
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
+    // Training props are separate hit volumes: dummies, bags, and projectile targets.
+    if (Game.mode === 'dojo' && Dojo.hitMelee(attacker,stage,kick)) {
+      attacker.energy = Math.min(100, attacker.energy + 2);
+      attacker.awakenGauge = Math.min(TUNING.awakenGaugeMax, attacker.awakenGauge + 4);
+    }
+    if (Game.mode === 'dojo' && !Game.dojoRival) return;
     if (target.hp <= 0) return;
     const air = target.launched && !target.spiked;
     const toT = target.pos.clone().sub(attacker.pos); const dist = toT.length();
@@ -3144,7 +3350,7 @@ const Combat = (() => {
     const toT = target.center.sub(start);
     const fwd = attacker.forward();
     const angle = Math.acos(clamp(fwd.dot(new V3(toT.x, 0, toT.z).normalize()), -1, 1));
-    if (aimMode === 'target' || angle < TUNING.blastAssistAngle) dir = toT.normalize();
+    if (aimMode === 'target' || (Game.mode !== 'dojo' && angle < TUNING.blastAssistAngle)) dir = toT.normalize();
     else dir = fwd;
     if (aimMode === 'target') attacker.facing = yawFromDir(dir.x, dir.z);
     const color = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
@@ -3208,6 +3414,7 @@ const Combat = (() => {
   function update(dt) {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const p = projectiles[i];
+      const previousPosition = p.mesh.position.clone();
       p.mesh.position.addScaledVector(p.vel, dt); p.life -= dt;
       p.shell.rotation.y += dt * (7 + p.lvl * 5);
       p.shell.rotation.z += dt * 4;
@@ -3229,7 +3436,11 @@ const Combat = (() => {
         Spectacle.wake(p.mesh.position, p.vel.clone().normalize(), p.color, p.lvl);
       }
       let dead = p.life <= 0 || p.mesh.position.y < 0 || Math.hypot(p.mesh.position.x, p.mesh.position.z) > ARENA_RADIUS + 20;
-      if (!dead && p.mesh.position.distanceTo(p.target.center) < 1.25 * (1 + 0.5 * p.lvl) && p.target.hp > 0) {
+      if (!dead && Game.mode === 'dojo' && Dojo.hitBlast(previousPosition,p.mesh.position,p.lvl)) {
+        Spectacle.explosion(p.mesh.position,p.vel.clone().normalize(),p.color,Math.min(p.lvl,0.55));
+        dead = true;
+      }
+      if (!dead && (Game.mode !== 'dojo' || Game.dojoRival) && p.mesh.position.distanceTo(p.target.center) < 1.25 * (1 + 0.5 * p.lvl) && p.target.hp > 0) {
         const charged = p.lvl > 0.05;
         const dirHit = p.vel.clone().normalize();
         const result = hit(p.owner, p.target, p.dmg, dirHit.clone().multiplyScalar(12 + 14 * p.lvl).setY(charged ? 2 + 3 * p.lvl : 0), p.lvl > 0.5, charged ? 'charged' : 'blast');
@@ -3474,7 +3685,10 @@ const CameraRig = (() => {
     }
     if (instant) look.copy(desired); else look.lerp(desired, damp(14, dt));
     const cameraDistances = { close: 6.15, standard: 8.5, far: 11.4 };
-    const desiredDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
+    const presetDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
+    // A short camera push-in gives the transformation weight without stealing the orbit controls.
+    const cinematic = p.awakenChargeT > 0 ? Math.sin(Math.PI * smooth01(p.awakenChargeProgress)) : 0;
+    const desiredDist = presetDist * (1 - 0.16 * cinematic);
     rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
     const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
     const cp = Math.cos(rig.pitch);
@@ -3619,11 +3833,11 @@ const Menus = (() => {
     pause.querySelector('.panel').scrollTop = 0;
     disarmRestart();
   }
-  function openPause() { lastFocus = document.activeElement; settingsReturn = null; show(pause); showView('main'); $('resumeBtn').focus({ preventScroll: true }); }
+  function openPause() { $('dojoFromPauseBtn').classList.toggle('hidden',Game.mode==='dojo'); lastFocus = document.activeElement; settingsReturn = null; show(pause); showView('main'); $('resumeBtn').focus({ preventScroll: true }); }
   function closePause() { hide(pause); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
   function openSettingsFrom(overlay) { settingsReturn = overlay; hide(overlay); show(pause); showView('settings'); }
   function back() {
-    if (settingsReturn) { hide(pause); show(settingsReturn); settingsReturn.querySelector('.mbtn').focus({ preventScroll: true }); settingsReturn = null; }
+    if (settingsReturn) { hide(pause); show(settingsReturn); (settingsReturn.querySelector('.mbtn') || settingsReturn.querySelector('button')).focus({ preventScroll: true }); settingsReturn = null; }
     else showView('main');
   }
   const currentView = () => Object.keys(views).find(k => !views[k].classList.contains('hidden'));
@@ -3640,11 +3854,17 @@ const Menus = (() => {
   $('settingsBtn').addEventListener('click', () => showView('settings'));
   $('controlsBtn').addEventListener('click', () => showView('controls'));
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
-  $('startBtn').addEventListener('click', () => { if (Game.training) Settings.set('rival', 'fight'); syncSettingsUI(); hide(title); Game.start(); });
-  $('trainBtn').addEventListener('click', () => { if (!Game.training) Settings.set('rival', 'dummy'); syncSettingsUI(); hide(title); Game.start(); });
+  $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
+  $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
+  $('dojoRivalMode').addEventListener('change', e => Game.setDojoRival(e.target.value));
+  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); });
+  $('dojoHomeBtn').addEventListener('click', () => Game.returnHome());
+  $('homeBtn').addEventListener('click', () => Game.returnHome());
+  $('dojoFromPauseBtn').addEventListener('click', () => { closePause(); Game.enterDojo(); });
   $('titleSettingsBtn').addEventListener('click', () => openSettingsFrom(title));
   $('rematchBtn').addEventListener('click', () => { hide(over); Game.restart(); });
   $('overSettingsBtn').addEventListener('click', () => openSettingsFrom(over));
+  $('overHomeBtn').addEventListener('click', () => { hide(over); Game.returnHome(); });
   // tapping the dimmed backdrop (outside the panel) resumes from the main pause view
   pause.addEventListener('pointerdown', e => { if (e.target === pause && currentView() === 'main' && !settingsReturn) Game.resume(); });
 
@@ -3694,12 +3914,14 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 /* ---------------- Game ---------------- */
 const Game = {
   state: 'title',   // title | playing | paused | over
+  mode: 'fight', dojoRival: false,
   lockOn: false,
   player: null, enemy: null,
   init() {
     this.player = new Fighter('You', PALETTES.hero, new V3(0, STAGE_H, 12));
     this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12));
     try { $('pPortrait').src = renderPortrait(PALETTES.hero); $('ePortrait').src = renderPortrait(PALETTES.rival); } catch (err) { console.warn(err); }
+    if (typeof LoadScreen !== 'undefined') LoadScreen.progress(28,'Preparing fighters');
     const modelSource = window.HERO_VRM_URL || window.HERO_VRM_B64;
     if (modelSource && window.VRMKit) {
       document.body.classList.add('vrm-loading');
@@ -3708,20 +3930,24 @@ const Game = {
       // Sequential decoding limits peak model-loading memory on phones.
       loadVRMInto(this.player, modelSource, {hide:hiddenGear}).then(async ok => {
         if (ok) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { $('pPortrait').src = renderVRMPortrait(this.player); }
           catch(err) { console.warn('Hero portrait',err); }
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
         if (rivalOK) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(90,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
           catch(err) { console.warn('Rival portrait',err); }
         }
         document.body.classList.remove('vrm-loading');
+        if (typeof LoadScreen !== 'undefined') LoadScreen.finish();
       }).catch(err=>{
         console.warn('Character setup failed',err);
         document.body.classList.remove('vrm-loading');
+        if (typeof LoadScreen !== 'undefined') LoadScreen.finish('Using lightweight fighters');
       });
-    }
+    } else if (typeof LoadScreen !== 'undefined') LoadScreen.finish('Ready to train');
     this.lag = { p: 100, e: 100 };
     this.setLock(Settings.get('lockDefault'), false);
     CameraRig.snapBehind(this.player, this.enemy);
@@ -3738,8 +3964,63 @@ const Game = {
     this.lockOn = on;
     if (notify) toast(on ? 'Lock-on enabled' : 'Free camera');
   },
-  get training() { const r = Settings.get('rival'); return r === 'dummy' || r === 'moving' || r === 'attacks'; },
-  start() { this.restart(); },
+  get training() { return this.mode === 'dojo'; },
+  setRivalPresent(on) {
+    const e=this.enemy;
+    e.model.root.visible=!!on; e.model.blob.visible=!!on;
+    e.orb.visible=e.orbCore.visible=false;
+    this.dojoRival=!!on;
+    const bar=$('dojoRivalHud');if(bar)bar.classList.toggle('hidden',!on);
+  },
+  start() { this.startFight(); },
+  startFight() {
+    this.mode='fight';this.dojoRival=true;
+    Settings.set('rival','fight');
+    Arena.setEnvironment('highland');Dojo.show(false);
+    this.setRivalPresent(true);
+    this.player.spawn.set(0,STAGE_H,12);this.enemy.spawn.set(0,STAGE_H,-12);
+    this.restart();
+    this.banner('SKY CLASH','round');
+  },
+  enterDojo() {
+    this.mode='dojo';this.dojoRival=false;
+    $('dojoRivalMode').value='solo';
+    Settings.set('rival','dummy');
+    Arena.setEnvironment('dojo');Dojo.show(true);Dojo.resetProps();
+    this.setRivalPresent(false);
+    this.player.spawn.set(0,STAGE_H,12);this.enemy.spawn.set(0,STAGE_H,-120);
+    this.restart();
+    this.setLock(false,false);
+    $('dojoTools').classList.remove('hidden');
+    this.banner('WELCOME TO THE DOJO','round');
+  },
+  setDojoRival(mode) {
+    if(this.mode!=='dojo')return;
+    if(mode==='solo') {
+      this.dojoRival=false;this.setRivalPresent(false);this.enemy.spawn.set(0,STAGE_H,-120);
+      this.enemy.reset();this.enemy.moveIntent.set(0,0,0);
+      Settings.set('rival','dummy');this.setLock(false,false);
+      toast('Solo practice · equipment is ready');
+    } else {
+      const kind=['dummy','moving','attacks'].includes(mode)?mode:'dummy';
+      Settings.set('rival',kind);
+      this.enemy.spawn.set(2,STAGE_H,-7);this.enemy.reset();this.enemy._dmgMul=0;
+      this.setRivalPresent(true);
+      toast(kind==='attacks'?'Sparring partner ready':kind==='moving'?'Moving partner ready':'Training partner ready');
+    }
+    const select=$('dojoRivalMode');if(select)select.value=mode;
+    this.renderPips();
+  },
+  returnHome() {
+    if(this.state==='paused')Menus.closePause();
+    this.state='title';this.showPlayUI(false);
+    Combat.clear();Effects.clear();Spectacle.clear();Input.reset();
+    this.player.reset();this.enemy.reset();
+    $('dojoTools').classList.add('hidden');
+    Dojo.show(false);Arena.setEnvironment('highland');this.setRivalPresent(true);
+    $('titleScreen').classList.add('show');$('titleScreen').setAttribute('aria-hidden','false');
+    Input.reset();
+  },
   // hit counter: shows the current string of hits and its total damage
   combo: { n: 0, dmg: 0, t: 0 },
   onPlayerHit(dmg) {
@@ -3760,13 +4041,19 @@ const Game = {
   },
   startRound() {
     this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); Spectacle.clear(); RivalAI.reset(); Input.reset();
+    if(this.mode==='dojo') Dojo.resetProps();
+    if(this.mode==='dojo') this.setRivalPresent(this.dojoRival);
+    else this.setRivalPresent(true);
     this.setLock(Settings.get('lockDefault'), false);
     CameraRig.snapBehind(this.player, this.enemy);
+    if(this.mode==='dojo' && !this.dojoRival) this.setLock(false,false);
     this.koT = 0; this.hitStopT = 0; this.lag = { p: 100, e: 100 }; this.combo.t = 0; $('comboBox').classList.remove('show', 'hot'); this._mv = {x:0,y:0}; this._upWas = false;
     this.state = 'playing'; this.showPlayUI(true); this.betweenT = 0;
+    $('dojoTools').classList.toggle('hidden',this.mode!=='dojo');
+    $('dojoRivalHud').classList.toggle('hidden',this.mode!=='dojo'||!this.dojoRival);
     this.timeLeft = +Settings.get('timer') || 0; this.timeUp = false;
     this.renderPips();
-    if (this.training) { this.introT = 0; this.banner('FIGHT!', 'fight'); }
+    if (this.training) { this.introT = 0; this.banner('TRAIN · EXPLORE · IMPROVE', 'fight'); }
     else {
       // short intro: fighters hold still while the round is announced
       const m = this.match, last = m.pw === m.need - 1 && m.ew === m.need - 1 && m.need > 1;
@@ -3813,8 +4100,8 @@ const Game = {
   },
   hitStop(t) { this.hitStopT = Math.max(this.hitStopT || 0, t); },
   showPlayUI(on) { $('hud').classList.toggle('hidden', !on); $('controls').classList.toggle('hidden', !on); },
-  pause() { if (this.state !== 'playing') return; this.state = 'paused'; Input.reset(); $('controls').classList.add('hidden'); Menus.openPause(); },
-  resume() { if (this.state !== 'paused') return; Menus.closePause(); Input.reset(); this.state = 'playing'; $('controls').classList.remove('hidden'); this._last = performance.now(); },
+  pause() { if (this.state !== 'playing') return; this.state = 'paused'; Input.reset(); $('controls').classList.add('hidden'); $('dojoTools').classList.add('hidden'); Menus.openPause(); },
+  resume() { if (this.state !== 'paused') return; Menus.closePause(); Input.reset(); this.state = 'playing'; $('controls').classList.remove('hidden'); $('dojoTools').classList.toggle('hidden',this.mode!=='dojo'); this._last = performance.now(); },
   togglePause() {
     if (this.state === 'playing') this.pause();
     else if (this.state === 'paused') { if (Menus.currentView() !== 'main') Menus.back(); else this.resume(); }
@@ -3839,7 +4126,7 @@ const Game = {
     this._upWas = p.vert > 0;
     if (p.awakenChargeT > 0) {
       // Consume queued inputs without interrupting transformation or spamming an action afterward.
-      for (const act of ['dash','dash2','vanish','melee','blast','awaken']) Input.consume(act);
+      for (const act of ['dash','dash2','vanish','melee','blast','awaken','lock']) Input.consume(act);
       p.moveIntent.set(0,0,0); p.vert = 0; p.blockHeld = false;
       p.sprintHeld = false; p.chargeHeld = false;
       return;
@@ -3894,7 +4181,7 @@ const Game = {
       }
     }
     // Blast: hold to charge, release to fire (handled by the fighter); a tap too quick to register as held fires straight away
-    p.chargeTarget = e; p.chargeAim = CameraRig.isLockActive() ? 'target' : 'facing';
+    p.chargeTarget = e; p.chargeAim = this.mode==='dojo' && !this.dojoRival ? 'facing' : CameraRig.isLockActive() ? 'target' : 'facing';
     p.chargeHeld = Input.blastHeld();
     if (Input.consume('blast') && !p.chargeHeld && !p.charging) Combat.blast(p, e, p.chargeAim);
     if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : p.awakenChargeT > 0 ? 'Powering up' : p.awakenGauge < 100 ? 'Build awakening power by fighting' : 'Cannot awaken while stunned');
@@ -3902,11 +4189,13 @@ const Game = {
 
   update(dt) {
     if (this.koT > 0 || this.introT > 0) { this.player.blockHeld = this.enemy.blockHeld = false; this.player.chargeHeld = this.enemy.chargeHeld = false; this.player.moveIntent.set(0, 0, 0); this.player.vert = 0; this.enemy.moveIntent.set(0, 0, 0); this.enemy.vert = 0; }
-    else { this.handlePlayerInput(dt); RivalAI.update(dt, this.enemy, this.player); }
-    this.player.update(dt); this.enemy.update(dt);
+    else { this.handlePlayerInput(dt); if (this.mode!=='dojo' || this.dojoRival) RivalAI.update(dt, this.enemy, this.player); }
+    this.player.update(dt);
+    if (this.mode!=='dojo' || this.dojoRival) this.enemy.update(dt);
+    if (this.mode==='dojo') { Dojo.resolveCollisions(this.player); Dojo.update(dt); }
     // keep fighters from overlapping
     const sep = this.enemy.pos.clone().sub(this.player.pos); const d = sep.length();
-    if (d < 1.1 && d > 0.0001) { sep.multiplyScalar((1.1 - d) / d / 2); this.enemy.pos.add(sep); this.player.pos.sub(sep); }
+    if ((this.mode!=='dojo' || this.dojoRival) && d < 1.1 && d > 0.0001) { sep.multiplyScalar((1.1 - d) / d / 2); this.enemy.pos.add(sep); this.player.pos.sub(sep); }
     Combat.update(dt); Effects.update(dt); Spectacle.update(dt);
     if (this.combo.t > 0) { this.combo.t -= dt; if (this.combo.t <= 0) $('comboBox').classList.remove('show'); }
     if (this.training) {
@@ -3917,7 +4206,7 @@ const Game = {
       if (pl.hurtT > 1.6 && pl.hp < 100) pl.hp = Math.min(100, pl.hp + 60 * dt);
       this.player.energy = Math.min(100, this.player.energy + 30 * dt);
     }
-    if ((this.player.hp <= 0 || this.enemy.hp <= 0) && !this.koT) {
+    if (!this.training && (this.player.hp <= 0 || this.enemy.hp <= 0) && !this.koT) {
       this.koT = 1.4; Input.reset(); this.banner('K.O.', 'ko'); $('controls').classList.add('hidden');
     }
     // round clock
@@ -3970,7 +4259,7 @@ const Game = {
     if (this.timed) { const s = Math.ceil(this.timeLeft); tm.textContent = s; tm.classList.toggle('low', s <= 10 && this.timeLeft > 0); }
     const tr = Settings.get('rival');
     $('trainTag').classList.toggle('hidden', !this.training);
-    if (this.training) $('trainTag').textContent = tr === 'moving' ? 'Training · rival moves, never attacks' : tr === 'attacks' ? 'Training · rival throws slow punches to block' : 'Training · rival stands still';
+    if (this.training) $('trainTag').textContent = !this.dojoRival ? 'DOJO · Solo practice' : tr === 'moving' ? 'DOJO · Moving partner' : tr === 'attacks' ? 'DOJO · Sparring' : 'DOJO · Still partner';
     const gb = document.querySelector('.cbtn.block');
     gb.classList.toggle('novanish', p.energy < (p.guardCounterWindow > 0 ? 13 : TUNING.vanishCost) || p.vanishCd > 0);
     gb.classList.toggle('counter-ready', p.guardCounterWindow > 0 && p.vanishCd <= 0);
@@ -3982,7 +4271,7 @@ const Game = {
     const v = e.center.project(camera);
     const behind = v.z > 1;
     const off = behind || Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95;
-    arrow.classList.toggle('hidden', !off || this.state !== 'playing');
+    arrow.classList.toggle('hidden', !off || this.state !== 'playing' || (this.mode==='dojo' && !this.dojoRival));
     if (off) {
       let x = v.x, y = v.y; if (behind) { x = -x; y = -y; }
       const a = Math.atan2(y, x); const ex = Math.cos(a), ey = Math.sin(a);

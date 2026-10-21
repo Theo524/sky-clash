@@ -1,0 +1,41 @@
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const THREE=require('../js/vendor/three.min.js');
+const V3=THREE.Vector3,scene=new THREE.Scene();
+const stats={dojoHits:{textContent:'0'}};
+const $=id=>stats[id]||(stats[id]={textContent:''});
+const toast=()=>{};
+const Effects={sparks(){},flash(){}};
+const Game={player:null};
+const src=fs.readFileSync(path.join(__dirname,'../src/25-dojo.js'),'utf8');
+const Dojo=new Function('THREE','V3','STAGE_H','scene','$','toast','Effects','Game',src+';return Dojo')(
+  THREE,V3,0.35,scene,$,toast,Effects,Game
+);
+assert.equal(Dojo.room.visible,false);
+assert.equal(Dojo.objects.length,5,'two bags, one wooden dummy and two blast targets');
+assert(Dojo.room.children.length>80,'dojo must include floor/walls/equipment');
+Dojo.show(true);
+const bag=Dojo.objects.find(o=>o.type==='bag');
+const player={center:new V3(bag.pos.x,1.55,bag.pos.z+2.5),forward:()=>new V3(0,0,-1),pos:new V3(bag.pos.x,.35,bag.pos.z+2.5)};
+Game.player=player;
+assert.equal(Dojo.hitMelee(player,0,false),true,'bag must be punchable from the floor');
+assert.equal(Dojo.score,1);
+const t=Dojo.objects.find(o=>o.id==='centre-target');
+assert.equal(Dojo.hitBlast(new V3(t.pos.x,1.55,t.pos.z+4),new V3(t.pos.x,1.55,t.pos.z-4),0.05),true,'ground height energy projectile must strike centre target');
+assert.equal(Dojo.score,2);
+Dojo.update(0.016);
+assert.notEqual(bag.group.rotation.z,0,'bag should visibly react to a punch');
+Dojo.resetProps();assert.equal(Dojo.score,0);
+assert.equal(stats.dojoHits.textContent,'0');
+player.pos.set(70,.35,50);Dojo.resolveCollisions(player);
+assert.equal(player.pos.x,19.5);assert.equal(player.pos.z,19.5);
+Dojo.show(false);
+assert.equal(Dojo.hitMelee(player,1,false),false,'hidden dojo must not intercept tournament hits');
+const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
+for(const id of ['bootScreen','bootFill','bootStatus','titleScreen','trainBtn','startBtn','dojoTools','dojoRivalMode','dojoResetBtn','dojoHomeBtn','homeBtn','dojoFromPauseBtn'])
+ assert(html.includes('id="'+id+'"'),id+' missing');
+const game=fs.readFileSync(path.join(__dirname,'../src/95-game.js'),'utf8');
+assert(game.includes('enterDojo()')&&game.includes("this.mode='dojo'"));
+assert(game.includes('setDojoRival(mode)'));
+const combat=fs.readFileSync(path.join(__dirname,'../src/60-combat.js'),'utf8');
+assert(combat.includes('Dojo.hitMelee(')&&combat.includes('Dojo.hitBlast('));
+console.log('V46 dojo 3D geometry, floor hit, projectile hit, swinging bag, reset, room collision, solo and UI hooks verified.');

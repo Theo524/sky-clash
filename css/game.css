@@ -300,3 +300,39 @@ body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:.5;pointer-events:
 .cbtn.block.counter-ready{border-color:#ffeaaa;box-shadow:0 0 18px rgba(255,203,119,.48),inset 0 0 10px rgba(255,242,206,.22)}
 .cbtn.block.counter-ready small{color:#ffedc6;opacity:1}
 @media(max-height:520px) and (orientation:landscape){.awaken-meter{font-size:6px}.awaken-track{height:5px}}
+
+/* V46: original menu replaced by a real boot/splash and navigable dojo hub. */
+.boot-screen{position:fixed;z-index:1200;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+ background:radial-gradient(ellipse at 65% 30%,#263b4b 0%,#101c2d 39%,#070b14 76%);color:#f1e9d8;pointer-events:auto;transition:opacity .5s ease,visibility .5s ease}
+.boot-screen.finished{opacity:0;pointer-events:none;visibility:hidden}
+.boot-mark{font-family:Georgia,serif;font-size:clamp(43px,10vw,84px);font-weight:900;letter-spacing:-.13em;color:#f0e8d4;line-height:1}
+.boot-mark span{font-size:.7em;color:#e3ae6e;padding:0 11px}
+.boot-name{letter-spacing:.45em;font-weight:900;font-size:clamp(15px,3.7vw,25px);margin:8px 0}
+.boot-line,.boot-status,.boot-small{font:600 10px/1.5 system-ui,sans-serif;letter-spacing:.22em;color:#afbbc3;text-align:center;padding:0 16px}
+.boot-progress{width:min(280px,72vw);height:4px;background:#354251;border-radius:5px;overflow:hidden;margin:6px 0}
+.boot-progress i{display:block;width:8%;height:100%;background:linear-gradient(90deg,#607c88,#f7ca87);box-shadow:0 0 10px #f7ca87;transition:width .38s ease}
+.boot-status{letter-spacing:.03em;min-height:18px;font-size:12px;color:#e9d7bd}
+.boot-small{opacity:.65;letter-spacing:.1em;font-size:9px}
+#titleScreen{z-index:300;background:linear-gradient(100deg,rgba(7,11,21,.94) 4%,rgba(9,14,25,.84) 46%,rgba(16,22,29,.55) 100%);align-items:stretch;justify-content:center}
+#titleScreen .home-shell{width:min(1090px,100%);margin:0 auto;padding:clamp(20px,4vw,48px);display:grid;gap:12px;grid-template-columns:1fr minmax(255px,440px);align-items:center;max-height:98dvh;overflow-y:auto}
+.home-identity h1{font-size:clamp(58px,9vw,130px);line-height:.77;letter-spacing:-.085em;color:#f6ecd8;text-shadow:0 7px 32px #000;font-weight:950;margin:22px 0}
+.home-identity em{font-style:normal;color:#deb27b}
+.home-eyebrow,.home-identity p,.home-version,.home-footer{font-size:10px;font-weight:800;letter-spacing:.25em;color:#c6b18f;text-shadow:0 2px 4px #000}
+.home-menu{display:flex;flex-direction:column;gap:11px;padding:20px;background:rgba(13,21,30,.72);border:1px solid rgba(241,222,184,.23);border-radius:13px;box-shadow:0 20px 70px rgba(0,0,0,.30)}
+.home-version{margin-bottom:8px}
+.home-action{display:flex;align-items:center;text-align:left;width:100%;gap:14px;padding:18px 15px;color:#f1eee5;background:rgba(20,35,44,.9);border:1px solid #677b8655;border-radius:7px;cursor:pointer;transition:background .15s,transform .15s;min-height:79px;touch-action:manipulation}
+.home-action:hover,.home-action:focus-visible{background:#304655;transform:translateY(-2px);outline:2px solid #d4a96a}
+.home-primary{background:linear-gradient(105deg,#a67645,#d2a36c);border-color:#eed1a5;color:#1e1a1a}
+.home-primary:hover{background:linear-gradient(105deg,#bd8a51,#e7bc81)}
+.action-number{font-size:11px;font-family:monospace;opacity:.75;align-self:flex-start;padding-top:4px}
+.home-action span:nth-child(2){flex:1}.home-action b{font-size:18px;display:block}.home-action small{font-size:10px;display:block;opacity:.80;margin-top:5px}.action-arrow{font-size:20px}
+.home-tip{font-size:11px;line-height:1.6;color:#adbcc3;padding:7px 4px 0}
+.home-footer{grid-column:1/-1;display:flex;justify-content:space-between;opacity:.6;font-size:9px}
+.dojo-tools{position:fixed;z-index:28;top:calc(102px + var(--safe-t));left:calc(12px + var(--safe-l));display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:9px;background:rgba(14,20,26,.86);border:1px solid rgba(215,176,120,.45);color:#f3ddbd;box-shadow:0 5px 15px #0007;max-width:calc(100vw - 28px);pointer-events:auto;backdrop-filter:blur(7px)}
+.dojo-tools-title{display:flex;flex-direction:column;padding:2px 10px 2px 2px;gap:2px;white-space:nowrap}.dojo-tools-title b{font-size:11px;letter-spacing:.14em}.dojo-tools-title span{font-size:9px;color:#bdc2bc}
+.dojo-select{display:flex;flex-direction:column;gap:2px;font-size:9px;color:#a9b9bd}
+.dojo-select select,.dojo-tools button{min-height:34px;background:#273441;color:#f1e3cc;border:1px solid #88785b;border-radius:5px;padding:5px 10px;font-weight:700;font-size:11px}
+.dojo-tools button:active{background:#5b4e3e}
+@media(max-width:650px){#titleScreen .home-shell{grid-template-columns:1fr;padding:16px;gap:12px}.home-identity h1{font-size:clamp(49px,13vw,85px);margin:10px 0}.home-identity p{display:none}.home-menu{padding:12px;gap:7px}.home-action{min-height:57px;padding:9px 11px}.home-action b{font-size:16px}.home-footer{display:none}.dojo-tools{top:calc(105px + var(--safe-t));right:calc(6px + var(--safe-r));left:calc(6px + var(--safe-l));gap:5px;justify-content:center}.dojo-tools-title{display:none}.dojo-select select,.dojo-tools button{min-height:29px;font-size:10px;padding:4px 6px}}
+@media(max-height:530px) and (orientation:landscape){#titleScreen .home-shell{grid-template-columns:1fr minmax(280px,440px)}.home-identity h1{font-size:clamp(48px,8vw,110px)}.home-action{min-height:48px;padding:8px 11px}.home-menu{gap:4px;padding:10px}.home-tip{display:none}.dojo-tools{top:calc(75px + var(--safe-t));left:50%;transform:translateX(-50%);width:max-content}}
+body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:1;pointer-events:auto}

@@ -15,8 +15,8 @@ const Combat = (() => {
       if (target.forward().dot(toA) > -0.05) return blocked(attacker, target, dmg, knock, kind, floorHp);
     }
     target.hp = Math.max(floorHp, target.hp - dmg);
-    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(13, 3 + dmg * 0.8));
-    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(13, 3 + dmg * 0.7));
+    if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(22, 5 + dmg * 1.3));
+    if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(16, 3 + dmg * 0.65));
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
@@ -115,6 +115,12 @@ const Combat = (() => {
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
+    // Training props are separate hit volumes: dummies, bags, and projectile targets.
+    if (Game.mode === 'dojo' && Dojo.hitMelee(attacker,stage,kick)) {
+      attacker.energy = Math.min(100, attacker.energy + 2);
+      attacker.awakenGauge = Math.min(TUNING.awakenGaugeMax, attacker.awakenGauge + 4);
+    }
+    if (Game.mode === 'dojo' && !Game.dojoRival) return;
     if (target.hp <= 0) return;
     const air = target.launched && !target.spiked;
     const toT = target.pos.clone().sub(attacker.pos); const dist = toT.length();
@@ -177,7 +183,7 @@ const Combat = (() => {
     const toT = target.center.sub(start);
     const fwd = attacker.forward();
     const angle = Math.acos(clamp(fwd.dot(new V3(toT.x, 0, toT.z).normalize()), -1, 1));
-    if (aimMode === 'target' || angle < TUNING.blastAssistAngle) dir = toT.normalize();
+    if (aimMode === 'target' || (Game.mode !== 'dojo' && angle < TUNING.blastAssistAngle)) dir = toT.normalize();
     else dir = fwd;
     if (aimMode === 'target') attacker.facing = yawFromDir(dir.x, dir.z);
     const color = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
@@ -241,6 +247,7 @@ const Combat = (() => {
   function update(dt) {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const p = projectiles[i];
+      const previousPosition = p.mesh.position.clone();
       p.mesh.position.addScaledVector(p.vel, dt); p.life -= dt;
       p.shell.rotation.y += dt * (7 + p.lvl * 5);
       p.shell.rotation.z += dt * 4;
@@ -262,7 +269,11 @@ const Combat = (() => {
         Spectacle.wake(p.mesh.position, p.vel.clone().normalize(), p.color, p.lvl);
       }
       let dead = p.life <= 0 || p.mesh.position.y < 0 || Math.hypot(p.mesh.position.x, p.mesh.position.z) > ARENA_RADIUS + 20;
-      if (!dead && p.mesh.position.distanceTo(p.target.center) < 1.25 * (1 + 0.5 * p.lvl) && p.target.hp > 0) {
+      if (!dead && Game.mode === 'dojo' && Dojo.hitBlast(previousPosition,p.mesh.position,p.lvl)) {
+        Spectacle.explosion(p.mesh.position,p.vel.clone().normalize(),p.color,Math.min(p.lvl,0.55));
+        dead = true;
+      }
+      if (!dead && (Game.mode !== 'dojo' || Game.dojoRival) && p.mesh.position.distanceTo(p.target.center) < 1.25 * (1 + 0.5 * p.lvl) && p.target.hp > 0) {
         const charged = p.lvl > 0.05;
         const dirHit = p.vel.clone().normalize();
         const result = hit(p.owner, p.target, p.dmg, dirHit.clone().multiplyScalar(12 + 14 * p.lvl).setY(charged ? 2 + 3 * p.lvl : 0), p.lvl > 0.5, charged ? 'charged' : 'blast');

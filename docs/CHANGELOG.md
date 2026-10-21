@@ -19,3 +19,12 @@
 
 ## Previous
 V40 introduced movement attack blending; V39 added combat effects; V38 modularized Sky Clash.
+
+## V46 — Dojo Hub
+- Startup loading splash with progress stages and a 12-second safe model-loading fallback.
+- New responsive main menu: Enter Dojo, Enter Battle, Settings.
+- Modular martial-arts dojo scene: timber hall, tatami training floor, shoji walls, rafters, equipment racks and training station alcove.
+- Five reactive pieces of equipment: two heavy bags, a wooden practice dummy, two projectile targets; punches and blasts score hits.
+- Solo by default; summon stationary, moving, or sparring opponents without leaving the dojo.
+- Training and battle environments switch cleanly; pause and results can return to the main menu.
+- Isolated training room module allows future character-specific practice spaces.

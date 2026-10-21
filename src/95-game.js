@@ -1,12 +1,14 @@
 /* ---------------- Game ---------------- */
 const Game = {
   state: 'title',   // title | playing | paused | over
+  mode: 'fight', dojoRival: false,
   lockOn: false,
   player: null, enemy: null,
   init() {
     this.player = new Fighter('You', PALETTES.hero, new V3(0, STAGE_H, 12));
     this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12));
     try { $('pPortrait').src = renderPortrait(PALETTES.hero); $('ePortrait').src = renderPortrait(PALETTES.rival); } catch (err) { console.warn(err); }
+    if (typeof LoadScreen !== 'undefined') LoadScreen.progress(28,'Preparing fighters');
     const modelSource = window.HERO_VRM_URL || window.HERO_VRM_B64;
     if (modelSource && window.VRMKit) {
       document.body.classList.add('vrm-loading');
@@ -15,20 +17,24 @@ const Game = {
       // Sequential decoding limits peak model-loading memory on phones.
       loadVRMInto(this.player, modelSource, {hide:hiddenGear}).then(async ok => {
         if (ok) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { $('pPortrait').src = renderVRMPortrait(this.player); }
           catch(err) { console.warn('Hero portrait',err); }
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
         if (rivalOK) {
+          if (typeof LoadScreen !== 'undefined') LoadScreen.progress(90,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
           catch(err) { console.warn('Rival portrait',err); }
         }
         document.body.classList.remove('vrm-loading');
+        if (typeof LoadScreen !== 'undefined') LoadScreen.finish();
       }).catch(err=>{
         console.warn('Character setup failed',err);
         document.body.classList.remove('vrm-loading');
+        if (typeof LoadScreen !== 'undefined') LoadScreen.finish('Using lightweight fighters');
       });
-    }
+    } else if (typeof LoadScreen !== 'undefined') LoadScreen.finish('Ready to train');
     this.lag = { p: 100, e: 100 };
     this.setLock(Settings.get('lockDefault'), false);
     CameraRig.snapBehind(this.player, this.enemy);
@@ -45,8 +51,63 @@ const Game = {
     this.lockOn = on;
     if (notify) toast(on ? 'Lock-on enabled' : 'Free camera');
   },
-  get training() { const r = Settings.get('rival'); return r === 'dummy' || r === 'moving' || r === 'attacks'; },
-  start() { this.restart(); },
+  get training() { return this.mode === 'dojo'; },
+  setRivalPresent(on) {
+    const e=this.enemy;
+    e.model.root.visible=!!on; e.model.blob.visible=!!on;
+    e.orb.visible=e.orbCore.visible=false;
+    this.dojoRival=!!on;
+    const bar=$('dojoRivalHud');if(bar)bar.classList.toggle('hidden',!on);
+  },
+  start() { this.startFight(); },
+  startFight() {
+    this.mode='fight';this.dojoRival=true;
+    Settings.set('rival','fight');
+    Arena.setEnvironment('highland');Dojo.show(false);
+    this.setRivalPresent(true);
+    this.player.spawn.set(0,STAGE_H,12);this.enemy.spawn.set(0,STAGE_H,-12);
+    this.restart();
+    this.banner('SKY CLASH','round');
+  },
+  enterDojo() {
+    this.mode='dojo';this.dojoRival=false;
+    $('dojoRivalMode').value='solo';
+    Settings.set('rival','dummy');
+    Arena.setEnvironment('dojo');Dojo.show(true);Dojo.resetProps();
+    this.setRivalPresent(false);
+    this.player.spawn.set(0,STAGE_H,12);this.enemy.spawn.set(0,STAGE_H,-120);
+    this.restart();
+    this.setLock(false,false);
+    $('dojoTools').classList.remove('hidden');
+    this.banner('WELCOME TO THE DOJO','round');
+  },
+  setDojoRival(mode) {
+    if(this.mode!=='dojo')return;
+    if(mode==='solo') {
+      this.dojoRival=false;this.setRivalPresent(false);this.enemy.spawn.set(0,STAGE_H,-120);
+      this.enemy.reset();this.enemy.moveIntent.set(0,0,0);
+      Settings.set('rival','dummy');this.setLock(false,false);
+      toast('Solo practice · equipment is ready');
+    } else {
+      const kind=['dummy','moving','attacks'].includes(mode)?mode:'dummy';
+      Settings.set('rival',kind);
+      this.enemy.spawn.set(2,STAGE_H,-7);this.enemy.reset();this.enemy._dmgMul=0;
+      this.setRivalPresent(true);
+      toast(kind==='attacks'?'Sparring partner ready':kind==='moving'?'Moving partner ready':'Training partner ready');
+    }
+    const select=$('dojoRivalMode');if(select)select.value=mode;
+    this.renderPips();
+  },
+  returnHome() {
+    if(this.state==='paused')Menus.closePause();
+    this.state='title';this.showPlayUI(false);
+    Combat.clear();Effects.clear();Spectacle.clear();Input.reset();
+    this.player.reset();this.enemy.reset();
+    $('dojoTools').classList.add('hidden');
+    Dojo.show(false);Arena.setEnvironment('highland');this.setRivalPresent(true);
+    $('titleScreen').classList.add('show');$('titleScreen').setAttribute('aria-hidden','false');
+    Input.reset();
+  },
   // hit counter: shows the current string of hits and its total damage
   combo: { n: 0, dmg: 0, t: 0 },
   onPlayerHit(dmg) {
@@ -67,13 +128,19 @@ const Game = {
   },
   startRound() {
     this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); Spectacle.clear(); RivalAI.reset(); Input.reset();
+    if(this.mode==='dojo') Dojo.resetProps();
+    if(this.mode==='dojo') this.setRivalPresent(this.dojoRival);
+    else this.setRivalPresent(true);
     this.setLock(Settings.get('lockDefault'), false);
     CameraRig.snapBehind(this.player, this.enemy);
+    if(this.mode==='dojo' && !this.dojoRival) this.setLock(false,false);
     this.koT = 0; this.hitStopT = 0; this.lag = { p: 100, e: 100 }; this.combo.t = 0; $('comboBox').classList.remove('show', 'hot'); this._mv = {x:0,y:0}; this._upWas = false;
     this.state = 'playing'; this.showPlayUI(true); this.betweenT = 0;
+    $('dojoTools').classList.toggle('hidden',this.mode!=='dojo');
+    $('dojoRivalHud').classList.toggle('hidden',this.mode!=='dojo'||!this.dojoRival);
     this.timeLeft = +Settings.get('timer') || 0; this.timeUp = false;
     this.renderPips();
-    if (this.training) { this.introT = 0; this.banner('FIGHT!', 'fight'); }
+    if (this.training) { this.introT = 0; this.banner('TRAIN · EXPLORE · IMPROVE', 'fight'); }
     else {
       // short intro: fighters hold still while the round is announced
       const m = this.match, last = m.pw === m.need - 1 && m.ew === m.need - 1 && m.need > 1;
@@ -120,8 +187,8 @@ const Game = {
   },
   hitStop(t) { this.hitStopT = Math.max(this.hitStopT || 0, t); },
   showPlayUI(on) { $('hud').classList.toggle('hidden', !on); $('controls').classList.toggle('hidden', !on); },
-  pause() { if (this.state !== 'playing') return; this.state = 'paused'; Input.reset(); $('controls').classList.add('hidden'); Menus.openPause(); },
-  resume() { if (this.state !== 'paused') return; Menus.closePause(); Input.reset(); this.state = 'playing'; $('controls').classList.remove('hidden'); this._last = performance.now(); },
+  pause() { if (this.state !== 'playing') return; this.state = 'paused'; Input.reset(); $('controls').classList.add('hidden'); $('dojoTools').classList.add('hidden'); Menus.openPause(); },
+  resume() { if (this.state !== 'paused') return; Menus.closePause(); Input.reset(); this.state = 'playing'; $('controls').classList.remove('hidden'); $('dojoTools').classList.toggle('hidden',this.mode!=='dojo'); this._last = performance.now(); },
   togglePause() {
     if (this.state === 'playing') this.pause();
     else if (this.state === 'paused') { if (Menus.currentView() !== 'main') Menus.back(); else this.resume(); }
@@ -146,7 +213,7 @@ const Game = {
     this._upWas = p.vert > 0;
     if (p.awakenChargeT > 0) {
       // Consume queued inputs without interrupting transformation or spamming an action afterward.
-      for (const act of ['dash','dash2','vanish','melee','blast','awaken']) Input.consume(act);
+      for (const act of ['dash','dash2','vanish','melee','blast','awaken','lock']) Input.consume(act);
       p.moveIntent.set(0,0,0); p.vert = 0; p.blockHeld = false;
       p.sprintHeld = false; p.chargeHeld = false;
       return;
@@ -201,7 +268,7 @@ const Game = {
       }
     }
     // Blast: hold to charge, release to fire (handled by the fighter); a tap too quick to register as held fires straight away
-    p.chargeTarget = e; p.chargeAim = CameraRig.isLockActive() ? 'target' : 'facing';
+    p.chargeTarget = e; p.chargeAim = this.mode==='dojo' && !this.dojoRival ? 'facing' : CameraRig.isLockActive() ? 'target' : 'facing';
     p.chargeHeld = Input.blastHeld();
     if (Input.consume('blast') && !p.chargeHeld && !p.charging) Combat.blast(p, e, p.chargeAim);
     if (Input.consume('awaken') && !p.tryAwaken()) toast(p.awakened ? 'Already awakened' : p.awakenChargeT > 0 ? 'Powering up' : p.awakenGauge < 100 ? 'Build awakening power by fighting' : 'Cannot awaken while stunned');
@@ -209,11 +276,13 @@ const Game = {
 
   update(dt) {
     if (this.koT > 0 || this.introT > 0) { this.player.blockHeld = this.enemy.blockHeld = false; this.player.chargeHeld = this.enemy.chargeHeld = false; this.player.moveIntent.set(0, 0, 0); this.player.vert = 0; this.enemy.moveIntent.set(0, 0, 0); this.enemy.vert = 0; }
-    else { this.handlePlayerInput(dt); RivalAI.update(dt, this.enemy, this.player); }
-    this.player.update(dt); this.enemy.update(dt);
+    else { this.handlePlayerInput(dt); if (this.mode!=='dojo' || this.dojoRival) RivalAI.update(dt, this.enemy, this.player); }
+    this.player.update(dt);
+    if (this.mode!=='dojo' || this.dojoRival) this.enemy.update(dt);
+    if (this.mode==='dojo') { Dojo.resolveCollisions(this.player); Dojo.update(dt); }
     // keep fighters from overlapping
     const sep = this.enemy.pos.clone().sub(this.player.pos); const d = sep.length();
-    if (d < 1.1 && d > 0.0001) { sep.multiplyScalar((1.1 - d) / d / 2); this.enemy.pos.add(sep); this.player.pos.sub(sep); }
+    if ((this.mode!=='dojo' || this.dojoRival) && d < 1.1 && d > 0.0001) { sep.multiplyScalar((1.1 - d) / d / 2); this.enemy.pos.add(sep); this.player.pos.sub(sep); }
     Combat.update(dt); Effects.update(dt); Spectacle.update(dt);
     if (this.combo.t > 0) { this.combo.t -= dt; if (this.combo.t <= 0) $('comboBox').classList.remove('show'); }
     if (this.training) {
@@ -224,7 +293,7 @@ const Game = {
       if (pl.hurtT > 1.6 && pl.hp < 100) pl.hp = Math.min(100, pl.hp + 60 * dt);
       this.player.energy = Math.min(100, this.player.energy + 30 * dt);
     }
-    if ((this.player.hp <= 0 || this.enemy.hp <= 0) && !this.koT) {
+    if (!this.training && (this.player.hp <= 0 || this.enemy.hp <= 0) && !this.koT) {
       this.koT = 1.4; Input.reset(); this.banner('K.O.', 'ko'); $('controls').classList.add('hidden');
     }
     // round clock
@@ -277,7 +346,7 @@ const Game = {
     if (this.timed) { const s = Math.ceil(this.timeLeft); tm.textContent = s; tm.classList.toggle('low', s <= 10 && this.timeLeft > 0); }
     const tr = Settings.get('rival');
     $('trainTag').classList.toggle('hidden', !this.training);
-    if (this.training) $('trainTag').textContent = tr === 'moving' ? 'Training · rival moves, never attacks' : tr === 'attacks' ? 'Training · rival throws slow punches to block' : 'Training · rival stands still';
+    if (this.training) $('trainTag').textContent = !this.dojoRival ? 'DOJO · Solo practice' : tr === 'moving' ? 'DOJO · Moving partner' : tr === 'attacks' ? 'DOJO · Sparring' : 'DOJO · Still partner';
     const gb = document.querySelector('.cbtn.block');
     gb.classList.toggle('novanish', p.energy < (p.guardCounterWindow > 0 ? 13 : TUNING.vanishCost) || p.vanishCd > 0);
     gb.classList.toggle('counter-ready', p.guardCounterWindow > 0 && p.vanishCd <= 0);
@@ -289,7 +358,7 @@ const Game = {
     const v = e.center.project(camera);
     const behind = v.z > 1;
     const off = behind || Math.abs(v.x) > 0.95 || Math.abs(v.y) > 0.95;
-    arrow.classList.toggle('hidden', !off || this.state !== 'playing');
+    arrow.classList.toggle('hidden', !off || this.state !== 'playing' || (this.mode==='dojo' && !this.dojoRival));
     if (off) {
       let x = v.x, y = v.y; if (behind) { x = -x; y = -y; }
       const a = Math.atan2(y, x); const ex = Math.cos(a), ey = Math.sin(a);

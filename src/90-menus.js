@@ -15,11 +15,11 @@ const Menus = (() => {
     pause.querySelector('.panel').scrollTop = 0;
     disarmRestart();
   }
-  function openPause() { lastFocus = document.activeElement; settingsReturn = null; show(pause); showView('main'); $('resumeBtn').focus({ preventScroll: true }); }
+  function openPause() { $('dojoFromPauseBtn').classList.toggle('hidden',Game.mode==='dojo'); lastFocus = document.activeElement; settingsReturn = null; show(pause); showView('main'); $('resumeBtn').focus({ preventScroll: true }); }
   function closePause() { hide(pause); if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); }
   function openSettingsFrom(overlay) { settingsReturn = overlay; hide(overlay); show(pause); showView('settings'); }
   function back() {
-    if (settingsReturn) { hide(pause); show(settingsReturn); settingsReturn.querySelector('.mbtn').focus({ preventScroll: true }); settingsReturn = null; }
+    if (settingsReturn) { hide(pause); show(settingsReturn); (settingsReturn.querySelector('.mbtn') || settingsReturn.querySelector('button')).focus({ preventScroll: true }); settingsReturn = null; }
     else showView('main');
   }
   const currentView = () => Object.keys(views).find(k => !views[k].classList.contains('hidden'));
@@ -36,11 +36,17 @@ const Menus = (() => {
   $('settingsBtn').addEventListener('click', () => showView('settings'));
   $('controlsBtn').addEventListener('click', () => showView('controls'));
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
-  $('startBtn').addEventListener('click', () => { if (Game.training) Settings.set('rival', 'fight'); syncSettingsUI(); hide(title); Game.start(); });
-  $('trainBtn').addEventListener('click', () => { if (!Game.training) Settings.set('rival', 'dummy'); syncSettingsUI(); hide(title); Game.start(); });
+  $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
+  $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
+  $('dojoRivalMode').addEventListener('change', e => Game.setDojoRival(e.target.value));
+  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); });
+  $('dojoHomeBtn').addEventListener('click', () => Game.returnHome());
+  $('homeBtn').addEventListener('click', () => Game.returnHome());
+  $('dojoFromPauseBtn').addEventListener('click', () => { closePause(); Game.enterDojo(); });
   $('titleSettingsBtn').addEventListener('click', () => openSettingsFrom(title));
   $('rematchBtn').addEventListener('click', () => { hide(over); Game.restart(); });
   $('overSettingsBtn').addEventListener('click', () => openSettingsFrom(over));
+  $('overHomeBtn').addEventListener('click', () => { hide(over); Game.returnHome(); });
   // tapping the dimmed backdrop (outside the panel) resumes from the main pause view
   pause.addEventListener('pointerdown', e => { if (e.target === pause && currentView() === 'main' && !settingsReturn) Game.resume(); });
 

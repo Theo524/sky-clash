@@ -4,11 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V45</title>
-<link rel="stylesheet" href="css/game.css?v=45">
+<title>Sky Clash V46 — Dojo Hub</title>
+<link rel="stylesheet" href="css/game.css?v=46">
 </head>
 <body>
 <div id="game"></div>
+<!-- A real boot splash, dismissed when model loading completes or the safe fallback is ready. -->
+<div id="bootScreen" class="boot-screen" role="status" aria-live="polite">
+  <div class="boot-mark">SC<span>◇</span></div>
+  <div class="boot-name">SKY CLASH</div>
+  <div class="boot-line">PREPARING YOUR WORLD</div>
+  <div class="boot-progress"><i id="bootFill"></i></div>
+  <div id="bootStatus" class="boot-status">Opening dojo doors…</div>
+  <div class="boot-small">Loading hero · Equipment · Training hall</div>
+</div>
 
 <!-- Screen effects -->
 <div id="fx" aria-hidden="true">
@@ -20,6 +29,19 @@
 <div id="banner" class="banner" aria-live="polite"></div>
 
 <!-- HUD -->
+<div id="dojoTools" class="dojo-tools hidden" aria-label="Dojo training controls">
+  <div class="dojo-tools-title"><b>MARTIAL DOJO</b><span>FREE TRAINING · <strong id="dojoHits">0</strong> hits</span></div>
+  <label class="dojo-select">Training partner
+    <select id="dojoRivalMode" aria-label="Training partner behaviour">
+      <option value="solo">Solo · Equipment</option>
+      <option value="dummy">Stationary fighter</option>
+      <option value="moving">Moving fighter</option>
+      <option value="attacks">Sparring fighter</option>
+    </select>
+  </label>
+  <button id="dojoResetBtn" title="Reset bags and targets">Reset</button>
+  <button id="dojoHomeBtn" title="Return to main menu">Home</button>
+</div>
 <div id="hud" class="hidden">
   <div class="bars left">
     <img id="pPortrait" class="portrait" alt="">
@@ -34,7 +56,7 @@
   <button id="pauseBtn" class="pause-btn" aria-label="Pause game" title="Pause (Esc)">
     <span></span><span></span>
   </button>
-  <div class="bars right">
+  <div class="bars right" id="dojoRivalHud">
     <img id="ePortrait" class="portrait" alt="">
     <div class="barstack">
       <div class="name"><span class="pips hidden" id="ePips"></span><b id="eHpNum">100</b> Rival</div>
@@ -68,19 +90,17 @@
   </div>
 </div>
 
-<!-- Title -->
-<div id="titleScreen" class="overlay show" role="dialog" aria-modal="true" aria-labelledby="titleH">
-  <div class="panel">
-    <h1 id="titleH">Sky Clash</h1>
-    <p class="sub">Version 45 · Awakening Unleashed</p>
-    <div class="menu">
-      <button class="mbtn primary" id="startBtn">Start fight</button>
-      <button class="mbtn" id="trainBtn">Training</button>
-      <button class="mbtn" id="titleSettingsBtn">Settings</button>
+<!-- Main menu, intentionally separate from loading -->
+<div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
+  <div class="home-shell">
+    <div class="home-identity"><span class="home-eyebrow">CHARACTER · MARTIAL ARTIST</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
+    <div class="home-menu"><div class="home-version">V46 / THE DOJO UPDATE</div>
+      <button class="home-action home-primary" id="trainBtn"><span class="action-number">01</span><span><b>Enter the Dojo</b><small>Your training space · Props · Sparring</small></span><span class="action-arrow">↗</span></button>
+      <button class="home-action" id="startBtn"><span class="action-number">02</span><span><b>Enter Battle</b><small>Fight in the Highland Arena</small></span><span class="action-arrow">↗</span></button>
+      <button class="home-action" id="titleSettingsBtn"><span class="action-number">03</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
+      <div class="home-tip">DOJO: explore freely, strike the bags and dummy, shoot the targets, or call in a training partner.</div>
     </div>
-    <p class="hint">V45: earn Awakening power by fighting, transform through a dramatic charged stance, and counter-vanish by double-tapping Guard after blocking.</p>
-    <p class="hint loadnote">Loading hero model…</p>
-    <p class="hint credit">Quaternius libraries provide twelve retargeted movement and combat clips from the Quaternius Universal Animation Libraries 1 &amp; 2 (CC0). Hero VRM: Seed-san by VirtualCast, Inc. (VRM Public License 1.0). Other motion: CMU Graphics Lab mocap (mocap.cs.cmu.edu). Recorded motion is used where the VRM retargeter is available; character-specific motion sets are still in progress.</p>
+    <div class="home-footer">SEED-SAN · CHARACTER 01 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
 
@@ -91,7 +111,9 @@
       <h2 id="pauseH">Paused</h2>
       <div class="menu grid">
         <button class="mbtn primary" id="resumeBtn">Resume</button>
-        <button class="mbtn" id="restartBtn">Restart match</button>
+        <button class="mbtn" id="restartBtn">Restart session</button>
+        <button class="mbtn" id="dojoFromPauseBtn">Enter the Dojo</button>
+        <button class="mbtn" id="homeBtn">Main menu</button>
         <button class="mbtn" id="settingsBtn">Settings</button>
         <button class="mbtn" id="controlsBtn">Controls</button>
       </div>
@@ -211,15 +233,25 @@
     <div class="menu">
       <button class="mbtn primary" id="rematchBtn">Rematch</button>
       <button class="mbtn" id="overSettingsBtn">Settings</button>
+      <button class="mbtn" id="overHomeBtn">Main menu</button>
     </div>
   </div>
 </div>
 
 <div id="toast" class="toast"></div>
+<script>
+// Boot UI runs before large 3D scripts; fallback never holds the player hostage.
+const LoadScreen=(()=>{let finished=false;const start=Date.now();function progress(n,msg){if(finished)return;const b=document.getElementById("bootFill"),st=document.getElementById("bootStatus");if(b)b.style.width=n+"%";if(st)st.textContent=msg;}function finish(msg){if(finished)return;progress(100,msg||"Ready");finished=true;const boot=document.getElementById("bootScreen"),menu=document.getElementById("titleScreen");if(boot)boot.classList.add("finished");if(menu){menu.classList.add("show");menu.setAttribute("aria-hidden","false");}window.setTimeout(()=>{if(boot)boot.classList.add("hidden");},550);}
+window.setTimeout(()=>{
+  if(window.SkyClash?.Game)finish("Ready — detailed characters can continue loading");
+  else{const s=document.getElementById("bootStatus");if(s)s.textContent="3D engine could not start. Try Chrome or reload this page.";}
+},12000);
+return{progress,finish};})();
+</script>
 
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=45"></script>
+<script src="js/game.js?v=46"></script>
 </body>
 </html>

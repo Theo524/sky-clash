@@ -1,4 +1,18 @@
-# Sky Clash V45 — Awakening Unleashed
+# Sky Clash V46 · Dojo Hub
+
+## Main menu / loading
+A dedicated startup loading screen reports model preparation. The menu opens after models finish or after a 12-second safe fallback, so slow model loading cannot trap the user. The menu offers **Enter the Dojo**, **Enter Battle**, and **Settings**.
+
+## Character home: Martial Dojo
+A separate, indoor cedar-and-tatami training hall replaces the outdoor tournament arena while in dojo mode. Practice alone against **two swinging heavy bags, a wing-chun wooden dummy, and two projectile targets**. Land punches or energy shots to make equipment react and add to a visible hit counter. Use the dojo selection control to summon a stationary, moving, or sparring partner; solo mode hides them. Restart resets the dojo, Pause offers direct return to the main menu.
+
+## Future character homes
+The `src/25-dojo.js` module owns equipment and training collision, not the fighter mesh. It can be replaced by character-specific spaces (e.g. firearm target range) without rebuilding matchmaking, menus or the main arena.
+
+## Install
+Extract the V46 GitHub Update ZIP into your repository root while preserving folder structure. In particular overwrite `index.html`, `css/game.css`, `js/game.js`, and upload `src/25-dojo.js` plus the changed source modules. GitHub Pages displays V46 only after deployment.
+
+# Sky Clash V46 — Awakening Unleashed
 
 This folder deploys directly to GitHub Pages. **Do not upload the ZIP itself**: extract and preserve folder paths.
 
