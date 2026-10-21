@@ -164,55 +164,17 @@ function buildFighterModel(pal, opts = {}) {
 /* V37 smooth awakening energy: high-resolution tapering layers rather than low-res
  * noisy flame cells. No sprites engulfing the character, and no blocky hash shader.
  */
+/* V42: no continuous aura shell. A translucent world-space ribbon/filament layer is
+ * emitted from actual joints by Effects.bodyAura, so the glow hugs a moving model
+ * rather than making a giant tube/bubble around it. The public interface stays.
+ */
 function createAura(color) {
-  const makeMat = (s, strength, phase) => new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) },
-      uIntensity: { value: 0 }, uScale: { value: s }, uPhase: { value: phase }, uStrength: { value: strength } },
-    vertexShader: `uniform float uTime; uniform float uScale; uniform float uPhase;
-      varying vec2 vUv; varying vec3 vWorldNormal; varying vec3 vEye;
-      void main() {
-        vUv = uv;
-        vec3 p = position;
-        float h = uv.y;
-        float twirl = sin(h * 8.0 - uTime * 2.6 + uPhase + uv.x * 12.566) * 0.06;
-        float ripple = sin(h * 17.0 - uTime * 4.1 + uv.x * 18.85 + uPhase) * 0.045;
-        float taper = 1.0 - 0.48 * smoothstep(0.45, 1.0, h);
-        p.xz *= uScale * (taper + twirl + ripple);
-        p.x += sin(h * 8.0 + uTime * 1.7 + uPhase) * 0.09 * h;
-        p.z += cos(h * 7.0 + uTime * 1.5 + uPhase) * 0.08 * h;
-        p.y += 0.13 * sin(h * 14.0 + uTime * 2.8 + uPhase) * h;
-        vec4 mv = modelViewMatrix * vec4(p,1.0);
-        vWorldNormal = normalize(normalMatrix * normal);
-        vEye = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: `uniform float uTime; uniform vec3 uColor;
-      uniform float uIntensity; uniform float uPhase; uniform float uStrength;
-      varying vec2 vUv; varying vec3 vWorldNormal; varying vec3 vEye;
-      void main() {
-        float h = vUv.y;
-        float w = sin(vUv.x * 12.566 + h * 15.0 - uTime * 3.1 + uPhase);
-        float w2 = sin(vUv.x * 25.133 - h * 9.0 + uTime * 2.1 + uPhase);
-        float flow = 0.72 + 0.15 * w + 0.13 * w2;
-        float vertical = smoothstep(0.02,0.18,h) * (1.0-smoothstep(0.61,1.0,h));
-        float rim = pow(1.0-abs(dot(normalize(vWorldNormal),normalize(vEye))),2.0);
-        float alpha = vertical * flow * (0.13+0.60*rim) * uStrength * uIntensity;
-        gl_FragColor = vec4(mix(uColor,vec3(1.0),0.14+0.17*rim),clamp(alpha,0.0,0.65));
-        #include <colorspace_fragment>
-      }`,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending, toneMapped: false
-  });
-  const geo = new THREE.CylinderGeometry(0.66,0.70,2.95,64,30,true);
   const group = new THREE.Group();
-  const layers = [makeMat(1.28,0.60,0),makeMat(1.00,0.53,2.1),makeMat(0.78,0.28,4.2)];
-  layers.forEach((mat,i)=>{const mesh=new THREE.Mesh(geo,mat);mesh.renderOrder=6+i;group.add(mesh);});
   group.visible = false;
-  return {group, set(t,intensity,c){
-    for (const m of layers){m.uniforms.uTime.value=t;m.uniforms.uIntensity.value=intensity;
-      if(c!==undefined)m.uniforms.uColor.value.setHex(c);}
-    group.visible=intensity>0.012;
-  }};
+  return { group, level: 0, color, set(t, intensity, c) {
+    this.level = intensity;
+    if (c !== undefined) this.color = c;
+  } };
 }
 
 /* render a head-and-shoulders portrait to a data URL for the HUD */
@@ -498,6 +460,38 @@ class VRMRig {
       b[p + 'Foot'].quaternion.copy(l.foot.quaternion);
     });
     if (this.anim) this.anim.update(dt);
+    // World-space ground constraint AFTER retargeted animation and charge crouch.
+    // Raises the VRM mesh if its ankle/sole or knee would intersect the real floor.
+    // Does not move the hitbox or fighter's gameplay position.
+    if (!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
+      vrm.scene.updateMatrixWorld(true);
+      const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
+      let correction = 0;
+      const joint = this._floorJoint || (this._floorJoint = new V3());
+      for (const name of footNames) {
+        const node = this.vrm.humanoid.getNormalizedBoneNode(name);
+        if (!node) continue;
+        node.getWorldPosition(joint);
+        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.045 : 0.105);
+        correction = Math.max(correction, required - joint.y);
+      }
+      for (const name of ['leftLowerLeg', 'rightLowerLeg']) {
+        const node = this.vrm.humanoid.getNormalizedBoneNode(name);
+        if (!node) continue;
+        node.getWorldPosition(joint);
+        correction = Math.max(correction, groundAt(joint.x, joint.z) + 0.19 - joint.y);
+      }
+      // Remove the previous frame's lift before re-measuring to avoid drift.
+      this.footLift = (this.footLift || 0);
+      const wanted = clamp(this.footLift + correction, 0, 0.44);
+      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 27 : 14, dt);
+      vrm.scene.position.y += next - this.footLift;
+      this.footLift = next;
+    } else if (this.footLift) {
+      const next = this.footLift * (1 - damp(17, dt));
+      vrm.scene.position.y += next - this.footLift;
+      this.footLift = next;
+    }
     // Distinct awakening colour on the rival's detailed hair, not only the hidden guide rig.
     if (this.rivalMaterials && this.rivalMaterials.length) {
       const awakened = this.f.awakened;

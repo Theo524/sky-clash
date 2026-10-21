@@ -1,13 +1,15 @@
-# Sky Clash change log
+## V42 — Living Energy & Arena Impact
+- Body-linked aura, charging cracks/debris, grounded foot corrections, Quaternius sidesteps, smoother dash and cinematic charged hit reactions.
 
-## V38 — Fighter parity & contact polish
+# Sky Clash Changelog
 
-- Rival now uses the same detailed VRM hero asset and can be coloured independently.
-- Matching high-quality procedural fallback if the 3D asset fails to load.
-- Reduced melee contact range and restricted enemy attack windup initiation.
-- Reduced third-hit hook torso overrotation in both motion-captured and procedural poses; disabled root translation for melee punches.
-- Folder-based GitHub Pages project with independent CSS, vendor scripts and binary model; editable game source sections and one-step bundle script.
+## V41 — Fluid Combat & Teleport
+- Contact-timed melee footwork; airborne finisher no longer full-body roundhouse
+- Vanish no longer emits teleport rings, reuses individual character colours
+- Dash recovery upright, modest motion camera pulse and torso speed trails
+- Lightweight body-contour awakening aura
+- Charged blast redesign, ordinary projectile preserved
+- Floor shadow fades during flight
 
-## V37 baseline
-
-- Separate Melee/Blast buttons, 4-hit combo, Awakening, aerial combat, parry, vanilla single-file release.
+## Previous
+V40 introduced moving attack poses and stronger projectiles; V39 added combat effects; V38 modularised the project.

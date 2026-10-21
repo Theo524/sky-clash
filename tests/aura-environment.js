@@ -1,0 +1,21 @@
+const assert=require('node:assert/strict'),fs=require('fs'),path=require('path');
+const THREE=require('../js/vendor/three.min.js');
+const root=path.resolve(__dirname,'..');
+const V3=THREE.Vector3, scene=new THREE.Scene();
+const settings={get:k=>k==='quality'?'medium':false};
+const src=fs.readFileSync(path.join(root,'src/50-vfx.js'),'utf8');
+const tex={glow:new THREE.Texture(),smoke:new THREE.Texture(),star:new THREE.Texture()};
+const Effects=new Function('THREE','V3','scene','TEX','Settings','TAU','groundAt','STAGE_R','CameraRig','Game','clamp','smooth01',src+';return Effects')(
+ THREE,V3,scene,tex,settings,Math.PI*2,()=>0.35,19,{shake(){}},{player:null,callout(){}},(v,a,b)=>Math.max(a,Math.min(b,v)),x=>Math.max(0,Math.min(1,x))**2*(3-2*Math.max(0,Math.min(1,x))));
+const f={hp:100,flying:false,pos:new V3(0,0.35,0),pal:{aura:0xff44aa,ki:0xff44aa},center:new V3(0,1.55,0),forward:()=>new V3(0,0,1)};
+Effects.chargeFracture(f);
+assert(scene.children.length>20,'ground fracture should create both crack geometry and lifted rubble');
+const cracks=scene.children.filter(o=>o.isMesh&&o.geometry.isBufferGeometry);
+assert(cracks.length>12);
+Effects.awakenBurst(f);
+assert(scene.children.length>cracks.length);
+Effects.bodyAura(f);
+Effects.bigBlast(new V3(0,1.5,0),f.pal.aura,1);
+for(let i=0;i<85;i++) Effects.update(0.04);
+assert.strictEqual(scene.children.length,0,'transient VFX should despawn and dispose');
+console.log('V42 body aura, ground cracks/debris, super impact and cleanup verified.');

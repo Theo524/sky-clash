@@ -1,28 +1,32 @@
-# Sky Clash V38 — project edition
+# Sky Clash V42 — Living Energy & Arena Impact
 
-This is the recommended folder-based version for GitHub Pages. Upload **the contents of this folder** to the root of your `sky-clash` repository, preserving the paths. Do not upload only `index.html`; it references other files.
+Single-file and modular browser builds for Sky Clash. V42 builds on V41, including all prior mechanics.
 
-```
-index.html                   Web entry point
-css/game.css                 Game UI and responsive controls
-js/game.js                  Browser-ready game logic (generated)
-js/vendor/three.min.js      Three.js engine (license preserved in file)
-js/vendor/vrmkit.js         VRM loader (license preserved in file)
-assets/fighter.vrm          Shared detailed character model, recoloured for rival
-src/*.js                    Editable systems (arena, fighters, animation, combat, AI, input, etc.)
-tools/build.py              Rebuilds js/game.js after edits
-```
+## V42 changes
+- Melee movement follows a short contact-timed step and plants at impact, rather than constantly driving forward.
+- Ground punch and aerial strike recorded clips apply to the upper body, leaving the lower-body footwork/air stance in control.
+- The aerial fourth combo is a compact driving air strike, not the full-body roundhouse clip. Launch/spike gameplay is unchanged.
+- Vanish uses a coloured near-instant blink with brief wisps, not a teleport ring or connecting trail.
+- Floor-dash air-pressure ring and trail remain; aerial dash and high-speed flight gain short upper-body speed streaks. Dash recovery stays upright.
+- Awakening aura contours the character's body with low alpha and per-fighter tint; less of a bubble.
+- Small blast visuals are preserved. Charged projectiles add an elongated plasma core, fins and stronger impact lighting without large rings.
+- The circular ground shadow fades out completely when sufficiently high above the floor.
 
-To make a code change: edit the appropriate `src/*.js` file, run `python tools/build.py`, then commit both the changed source and `js/game.js`. For small changes you can also modify `js/game.js` directly, but the next build will overwrite it. No npm or network build step is needed.
+### New in V42
+- Replaced the aura shell with animated bone-anchored energy highlights and wisps, recoloured per fighter.
+- Replaced straight awakening lines with burst light, dust, and ground fractures.
+- Ground charging fractures the stage visually and lifts small pieces of debris; no terrain collision changes.
+- Added a grounded VRM ankle/toe/knee contact correction after retargeted animation to reduce ground penetration.
+- Added two retargeted Quaternius UAL2 dash clips for lateral evasions (legs only, no weapon arm poses), plus the ninja aerial idle clip for gentle hovering.
+- Reduced recoil overlean after Boost and anchored flight/dash ribbons to character joints.
+- Fully charged hits now trigger a dedicated, recorded knockback pose and airborne recoil, plus a softer plasma/smoke explosion. The normal blast is unchanged.
+- Perf: the new effects respect the existing quality setting and despawn automatically.
 
-Host this folder using GitHub Pages (Settings → Pages → Deploy from branch `main`, `/(root)`). The binary .vrm asset uses same-origin fetch and therefore needs a web server; opening this folder's index.html directly from Files may be blocked by browser file restrictions.
+## Publishing
+Upload **all contents** of this directory to the root of your GitHub Pages repository, or use the separately provided **V42 Update Only ZIP**, which contains the replacement `index.html` and `js/game.js` for an existing V38+ folder site.
 
-For **offline / local file** use the supplied separate standalone `Sky Clash V38 - Rival and Melee Polish.html` instead. It includes everything.
+The `src/` modules are editable. Run `python tools/build.py` after editing source to regenerate `js/game.js`. Launch `index.html` through an HTTP server or GitHub Pages for the modular build, or use the standalone HTML file for local playback.
 
-V38 improvements:
-- Both fighters use the same detailed VRM character model (distinct opponent palette). If models cannot load, both fallback rigs now use the detailed anime-style shapes.
-- Reduced phantom melee reach; rival must move into proper fighting distance.
-- Hook uses restrained torso twist and recorded animation without root displacement.
-- Existing combat, controls, and modes preserved.
-
-Credits: original in-game credit line remains in index.html. Three.js, VRMKit and original assets retain their licensing text.
+## Validation
+`node --check js/game.js`, `node tests/smoke.js`, and `node tests/combat-effects.js`.
+Geometry and JavaScript checks are not a substitute for GPU/mobile animation tests.

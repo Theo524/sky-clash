@@ -17,7 +17,7 @@ const Combat = (() => {
     target.hp = Math.max(floorHp, target.hp - dmg);
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
-    target.stun = heavy ? 0.34 : (kind === 'melee' ? 0.27 : 0.22); target.hitFlash = 0.15;
+    target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
     target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0;
     if (kind !== 'melee') { target.launched = target.launched && target.pos.y > target.floor + 0.5; }
     target.vel.copy(knock);
@@ -72,10 +72,16 @@ const Combat = (() => {
     if (counter) attacker.riposteT = 0;
     attacker.lastMelee = attacker.t;
     attacker.combo = (stage + 1) % 4;
+    attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0; attacker.dashPrep = 0; attacker.dashRecoverT = 0; attacker.chase = null;
+    const moveDir = attacker.moveIntent.lengthSq() > 0.05 ? attacker.moveIntent.clone().setY(0).normalize() : (Math.hypot(attacker.vel.x, attacker.vel.z) > 0.1 ? attacker.vel.clone().setY(0).normalize() : attacker.forward());
+    attacker.attackTravel = moveDir.clone();
+    attacker.attackAir = attacker.flying;
+    attacker.attackDrive = Math.max(2.4, Math.min(8.0, Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? 2.4 : 0)));
+    attacker.attackMoving = attacker.attackDrive > 2.8 || attacker.moveIntent.lengthSq() > 0.12;
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
     if (stage === 3) { attacker.meleeQ = 0; attacker.meleeBuf = 0; }
-    attacker.attackKind = kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
+    attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
     const cd = [0.43, 0.51, 0.69, 0.88][stage];
@@ -88,15 +94,18 @@ const Combat = (() => {
     if (dist > 0.01 && dist < TUNING.lungeRange) {
       const to = yawFromDir(toT.x, toT.z);
       attacker.facing = lerpAngle(attacker.facing, to, dist < 4 ? 0.9 : 0.55);
-      if (dist > TUNING.meleeRange * 0.67 && dist < TUNING.meleeRange + 0.65) {
+      if (dist > TUNING.meleeRange * 0.55 && dist < TUNING.meleeRange + 0.9) {
         // Small grounded follow-step, not a long-range homing punch.
-        const step = Math.min(8.5, 6.2 + stage * 0.65);
-        attacker.vel.lerp(toT.setY(0).normalize().multiplyScalar(step), 0.4);
+        const dir = toT.setY(0).normalize();
+        const step = Math.min(6.0, 4.8 + stage * 0.35);
+        attacker.attackTravel = dir.clone();
+        attacker.attackDrive = Math.max(attacker.attackDrive, step * 0.92);
+        attacker.vel.lerp(dir.multiplyScalar(step), 0.35);
         attacker.lungeAt = attacker.t;
       }
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage], kick, stage, counter };
+    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage], kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -115,7 +124,7 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.spiked = true; target.stun = 2;
-        Game.callout('Air smash', 'smash'); Effects.ring(target.center, 0xffd166, 2); }
+        Game.callout('Air smash', 'smash'); Effects.flash(target.center, 0xffd166, 2.4, 0.12); }
     } else if (air) {
       result = hit(attacker, target, base * 0.83, fwd.multiplyScalar(3).setY(4.5), stage === 2);
       if (result === 'hit') { target.juggle++; target.launched = true;
@@ -127,12 +136,16 @@ const Combat = (() => {
         target.juggle = 0; target.stun = TUNING.launchStun; Effects.launchTrail(target);
         if (attacker === Game.player) Game.callout('Launch!', 'launch'); }
     } else {
-      const push = [5.8, 7.2, 8][stage];
+      // Opening strikes keep opponents within range for a real four-hit chain.
+      const push = [3.1, 4.0, 6.6][stage];
       result = hit(attacker, target, base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
     }
     if (result === 'hit') {
+      Spectacle.contact(attacker, target, stage, counter);
+      if (stage < 3) target.stun = Math.max(target.stun, [0.45, 0.49, 0.60][stage]);
+      // Subtle hit-confirm follow-step while leaving movement and dash under player control.
+      if (!attacker.flying && stage < 3) attacker.vel.addScaledVector(attacker.forward(), 1.35);
       // Small distinct trail bursts on the first three contacts: cleaner than freezing the whole screen.
-      if (stage === 2 && !air) Effects.ring(target.center, col, 1.1);
       attacker.energy = Math.min(100, attacker.energy + (kick ? 3.2 : 1.3));
       if (counter) { target.stun = Math.max(target.stun, 0.63); attacker.energy = Math.min(100, attacker.energy + 5); }
     }
@@ -162,33 +175,120 @@ const Combat = (() => {
     else dir = fwd;
     if (aimMode === 'target') attacker.facing = yawFromDir(dir.x, dir.z);
     const color = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
-    const core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false }));
-    // glow grows less than the core so big shots stay readable instead of whiting out the screen
-    const gk = (1 + 0.6 * lvl) / size;
-    const glow = Effects.sprite(TEX.glow, color, 2.6 * gk, 0.9); const halo = Effects.sprite(TEX.glow, color, 5 * gk, 0.25);
-    core.add(glow, halo); core.scale.setScalar(size); core.position.copy(start); scene.add(core);
-    Effects.flash(start, color, 2.5 * (1 + 0.8 * lvl), 0.15 + lvl * 0.1);
-    if (lvl > 0.3) { Effects.ring(start, color, 1.5 + lvl * 1.5); if (attacker === Game.player) CameraRig.shake(0.15 + lvl * 0.25); attacker.vel.addScaledVector(dir, -6 * lvl); }
-    projectiles.push({ gk, mesh: core, vel: dir.multiplyScalar(TUNING.blastSpeed - 14 * lvl), owner: attacker, target, life: 2.4 + lvl, color, lvl, size,
-      dmg: (TUNING.blastDamage + TUNING.chargeDmg * lvl) * damageMul(attacker) });
+    const superShot = lvl > 0.93;
+    const bigShot = lvl > 0.55;
+    const group = new THREE.Group();
+    const core = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, fog: false, toneMapped: false }));
+    core.scale.setScalar((0.66 + 0.54 * lvl) * size); group.add(core);
+    const shell = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34 + lvl * 0.25, 2),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity: superShot ? 0.82 : 0.74, depthWrite: false,
+        blending: THREE.AdditiveBlending, toneMapped: false }));
+    shell.scale.set(size * 1.0, size * 1.0, size * (1.55 + lvl * 0.4)); group.add(shell);
+    const shell2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.20 + lvl * 0.12, 1),
+      new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.52, depthWrite:false,
+        blending:THREE.AdditiveBlending, toneMapped:false }));
+    shell2.scale.set(size * 0.95, size * 0.95, size * (1.95 + lvl * 0.7)); group.add(shell2);
+    const glow = Effects.sprite(TEX.glow, color, 1.7 + lvl * 2.1, 0.86);
+    const halo = Effects.sprite(TEX.glow, color, 2.6 + lvl * 3.1, 0.17);
+    const coreHalo = Effects.sprite(TEX.glow, 0xffffff, 1.0 + lvl * 1.0, 0.70);
+    group.add(glow, halo, coreHalo);
+    const powerFins = [];
+    if (bigShot) {
+      // Charged blast silhouette: a bright elongated plasma spear with layered trailing fins.
+      // Normal small projectiles keep their existing appearance.
+      core.scale.set(1.0, 1.0, 1.55 + 1.2 * lvl);
+      shell.scale.set(size * 0.84, size * 0.84, size * (1.90 + lvl * 0.48));
+      shell2.scale.set(size * 0.76, size * 0.76, size * (2.32 + lvl * 0.58));
+      for (let j = 0; j < (superShot ? 8 : 5); j++) {
+        const a = (j / (superShot ? 8 : 5)) * Math.PI * 2;
+        const dist = 0.55 + lvl * 0.5;
+        const fin = new THREE.Mesh(new THREE.ConeGeometry(0.18 + lvl * 0.08, 1.9 + lvl * 2.5, 5, 1),
+          new THREE.MeshBasicMaterial({color: j % 3 === 0 ? 0xffffff : color, transparent: true,
+            opacity: j % 3 === 0 ? 0.80 : 0.48, depthWrite: false,
+            blending: THREE.AdditiveBlending, toneMapped: false}));
+        fin.rotation.x = Math.PI * 0.5;
+        fin.position.set(Math.cos(a) * dist, Math.sin(a) * dist, -1.25 * lvl);
+        group.add(fin); powerFins.push({ mesh: fin, angle: a, dist, alpha: fin.material.opacity });
+      }
+      halo.scale.multiplyScalar(1.25); coreHalo.scale.multiplyScalar(1.20);
+    }
+    const orbiters = [];
+    if (Settings.get('quality') !== 'low') {
+      for (let j=0; j<(superShot?4:2); j++) {
+        const orb = Effects.sprite(TEX.glow, j%2?0xffffff:color, 0.32 + lvl * 0.22, 0.72);
+        orb.position.set(Math.cos(j * Math.PI) * (0.46 + lvl * 0.16), Math.sin(j * Math.PI) * (0.30 + lvl * 0.10), -0.12 * j);
+        group.add(orb); orbiters.push(orb);
+      }
+    }
+    group.position.copy(start); group.quaternion.setFromUnitVectors(new V3(0,0,1), dir.clone().normalize()); scene.add(group);
+    Spectacle.muzzle(start, dir, color, lvl);
+    Effects.flash(start, color, 1.6 * (1 + 0.6 * lvl), 0.10 + lvl * 0.04);
+    if (lvl > 0.3) {
+      if (attacker === Game.player) CameraRig.shake(0.10 + lvl * 0.12);
+      attacker.vel.addScaledVector(dir, -4 * lvl);
+    }
+    if (superShot) { Sound.play('super'); if (attacker === Game.player) Game.callout('SUPER BLAST', 'launch'); }
+    projectiles.push({ mesh: group, core, shell, shell2, glow, halo, orbiters, powerFins, wakeT: 0,
+      vel: dir.multiplyScalar(TUNING.blastSpeed - 14 * lvl), owner: attacker, target, life: 2.4 + lvl, color, lvl, size,
+      dmg: (TUNING.blastDamage + TUNING.chargeDmg * lvl) * damageMul(attacker) * (superShot ? 1.12 : 1) });
   }
   function update(dt) {
     for (let i = projectiles.length - 1; i >= 0; i--) {
       const p = projectiles[i];
       p.mesh.position.addScaledVector(p.vel, dt); p.life -= dt;
-      p.mesh.children[0].scale.setScalar(2.6 * p.gk * (1 + Math.sin(performance.now() * 0.03) * 0.15));
-      Effects.trail(p.mesh.position, p.color, 1.6 * (1 + 0.3 * p.lvl));
+      p.shell.rotation.y += dt * (7 + p.lvl * 5);
+      p.shell.rotation.z += dt * 4;
+      if (p.shell2) { p.shell2.rotation.x -= dt * 5.5; p.shell2.rotation.y += dt * 3.8; }
+      p.glow.material.opacity = 0.72 + 0.16*Math.sin(p.life*28);
+      if (p.halo) p.halo.material.opacity = 0.16 + 0.06*Math.sin(p.life*20);
+      if (p.orbiters) p.orbiters.forEach((o,i)=> { const a = p.life*8 + i*Math.PI; o.position.set(Math.cos(a)*(0.34+p.lvl*0.12), Math.sin(a*1.2)*(0.22+p.lvl*0.08), -0.15); o.material.opacity = 0.62; });
+      if (p.powerFins) p.powerFins.forEach((q,i) => {
+        const a = q.angle + p.life * (i % 2 ? -1.2 : 1.0);
+        q.mesh.position.x = Math.cos(a) * q.dist;
+        q.mesh.position.y = Math.sin(a) * q.dist;
+        q.mesh.material.opacity = q.alpha * (0.83 + 0.17 * Math.sin(p.life * 24 + i));
+      });
+      // Fixed-rate wake avoids creating dozens of sprites per frame on phones.
+      p.wakeT -= dt;
+      if (p.wakeT <= 0) {
+        p.wakeT = Settings.get('quality') === 'low' ? 0.09 : 0.045;
+        Effects.trail(p.mesh.position, p.color, 0.8 + 0.42*p.lvl);
+        Spectacle.wake(p.mesh.position, p.vel.clone().normalize(), p.color, p.lvl);
+      }
       let dead = p.life <= 0 || p.mesh.position.y < 0 || Math.hypot(p.mesh.position.x, p.mesh.position.z) > ARENA_RADIUS + 20;
       if (!dead && p.mesh.position.distanceTo(p.target.center) < 1.25 * (1 + 0.5 * p.lvl) && p.target.hp > 0) {
         const charged = p.lvl > 0.05;
-        hit(p.owner, p.target, p.dmg, p.vel.clone().normalize().multiplyScalar(12 + 14 * p.lvl).setY(charged ? 2 + 3 * p.lvl : 0), p.lvl > 0.5, charged ? 'charged' : 'blast'); dead = true;
-        if (charged) { Effects.bigBlast(p.mesh.position, p.color, p.lvl); CameraRig.shake(0.3 + p.lvl * 0.4); }
-        else { Effects.ring(p.mesh.position, p.color, 2.5); Effects.flash(p.mesh.position, p.color, 6, 0.25); }
+        const dirHit = p.vel.clone().normalize();
+        const result = hit(p.owner, p.target, p.dmg, dirHit.clone().multiplyScalar(12 + 14 * p.lvl).setY(charged ? 2 + 3 * p.lvl : 0), p.lvl > 0.5, charged ? 'charged' : 'blast');
+        // Full-power impact throws the victim into a readable, recorded recoil
+        // and a controlled airborne arc instead of an instantaneous standing flash.
+        if (result === 'hit' && p.lvl > 0.93) {
+          p.target.superHitT = 0.82;
+          p.target.stun = Math.max(p.target.stun, 0.92);
+          p.target.launched = true; p.target.launchT = 0;
+          p.target.vel.copy(dirHit).multiplyScalar(19).add(new V3(0, 6.8, 0));
+          p.target.dashT = 0; p.target.sprinting = false; p.target.meleeQ = 0;
+        }
+        dead = true;
+        const dir = p.vel.clone().normalize();
+        Spectacle.explosion(p.mesh.position, dir, p.color, p.lvl);
+        if (charged) {
+          Effects.bigBlast(p.mesh.position, p.color, p.lvl);
+          CameraRig.shake(0.22 + p.lvl * 0.26);
+          if (p.lvl > 0.93) { Game.hitStop(0.11); Sound.play('superHit'); }
+        } else { Effects.flash(p.mesh.position, 0xffffff, 1.6, 0.09); Effects.flash(p.mesh.position, p.color, 2.7, 0.14); }
       }
       if (dead) { remove(p); projectiles.splice(i, 1); }
     }
   }
-  function remove(p) { scene.remove(p.mesh); p.mesh.children.forEach(c => c.material.dispose()); p.mesh.material.dispose(); }
+  function remove(p) {
+    scene.remove(p.mesh);
+    p.mesh.traverse(c => {
+      if (c.material) { if (Array.isArray(c.material)) c.material.forEach(m=>m.dispose()); else c.material.dispose(); }
+      // The original projectile sphere geometry is shared, not owned by this shot.
+      if (c.geometry && c.geometry !== geo) c.geometry.dispose();
+    });
+  }
   function clear() { projectiles.forEach(remove); projectiles.length = 0; }
   // ground slam shockwave: hits anyone on or near the floor nearby and pops them up
   function slam(attacker, target) {
