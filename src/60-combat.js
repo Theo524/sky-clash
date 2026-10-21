@@ -73,6 +73,8 @@ const Combat = (() => {
     if (attacker.charging) attacker.cancelCharge();
     if (attacker.t - attacker.lastMelee > TUNING.comboWindow) attacker.combo = 0;
     const stage = attacker.combo;
+    if (stage === 0) attacker.comboCycle = (attacker.comboCycle || 0) + 1;
+    attacker.attackVariant = stage === 2 && attacker.comboCycle % 2 === 0 ? 'overhand' : 'hook';
     const kick = stage === 3;
     const counter = attacker.riposteT > 0;
     if (counter) attacker.riposteT = 0;
@@ -82,6 +84,21 @@ const Combat = (() => {
     const moveDir = attacker.moveIntent.lengthSq() > 0.05 ? attacker.moveIntent.clone().setY(0).normalize() : (Math.hypot(attacker.vel.x, attacker.vel.z) > 0.1 ? attacker.vel.clone().setY(0).normalize() : attacker.forward());
     attacker.attackTravel = moveDir.clone();
     attacker.attackAir = attacker.flying;
+    // For opponents slightly above ground, make the rising punch into a short,
+    // physical jumping pursuit rather than a ground punch which cannot reach.
+    const rise = target.pos.y - attacker.pos.y;
+    const flatDistance = Math.hypot(target.pos.x - attacker.pos.x, target.pos.z - attacker.pos.z);
+    if (!attacker.attackAir && rise > 1.55 && rise < 4.0 && flatDistance < 4.1) {
+      attacker.attackAir = true;
+      attacker.jumping = false;
+      attacker.vel.y = Math.max(attacker.vel.y, 8.0);
+    }
+    // Only acquire nearby opponents. Striking empty space stays entirely manual.
+    attacker.attackTarget = target.hp > 0 && (Game.mode !== 'dojo' || Game.dojoRival) &&
+      flatDistance < TUNING.meleePursuitRange + (attacker.attackAir ? 0.95 : 0) &&
+      Math.abs(rise) < TUNING.meleePursuitHeight + (attacker.attackAir ? 1.4 : 0) ? target : null;
+    attacker.attackOrigin.copy(attacker.pos);
+    attacker.attackTravelBudget = attacker.attackAir ? TUNING.meleePursuitAir : TUNING.meleePursuitGround;
     attacker.attackDrive = Math.max(2.4, Math.min(8.0, Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? 2.4 : 0)));
     attacker.attackMoving = attacker.attackDrive > 2.8 || attacker.moveIntent.lengthSq() > 0.12;
     // Once the finisher is started, do not automatically spin a buffered press
@@ -96,19 +113,11 @@ const Combat = (() => {
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
     const toT = target.pos.clone().sub(attacker.pos), dist = toT.length();
-    // Soft target assist only within punching/lunge range; no auto-turn across the arena.
-    if (dist > 0.01 && dist < TUNING.lungeRange) {
+    // Start oriented toward a close opponent; the moving wind-up can still
+    // re-aim to follow their actual lateral motion before the contact frame.
+    if (attacker.attackTarget && dist > 0.01 && dist < TUNING.lungeRange + 0.65) {
       const to = yawFromDir(toT.x, toT.z);
-      attacker.facing = lerpAngle(attacker.facing, to, dist < 4 ? 0.9 : 0.55);
-      if (dist > TUNING.meleeRange * 0.55 && dist < TUNING.meleeRange + 0.9) {
-        // Small grounded follow-step, not a long-range homing punch.
-        const dir = toT.setY(0).normalize();
-        const step = Math.min(6.0, 4.8 + stage * 0.35);
-        attacker.attackTravel = dir.clone();
-        attacker.attackDrive = Math.max(attacker.attackDrive, step * 0.92);
-        attacker.vel.lerp(dir.multiplyScalar(step), 0.35);
-        attacker.lungeAt = attacker.t;
-      }
+      attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
     attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage], kick, stage, counter, swingPlayed: false };
@@ -123,12 +132,15 @@ const Combat = (() => {
     if (Game.mode === 'dojo' && !Game.dojoRival) return;
     if (target.hp <= 0) return;
     const air = target.launched && !target.spiked;
-    const toT = target.pos.clone().sub(attacker.pos); const dist = toT.length();
-    // The kick reaches slightly farther, but fists cannot strike from empty space.
-    const reach = TUNING.meleeRange + (kick ? 0.22 : 0) + (attacker.awakened ? 0.08 : 0);
-    if (dist > reach || dist < 0.001) return;
-    const fwd = attacker.forward(); const flat = new V3(toT.x, 0, toT.z).normalize();
-    if (fwd.dot(flat) <= Math.cos(TUNING.meleeArc) && dist >= 1.4) return;
+    const toT = target.pos.clone().sub(attacker.pos);
+    const h = Math.hypot(toT.x, toT.z), y = Math.abs(toT.y);
+    // A volumetric melee hitbox reaches opponents slightly above/below a flying
+    // fighter, but cannot touch a faraway opponent just because they're locked on.
+    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (attacker.awakened ? 0.08 : 0);
+    const rise = attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
+    if ((h / reach) ** 2 + (y / rise) ** 2 > 1 || h > reach || y > rise) return;
+    const fwd = attacker.forward();
+    if (h > 1.15 && fwd.dot(new V3(toT.x / h, 0, toT.z / h)) <= Math.cos(TUNING.meleeArc)) return;
     const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58][stage] * (counter ? 1.3 : 1);
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;

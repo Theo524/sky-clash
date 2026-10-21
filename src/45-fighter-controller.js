@@ -45,7 +45,7 @@ class Fighter {
     this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
     this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
-    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.dashRecoverT = 0; this.sprintShakeT = 0;
+    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
   // Real positions remain under the physics engine, not the animation layer.
@@ -323,6 +323,7 @@ class Fighter {
     const drain = this.sprinting ? (this.flying ? TUNING.sprintDrainAir : TUNING.sprintDrainGround) : 0;
     if (drain) this.energy = Math.max(0, this.energy - (drain + TUNING.energyRegen) * dt);   // no ki regen while sprinting
     this.updateStamina(dt);
+    if (this.stun > 0 || this.launched || this.spiked || this.punchT <= 0) this.attackTarget = null;
     if (this.slamming && this.stun > 0) this.slamming = false;
     if (this.slamming) {
       // short hang in the air, then straight down, drifting toward the rival if they're close
@@ -380,24 +381,70 @@ class Fighter {
         if (this.sprintShakeT <= 0) { this.sprintShakeT = 0.38; CameraRig.shake(0.035); }
       }
     } else if (this.punchT > 0 && this.stun <= 0 && !this.launched && !this.spiked) {
-      // Contact-synced footwork, not a permanent sliding locomotion velocity.
-      // Quick first third: enter with a visible planted step. Contact and recovery: brake.
+      // V49: moving attacks *track during anticipation*, not just when the key is pressed.
+      // Steering is bounded by startup distance, a finite footwork budget and the contact
+      // frame. At impact the hands/feet strike where the opponent really is, not where
+      // they were 150ms ago. After contact the character plants and recovers normally.
       const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
       const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' ? 0.47 : this.attackKind === 'hook' ? 0.48 : 0.42;
       const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
       const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
       const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
-      const targetH = hsp * impulse;
-      // Sufficient deceleration for a real planted strike even if the fighter approached at sprint speed.
-      const response = damp(p >= contact ? 28 : 20, dt);
+      let targetH = hsp * impulse;
+      const foe = this.attackTarget;
+      const active = !!foe && foe.hp > 0 && !foe.spiked && this.kickPend &&
+        p < contact + 0.035 && this.stun <= 0;
+      let pursuing = false;
+      if (active) {
+        const dx = foe.pos.x - this.pos.x, dz = foe.pos.z - this.pos.z;
+        const horizontal = Math.hypot(dx, dz);
+        const height = foe.pos.y - this.pos.y;
+        const moved = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z);
+        const left = this.attackTravelBudget - moved;
+        const limit = TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
+        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0) && left > 0.06) {
+          pursuing = true;
+          // A tiny lead follows strafing enemies, not a teleport toward future position.
+          const lead = Math.min(0.11, Math.max(0.02, this.kickPend.t * 0.55));
+          const aimed = new V3(dx + foe.vel.x * lead, 0, dz + foe.vel.z * lead).normalize();
+          const wish = this.moveIntent.clone().setY(0);
+          const wishLen = wish.length();
+          if (wishLen > 0.1) {
+            wish.normalize();
+            // Still allow backpedalling attacks: don't reverse strong intentional retreat.
+            const dot = wish.dot(aimed);
+            const bias = dot < -0.3 ? 0.42 : dot < 0.28 ? 0.78 : 0.94;
+            aimed.multiplyScalar(bias).addScaledVector(wish, 1 - bias).normalize();
+          }
+          travel.lerp(aimed, damp(22, dt)).normalize();
+          this.attackTravel.copy(travel);
+          // Close the gap before impact; match a retreating opponent within limits.
+          const timeLeft = Math.max(0.11, this.kickPend.t);
+          const goal = this.attackKind === 'kick' ? 1.7 : 1.45;
+          const closing = Math.max(0, horizontal - goal) / timeLeft * 0.86;
+          const speedCap = this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
+          targetH = Math.min(speedCap, Math.max(targetH * 0.45, closing));
+          targetH = Math.min(targetH, Math.max(0, left / Math.max(dt, 1 / 60)));
+          const toFace = yawFromDir(dx, dz);
+          // Turn the shoulders toward the opponent even when our feet strafe sideways.
+          this.facing = lerpAngle(this.facing, toFace, damp(21, dt));
+          if (this.attackAir) {
+            // Fly up/down toward the opponent *during the approach*; hand/foot contact
+            // remains a small 3D hit volume and won't connect from several metres away.
+            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * 0.60, -14, 16);
+            this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
+          }
+        }
+      }
+      // Slow and plant at contact. Never carry full Boost velocity through punches.
+      const response = damp(p >= contact ? 28 : pursuing ? 40 : 20, dt);
       this.vel.x += (travel.x * targetH - this.vel.x) * response;
       this.vel.z += (travel.z * targetH - this.vel.z) * response;
-      if (this.attackAir) {
+      if (this.attackAir && !pursuing) {
         const yInput = this.vert * 2.2;
         this.vel.y += (yInput - this.vel.y) * damp(p >= contact ? 22 : 12, dt);
-      } else this.vel.y = 0;
-      // A moving strike faces its actual step, not the previous frame's run direction.
-      if (impulse > 0.12) this.facing = lerpAngle(this.facing, yawFromDir(travel.x, travel.z), damp(12, dt));
+      } else if (!this.attackAir) this.vel.y = 0;
+      if (!pursuing && impulse > 0.12) this.facing = lerpAngle(this.facing, yawFromDir(travel.x, travel.z), damp(10, dt));
     } else if (this.awakenChargeT > 0) {
       this.vel.multiplyScalar(1 - damp(28, dt));
     } else if (this.stun > 0) {

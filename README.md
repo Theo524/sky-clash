@@ -1,4 +1,4 @@
-# Sky Clash V48 — Kairo Venn / Compact Dojo
+# Sky Clash V49 — Kairo Venn / Compact Dojo
 
 First character-profile milestone and a mobile training-interface fix, based on V47.
 
@@ -15,7 +15,7 @@ First character-profile milestone and a mobile training-interface fix, based on 
 The registry supplies **definitions**, but the current attack controller still implements Kairo's attacks. Adding an archer or ninja requires new motion/ability implementations and appropriate art; merely adding their names to the registry will not provide their abilities. Their move slots will share control semantics while using different attack handlers in a future iteration.
 
 ## Open world
-A future optional exploration mode is planned in concept only; **no open world is included** in V48. Separate combat stages and character-specific dojos remain intact.
+A future optional exploration mode is planned in concept only; **no open world is included** in V49. Separate combat stages and character-specific dojos remain intact.
 
 ## Release process
 Upload the extracted contents of the update ZIP to the repository root, preserving `js/`, `css/`, and `src/` paths, notably replacing `js/game.js`. Full-project ZIP is also provided.

@@ -1,3 +1,9 @@
+## V49 — Moving Combat & Aerial Pursuit
+- Attacks track nearby moving opponents through the wind-up, with finite forward/sideways travel and a strict contact frame.
+- Aerial punches steer in three dimensions; a grounded fighter can perform a short rising pursuit against reachable airborne foes.
+- Volume-based contact accounts for vertical separation without long-range auto-hits.
+- No change to controls, stamina, Vanish, Awakening, dojo or normal blast.
+
 # Sky Clash changelog
 
 ## V48 — Kairo Venn and Compact Dojo

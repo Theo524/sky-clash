@@ -28,6 +28,9 @@ const TUNING = {
   dashSpeed: 42, dashTime: 0.22, dashCooldown: 0.42, dashCost: 10,
   relockGrace: 0.45,
   meleeRange: 2.5, kickDelay: 0.1, kickHitStop: 0.105, meleeArc: 1.25, meleeDamage: 6, meleeCooldown: 0.3, lungeRange: 4.25,
+  // V49: short pursuit tied to the active strike frames; never full-screen homing.
+  meleePursuitRange: 5.35, meleePursuitHeight: 4.0, meleePursuitGround: 2.65,
+  meleePursuitAir: 3.5, meleePursuitSpeedGround: 17.5, meleePursuitSpeedAir: 20.0,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
   awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
