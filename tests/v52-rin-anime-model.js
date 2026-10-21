@@ -8,9 +8,9 @@ assert.strictEqual(b.readUInt32LE(8),b.length,'GLB declared length');
 const jl=b.readUInt32LE(12),bl=b.readUInt32LE(20+jl),offset=28+jl;
 assert.strictEqual(offset+bl,b.length,'GLB image/data alignment');
 const gltf=JSON.parse(b.toString('utf8',20,20+jl));
-assert(gltf.extensions?.VRMC_vrm?.humanoid?.humanBones?.head);
-assert(gltf.extensions?.VRMC_vrm?.meta?.authors?.includes('VirtualCast, Inc.'));
-for(const i of [0,2]) {
+assert(gltf.extensions?.VRM?.humanoid?.humanBones?.some(b=>b.bone==='head'));
+assert(gltf.extensions?.VRM?.meta?.author==='Theo');
+for(const i of [0,3,15]) {
  const v=gltf.bufferViews[gltf.images[i].bufferView];
  const p=offset+v.byteOffset;
  assert.strictEqual(b.toString('hex',p,p+8),'89504e470d0a1a0a','hair/clothes stored as PNG');
@@ -24,7 +24,7 @@ assert(reg.includes("model: 'rin.vrm'"));
 assert(game.includes('loadVRMInto(this.heroes.rin_sable, rinSource'));
 assert(game.includes('this.rinPortrait=renderVRMPortrait'));
 assert(vrm.includes('if (opts.ninja) attachRinNinjaDetails(this)'));
-assert(animations.includes("const ninjaRun = f.characterId === 'rin_sable'"));
+assert(animations.includes("const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing)"));
 assert(animations.includes('const legT = ninjaRun ? 0'));
-assert(html.includes('V52') && html.includes('js/game.js?v=52'));
-console.log('V52: same detailed VRM skeleton, recoloured outfit, bone-following ninja accessories, ninja sprint preserved');
+assert(html.includes('V53') && html.includes('js/game.js?v=53'));
+console.log('V53: user VRM0 imported, outfit recoloured, cloth mask follows head, ninja sprint preserved');

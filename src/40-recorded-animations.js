@@ -283,7 +283,7 @@ class AnimLayer {
     // Rin's procedural Shade Runner sprint/footwork is part of her identity.
     // Transfer those original joint poses straight to the detailed VRM skeleton;
     // keep the recorded clips for attacks, reactions and landing one-shots.
-    const ninjaRun = f.characterId === 'rin_sable';
+    const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing); // V53: Kairo-quality walk, preserve beloved sprint
     const legT = ninjaRun ? 0 : busyLegs ? 0 : 1 - 0.88 * this.strafeW;
     const upT = ninjaRun ? 0 : busyArms ? 0 : 1;
     this.moveW = moveW;
@@ -321,7 +321,7 @@ class AnimLayer {
       // aggressive run: chest driven low and forward (bent through the spine), head kept up looking ahead,
       // arms keep pumping with the torso, knees drive a little higher
       if (this.runL > 0.01) {
-        const L = this.runL * (f.dashing ? 0.35 : 0.26), X = this._X || (this._X = new V3(1, 0, 0));
+        const L = this.runL * (f.dashing ? 0.28 : 0.20), X = this._X || (this._X = new V3(1, 0, 0));
         const SHARE = this._share || (this._share = Anim.bones.map((n, i) => n === 'spine' ? 0.35 : n === 'chest' ? 0.7 : n === 'neck' ? 0.7 : n === 'head' ? 0.4 : this.UPPER[i] ? 1 : 0));
         const q = this._lq || (this._lq = new THREE.Quaternion());
         for (let i = 0; i < Anim.NB; i++) if (SHARE[i]) W.q[i].premultiply(q.setFromAxisAngle(X, L * SHARE[i]));
@@ -343,11 +343,11 @@ class AnimLayer {
     this.airW = (this.airW || 0) + (airW - (this.airW || 0)) * damp(10, dt);
     // Library 2's NinjaJump_Idle_Loop adds subtle leg posing during a quiet hover.
     // Attack, dash and launch states retain priority; no root movement is copied.
-    const hoverW = flying && !f.jumping && !f.dashing && !f.sprinting && !f.launched &&
+    const hoverW = f.canFly && flying && !f.jumping && !f.dashing && !f.sprinting && !f.launched &&
       !f.spiked && f.punchT <= 0 && f.stun <= 0 ? 1 : 0;
     this.hoverW = (this.hoverW || 0) + (hoverW - (this.hoverW || 0)) * damp(7, dt);
     // Movement-speed-directed airborne motion; the loop is blended, not restarted on input edges.
-    const flyTravel = flying && !f.jumping && !f.launched && !f.spiked && !f.charging &&
+    const flyTravel = f.canFly && flying && !f.jumping && !f.launched && !f.spiked && !f.charging &&
       f.punchT <= 0 && f.stun <= 0 ? smooth01((hs - 1.6) / 8) : 0;
     this.flyTravelW += (flyTravel - this.flyTravelW) * damp(5.0, dt);
     const guardMoving = grounded && !busyLegs && (f.blockW > 0.14 || (hs > 2 && this.strafeW > 0.4));

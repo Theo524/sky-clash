@@ -151,7 +151,7 @@ class Fighter {
       this.jumpsUsed++;
       this.jumping = true; this.jumpHold = 0;
       this.vel.y = this.jumpsUsed === 1 ? TUNING.jumpVel : TUNING.jumpVel * 0.89;
-      if (this.jumpsUsed === 2) this.startAcro('flip',.42);
+      if (this.jumpsUsed === 2) this.startAcro('ninjaLeap',0.50);
     } else {
       if (this.flying || this.jumping) return false;
       this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
@@ -613,6 +613,11 @@ class Fighter {
       if (ac.type === 'flip' && this.flying) {
         // A complete flip; orientation returns to neutral without a hard snap.
         body.rotation.x += TAU * smooth01(acP);
+       } else if (ac.type === 'ninjaLeap') {
+        const tuck = Math.sin(Math.PI * acP);
+        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
+          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
+          spineY:-0.12,spineX:0.11,headX:-0.09 };
       } else if (ac.type === 'airRoll' && this.flying) {
         body.rotation.z += ac.direction * TAU * smooth01(acP);
       } else if (ac.type === 'evade') {
@@ -646,11 +651,12 @@ class Fighter {
     const runness = smooth01((hspeed - 5) / 9);
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
     const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
-    const groundY = 1.0 - 0.14 * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
+    const groundY = 1.0 - (this.characterId === 'rin_sable' ? 0.075 : 0.14) * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);
     // Add clearance during a flip; tuck to absorb a landing or sidestep.
     if (ac && ac.type === 'flip' && this.flying) body.position.y += 0.25 * acEnv;
+    if (ac && ac.type === 'ninjaLeap') body.position.y += 0.055 * acEnv;
     if (ac && ac.type === 'landing') body.position.y -= this.motionProfile.landingBend * acEnv;
     if (ac && ac.type === 'evade') body.position.y -= 0.12 * acEnv;
     if (!flying) body.position.y -= this.dashPrep > 0 ? 0.14 : this.skidT > 0 && !this.sprinting && !this.dashing ? 0.08 : 0;
@@ -661,7 +667,11 @@ class Fighter {
 
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
-      if (this.characterId === 'rin_sable') return { arm:[[-1.4,.16,-1.35],[-.67,.34,-1.9]],leg:[[.32,.84,.23],[-.65,.86,.24]],spineY:-.27,spineX:.24,headX:-.14 };
+      if (this.characterId === 'rin_sable') {
+        const breathe = Math.sin(this.t*1.85)*0.024;
+        return { arm:[[-1.25+breathe,.18,-1.35],[-0.87-breathe,.29,-1.53]],
+          leg:[[.17,.26,.09],[-.22,.29,.11]],spineY:-.12,spineX:.085,headX:-.045 };
+      }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Ninja guard: low asymmetrical base, elbows tucked and hands shielding the face.
       // Subtle shifting weight keeps the character alive without idle foot-skating.
@@ -720,11 +730,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = 0.31;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = 0.31;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -769,6 +779,11 @@ class Fighter {
       if (ac.type === 'flip' && this.flying) {
         A = { arm: [[-1.45, 0.45, -1.5], [-1.4, 0.40, -1.45]],
           leg: [[-1.25, 1.9, 0.2], [-1.1, 1.75, 0.2]], spineY: 0, spineX: 0.12, headX: -0.12 };
+       } else if (ac.type === 'ninjaLeap') {
+        const tuck = Math.sin(Math.PI * acP);
+        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
+          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
+          spineY:-0.12,spineX:0.11,headX:-0.09 };
       } else if (ac.type === 'airRoll' && this.flying) {
         A = { arm: [[-0.95, 0.5, -1.5], [-0.95, 0.5, -1.5]],
           leg: [[-0.65, 1.2, 0.15], [-0.65, 1.2, 0.15]], spineY: 0, spineX: 0.18, headX: -0.1 };
@@ -821,7 +836,27 @@ class Fighter {
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
       let B = { arm: P.arm.map(a => a.slice()), leg: P.leg.map(a => a.slice()), spineY: P.spineY, spineX: P.spineX, headX: P.headX };
-      if (this.attackKind === 'slam') {
+      if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaPalm') {
+        const snap = smooth01(progress/0.39);
+        B.arm=[[ -0.90,0.23,-1.30 ],[-1.04-0.62*snap,0.06,-0.35]];
+        B.leg=[[0.17,0.24,0.12],[-0.40,0.35,0.15]];
+        B.spineY=-0.21+0.25*snap;B.spineX=0.12;B.headX=-0.08;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaElbow') {
+        const drive=smooth01(progress/0.47);
+        B.arm=[[-1.30+0.42*drive,0.22,-2.10],[-0.70,0.48,-1.50]];
+        B.leg=[[0.26,0.38,0.13],[-0.48,0.36,0.12]];
+        B.spineY=0.31*drive;B.spineX=0.23;B.headX=-0.14;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaSpin') {
+        const sweep=smooth01(progress/0.5);
+        B.arm=[[-0.66,0.60,-1.42],[-1.45,0.38,-1.72]];
+        B.leg=[[-0.38,0.66,0.12],[0.28-1.73*sweep,0.80-0.62*sweep,0.18]];
+        B.spineY=-0.28+1.02*sweep;B.spineX=0.30;B.headX=-0.10;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaRising') {
+        const thrust=smooth01(progress/0.48);
+        B.arm=[[-1.10,0.36,-1.62],[-0.86,0.50,-1.60]];
+        B.leg=[[-0.70+2.0*thrust,1.39-1.20*thrust,0.17],[-0.35,0.47,0.12]];
+        B.spineY=-0.24+0.32*thrust;B.spineX=0.27;B.headX=-0.17;
+      } else if (this.attackKind === 'slam') {
         B.arm = [[-0.3, 0.1, -0.2], [-0.8, 0.4, -1.6]];
         B.leg = [[-1.2, 1.9, 0.3], [-0.2, 1.4, 0.25]];
         B.spineX = 0.6; B.headX = -0.3; B.spineY = 0;

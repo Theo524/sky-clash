@@ -389,36 +389,51 @@ function buildAnimeHero(pal, opts = {}) {
  */
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const ID_Q = new THREE.Quaternion();
-// V52: lightweight head/neck accessories mounted to the *skinned* detailed
-// VRM rig, so Rin keeps the same proportions, face and anime shading as Kairo.
-// They follow the animated bones throughout the ninja sprint and attacks.
+// V53: cloth-only pieces fitted to Rin's OWN VRoid face; no headband, no
+// rigid neck ring or metal helmet. The red eyes / eye mark are untouched.
 function attachRinNinjaDetails(rig) {
-  const H = rig.vrm.humanoid;
-  const head = H.getNormalizedBoneNode('head');
-  const neck = H.getNormalizedBoneNode('neck');
-  if (!head || !neck) return;
-  const fabric = new THREE.MeshToonMaterial({color:0x24253e,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  const violet = new THREE.MeshToonMaterial({color:0x7257ae,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  const edge = new THREE.MeshToonMaterial({color:0x15192b,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  function detail(parent, geo, mat, x,y,z, sx=1,sy=1,sz=1) {
-    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);
-    m.castShadow=true; parent.add(m);return m;
+  const H = rig.vrm.humanoid, head = H.getNormalizedBoneNode('head');
+  if (!head) return;
+  const cloth = new THREE.MeshStandardMaterial({color:0x171a2d,roughness:0.94,
+    metalness:0,side:THREE.DoubleSide});
+  const seam = new THREE.MeshStandardMaterial({color:0x58517d,roughness:0.85,
+    metalness:0,side:THREE.DoubleSide});
+  // An anatomically shaped face-covering curved into the VRoid head contour.
+  // Both eyes remain completely uncovered. 3D surface, not a floating square.
+  const positions=[],uvs=[],indices=[];
+  const cols=12,rows=5;
+  for (let iy=0;iy<=rows;iy++) {
+    const ty=iy/rows;
+    for(let ix=0;ix<=cols;ix++) {
+      const x=ix/cols*2-1;
+      positions.push(x*0.105,
+        0.035-ty*0.097+0.007*(x*x),
+        -0.111+0.041*Math.pow(Math.abs(x),1.5)+0.012*ty);
+      uvs.push(ix/cols,1-ty);
+    }
   }
-  // Bone local units come from the original avatar; the tiny shapes are
-  // deliberately face-sized and will never form a large blocky helmet.
-  detail(head,new THREE.SphereGeometry(0.105,18,12),fabric,0,-0.001,0.097,1.12,0.35,0.52);
-  detail(head,new THREE.TorusGeometry(0.112,0.013,7,30),violet,0,0.133,0).rotation.x=Math.PI/2;
-  const emblem=detail(head,new THREE.OctahedronGeometry(0.025,0),violet,0,0.132,0.115,0.88,1.08,0.35);
-  emblem.rotation.z=Math.PI/4;
-  detail(neck,new THREE.TorusGeometry(0.106,0.028,7,24),edge,0,-0.016,0).rotation.x=Math.PI/2;
-  const tails=[];
-  for(const side of [-1,1]) {
-    const pivot=new THREE.Group();pivot.position.set(side*0.055,-0.045,-0.085);neck.add(pivot);
-    const ribbon=detail(pivot,new THREE.ConeGeometry(0.041,0.23,5),side<0?violet:fabric,0,-0.11,0,1,1,0.32);
-    ribbon.rotation.z=side*0.12;
-    tails.push({pivot,side});
+  for(let iy=0;iy<rows;iy++)for(let ix=0;ix<cols;ix++) {
+    const a=iy*(cols+1)+ix,b=a+1,c=a+(cols+1),d=c+1;
+    indices.push(a,c,b,b,c,d);
   }
-  rig.ninjaTails=tails;
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setIndex(indices);geo.computeVertexNormals();
+  const mask=new THREE.Mesh(geo,cloth);mask.name='RinShinobiMask';
+  mask.castShadow=true;mask.renderOrder=2;head.add(mask);
+  // Slim stitched edging beneath the eyes—nothing across the forehead.
+  const edgePts=[];
+  for (let i=0;i<=12;i++) {
+    const x=i/12*2-1;
+    edgePts.push(new V3(x*0.105,0.036+0.007*x*x,-0.111+0.041*Math.pow(Math.abs(x),1.5)));
+  }
+  const piping=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edgePts),18,0.0025,4,false),seam);
+  head.add(piping);
+  // Cloth hand wraps: cover the wrist region without hiding finger motion.
+  for (const side of ['left','right']) {
+    const wrist=H.getNormalizedBoneNode(side+'Hand');if(!wrist)continue;
+    const wrap=new THREE.Mesh(new THREE.SphereGeometry(0.055,12,8),cloth);
+    wrap.scale.set(1.0,0.45,0.80);wrap.name='RinWristWrap';wrist.add(wrap);
+  }
 }
 
 class VRMRig {
@@ -432,6 +447,8 @@ class VRMRig {
     vrm.scene.updateMatrixWorld(true);
     const wp = n => this.b[n].getWorldPosition(new V3());
     const hip = wp('leftUpperLeg'), knee = wp('leftLowerLeg'), ankle = wp('leftFoot');
+    // Mesh-to-game scale is explicit per character. Applied to collision visual
+    // alignment via shared fighter model, rather than shrinking the arena.
     this.scale = 0.85 / (hip.distanceTo(knee) + knee.distanceTo(ankle)) * (opts.scale || 1);
     this.hipRestY = hip.y; this.hipsRest = this.b.hips.position.clone();
     vrm.scene.scale.setScalar(this.scale);
@@ -529,7 +546,7 @@ class VRMRig {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.012 : 0.028);
+        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.008 : 0.080);
         correction = Math.max(correction, required - joint.y);
       }
       for (const name of ['leftLowerLeg', 'rightLowerLeg']) {
@@ -542,7 +559,7 @@ class VRMRig {
       this.footLift = (this.footLift || 0);
       // Small negative adjustments correct feet visibly hovering above the floor.
       // Never move the gameplay hitbox, and keep the correction deliberately tiny.
-      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.055, 0.085);
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.075, 0.135);
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 18 : 12, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
@@ -592,6 +609,9 @@ async function loadVRMInto(fighter, source, opts) {
     const gltf = await new Promise((resolve,reject) => loader.parse(buffer, '', resolve, reject));
     const vrm = gltf.userData.vrm;
     if (!vrm) throw new Error('No VRM humanoid found');
+    // VRoid Studio exports Sample C as VRM 0.x (faces -Z). Kairo is VRM 1.x
+    // (+Z). Without this call Rin faces backwards despite identical controls.
+    if (VRMUtils.rotateVRM0) VRMUtils.rotateVRM0(vrm);
     VRMUtils.removeUnnecessaryVertices(gltf.scene);
     if (VRMUtils.combineSkeletons) VRMUtils.combineSkeletons(gltf.scene);
     fighter.vrmRig = new VRMRig(fighter, vrm, opts);
@@ -601,10 +621,12 @@ async function loadVRMInto(fighter, source, opts) {
 // HUD portrait taken from the VRM's face
 function renderVRMPortrait(fighter) {
   const size = 128, rig = fighter.vrmRig, vs = rig.vrm.scene, parent = vs.parent;
+  const beforePos = vs.position.clone(), beforeQuat = vs.quaternion.clone();
   const ps = new THREE.Scene();
   ps.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6));
   const d = new THREE.DirectionalLight(0xffffff, 2.0); d.position.set(1, 2, 3); ps.add(d);
-  ps.add(vs); vs.position.set(0, 0, 0); vs.rotation.set(0, 0, 0); vs.updateMatrixWorld(true);
+  // Preserve VRM0's corrective 180° yaw when taking Rin's portrait.
+  ps.add(vs); vs.position.set(0, 0, 0); vs.updateMatrixWorld(true);
   const hp = rig.b.head.getWorldPosition(new V3());
   const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
   cam.position.set(hp.x + 0.18, hp.y + 0.02, hp.z + 0.62); cam.lookAt(hp.x, hp.y - 0.02, hp.z);
@@ -612,6 +634,7 @@ function renderVRMPortrait(fighter) {
   renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(ps, cam);
   const px = new Uint8Array(size * size * 4); renderer.readRenderTargetPixels(rt, 0, 0, size, size, px);
   renderer.setRenderTarget(null); rt.dispose(); parent.add(vs);
+  vs.position.copy(beforePos); vs.quaternion.copy(beforeQuat); vs.updateMatrixWorld(true);
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'); const img = g.createImageData(size, size);
   for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
   g.putImageData(img, 0, 0); return c.toDataURL();

@@ -1061,36 +1061,51 @@ function buildAnimeHero(pal, opts = {}) {
  */
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler();
 const ID_Q = new THREE.Quaternion();
-// V52: lightweight head/neck accessories mounted to the *skinned* detailed
-// VRM rig, so Rin keeps the same proportions, face and anime shading as Kairo.
-// They follow the animated bones throughout the ninja sprint and attacks.
+// V53: cloth-only pieces fitted to Rin's OWN VRoid face; no headband, no
+// rigid neck ring or metal helmet. The red eyes / eye mark are untouched.
 function attachRinNinjaDetails(rig) {
-  const H = rig.vrm.humanoid;
-  const head = H.getNormalizedBoneNode('head');
-  const neck = H.getNormalizedBoneNode('neck');
-  if (!head || !neck) return;
-  const fabric = new THREE.MeshToonMaterial({color:0x24253e,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  const violet = new THREE.MeshToonMaterial({color:0x7257ae,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  const edge = new THREE.MeshToonMaterial({color:0x15192b,gradientMap:TOON_RAMP,side:THREE.DoubleSide});
-  function detail(parent, geo, mat, x,y,z, sx=1,sy=1,sz=1) {
-    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.scale.set(sx,sy,sz);
-    m.castShadow=true; parent.add(m);return m;
+  const H = rig.vrm.humanoid, head = H.getNormalizedBoneNode('head');
+  if (!head) return;
+  const cloth = new THREE.MeshStandardMaterial({color:0x171a2d,roughness:0.94,
+    metalness:0,side:THREE.DoubleSide});
+  const seam = new THREE.MeshStandardMaterial({color:0x58517d,roughness:0.85,
+    metalness:0,side:THREE.DoubleSide});
+  // An anatomically shaped face-covering curved into the VRoid head contour.
+  // Both eyes remain completely uncovered. 3D surface, not a floating square.
+  const positions=[],uvs=[],indices=[];
+  const cols=12,rows=5;
+  for (let iy=0;iy<=rows;iy++) {
+    const ty=iy/rows;
+    for(let ix=0;ix<=cols;ix++) {
+      const x=ix/cols*2-1;
+      positions.push(x*0.105,
+        0.035-ty*0.097+0.007*(x*x),
+        -0.111+0.041*Math.pow(Math.abs(x),1.5)+0.012*ty);
+      uvs.push(ix/cols,1-ty);
+    }
   }
-  // Bone local units come from the original avatar; the tiny shapes are
-  // deliberately face-sized and will never form a large blocky helmet.
-  detail(head,new THREE.SphereGeometry(0.105,18,12),fabric,0,-0.001,0.097,1.12,0.35,0.52);
-  detail(head,new THREE.TorusGeometry(0.112,0.013,7,30),violet,0,0.133,0).rotation.x=Math.PI/2;
-  const emblem=detail(head,new THREE.OctahedronGeometry(0.025,0),violet,0,0.132,0.115,0.88,1.08,0.35);
-  emblem.rotation.z=Math.PI/4;
-  detail(neck,new THREE.TorusGeometry(0.106,0.028,7,24),edge,0,-0.016,0).rotation.x=Math.PI/2;
-  const tails=[];
-  for(const side of [-1,1]) {
-    const pivot=new THREE.Group();pivot.position.set(side*0.055,-0.045,-0.085);neck.add(pivot);
-    const ribbon=detail(pivot,new THREE.ConeGeometry(0.041,0.23,5),side<0?violet:fabric,0,-0.11,0,1,1,0.32);
-    ribbon.rotation.z=side*0.12;
-    tails.push({pivot,side});
+  for(let iy=0;iy<rows;iy++)for(let ix=0;ix<cols;ix++) {
+    const a=iy*(cols+1)+ix,b=a+1,c=a+(cols+1),d=c+1;
+    indices.push(a,c,b,b,c,d);
   }
-  rig.ninjaTails=tails;
+  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));
+  geo.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));geo.setIndex(indices);geo.computeVertexNormals();
+  const mask=new THREE.Mesh(geo,cloth);mask.name='RinShinobiMask';
+  mask.castShadow=true;mask.renderOrder=2;head.add(mask);
+  // Slim stitched edging beneath the eyes—nothing across the forehead.
+  const edgePts=[];
+  for (let i=0;i<=12;i++) {
+    const x=i/12*2-1;
+    edgePts.push(new V3(x*0.105,0.036+0.007*x*x,-0.111+0.041*Math.pow(Math.abs(x),1.5)));
+  }
+  const piping=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edgePts),18,0.0025,4,false),seam);
+  head.add(piping);
+  // Cloth hand wraps: cover the wrist region without hiding finger motion.
+  for (const side of ['left','right']) {
+    const wrist=H.getNormalizedBoneNode(side+'Hand');if(!wrist)continue;
+    const wrap=new THREE.Mesh(new THREE.SphereGeometry(0.055,12,8),cloth);
+    wrap.scale.set(1.0,0.45,0.80);wrap.name='RinWristWrap';wrist.add(wrap);
+  }
 }
 
 class VRMRig {
@@ -1104,6 +1119,8 @@ class VRMRig {
     vrm.scene.updateMatrixWorld(true);
     const wp = n => this.b[n].getWorldPosition(new V3());
     const hip = wp('leftUpperLeg'), knee = wp('leftLowerLeg'), ankle = wp('leftFoot');
+    // Mesh-to-game scale is explicit per character. Applied to collision visual
+    // alignment via shared fighter model, rather than shrinking the arena.
     this.scale = 0.85 / (hip.distanceTo(knee) + knee.distanceTo(ankle)) * (opts.scale || 1);
     this.hipRestY = hip.y; this.hipsRest = this.b.hips.position.clone();
     vrm.scene.scale.setScalar(this.scale);
@@ -1201,7 +1218,7 @@ class VRMRig {
         const node = this.vrm.humanoid.getNormalizedBoneNode(name);
         if (!node) continue;
         node.getWorldPosition(joint);
-        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.012 : 0.028);
+        const required = groundAt(joint.x, joint.z) + (name.endsWith('Toes') ? 0.008 : 0.080);
         correction = Math.max(correction, required - joint.y);
       }
       for (const name of ['leftLowerLeg', 'rightLowerLeg']) {
@@ -1214,7 +1231,7 @@ class VRMRig {
       this.footLift = (this.footLift || 0);
       // Small negative adjustments correct feet visibly hovering above the floor.
       // Never move the gameplay hitbox, and keep the correction deliberately tiny.
-      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.055, 0.085);
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.075, 0.135);
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 18 : 12, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
@@ -1264,6 +1281,9 @@ async function loadVRMInto(fighter, source, opts) {
     const gltf = await new Promise((resolve,reject) => loader.parse(buffer, '', resolve, reject));
     const vrm = gltf.userData.vrm;
     if (!vrm) throw new Error('No VRM humanoid found');
+    // VRoid Studio exports Sample C as VRM 0.x (faces -Z). Kairo is VRM 1.x
+    // (+Z). Without this call Rin faces backwards despite identical controls.
+    if (VRMUtils.rotateVRM0) VRMUtils.rotateVRM0(vrm);
     VRMUtils.removeUnnecessaryVertices(gltf.scene);
     if (VRMUtils.combineSkeletons) VRMUtils.combineSkeletons(gltf.scene);
     fighter.vrmRig = new VRMRig(fighter, vrm, opts);
@@ -1273,10 +1293,12 @@ async function loadVRMInto(fighter, source, opts) {
 // HUD portrait taken from the VRM's face
 function renderVRMPortrait(fighter) {
   const size = 128, rig = fighter.vrmRig, vs = rig.vrm.scene, parent = vs.parent;
+  const beforePos = vs.position.clone(), beforeQuat = vs.quaternion.clone();
   const ps = new THREE.Scene();
   ps.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6));
   const d = new THREE.DirectionalLight(0xffffff, 2.0); d.position.set(1, 2, 3); ps.add(d);
-  ps.add(vs); vs.position.set(0, 0, 0); vs.rotation.set(0, 0, 0); vs.updateMatrixWorld(true);
+  // Preserve VRM0's corrective 180° yaw when taking Rin's portrait.
+  ps.add(vs); vs.position.set(0, 0, 0); vs.updateMatrixWorld(true);
   const hp = rig.b.head.getWorldPosition(new V3());
   const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 20);
   cam.position.set(hp.x + 0.18, hp.y + 0.02, hp.z + 0.62); cam.lookAt(hp.x, hp.y - 0.02, hp.z);
@@ -1284,6 +1306,7 @@ function renderVRMPortrait(fighter) {
   renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(ps, cam);
   const px = new Uint8Array(size * size * 4); renderer.readRenderTargetPixels(rt, 0, 0, size, size, px);
   renderer.setRenderTarget(null); rt.dispose(); parent.add(vs);
+  vs.position.copy(beforePos); vs.quaternion.copy(beforeQuat); vs.updateMatrixWorld(true);
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'); const img = g.createImageData(size, size);
   for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
   g.putImageData(img, 0, 0); return c.toDataURL();
@@ -1574,7 +1597,7 @@ class AnimLayer {
     // Rin's procedural Shade Runner sprint/footwork is part of her identity.
     // Transfer those original joint poses straight to the detailed VRM skeleton;
     // keep the recorded clips for attacks, reactions and landing one-shots.
-    const ninjaRun = f.characterId === 'rin_sable';
+    const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing); // V53: Kairo-quality walk, preserve beloved sprint
     const legT = ninjaRun ? 0 : busyLegs ? 0 : 1 - 0.88 * this.strafeW;
     const upT = ninjaRun ? 0 : busyArms ? 0 : 1;
     this.moveW = moveW;
@@ -1612,7 +1635,7 @@ class AnimLayer {
       // aggressive run: chest driven low and forward (bent through the spine), head kept up looking ahead,
       // arms keep pumping with the torso, knees drive a little higher
       if (this.runL > 0.01) {
-        const L = this.runL * (f.dashing ? 0.35 : 0.26), X = this._X || (this._X = new V3(1, 0, 0));
+        const L = this.runL * (f.dashing ? 0.28 : 0.20), X = this._X || (this._X = new V3(1, 0, 0));
         const SHARE = this._share || (this._share = Anim.bones.map((n, i) => n === 'spine' ? 0.35 : n === 'chest' ? 0.7 : n === 'neck' ? 0.7 : n === 'head' ? 0.4 : this.UPPER[i] ? 1 : 0));
         const q = this._lq || (this._lq = new THREE.Quaternion());
         for (let i = 0; i < Anim.NB; i++) if (SHARE[i]) W.q[i].premultiply(q.setFromAxisAngle(X, L * SHARE[i]));
@@ -1634,11 +1657,11 @@ class AnimLayer {
     this.airW = (this.airW || 0) + (airW - (this.airW || 0)) * damp(10, dt);
     // Library 2's NinjaJump_Idle_Loop adds subtle leg posing during a quiet hover.
     // Attack, dash and launch states retain priority; no root movement is copied.
-    const hoverW = flying && !f.jumping && !f.dashing && !f.sprinting && !f.launched &&
+    const hoverW = f.canFly && flying && !f.jumping && !f.dashing && !f.sprinting && !f.launched &&
       !f.spiked && f.punchT <= 0 && f.stun <= 0 ? 1 : 0;
     this.hoverW = (this.hoverW || 0) + (hoverW - (this.hoverW || 0)) * damp(7, dt);
     // Movement-speed-directed airborne motion; the loop is blended, not restarted on input edges.
-    const flyTravel = flying && !f.jumping && !f.launched && !f.spiked && !f.charging &&
+    const flyTravel = f.canFly && flying && !f.jumping && !f.launched && !f.spiked && !f.charging &&
       f.punchT <= 0 && f.stun <= 0 ? smooth01((hs - 1.6) / 8) : 0;
     this.flyTravelW += (flyTravel - this.flyTravelW) * damp(5.0, dt);
     const guardMoving = grounded && !busyLegs && (f.blockW > 0.14 || (hs > 2 && this.strafeW > 0.4));
@@ -1918,7 +1941,7 @@ class Fighter {
       this.jumpsUsed++;
       this.jumping = true; this.jumpHold = 0;
       this.vel.y = this.jumpsUsed === 1 ? TUNING.jumpVel : TUNING.jumpVel * 0.89;
-      if (this.jumpsUsed === 2) this.startAcro('flip',.42);
+      if (this.jumpsUsed === 2) this.startAcro('ninjaLeap',0.50);
     } else {
       if (this.flying || this.jumping) return false;
       this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
@@ -2380,6 +2403,11 @@ class Fighter {
       if (ac.type === 'flip' && this.flying) {
         // A complete flip; orientation returns to neutral without a hard snap.
         body.rotation.x += TAU * smooth01(acP);
+       } else if (ac.type === 'ninjaLeap') {
+        const tuck = Math.sin(Math.PI * acP);
+        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
+          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
+          spineY:-0.12,spineX:0.11,headX:-0.09 };
       } else if (ac.type === 'airRoll' && this.flying) {
         body.rotation.z += ac.direction * TAU * smooth01(acP);
       } else if (ac.type === 'evade') {
@@ -2413,11 +2441,12 @@ class Fighter {
     const runness = smooth01((hspeed - 5) / 9);
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
     const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
-    const groundY = 1.0 - 0.14 * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
+    const groundY = 1.0 - (this.characterId === 'rin_sable' ? 0.075 : 0.14) * (1 - rw) - 0.045 * rw * runness + bounce * (1 - rw) + stepBob * rw;   // knees bent in stance
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);
     // Add clearance during a flip; tuck to absorb a landing or sidestep.
     if (ac && ac.type === 'flip' && this.flying) body.position.y += 0.25 * acEnv;
+    if (ac && ac.type === 'ninjaLeap') body.position.y += 0.055 * acEnv;
     if (ac && ac.type === 'landing') body.position.y -= this.motionProfile.landingBend * acEnv;
     if (ac && ac.type === 'evade') body.position.y -= 0.12 * acEnv;
     if (!flying) body.position.y -= this.dashPrep > 0 ? 0.14 : this.skidT > 0 && !this.sprinting && !this.dashing ? 0.08 : 0;
@@ -2428,7 +2457,11 @@ class Fighter {
 
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
-      if (this.characterId === 'rin_sable') return { arm:[[-1.4,.16,-1.35],[-.67,.34,-1.9]],leg:[[.32,.84,.23],[-.65,.86,.24]],spineY:-.27,spineX:.24,headX:-.14 };
+      if (this.characterId === 'rin_sable') {
+        const breathe = Math.sin(this.t*1.85)*0.024;
+        return { arm:[[-1.25+breathe,.18,-1.35],[-0.87-breathe,.29,-1.53]],
+          leg:[[.17,.26,.09],[-.22,.29,.11]],spineY:-.12,spineX:.085,headX:-.045 };
+      }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Ninja guard: low asymmetrical base, elbows tucked and hands shielding the face.
       // Subtle shifting weight keeps the character alive without idle foot-skating.
@@ -2487,11 +2520,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = 0.31;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = 0.31;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.24; r.spineX = this.characterId==='rin_sable' ? 0.31 : 0.24;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -2536,6 +2569,11 @@ class Fighter {
       if (ac.type === 'flip' && this.flying) {
         A = { arm: [[-1.45, 0.45, -1.5], [-1.4, 0.40, -1.45]],
           leg: [[-1.25, 1.9, 0.2], [-1.1, 1.75, 0.2]], spineY: 0, spineX: 0.12, headX: -0.12 };
+       } else if (ac.type === 'ninjaLeap') {
+        const tuck = Math.sin(Math.PI * acP);
+        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
+          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
+          spineY:-0.12,spineX:0.11,headX:-0.09 };
       } else if (ac.type === 'airRoll' && this.flying) {
         A = { arm: [[-0.95, 0.5, -1.5], [-0.95, 0.5, -1.5]],
           leg: [[-0.65, 1.2, 0.15], [-0.65, 1.2, 0.15]], spineY: 0, spineX: 0.18, headX: -0.1 };
@@ -2588,7 +2626,27 @@ class Fighter {
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
       let B = { arm: P.arm.map(a => a.slice()), leg: P.leg.map(a => a.slice()), spineY: P.spineY, spineX: P.spineX, headX: P.headX };
-      if (this.attackKind === 'slam') {
+      if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaPalm') {
+        const snap = smooth01(progress/0.39);
+        B.arm=[[ -0.90,0.23,-1.30 ],[-1.04-0.62*snap,0.06,-0.35]];
+        B.leg=[[0.17,0.24,0.12],[-0.40,0.35,0.15]];
+        B.spineY=-0.21+0.25*snap;B.spineX=0.12;B.headX=-0.08;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaElbow') {
+        const drive=smooth01(progress/0.47);
+        B.arm=[[-1.30+0.42*drive,0.22,-2.10],[-0.70,0.48,-1.50]];
+        B.leg=[[0.26,0.38,0.13],[-0.48,0.36,0.12]];
+        B.spineY=0.31*drive;B.spineX=0.23;B.headX=-0.14;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaSpin') {
+        const sweep=smooth01(progress/0.5);
+        B.arm=[[-0.66,0.60,-1.42],[-1.45,0.38,-1.72]];
+        B.leg=[[-0.38,0.66,0.12],[0.28-1.73*sweep,0.80-0.62*sweep,0.18]];
+        B.spineY=-0.28+1.02*sweep;B.spineX=0.30;B.headX=-0.10;
+      } else if (this.characterId === 'rin_sable' && this.attackKind === 'ninjaRising') {
+        const thrust=smooth01(progress/0.48);
+        B.arm=[[-1.10,0.36,-1.62],[-0.86,0.50,-1.60]];
+        B.leg=[[-0.70+2.0*thrust,1.39-1.20*thrust,0.17],[-0.35,0.47,0.12]];
+        B.spineY=-0.24+0.32*thrust;B.spineX=0.27;B.headX=-0.17;
+      } else if (this.attackKind === 'slam') {
         B.arm = [[-0.3, 0.1, -0.2], [-0.8, 0.4, -1.6]];
         B.leg = [[-1.2, 1.9, 0.3], [-0.2, 1.4, 0.25]];
         B.spineX = 0.6; B.headX = -0.3; B.spineY = 0;
@@ -3630,7 +3688,8 @@ const Combat = (() => {
     const stage = attacker.combo;
     if (stage === 0) attacker.comboCycle = (attacker.comboCycle || 0) + 1;
     attacker.attackVariant = stage === 2 && attacker.comboCycle % 2 === 0 ? 'overhand' : 'hook';
-    const kick = stage === 3;
+    const ninja = attacker.characterId === 'rin_sable';
+    const kick = stage === 3 || (ninja && stage === 2); // third ninja beat: heel kick without launch
     const counter = attacker.riposteT > 0;
     if (counter) attacker.riposteT = 0;
     attacker.lastMelee = attacker.t;
@@ -3659,12 +3718,12 @@ const Combat = (() => {
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
     if (stage === 3) { attacker.meleeQ = 0; attacker.meleeBuf = 0; }
-    attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
+    attacker.attackKind = ninja ? ['ninjaPalm','ninjaElbow','ninjaSpin','ninjaRising'][stage] : attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
     const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
-    const cd = [0.43, 0.51, 0.69, 0.88][stage] * agile;
-    const anim = [0.42, 0.50, 0.68, 0.87][stage] * agile;
+    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.43,0.51,0.69,0.88])[stage] * agile;
+    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.42,0.50,0.68,0.87])[stage] * agile;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -3676,7 +3735,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage] * agile, kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.15,0.20,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -3727,6 +3786,10 @@ const Combat = (() => {
         attacker.comboFollow = { target, phase: 2, until: attacker.t + TUNING.airFollowWindow };
         Effects.flash(target.center, col, 1.65, 0.10);
       }
+    } else if (attacker.characterId === 'rin_sable' && stage === 2) {
+      // Heel strike disorients instead of copying Kairo's early air-launch.
+      result = hit(attacker, target, base, fwd.multiplyScalar(3.5).setY(1.35), true);
+      if (result === 'hit') Effects.sparks(target.center, col, 8);
     } else if (air && kick) {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
@@ -4433,13 +4496,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear,scale:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true,scale:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
@@ -4450,7 +4513,7 @@ const Game = {
         // no geometric fallback unless the real model fails to load.
         const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
         const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
-          {hide:hiddenGear,ninja:true});
+          {hide:hiddenGear,ninja:true,scale:1.075});
         if (rinOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
           try {

@@ -60,3 +60,20 @@ for(let i=0;i<60;i++)Combat.update(1/60);
 Combat.clear();
 assert(fs.readFileSync(root+'/index.html','utf8').includes('data-hero="rin_sable"'));
 console.log('V51: ground finisher at 120/60/30fps; dual character registry; no flight, double jump, shuriken volley passed');
+
+// V53-specific distinct ninja melee stages; Kairo's ground/sky chain above remains intact.
+const nin=new Fighter('Rin',{ki:0x9988ee,aura:0xa898ff},new V3(0,0,0),'rin_sable');
+const spar=new Fighter('Partner',{ki:0xeedddd,aura:0xffddcc},new V3(0,0,2),'kairo_venn');
+nin.animate=spar.animate=noop;Game.player=nin;Game.enemy=spar;
+const identity=['ninjaPalm','ninjaElbow','ninjaSpin','ninjaRising'];
+for (let i=0;i<4;i++) {
+  nin.combo=i;nin.lastMelee=nin.t;nin.meleeCd=0;nin.punchT=0;nin.kickPend=null;
+  spar.pos.set(0,0,2);spar.launched=false;spar.spiked=false;spar.downT=0;spar.stun=0;
+  Combat.melee(nin,spar);
+  assert.equal(nin.attackKind,identity[i],`unique ninja combo beat ${i}`);
+  if(i===2) {
+    run(nin,spar,0.37,1/60);
+    assert(!spar.launched,"ninja spinning heel is NOT Kairo's launcher");
+  }
+}
+console.log('V53: ninja has four unique attack phases, with a non-launching heel strike');

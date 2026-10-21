@@ -116,7 +116,8 @@ const Combat = (() => {
     const stage = attacker.combo;
     if (stage === 0) attacker.comboCycle = (attacker.comboCycle || 0) + 1;
     attacker.attackVariant = stage === 2 && attacker.comboCycle % 2 === 0 ? 'overhand' : 'hook';
-    const kick = stage === 3;
+    const ninja = attacker.characterId === 'rin_sable';
+    const kick = stage === 3 || (ninja && stage === 2); // third ninja beat: heel kick without launch
     const counter = attacker.riposteT > 0;
     if (counter) attacker.riposteT = 0;
     attacker.lastMelee = attacker.t;
@@ -145,12 +146,12 @@ const Combat = (() => {
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
     if (stage === 3) { attacker.meleeQ = 0; attacker.meleeBuf = 0; }
-    attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
+    attacker.attackKind = ninja ? ['ninjaPalm','ninjaElbow','ninjaSpin','ninjaRising'][stage] : attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
     const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
-    const cd = [0.43, 0.51, 0.69, 0.88][stage] * agile;
-    const anim = [0.42, 0.50, 0.68, 0.87][stage] * agile;
+    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.43,0.51,0.69,0.88])[stage] * agile;
+    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.42,0.50,0.68,0.87])[stage] * agile;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -162,7 +163,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage] * agile, kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.15,0.20,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -213,6 +214,10 @@ const Combat = (() => {
         attacker.comboFollow = { target, phase: 2, until: attacker.t + TUNING.airFollowWindow };
         Effects.flash(target.center, col, 1.65, 0.10);
       }
+    } else if (attacker.characterId === 'rin_sable' && stage === 2) {
+      // Heel strike disorients instead of copying Kairo's early air-launch.
+      result = hit(attacker, target, base, fwd.multiplyScalar(3.5).setY(1.35), true);
+      if (result === 'hit') Effects.sparks(target.center, col, 8);
     } else if (air && kick) {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);

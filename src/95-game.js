@@ -20,13 +20,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear,scale:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true,scale:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
@@ -37,7 +37,7 @@ const Game = {
         // no geometric fallback unless the real model fails to load.
         const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
         const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
-          {hide:hiddenGear,ninja:true});
+          {hide:hiddenGear,ninja:true,scale:1.075});
         if (rinOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
           try {
