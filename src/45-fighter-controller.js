@@ -33,7 +33,7 @@ class Fighter {
     this.stamina = TUNING.staminaMax; this.staminaRestT = 0;
     this.exhausted = false; this.staminaNoticeT = 0;
     this.flightBlend = 0; this.flightSpeedBlend = 0; this.airBank = 0;
-    this.comboCycle = 0; this.attackVariant = 'hook';
+    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
     this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
@@ -127,7 +127,7 @@ class Fighter {
     this.pos.y = clamp(this.pos.y, this.floor, CEILING);
     this.facing = yawFromDir(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
     this.model.root.rotation.y = this.facing;
-    this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.cancelCharge(); this.blocking = false;
+    this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.comboFollow = null; this.cancelCharge(); this.blocking = false;
     this.vanishT = TUNING.vanishHide; this.invulnT = Math.max(this.invulnT, TUNING.vanishInvuln);
     this.vanishCd = TUNING.vanishCooldown;
     this.acro = null; this.dashRecoverT = 0; this.skidT = 0;
@@ -249,6 +249,7 @@ class Fighter {
     }
     this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
+    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !this.comboFollow.target.launched || this.comboFollow.target.spiked)) this.comboFollow = null;
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
     if (this.kickPend) {
@@ -386,7 +387,7 @@ class Fighter {
       // frame. At impact the hands/feet strike where the opponent really is, not where
       // they were 150ms ago. After contact the character plants and recovers normally.
       const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' ? 0.47 : this.attackKind === 'hook' ? 0.48 : 0.42;
+      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
       const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
       const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
       const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
@@ -401,8 +402,9 @@ class Fighter {
         const height = foe.pos.y - this.pos.y;
         const moved = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z);
         const left = this.attackTravelBudget - moved;
-        const limit = TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
-        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0) && left > 0.06) {
+        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick';
+        const limit = follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
+        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
           pursuing = true;
           // A tiny lead follows strafing enemies, not a teleport toward future position.
           const lead = Math.min(0.11, Math.max(0.02, this.kickPend.t * 0.55));
@@ -420,9 +422,9 @@ class Fighter {
           this.attackTravel.copy(travel);
           // Close the gap before impact; match a retreating opponent within limits.
           const timeLeft = Math.max(0.11, this.kickPend.t);
-          const goal = this.attackKind === 'kick' ? 1.7 : 1.45;
+          const goal = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 1.7 : 1.45;
           const closing = Math.max(0, horizontal - goal) / timeLeft * 0.86;
-          const speedCap = this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
+          const speedCap = follow ? TUNING.airFollowSpeed : this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
           targetH = Math.min(speedCap, Math.max(targetH * 0.45, closing));
           targetH = Math.min(targetH, Math.max(0, left / Math.max(dt, 1 / 60)));
           const toFace = yawFromDir(dx, dz);
@@ -431,7 +433,7 @@ class Fighter {
           if (this.attackAir) {
             // Fly up/down toward the opponent *during the approach*; hand/foot contact
             // remains a small 3D hit volume and won't connect from several metres away.
-            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * 0.60, -14, 16);
+            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.85 : 0.60), follow ? -17 : -14, follow ? 22 : 16);
             this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
           }
         }
@@ -798,7 +800,7 @@ class Fighter {
     } else if (this.punchT > 0) {
       const total = this.attackTotal || 0.235;
       const progress = clamp(this.attackElapsed / total, 0, 1);
-      const contact = this.attackKind === 'kick' ? 0.48 : this.attackKind === 'hook' ? 0.49 : 0.43;
+      const contact = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
       const lift = smooth01(progress / contact);
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
@@ -807,6 +809,20 @@ class Fighter {
         B.arm = [[-0.3, 0.1, -0.2], [-0.8, 0.4, -1.6]];
         B.leg = [[-1.2, 1.9, 0.3], [-0.2, 1.4, 0.25]];
         B.spineX = 0.6; B.headX = -0.3; B.spineY = 0;
+      } else if (this.attackKind === 'skyUppercut') {
+        // A true vertical rising fist: elbow winds below the waist, fist drives
+        // above the head, torso and support leg rise with the attack.
+        const drive = smooth01(progress / 0.53);
+        B.arm[0] = [-0.48 - drive * 1.55, -0.14, -1.88 + drive * 1.55];
+        B.arm[1] = [-0.78, 0.42, -1.72];
+        B.leg[0] = [-0.42, 1.1, 0.09]; B.leg[1] = [0.24, 0.45, 0.08];
+        B.spineY = -0.18 + drive * 0.30; B.spineX = -0.16 + drive * 0.25; B.headX = -0.10;
+      } else if (this.attackKind === 'skyKick') {
+        // Fold the knee first, then drive the heel sharply down through target.
+        const snap = smooth01((progress - 0.22) / 0.30);
+        B.arm = [[-1.18, 0.33, -1.55], [-0.85, -0.20, -1.82]];
+        B.leg = [[-1.12 + snap * 1.48, 1.85 - snap * 1.68, 0.17], [-0.44, 1.24, 0.1]];
+        B.spineX = 0.27 + snap * 0.25; B.spineY = 0.12;
       } else if (this.attackKind === 'airStrike') {
         // Air finisher: forward driving elbow/knee with both feet tucked, never a rotating roundhouse.
         B.arm = [[-1.60,-0.12,-0.38],[-0.80,0.32,-1.76]];
@@ -836,7 +852,7 @@ class Fighter {
       }
       if (!flying) {
         const moveW = smooth01((this.attackDrive - 1.0) / 5.2) * (this.attackMoving ? 1 : 0.5);
-        if (moveW > 0.01) {
+        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick') {
           const sideBias = this.attackTravel ? (this.attackTravel.x * Math.cos(yaw) - this.attackTravel.z * Math.sin(yaw)) : 0;
           const step = { arm: [[-1.18, 0.22, -1.65], [-0.82, 0.14, -1.88]],
             leg: [[0.54, 0.98, 0.18], [-0.72, 0.62, 0.14]],

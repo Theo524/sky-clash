@@ -20,7 +20,7 @@ const Combat = (() => {
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
-    target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0;
+    target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0; target.comboFollow = null;
     if (kind !== 'melee') { target.launched = target.launched && target.pos.y > target.floor + 0.5; }
     target.vel.copy(knock);
     target.dashT = 0;
@@ -66,11 +66,49 @@ const Combat = (() => {
     } else { Sound.play('block'); Effects.blockSpark(c); Game.hitStop(0.035); CameraRig.shake(0.12); }
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(15);
   }
+  // V50: An optional, input-confirmed aerial extension of a successful launcher.
+  // Unlike a free teleport, this is a bounded physical jump/flight pursuit.
+  function airFollow(attacker, target, phase) {
+    const kind = phase === 1 ? 'skyUppercut' : 'skyKick';
+    const t = target.pos.clone().sub(attacker.pos);
+    const h = Math.hypot(t.x, t.z);
+    if (h > TUNING.airFollowRange || Math.abs(t.y) > TUNING.airFollowHeight ||
+        !target.launched || target.spiked || target.hp <= 0) return false;
+    attacker.comboFollow = null; // Consume the opening; only a real hit unlocks the next one.
+    attacker.combo = 0;
+    attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0;
+    attacker.dashPrep = 0; attacker.dashRecoverT = 0; attacker.chase = null;
+    attacker.attackAir = true; attacker.attackMoving = true;
+    attacker.attackKind = kind; attacker.punchSide = 0;
+    attacker.attackTarget = target;
+    attacker.attackOrigin.copy(attacker.pos);
+    attacker.attackTravelBudget = TUNING.airFollowBudget;
+    attacker.attackTravel.copy(new V3(t.x, 0, t.z).lengthSq() > 0.01 ? new V3(t.x, 0, t.z).normalize() : attacker.forward());
+    attacker.attackDrive = TUNING.airFollowSpeed;
+    attacker.facing = lerpAngle(attacker.facing, yawFromDir(t.x, t.z), 0.8);
+    // A controlled rising chase; never warp the character's position.
+    if (phase === 1 && t.y > 0.7) attacker.vel.y = Math.max(attacker.vel.y, Math.min(15.5, 7 + t.y * 2));
+    const total = phase === 1 ? 0.57 : 0.63;
+    const contact = phase === 1 ? 0.29 : 0.30;
+    attacker.attackSerial++;
+    attacker.punchT = total; attacker.attackTotal = total; attacker.attackElapsed = 0;
+    attacker.meleeCd = total - 0.015;
+    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : 5,
+      counter: false, swingPlayed: false };
+    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : 'METEOR KICK', phase === 1 ? 'launch' : 'smash');
+    return true;
+  }
   // Four readable beats: jab > cross > turning hook > rising kick.
   // Input buffering happens in Game, contact is delayed until the corresponding active frame.
   function melee(attacker, target) {
     if (attacker.awakenChargeT > 0 || attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
     if (attacker.charging) attacker.cancelCharge();
+    const follow = attacker.comboFollow;
+    if (follow) {
+      if (attacker.t <= follow.until && follow.target === target &&
+          airFollow(attacker, target, follow.phase)) return;
+      attacker.comboFollow = null;
+    }
     if (attacker.t - attacker.lastMelee > TUNING.comboWindow) attacker.combo = 0;
     const stage = attacker.combo;
     if (stage === 0) attacker.comboCycle = (attacker.comboCycle || 0) + 1;
@@ -136,15 +174,31 @@ const Combat = (() => {
     const h = Math.hypot(toT.x, toT.z), y = Math.abs(toT.y);
     // A volumetric melee hitbox reaches opponents slightly above/below a flying
     // fighter, but cannot touch a faraway opponent just because they're locked on.
-    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (attacker.awakened ? 0.08 : 0);
-    const rise = attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
+    const follow = stage === 4 || stage === 5;
+    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.26 : 0) + (attacker.awakened ? 0.08 : 0);
+    const rise = follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
     if ((h / reach) ** 2 + (y / rise) ** 2 > 1 || h > reach || y > rise) return;
     const fwd = attacker.forward();
     if (h > 1.15 && fwd.dot(new V3(toT.x / h, 0, toT.z / h)) <= Math.cos(TUNING.meleeArc)) return;
-    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58][stage] * (counter ? 1.3 : 1);
+    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76][stage] * (counter ? 1.3 : 1);
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;
-    if (air && kick) {
+    if (air && stage === 5) {
+      const kd = fwd.clone();
+      result = hit(attacker, target, base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
+      if (result === 'hit') {
+        kickImpact(attacker, target, kd); target.spiked = true; target.stun = 1.65;
+        Game.callout('METEOR SMASH', 'smash'); Effects.flash(target.center, 0xffd166, 2.5, 0.14);
+      }
+    } else if (air && stage === 4) {
+      result = hit(attacker, target, base, fwd.multiplyScalar(2.6).setY(7.0), true);
+      if (result === 'hit') {
+        target.launched = true; target.spiked = false; target.juggle++;
+        target.stun = 0.83;
+        attacker.comboFollow = { target, phase: 2, until: attacker.t + TUNING.airFollowWindow };
+        Effects.flash(target.center, col, 1.65, 0.10);
+      }
+    } else if (air && kick) {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.spiked = true; target.stun = 2;
@@ -157,15 +211,17 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = hit(attacker, target, base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.launched = true; target.launchT = 0;
-        target.juggle = 0; target.stun = TUNING.launchStun; Effects.launchTrail(target);
-        if (attacker === Game.player) Game.callout('Launch!', 'launch'); }
+        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15); Effects.launchTrail(target);
+        // The player must press Melee again while the opponent is in the air.
+        attacker.comboFollow = { target, phase: 1, until: attacker.t + TUNING.airFollowWindow };
+        if (attacker === Game.player) Game.callout('LAUNCH · TAP MELEE TO FOLLOW', 'launch'); }
     } else {
       // Opening strikes keep opponents within range for a real four-hit chain.
       const push = [3.1, 4.0, 6.6][stage];
       result = hit(attacker, target, base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
     }
     if (result === 'hit') {
-      Spectacle.contact(attacker, target, stage, counter);
+      Spectacle.contact(attacker, target, stage <= 3 ? stage : stage === 4 ? 2 : 3, counter);
       if (stage < 3) target.stun = Math.max(target.stun, [0.45, 0.49, 0.60][stage]);
       // Subtle hit-confirm follow-step while leaving movement and dash under player control.
       if (!attacker.flying && stage < 3) attacker.vel.addScaledVector(attacker.forward(), 1.35);

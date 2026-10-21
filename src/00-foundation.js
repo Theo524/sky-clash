@@ -31,6 +31,9 @@ const TUNING = {
   // V49: short pursuit tied to the active strike frames; never full-screen homing.
   meleePursuitRange: 5.35, meleePursuitHeight: 4.0, meleePursuitGround: 2.65,
   meleePursuitAir: 3.5, meleePursuitSpeedGround: 17.5, meleePursuitSpeedAir: 20.0,
+  // V50: airborne extensions unlock ONLY after a confirmed ground launcher.
+  airFollowWindow: 1.35, airFollowRange: 7.8, airFollowHeight: 6.3,
+  airFollowBudget: 5.4, airFollowSpeed: 23.0,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
   awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,

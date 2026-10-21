@@ -323,8 +323,10 @@ const Game = {
     const bb = document.querySelector('.cbtn.blast');
     const mb = document.querySelector('.cbtn.melee');
     const step = p.t - p.lastMelee > TUNING.comboWindow ? 0 : p.combo;
-    mb.classList.toggle('combo-ready', step > 0 && p.stun <= 0);
-    $('meleeHint').textContent = step ? `${step + 1}/4 · ${step === 3 ? 'FINISH' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
+    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target && p.comboFollow.target.launched && !p.comboFollow.target.spiked;
+    mb.classList.toggle('combo-ready', (step > 0 || follow) && p.stun <= 0);
+    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : 'FINISH: METEOR KICK') :
+      step ? `${step + 1}/4 · ${step === 3 ? 'LAUNCHER' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
     bb.style.setProperty('--charge', p.charging ? Math.max(0.04, p.chargeLevel) : 0);
     bb.classList.toggle('charging', p.charging); bb.classList.toggle('full', p.chargeFull);
     // white "recent damage" bar drains after a short delay

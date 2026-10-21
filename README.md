@@ -1,4 +1,4 @@
-# Sky Clash V49 — Kairo Venn / Compact Dojo
+# Sky Clash V50 — Kairo Venn / Compact Dojo
 
 First character-profile milestone and a mobile training-interface fix, based on V47.
 
@@ -15,7 +15,14 @@ First character-profile milestone and a mobile training-interface fix, based on 
 The registry supplies **definitions**, but the current attack controller still implements Kairo's attacks. Adding an archer or ninja requires new motion/ability implementations and appropriate art; merely adding their names to the registry will not provide their abilities. Their move slots will share control semantics while using different attack handlers in a future iteration.
 
 ## Open world
-A future optional exploration mode is planned in concept only; **no open world is included** in V49. Separate combat stages and character-specific dojos remain intact.
+A future optional exploration mode is planned in concept only; **no open world is included** in V50. Separate combat stages and character-specific dojos remain intact.
 
 ## Release process
 Upload the extracted contents of the update ZIP to the repository root, preserving `js/`, `css/`, and `src/` paths, notably replacing `js/game.js`. Full-project ZIP is also provided.
+
+
+## V50 — Sky Combo
+
+Press **Melee** four times to complete Kairo's jab → cross → hook → rising-kick launcher. After the launcher **hits** an opponent, press **Melee** again within the follow-up window for a physical rising **Sky Uppercut**. If that uppercut connects, another **Melee** triggers the diving **Meteor Kick**, slamming the opponent down. The move requires proximity and height alignment; a missed launch does not unlock a chase. The Melee button displays the available follow-up.
+
+The new fight motion uses the existing CC0 Quaternius jump and kick leg clips, with hand-crafted uppercut and kick arm poses. Presses after the launch must be new inputs. The regular four-beat chain and dojo targets remain intact.

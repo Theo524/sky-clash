@@ -31,6 +31,9 @@ const TUNING = {
   // V49: short pursuit tied to the active strike frames; never full-screen homing.
   meleePursuitRange: 5.35, meleePursuitHeight: 4.0, meleePursuitGround: 2.65,
   meleePursuitAir: 3.5, meleePursuitSpeedGround: 17.5, meleePursuitSpeedAir: 20.0,
+  // V50: airborne extensions unlock ONLY after a confirmed ground launcher.
+  airFollowWindow: 1.35, airFollowRange: 7.8, airFollowHeight: 6.3,
+  airFollowBudget: 5.4, airFollowSpeed: 23.0,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
   awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
@@ -1414,13 +1417,21 @@ class AnimLayer {
         this.play(name, { from: 0, rate, end: name === 'qOverhand' ? 1.20 : name === 'qHook' ? c.d : name === 'jab' ? 0.65 : 0.76,
           mask: this.UPPER, noH: true, 
           fadeIn: 0.065, fadeOut: 0.14, blendOut: 0.14 });
+      } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'skyUppercut') {
+        // Rising legs from Quaternius; the fist is custom-posed so it actually
+        // travels upward, rather than using an unrelated punching clip.
+        this.play('qNinjaJumpStart', { from: 0.12, rate: 2.0, end: 0.53,
+          mask: this.LOWER, noH: true, fadeIn: 0.04, fadeOut: 0.12 });
+      } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'skyKick') {
+        this.play('airKick', { from: 0.08, rate: 1.68, end: 0.91,
+          mask: this.LOWER, noH: true, fadeIn: 0.055, fadeOut: 0.15 });
       } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'kick') {
         // Recorded kick from preparation through extension and recovery;
         // foot contact now matches the stage-4 damage window (~0.17s).
         const name = 'kick', c = Anim.clip(name);
         this.play(name, { from: 0, rate: 1.28, end: c.d,
           mask: grounded && hs < 1.2 ? null : this.UPPER, noH: true, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
-      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death') this.stop();
+      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.superHitT > 0 && p.superHitT <= 0) this.play('qHitKnockback', {
         from: 0.06, rate: 1.30, end: 0.70, mask: this.UPPER,
@@ -1713,7 +1724,7 @@ class Fighter {
     this.stamina = TUNING.staminaMax; this.staminaRestT = 0;
     this.exhausted = false; this.staminaNoticeT = 0;
     this.flightBlend = 0; this.flightSpeedBlend = 0; this.airBank = 0;
-    this.comboCycle = 0; this.attackVariant = 'hook';
+    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
     this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
@@ -1807,7 +1818,7 @@ class Fighter {
     this.pos.y = clamp(this.pos.y, this.floor, CEILING);
     this.facing = yawFromDir(foe.pos.x - this.pos.x, foe.pos.z - this.pos.z);
     this.model.root.rotation.y = this.facing;
-    this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.cancelCharge(); this.blocking = false;
+    this.vel.set(0, 0, 0); this.dashT = 0; this.chase = null; this.comboFollow = null; this.cancelCharge(); this.blocking = false;
     this.vanishT = TUNING.vanishHide; this.invulnT = Math.max(this.invulnT, TUNING.vanishInvuln);
     this.vanishCd = TUNING.vanishCooldown;
     this.acro = null; this.dashRecoverT = 0; this.skidT = 0;
@@ -1929,6 +1940,7 @@ class Fighter {
     }
     this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
+    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !this.comboFollow.target.launched || this.comboFollow.target.spiked)) this.comboFollow = null;
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
     if (this.kickPend) {
@@ -2066,7 +2078,7 @@ class Fighter {
       // frame. At impact the hands/feet strike where the opponent really is, not where
       // they were 150ms ago. After contact the character plants and recovers normally.
       const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' ? 0.47 : this.attackKind === 'hook' ? 0.48 : 0.42;
+      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
       const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
       const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
       const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
@@ -2081,8 +2093,9 @@ class Fighter {
         const height = foe.pos.y - this.pos.y;
         const moved = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z);
         const left = this.attackTravelBudget - moved;
-        const limit = TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
-        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0) && left > 0.06) {
+        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick';
+        const limit = follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
+        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
           pursuing = true;
           // A tiny lead follows strafing enemies, not a teleport toward future position.
           const lead = Math.min(0.11, Math.max(0.02, this.kickPend.t * 0.55));
@@ -2100,9 +2113,9 @@ class Fighter {
           this.attackTravel.copy(travel);
           // Close the gap before impact; match a retreating opponent within limits.
           const timeLeft = Math.max(0.11, this.kickPend.t);
-          const goal = this.attackKind === 'kick' ? 1.7 : 1.45;
+          const goal = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 1.7 : 1.45;
           const closing = Math.max(0, horizontal - goal) / timeLeft * 0.86;
-          const speedCap = this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
+          const speedCap = follow ? TUNING.airFollowSpeed : this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
           targetH = Math.min(speedCap, Math.max(targetH * 0.45, closing));
           targetH = Math.min(targetH, Math.max(0, left / Math.max(dt, 1 / 60)));
           const toFace = yawFromDir(dx, dz);
@@ -2111,7 +2124,7 @@ class Fighter {
           if (this.attackAir) {
             // Fly up/down toward the opponent *during the approach*; hand/foot contact
             // remains a small 3D hit volume and won't connect from several metres away.
-            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * 0.60, -14, 16);
+            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.85 : 0.60), follow ? -17 : -14, follow ? 22 : 16);
             this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
           }
         }
@@ -2478,7 +2491,7 @@ class Fighter {
     } else if (this.punchT > 0) {
       const total = this.attackTotal || 0.235;
       const progress = clamp(this.attackElapsed / total, 0, 1);
-      const contact = this.attackKind === 'kick' ? 0.48 : this.attackKind === 'hook' ? 0.49 : 0.43;
+      const contact = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
       const lift = smooth01(progress / contact);
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
@@ -2487,6 +2500,20 @@ class Fighter {
         B.arm = [[-0.3, 0.1, -0.2], [-0.8, 0.4, -1.6]];
         B.leg = [[-1.2, 1.9, 0.3], [-0.2, 1.4, 0.25]];
         B.spineX = 0.6; B.headX = -0.3; B.spineY = 0;
+      } else if (this.attackKind === 'skyUppercut') {
+        // A true vertical rising fist: elbow winds below the waist, fist drives
+        // above the head, torso and support leg rise with the attack.
+        const drive = smooth01(progress / 0.53);
+        B.arm[0] = [-0.48 - drive * 1.55, -0.14, -1.88 + drive * 1.55];
+        B.arm[1] = [-0.78, 0.42, -1.72];
+        B.leg[0] = [-0.42, 1.1, 0.09]; B.leg[1] = [0.24, 0.45, 0.08];
+        B.spineY = -0.18 + drive * 0.30; B.spineX = -0.16 + drive * 0.25; B.headX = -0.10;
+      } else if (this.attackKind === 'skyKick') {
+        // Fold the knee first, then drive the heel sharply down through target.
+        const snap = smooth01((progress - 0.22) / 0.30);
+        B.arm = [[-1.18, 0.33, -1.55], [-0.85, -0.20, -1.82]];
+        B.leg = [[-1.12 + snap * 1.48, 1.85 - snap * 1.68, 0.17], [-0.44, 1.24, 0.1]];
+        B.spineX = 0.27 + snap * 0.25; B.spineY = 0.12;
       } else if (this.attackKind === 'airStrike') {
         // Air finisher: forward driving elbow/knee with both feet tucked, never a rotating roundhouse.
         B.arm = [[-1.60,-0.12,-0.38],[-0.80,0.32,-1.76]];
@@ -2516,7 +2543,7 @@ class Fighter {
       }
       if (!flying) {
         const moveW = smooth01((this.attackDrive - 1.0) / 5.2) * (this.attackMoving ? 1 : 0.5);
-        if (moveW > 0.01) {
+        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick') {
           const sideBias = this.attackTravel ? (this.attackTravel.x * Math.cos(yaw) - this.attackTravel.z * Math.sin(yaw)) : 0;
           const step = { arm: [[-1.18, 0.22, -1.65], [-0.82, 0.14, -1.88]],
             leg: [[0.54, 0.98, 0.18], [-0.72, 0.62, 0.14]],
@@ -3148,6 +3175,19 @@ const Spectacle = (() => {
   function swing(f, stage) {
     if (!quality() || f.hp <= 0) return;
     const dir = f.forward(), col = f.awakened ? f.pal.aura : f.pal.ki;
+    if (stage === 4 || stage === 5) {
+      // A vertical streak follows the actual uppercut / axe-kick action.
+      // No enclosing ring and no long detached projectile trail.
+      const p = f.center.clone().addScaledVector(dir, 0.68);
+      const right = new V3(dir.z, 0, -dir.x);
+      const rise = stage === 4;
+      const a = p.clone().addScaledVector(right, rise ? -0.18 : 0.18);
+      const b = a.clone().add(new V3(0, rise ? 1.35 : -1.50, 0)).addScaledVector(dir, 0.36);
+      ribbon(a, b, col, rise ? 0.048 : 0.063, 0.16, 0.74);
+      if (Settings.get('quality') === 'high')
+        ribbon(a.clone().addScaledVector(right, 0.10), b.clone().addScaledVector(right, 0.08), 0xffffff, 0.018, 0.12, 0.52);
+      return;
+    }
     const base = f.center.clone().addScaledVector(dir, stage === 3 ? 0.92 : 0.74);
     base.y += stage === 3 ? -0.26 : stage === 2 ? 0.16 : 0.06;
     const side = stage % 2 ? -1 : 1;
@@ -3342,7 +3382,7 @@ const Combat = (() => {
     target.hurtT = 0;
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
-    target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0;
+    target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0; target.comboFollow = null;
     if (kind !== 'melee') { target.launched = target.launched && target.pos.y > target.floor + 0.5; }
     target.vel.copy(knock);
     target.dashT = 0;
@@ -3388,11 +3428,49 @@ const Combat = (() => {
     } else { Sound.play('block'); Effects.blockSpark(c); Game.hitStop(0.035); CameraRig.shake(0.12); }
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(15);
   }
+  // V50: An optional, input-confirmed aerial extension of a successful launcher.
+  // Unlike a free teleport, this is a bounded physical jump/flight pursuit.
+  function airFollow(attacker, target, phase) {
+    const kind = phase === 1 ? 'skyUppercut' : 'skyKick';
+    const t = target.pos.clone().sub(attacker.pos);
+    const h = Math.hypot(t.x, t.z);
+    if (h > TUNING.airFollowRange || Math.abs(t.y) > TUNING.airFollowHeight ||
+        !target.launched || target.spiked || target.hp <= 0) return false;
+    attacker.comboFollow = null; // Consume the opening; only a real hit unlocks the next one.
+    attacker.combo = 0;
+    attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0;
+    attacker.dashPrep = 0; attacker.dashRecoverT = 0; attacker.chase = null;
+    attacker.attackAir = true; attacker.attackMoving = true;
+    attacker.attackKind = kind; attacker.punchSide = 0;
+    attacker.attackTarget = target;
+    attacker.attackOrigin.copy(attacker.pos);
+    attacker.attackTravelBudget = TUNING.airFollowBudget;
+    attacker.attackTravel.copy(new V3(t.x, 0, t.z).lengthSq() > 0.01 ? new V3(t.x, 0, t.z).normalize() : attacker.forward());
+    attacker.attackDrive = TUNING.airFollowSpeed;
+    attacker.facing = lerpAngle(attacker.facing, yawFromDir(t.x, t.z), 0.8);
+    // A controlled rising chase; never warp the character's position.
+    if (phase === 1 && t.y > 0.7) attacker.vel.y = Math.max(attacker.vel.y, Math.min(15.5, 7 + t.y * 2));
+    const total = phase === 1 ? 0.57 : 0.63;
+    const contact = phase === 1 ? 0.29 : 0.30;
+    attacker.attackSerial++;
+    attacker.punchT = total; attacker.attackTotal = total; attacker.attackElapsed = 0;
+    attacker.meleeCd = total - 0.015;
+    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : 5,
+      counter: false, swingPlayed: false };
+    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : 'METEOR KICK', phase === 1 ? 'launch' : 'smash');
+    return true;
+  }
   // Four readable beats: jab > cross > turning hook > rising kick.
   // Input buffering happens in Game, contact is delayed until the corresponding active frame.
   function melee(attacker, target) {
     if (attacker.awakenChargeT > 0 || attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
     if (attacker.charging) attacker.cancelCharge();
+    const follow = attacker.comboFollow;
+    if (follow) {
+      if (attacker.t <= follow.until && follow.target === target &&
+          airFollow(attacker, target, follow.phase)) return;
+      attacker.comboFollow = null;
+    }
     if (attacker.t - attacker.lastMelee > TUNING.comboWindow) attacker.combo = 0;
     const stage = attacker.combo;
     if (stage === 0) attacker.comboCycle = (attacker.comboCycle || 0) + 1;
@@ -3458,15 +3536,31 @@ const Combat = (() => {
     const h = Math.hypot(toT.x, toT.z), y = Math.abs(toT.y);
     // A volumetric melee hitbox reaches opponents slightly above/below a flying
     // fighter, but cannot touch a faraway opponent just because they're locked on.
-    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (attacker.awakened ? 0.08 : 0);
-    const rise = attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
+    const follow = stage === 4 || stage === 5;
+    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.26 : 0) + (attacker.awakened ? 0.08 : 0);
+    const rise = follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
     if ((h / reach) ** 2 + (y / rise) ** 2 > 1 || h > reach || y > rise) return;
     const fwd = attacker.forward();
     if (h > 1.15 && fwd.dot(new V3(toT.x / h, 0, toT.z / h)) <= Math.cos(TUNING.meleeArc)) return;
-    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58][stage] * (counter ? 1.3 : 1);
+    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76][stage] * (counter ? 1.3 : 1);
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;
-    if (air && kick) {
+    if (air && stage === 5) {
+      const kd = fwd.clone();
+      result = hit(attacker, target, base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
+      if (result === 'hit') {
+        kickImpact(attacker, target, kd); target.spiked = true; target.stun = 1.65;
+        Game.callout('METEOR SMASH', 'smash'); Effects.flash(target.center, 0xffd166, 2.5, 0.14);
+      }
+    } else if (air && stage === 4) {
+      result = hit(attacker, target, base, fwd.multiplyScalar(2.6).setY(7.0), true);
+      if (result === 'hit') {
+        target.launched = true; target.spiked = false; target.juggle++;
+        target.stun = 0.83;
+        attacker.comboFollow = { target, phase: 2, until: attacker.t + TUNING.airFollowWindow };
+        Effects.flash(target.center, col, 1.65, 0.10);
+      }
+    } else if (air && kick) {
       const kd = fwd.clone();
       result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.spiked = true; target.stun = 2;
@@ -3479,15 +3573,17 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = hit(attacker, target, base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.launched = true; target.launchT = 0;
-        target.juggle = 0; target.stun = TUNING.launchStun; Effects.launchTrail(target);
-        if (attacker === Game.player) Game.callout('Launch!', 'launch'); }
+        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15); Effects.launchTrail(target);
+        // The player must press Melee again while the opponent is in the air.
+        attacker.comboFollow = { target, phase: 1, until: attacker.t + TUNING.airFollowWindow };
+        if (attacker === Game.player) Game.callout('LAUNCH · TAP MELEE TO FOLLOW', 'launch'); }
     } else {
       // Opening strikes keep opponents within range for a real four-hit chain.
       const push = [3.1, 4.0, 6.6][stage];
       result = hit(attacker, target, base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
     }
     if (result === 'hit') {
-      Spectacle.contact(attacker, target, stage, counter);
+      Spectacle.contact(attacker, target, stage <= 3 ? stage : stage === 4 ? 2 : 3, counter);
       if (stage < 3) target.stun = Math.max(target.stun, [0.45, 0.49, 0.60][stage]);
       // Subtle hit-confirm follow-step while leaving movement and dash under player control.
       if (!attacker.flying && stage < 3) attacker.vel.addScaledVector(attacker.forward(), 1.35);
@@ -4420,8 +4516,10 @@ const Game = {
     const bb = document.querySelector('.cbtn.blast');
     const mb = document.querySelector('.cbtn.melee');
     const step = p.t - p.lastMelee > TUNING.comboWindow ? 0 : p.combo;
-    mb.classList.toggle('combo-ready', step > 0 && p.stun <= 0);
-    $('meleeHint').textContent = step ? `${step + 1}/4 · ${step === 3 ? 'FINISH' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
+    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target && p.comboFollow.target.launched && !p.comboFollow.target.spiked;
+    mb.classList.toggle('combo-ready', (step > 0 || follow) && p.stun <= 0);
+    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : 'FINISH: METEOR KICK') :
+      step ? `${step + 1}/4 · ${step === 3 ? 'LAUNCHER' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
     bb.style.setProperty('--charge', p.charging ? Math.max(0.04, p.chargeLevel) : 0);
     bb.classList.toggle('charging', p.charging); bb.classList.toggle('full', p.chargeFull);
     // white "recent damage" bar drains after a short delay

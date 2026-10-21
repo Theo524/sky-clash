@@ -197,13 +197,21 @@ class AnimLayer {
         this.play(name, { from: 0, rate, end: name === 'qOverhand' ? 1.20 : name === 'qHook' ? c.d : name === 'jab' ? 0.65 : 0.76,
           mask: this.UPPER, noH: true, 
           fadeIn: 0.065, fadeOut: 0.14, blendOut: 0.14 });
+      } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'skyUppercut') {
+        // Rising legs from Quaternius; the fist is custom-posed so it actually
+        // travels upward, rather than using an unrelated punching clip.
+        this.play('qNinjaJumpStart', { from: 0.12, rate: 2.0, end: 0.53,
+          mask: this.LOWER, noH: true, fadeIn: 0.04, fadeOut: 0.12 });
+      } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'skyKick') {
+        this.play('airKick', { from: 0.08, rate: 1.68, end: 0.91,
+          mask: this.LOWER, noH: true, fadeIn: 0.055, fadeOut: 0.15 });
       } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && f.attackKind === 'kick') {
         // Recorded kick from preparation through extension and recovery;
         // foot contact now matches the stage-4 damage window (~0.17s).
         const name = 'kick', c = Anim.clip(name);
         this.play(name, { from: 0, rate: 1.28, end: c.d,
           mask: grounded && hs < 1.2 ? null : this.UPPER, noH: true, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
-      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death') this.stop();
+      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.superHitT > 0 && p.superHitT <= 0) this.play('qHitKnockback', {
         from: 0.06, rate: 1.30, end: 0.70, mask: this.UPPER,

@@ -45,6 +45,19 @@ const Spectacle = (() => {
   function swing(f, stage) {
     if (!quality() || f.hp <= 0) return;
     const dir = f.forward(), col = f.awakened ? f.pal.aura : f.pal.ki;
+    if (stage === 4 || stage === 5) {
+      // A vertical streak follows the actual uppercut / axe-kick action.
+      // No enclosing ring and no long detached projectile trail.
+      const p = f.center.clone().addScaledVector(dir, 0.68);
+      const right = new V3(dir.z, 0, -dir.x);
+      const rise = stage === 4;
+      const a = p.clone().addScaledVector(right, rise ? -0.18 : 0.18);
+      const b = a.clone().add(new V3(0, rise ? 1.35 : -1.50, 0)).addScaledVector(dir, 0.36);
+      ribbon(a, b, col, rise ? 0.048 : 0.063, 0.16, 0.74);
+      if (Settings.get('quality') === 'high')
+        ribbon(a.clone().addScaledVector(right, 0.10), b.clone().addScaledVector(right, 0.08), 0xffffff, 0.018, 0.12, 0.52);
+      return;
+    }
     const base = f.center.clone().addScaledVector(dir, stage === 3 ? 0.92 : 0.74);
     base.y += stage === 3 ? -0.26 : stage === 2 ? 0.16 : 0.06;
     const side = stage % 2 ? -1 : 1;
