@@ -109,6 +109,19 @@ const Game = {
     this.restart();
     this.banner('SKY CLASH','round');
   },
+  // Listen to actual Mixamo keyframes on the selected character, not a generic
+  // animation avatar. Preview is visual only and never creates a damaging hit.
+  previewDojoMotion(name) {
+    if(this.mode!=='dojo' || this.state!=='playing' || typeof SkyClashMixamo==='undefined' || !SkyClashMixamo.has(name))return false;
+    const fighter=this.player,layer=fighter?.vrmRig?.anim;
+    if(!layer){toast('The detailed fighter model is still loading');return false;}
+    if(fighter.punchT>0 || fighter.stun>0 || fighter.launched || fighter.downT>0){toast('Finish the current move first');return false;}
+    fighter.sprinting=false;fighter.sprintHeld=false;
+    const c=Anim.clip(name);
+    layer.play(name,{from:0,end:c.d,rate:1,mask:null,noH:true,fadeIn:0.13,fadeOut:0.24,blendOut:0.18});
+    toast('Animation preview · stay still to inspect');
+    return true;
+  },
   enterDojo() {
     this.mode='dojo';this.dojoRival=false;
     $('dojoRivalMode').value='solo';

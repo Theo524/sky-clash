@@ -1,0 +1,198 @@
+[
+  {
+    "id": "mxKJab",
+    "source": "boxing.zip/boxing/Lead Jab.fbx",
+    "duration_seconds": 1.5,
+    "frames": 46,
+    "sha256": "4387cd8d40f3960921bf257338a3a66dc54cbd567b8383eb651f4e4517381824"
+  },
+  {
+    "id": "mxKJabCross",
+    "source": "boxing.zip/boxing/Jab Cross.fbx",
+    "duration_seconds": 2.1333,
+    "frames": 65,
+    "sha256": "c193a806a413b16bb90b7236b979b95af102a914bf5c5265f18e6a37ed231f2c"
+  },
+  {
+    "id": "mxKCrossAlt",
+    "source": "boxing.zip/boxing/Jab Cross (1).fbx",
+    "duration_seconds": 1.9667,
+    "frames": 60,
+    "sha256": "c5a97b6d8560693baf24d568fa91706c6e61808492d3243681756f7ebcac9474"
+  },
+  {
+    "id": "mxKHook",
+    "source": "boxing.zip/boxing/Hook.fbx",
+    "duration_seconds": 2.9333,
+    "frames": 89,
+    "sha256": "846be1d869900f8105464f6d7323468c38af04292e673736bb37547479ee3767"
+  },
+  {
+    "id": "mxKCombo",
+    "source": "boxing.zip/boxing/Punch Combo.fbx",
+    "duration_seconds": 2.2,
+    "frames": 67,
+    "sha256": "f4ef9d2d1f18ba257091f6b5431c74e1be8b4fb61327ece90d64a95ae94a4738"
+  },
+  {
+    "id": "mxKComboAlt",
+    "source": "boxing.zip/boxing/Combo Punch.fbx",
+    "duration_seconds": 2.9667,
+    "frames": 90,
+    "sha256": "10c92b31bde1bd82e7a0c85519214c3b21a7485da9b29610bcbeb03c38e89070"
+  },
+  {
+    "id": "mxKBodyCross",
+    "source": "boxing.zip/boxing/Body Jab Cross.fbx",
+    "duration_seconds": 2.2,
+    "frames": 67,
+    "sha256": "a84209927dc29d49a425db28d8ae1555670573293ffffa36e30feb104e87a50b"
+  },
+  {
+    "id": "mxKElbow",
+    "source": "boxing.zip/boxing/Elbow Punch.fbx",
+    "duration_seconds": 1.7333,
+    "frames": 53,
+    "sha256": "cd597d501d83581c391a139a83603c6c602a95cfdb283a955c061080850e9c32"
+  },
+  {
+    "id": "mxKIdle",
+    "source": "boxing.zip/boxing/Fighting Idle.fbx",
+    "duration_seconds": 3.3,
+    "frames": 100,
+    "sha256": "68c79b8628c1150dbf83fb0cf9411074a897b2c888ea46a5a3fe8bb50d1d94f6"
+  },
+  {
+    "id": "mxKDodge",
+    "source": "boxing.zip/boxing/Dodging.fbx",
+    "duration_seconds": 2.2333,
+    "frames": 68,
+    "sha256": "db290869644cc52ff7f47a13c63ea04b6fb4cd2e759897f7dc4e1e7bab194285"
+  },
+  {
+    "id": "mxKStepBack",
+    "source": "boxing.zip/boxing/Step Backward.fbx",
+    "duration_seconds": 0.8333,
+    "frames": 26,
+    "sha256": "9ac4298f9d8cd0cb86ee3e520cb75703f68534ffe9cfda5995c7a1378f1d384c"
+  },
+  {
+    "id": "mxKHit",
+    "source": "boxing.zip/boxing/Hit Reaction.fbx",
+    "duration_seconds": 1.6,
+    "frames": 49,
+    "sha256": "103c84ecf65ce2b2c7643e6f5f0dd3cdcff98934373308d8e069713b4f11fed2"
+  },
+  {
+    "id": "mxKUpperHit",
+    "source": "boxing.zip/boxing/Receive Uppercut To The Face.fbx",
+    "duration_seconds": 1.2333,
+    "frames": 38,
+    "sha256": "d5efbb28cb5d53203eefa8c5373d1e350c025a0154920b53a8bea10c2dbc1d03"
+  },
+  {
+    "id": "mxRRoundhouse",
+    "source": "kicking.zip/kicking/Roundhouse Kick.fbx",
+    "duration_seconds": 2.5,
+    "frames": 76,
+    "sha256": "62b0d0647aecfd5128ba9f90ffaa5dc554c4888e5a0529c3fc2fc625dfecc3e4"
+  },
+  {
+    "id": "mxRSideKick",
+    "source": "kicking.zip/kicking/Side Kick.fbx",
+    "duration_seconds": 2.0,
+    "frames": 61,
+    "sha256": "ea0a3f70872137ea64a349701d079b7371e04fac43828ccb5ee94c7227438fca"
+  },
+  {
+    "id": "mxRSweep",
+    "source": "kicking.zip/kicking/Leg Sweep.fbx",
+    "duration_seconds": 2.3333,
+    "frames": 71,
+    "sha256": "369908ee58ca256d904203e1e995292e17348782391f51ff2277e55d01ff232a"
+  },
+  {
+    "id": "mxRSpinFlip",
+    "source": "kicking.zip/kicking/Spin Flip Kick.fbx",
+    "duration_seconds": 3.7,
+    "frames": 112,
+    "sha256": "b4dd3995ece80269b421fee69da34cfcfba7502262e19ec789e1cc8874c5f552"
+  },
+  {
+    "id": "mxRFlipKick",
+    "source": "kicking.zip/kicking/Flip Kick.fbx",
+    "duration_seconds": 2.8,
+    "frames": 85,
+    "sha256": "97edd2802093359c827b7ee09339e196e112e54393d908bbccc35ee60a62061c"
+  },
+  {
+    "id": "mxRKick",
+    "source": "kicking.zip/kicking/Kicking.fbx",
+    "duration_seconds": 2.2,
+    "frames": 67,
+    "sha256": "54b0cb3f78f926621b1dc65b0905e18b72f24755a5b9f6b1341b861993662869"
+  },
+  {
+    "id": "mxRDoubleKick",
+    "source": "kicking.zip/kicking/Inverted Double Kick To Kip Up.fbx",
+    "duration_seconds": 3.2,
+    "frames": 97,
+    "sha256": "18f802022d65589ece3ebe0ef5f88a8f36ef0934365a0552d48006f1ce1ac035"
+  },
+  {
+    "id": "mxRNinjaIdle",
+    "source": "ninja.zip/ninja/Ninja Idle.fbx",
+    "duration_seconds": 3.3333,
+    "frames": 101,
+    "sha256": "f1dc8e8226b3dd2ae7e659f85798bd4ce34cac8bfa46cdbf3ee6eb59a9a04baf"
+  },
+  {
+    "id": "mxRNinjaIdleAlt",
+    "source": "ninja.zip/ninja/Ninja Idle (1).fbx",
+    "duration_seconds": 9.1667,
+    "frames": 276,
+    "sha256": "d84061c6cf1e773d6e68dc16ef13c79606f7078491563293f9ba52247bfde0a2"
+  },
+  {
+    "id": "mxRSneak",
+    "source": "ninja.zip/ninja/Sneak Walk.fbx",
+    "duration_seconds": 0.9,
+    "frames": 28,
+    "sha256": "09b0053c42db2b4865697e9a4cce3dd9501350c43a43df8c0b99f3b07bb582c4"
+  },
+  {
+    "id": "mxRDodgeArc",
+    "source": "ninja.zip/ninja/Running Arc.fbx",
+    "duration_seconds": 0.6,
+    "frames": 19,
+    "sha256": "51e636f1fa1894844b17c9faf297c48f2886185566ee82047f66a5c6e8bfcd0d"
+  },
+  {
+    "id": "mxRBackward",
+    "source": "ninja.zip/ninja/Running Backward.fbx",
+    "duration_seconds": 0.5333,
+    "frames": 17,
+    "sha256": "bb329ea04c6fd1df6e1df9ec4e73adf9f9e0980759956b368b60b8dfd7b49107"
+  },
+  {
+    "id": "mxRCapoSweep",
+    "source": "Capoeira Pack.zip/rasteira 1.fbx",
+    "duration_seconds": 1.8667,
+    "frames": 57,
+    "sha256": "e3ac1136c322cb61d7837a45ee296cc7a4490c48013057dd7bc91d472e22bd99"
+  },
+  {
+    "id": "mxRCapoSpin",
+    "source": "Capoeira Pack.zip/armada.fbx",
+    "duration_seconds": 1.6333,
+    "frames": 50,
+    "sha256": "f48e46ef6ca50d3c6b9fde9b024d143d85df9ec661dc1b63ea4c5bc1146592b9"
+  },
+  {
+    "id": "mxRCapoStep",
+    "source": "Capoeira Pack.zip/esquiva 2.fbx",
+    "duration_seconds": 2.2333,
+    "frames": 68,
+    "sha256": "443e3b62951541cea35a80055dce600fcacb902185e42652c97641abfdf53efd"
+  }
+]

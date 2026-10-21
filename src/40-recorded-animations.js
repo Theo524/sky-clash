@@ -92,6 +92,36 @@ class AnimLayer {
     this.one = { name, t: opts.from || 0, rate: opts.rate || 1, end: opts.end != null ? opts.end : c.d, loop: !!opts.loop,
       from0: opts.from || 0, warp: !!opts.warp, mask: opts.mask || null, w: 0, fadeIn: opts.fadeIn || 0.07, fadeOut: opts.fadeOut || 0.14, hold: !!opts.hold, noH: !!opts.noH, done: false };
   }
+  // V54: attacks use the same gameplay contact time as their mocap's peak.
+  // Scrubbing across two time segments keeps anticipation readable, even when
+  // the original 2-3 second Mixamo clip is performed in a 0.4s combo slot.
+  playStrike() {
+    if (typeof SkyClashMixamo === 'undefined') return false;
+    const f=this.f, ninja=f.characterId==='rin_sable';
+    const kinds = ninja ? {
+      ninjaPalm: ['mxKJab',0.10,0.77,1.26,'upper'],
+      ninjaElbow: ['mxKElbow',0.04,0.82,1.46,'upper'],
+      ninjaSpin: ['mxRRoundhouse',0.20,1.31,2.12,'full']
+    } : {
+      punch: f.punchSide===1 ? ['mxKJab',0.10,0.77,1.26,'upper'] : ['mxKJabCross',0.20,1.02,1.64,'upper'],
+      hook: f.attackVariant==='overhand' ? ['mxKComboAlt',0.20,1.12,1.89,'upper'] : ['mxKHook',0.20,1.36,2.28,'upper'],
+      kick: ['mxRRoundhouse',0.20,1.31,2.12,'full'],
+      airStrike: ['mxKElbow',0.04,0.82,1.46,'upper']
+    };
+    const spec=kinds[f.attackKind];
+    if (!spec || !SkyClashMixamo.has(spec[0])) return false;
+    const [name,from,contact,end,body]=spec;
+    // Preserve grounded locomotion and foot locking during short punches.
+    // Kicks receive the entire recorded leg/torso motion, but not FBX root motion.
+    const mask=body==='upper' ? this.UPPER : null;
+    const total=Math.max(0.1,f.attackTotal || f.punchT);
+    const hitAt=f.kickPend && f.kickPend.t > 0 ?
+      Math.min(total-0.03,Math.max(0.055,f.attackElapsed+f.kickPend.t)) : total*0.45;
+    this.play(name,{ from, end,rate:1,mask,noH:true,fadeIn:0.055,
+      fadeOut:body==='full'?0.18:0.13,blendOut:0.12 });
+    this.one.sync={from,contact,end,hitAt,total,serial:f.attackSerial};
+    return true;
+  }
   stop() { if (this.one) this.one.done = true; }
   // scale the swing of thighs and upper arms (relative to their parent) by k, keeping the rest of each chain attached
   stretch(P, k) {
@@ -158,11 +188,12 @@ class AnimLayer {
   // glowing streak behind the striking fist / foot during the active frames
   strikeTrail(dt) {
     const o = this.one, f = this.f;
-    if (!o || o.done || !(o.name === 'jab' || o.name === 'cross' || o.name === 'qHook' || (o.name === 'qOverhand' && f.punchT > 0) || o.name === 'kick' || o.name === 'airKick')) { this.trailP = null; return; }
+    const imported=!!(o && o.sync && o.name.startsWith('mx'));
+    if (!o || o.done || !(imported || o.name === 'jab' || o.name === 'cross' || o.name === 'qHook' || (o.name === 'qOverhand' && f.punchT > 0) || o.name === 'kick' || o.name === 'airKick')) { this.trailP = null; return; }
     const c = Anim.clip(o.name);
-    const hit = o.name === 'qHook' ? 0.24 : o.name === 'qOverhand' ? 0.59 : c.imp;
-    if (o.t < hit - 0.12 || o.t > hit + (o.name.includes('ick') ? 0.14 : 0.06)) { this.trailP = null; return; }
-    const H = this.rig.vrm.humanoid, kick = o.name.includes('ick');
+    const hit = imported ? o.sync.contact : o.name === 'qHook' ? 0.24 : o.name === 'qOverhand' ? 0.59 : c.imp;
+    if (imported ? Math.abs(f.attackElapsed-o.sync.hitAt) > 0.095 : (o.t < hit-0.12 || o.t > hit+(o.name.includes('ick') ? 0.14 : 0.06))) { this.trailP=null; return; }
+    const H = this.rig.vrm.humanoid, kick = imported ? /Kick|Roundhouse|Sweep|Spin/.test(o.name) : o.name.includes('ick');
     const ends = kick ? ['leftFoot', 'rightFoot'] : ['leftHand', 'rightHand'];
     const fw = f.forward(), hips = (this._hp || (this._hp = new V3())).copy(f.pos);
     let best = null, bd = -1e9; const v = this._tv || (this._tv = new V3());
@@ -189,7 +220,9 @@ class AnimLayer {
     else if (f.hp > 0 && p.hp <= 0) this.one = null;
     const dying = f.hp <= 0;
     if (!dying) {
-      if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && (f.attackKind === 'punch' || f.attackKind === 'hook' || f.attackKind === 'airStrike')) {
+      if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && this.playStrike()) {
+        this.lastRecordedAction='v54-mixamo-'+f.attackKind;
+      } else if (f.punchT > 0 && f.attackSerial !== this.lastAttackSerial && (f.attackKind === 'punch' || f.attackKind === 'hook' || f.attackKind === 'airStrike')) {
         const name = f.attackKind === 'airStrike' ? 'cross' : f.attackKind === 'hook' ? (f.attackVariant === 'overhand' ? 'qOverhand' : 'qHook') : (f.punchSide === 1 ? 'jab' : 'cross'), c = Anim.clip(name);
         // V36: play the actual preparation + contact + follow-through, not just
         // the last frames near impact. Clip speeds match Combat.melee's hit delays.
@@ -250,10 +283,17 @@ class AnimLayer {
         // Free Quaternius UAL2 dash clips: lower-body-only, so the character keeps
         // a bare-handed guard, never a fictitious sword/shield pose.
         this.evadeCount++;
-        const step = this.evadeCount % 2 ? 'qShieldDash' : 'qSwordDash';
-        this.play(step, { from: 0.08, rate: step === 'qShieldDash' ? 3.15 : 3.95,
-          end: step === 'qShieldDash' ? 0.94 : 1.19, mask: this.LOWER,
-          fadeIn: 0.04, fadeOut: 0.12, noH: true, blendOut: 0.11 });
+        const step = f.characterId==='rin_sable' ? 'mxRDodgeArc' : 'mxKStepBack';
+        if (typeof SkyClashMixamo !== 'undefined' && SkyClashMixamo.has(step)) {
+          const cd=Anim.clip(step);
+          this.play(step,{from:0,rate:Math.max(1.3,cd.d/0.38),end:cd.d,mask:this.LOWER,
+            fadeIn:0.045,fadeOut:0.11,noH:true,blendOut:0.12});
+        } else {
+          const fallback=this.evadeCount % 2 ? 'qShieldDash' : 'qSwordDash';
+          this.play(fallback, { from: 0.08, rate: fallback === 'qShieldDash' ? 3.15 : 3.95,
+            end: fallback === 'qShieldDash' ? 0.94 : 1.19, mask: this.LOWER,
+            fadeIn: 0.04, fadeOut: 0.12, noH: true, blendOut: 0.11 });
+        }
         this.lastRecordedAction = 'side-step';
       }
       // A running skid uses the Library 2 slide sequence instead of generic knee bending.
@@ -332,6 +372,16 @@ class AnimLayer {
     // standing: boxing guard (last frame of the punch-ready clip) with a slow breath
     if (f.awakenChargeT <= 0 && (this.locoLeg > 0.001 || this.locoUp > 0.001) && moveW < 0.999) {
       const S = Anim.sample('punchEnter', 0.86, false, this.tmp2 || (this.tmp2 = Anim.pose()));
+      // V54: Kairo keeps a boxer guard; Rin settles into a separate ninja pose.
+      // Upper-only blend leaves feet on the floor and preserves V53 ninja sprint.
+      if (typeof SkyClashMixamo !== 'undefined') {
+        const idle = f.characterId==='rin_sable'?'mxRNinjaIdle':'mxKIdle';
+        if (SkyClashMixamo.has(idle)) {
+          const c=Anim.clip(idle);
+          Anim.blend(S,Anim.sample(idle,(f.t*0.68)%c.d,true,this.tmpIdle || (this.tmpIdle=Anim.pose())),
+            f.characterId==='rin_sable'?0.75:0.50,this.UPPER);
+        }
+      }
       const br = this._br || (this._br = new THREE.Quaternion());
       br.setFromAxisAngle(this._X || (this._X = new V3(1, 0, 0)), Math.sin(f.t * 2.2) * 0.025);
       for (let i = 1; i < Anim.NB; i++) if (this.UPPER[i]) S.q[i].premultiply(br);
@@ -363,7 +413,16 @@ class AnimLayer {
       // kicks: snap out, hang a beat at full extension, then a slower follow-through back to guard
       let w = 1;
       if (o.warp) { const r = o.t - Anim.clip(o.name).imp; w = r < 0 ? 1 : r < 0.09 ? 0.4 : 0.85; }
-      o.t += dt * o.rate * w;
+      if (o.sync && f.attackSerial===o.sync.serial && f.punchT>0) {
+        const sy=o.sync, elapsed=clamp(f.attackElapsed,0,sy.total);
+        if (elapsed <= sy.hitAt) {
+          const u=clamp(elapsed/Math.max(0.001,sy.hitAt),0,1);
+          o.t=sy.from+(sy.contact-sy.from)*u;
+        } else {
+          const u=clamp((elapsed-sy.hitAt)/Math.max(0.001,sy.total-sy.hitAt),0,1);
+          o.t=sy.contact+(sy.end-sy.contact)*u;
+        }
+      } else o.t += dt * o.rate * w;
     }
     let oneW = 0;
     if (o) {

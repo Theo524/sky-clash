@@ -28,5 +28,5 @@ assert(!controller.includes("if (this.jumpsUsed === 2) this.startAcro('flip'"));
 for(const n of ['ninjaPalm','ninjaElbow','ninjaSpin','ninjaRising'])assert(combat.includes(n)&&controller.includes(n));
 assert(anim.includes("const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing)"));
 assert(game.includes('rinSource')&&game.includes('ninja:true,scale:1.075'));
-assert(html.includes('V53')&&html.includes('js/game.js?v=53'));
+assert(html.includes('V54')&&html.includes('js/game.js?v=54'));
 console.log('V53 uploaded VRoid Sample C, masked ninja, unique strikes, walk/sprint, smooth second jump verified');

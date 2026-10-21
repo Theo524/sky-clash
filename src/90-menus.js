@@ -49,6 +49,20 @@ const Menus = (() => {
   document.addEventListener('pointerdown',e=>{if(!dojoTools.contains(e.target))closeDojoTools();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDojoTools();});
     $('dojoRivalMode').addEventListener('change', e => { Game.setDojoRival(e.target.value); closeDojoTools(); });
+  // V54 motion lab: evaluate any of the selected baked Mixamo clips on the real
+  // player VRM in the dojo; no new combat inputs or attack collisions involved.
+  const motionSelect=$('dojoMotion');
+  if(motionSelect && typeof SkyClashMixamo !== 'undefined') {
+    for(const [id,clip] of Object.entries(SkyClashMixamo.clips)) {
+      const opt=document.createElement('option');opt.value=id;
+      opt.textContent=(id.startsWith('mxK')?'Kairo · ':'Rin · ')+clip.source.replace(/^.*\//,'').replace(/\.fbx$/i,'');
+      motionSelect.appendChild(opt);
+    }
+    motionSelect.value='mxKJab';
+  }
+  $('dojoPreviewMotion').addEventListener('click',()=>{
+    if(Game.previewDojoMotion(motionSelect.value))closeDojoTools();
+  });
   $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); closeDojoTools(); });
   $('dojoHomeBtn').addEventListener('click', () => { closeDojoTools(); Game.returnHome(); });
   $('homeBtn').addEventListener('click', () => Game.returnHome());

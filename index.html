@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V53 — Rin Reborn Update</title>
-<link rel="stylesheet" href="css/game.css?v=53">
+<title>Sky Clash V54 — Recorded Combat</title>
+<link rel="stylesheet" href="css/game.css?v=54">
 </head>
 <body>
 <div id="game"></div>
@@ -41,6 +41,10 @@
         <option value="attacks">Sparring fighter</option>
       </select>
     </label>
+    <label class="dojo-select">Animation testing room · V54
+      <select id="dojoMotion" aria-label="Choose recorded fighter animation"></select>
+    </label>
+    <div class="dojo-panel-actions"><button id="dojoPreviewMotion" title="Play the selected animation on your fighter">▶ Preview motion</button></div>
     <div class="dojo-panel-actions">
       <button id="dojoResetBtn" title="Reset bags and targets">Reset props</button>
       <button id="dojoHomeBtn" title="Return to main menu">Go home</button>
@@ -101,7 +105,7 @@
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
     <div class="home-identity"><span class="home-eyebrow">CHARACTER SELECT · KAIRO / RIN</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">V53 / DETAILED RIN</div>
+    <div class="home-menu"><div class="home-version">V54 / RECORDED COMBAT</div>
       <div class="character-select" role="group" aria-label="Choose your fighter">
         <button type="button" class="char-choice selected" data-hero="kairo_venn" aria-pressed="true"><b>KAIRO VENN</b><small>Martial artist · Flight · Energy</small></button>
         <button type="button" class="char-choice" data-hero="rin_sable" aria-pressed="false"><b>RIN SABLE</b><small>Ninja · Double Jump · Shurikens</small></button>
@@ -111,7 +115,7 @@
       <button class="home-action" id="titleSettingsBtn"><span class="action-number">03</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
       <div class="home-tip" id="heroTip">KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.</div>
     </div>
-    <div class="home-footer">2 PLAYABLE FIGHTERS · V53 <span>SKY CLASH / TRAINING GROUNDS</span></div>
+    <div class="home-footer">2 PLAYABLE FIGHTERS · V54 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
 
@@ -263,6 +267,6 @@ return{progress,finish};})();
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=53"></script>
+<script src="js/game.js?v=54"></script>
 </body>
 </html>
