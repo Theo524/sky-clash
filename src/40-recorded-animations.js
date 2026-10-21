@@ -211,7 +211,7 @@ class AnimLayer {
         const name = 'kick', c = Anim.clip(name);
         this.play(name, { from: 0, rate: 1.28, end: c.d,
           mask: grounded && hs < 1.2 ? null : this.UPPER, noH: true, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
-      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick') this.stop();
+      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick' && f.attackKind !== 'fallingFist') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.superHitT > 0 && p.superHitT <= 0) this.play('qHitKnockback', {
         from: 0.06, rate: 1.30, end: 0.70, mask: this.UPPER,

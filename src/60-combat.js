@@ -69,11 +69,13 @@ const Combat = (() => {
   // V50: An optional, input-confirmed aerial extension of a successful launcher.
   // Unlike a free teleport, this is a bounded physical jump/flight pursuit.
   function airFollow(attacker, target, phase) {
-    const kind = phase === 1 ? 'skyUppercut' : 'skyKick';
+    const kind = phase === 1 ? 'skyUppercut' : phase === 2 ? 'skyKick' : 'fallingFist';
     const t = target.pos.clone().sub(attacker.pos);
     const h = Math.hypot(t.x, t.z);
-    if (h > TUNING.airFollowRange || Math.abs(t.y) > TUNING.airFollowHeight ||
-        !target.launched || target.spiked || target.hp <= 0) return false;
+    const groundedFinish = phase === 3;
+    if (h > (groundedFinish ? TUNING.groundFollowRange : TUNING.airFollowRange) ||
+        Math.abs(t.y) > (groundedFinish ? TUNING.groundFollowHeight : TUNING.airFollowHeight) ||
+        target.hp <= 0 || (groundedFinish ? target.meteorWindow <= 0 || target.spiked : !target.launched || target.spiked)) return false;
     attacker.comboFollow = null; // Consume the opening; only a real hit unlocks the next one.
     attacker.combo = 0;
     attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0;
@@ -82,20 +84,21 @@ const Combat = (() => {
     attacker.attackKind = kind; attacker.punchSide = 0;
     attacker.attackTarget = target;
     attacker.attackOrigin.copy(attacker.pos);
-    attacker.attackTravelBudget = TUNING.airFollowBudget;
+    attacker.attackTravelBudget = groundedFinish ? 6.5 : TUNING.airFollowBudget;
     attacker.attackTravel.copy(new V3(t.x, 0, t.z).lengthSq() > 0.01 ? new V3(t.x, 0, t.z).normalize() : attacker.forward());
     attacker.attackDrive = TUNING.airFollowSpeed;
     attacker.facing = lerpAngle(attacker.facing, yawFromDir(t.x, t.z), 0.8);
     // A controlled rising chase; never warp the character's position.
     if (phase === 1 && t.y > 0.7) attacker.vel.y = Math.max(attacker.vel.y, Math.min(15.5, 7 + t.y * 2));
-    const total = phase === 1 ? 0.57 : 0.63;
-    const contact = phase === 1 ? 0.29 : 0.30;
+    if (groundedFinish) { attacker.vel.y = Math.min(attacker.vel.y, t.y < -1 ? -24 : -4); target.meteorWindow = 0; }
+    const total = phase === 1 ? 0.57 : phase === 2 ? 0.63 : 0.81;
+    const contact = phase === 1 ? 0.29 : phase === 2 ? 0.30 : 0.53;
     attacker.attackSerial++;
     attacker.punchT = total; attacker.attackTotal = total; attacker.attackElapsed = 0;
     attacker.meleeCd = total - 0.015;
-    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : 5,
+    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : phase === 2 ? 5 : 6,
       counter: false, swingPlayed: false };
-    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : 'METEOR KICK', phase === 1 ? 'launch' : 'smash');
+    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : phase === 2 ? 'METEOR KICK' : 'FALLING FIST', phase === 1 ? 'launch' : 'smash');
     return true;
   }
   // Four readable beats: jab > cross > turning hook > rising kick.
@@ -145,8 +148,9 @@ const Combat = (() => {
     attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
-    const cd = [0.43, 0.51, 0.69, 0.88][stage];
-    const anim = [0.42, 0.50, 0.68, 0.87][stage];
+    const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
+    const cd = [0.43, 0.51, 0.69, 0.88][stage] * agile;
+    const anim = [0.42, 0.50, 0.68, 0.87][stage] * agile;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -158,7 +162,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage], kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage] * agile, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -174,20 +178,31 @@ const Combat = (() => {
     const h = Math.hypot(toT.x, toT.z), y = Math.abs(toT.y);
     // A volumetric melee hitbox reaches opponents slightly above/below a flying
     // fighter, but cannot touch a faraway opponent just because they're locked on.
-    const follow = stage === 4 || stage === 5;
-    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.26 : 0) + (attacker.awakened ? 0.08 : 0);
-    const rise = follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
+    const follow = stage >= 4;
+    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.48 : 0) + (attacker.awakened ? 0.08 : 0);
+    const rise = stage === 6 ? 2.4 : follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
     if ((h / reach) ** 2 + (y / rise) ** 2 > 1 || h > reach || y > rise) return;
     const fwd = attacker.forward();
     if (h > 1.15 && fwd.dot(new V3(toT.x / h, 0, toT.z / h)) <= Math.cos(TUNING.meleeArc)) return;
-    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76][stage] * (counter ? 1.3 : 1);
+    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76, 2.35][stage] * (counter ? 1.3 : 1);
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;
-    if (air && stage === 5) {
+    if (stage === 6 && target.meteorSource === attacker && target.downT > 0) {
+      result = hit(attacker, target, base, fwd.clone().multiplyScalar(5).setY(0), true);
+      if (result === 'hit') {
+        target.meteorSource = null; target.meteorWindow = 0; target.downT = Math.max(target.downT, 0.72);
+        target.stun = Math.max(target.stun, 0.95);
+        Effects.meteorCrater(target.pos, col, true);
+        Effects.flash(target.center, 0xffffff, 4.2, 0.12);
+        Game.hitStop(0.115); CameraRig.shake(attacker === Game.player ? 0.41 : 0.27);
+        if (attacker === Game.player) Game.callout('FALLING FIST · FINISH!', 'smash');
+      }
+    } else if (air && stage === 5) {
       const kd = fwd.clone();
       result = hit(attacker, target, base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') {
         kickImpact(attacker, target, kd); target.spiked = true; target.stun = 1.65;
+        target.meteorSource = attacker; target.meteorWindow = 0;
         Game.callout('METEOR SMASH', 'smash'); Effects.flash(target.center, 0xffd166, 2.5, 0.14);
       }
     } else if (air && stage === 4) {
@@ -230,6 +245,15 @@ const Combat = (() => {
       if (counter) { target.stun = Math.max(target.stun, 0.63); attacker.energy = Math.min(100, attacker.energy + 5); }
     }
   }
+  function onMeteorLanding(victim) {
+    const attacker = victim.meteorSource;
+    if (!attacker || attacker.hp <= 0 || victim.hp <= 0 || attacker.stun > 0) { victim.meteorSource = null; return; }
+    victim.meteorWindow = TUNING.groundFollowWindow;
+    victim.downT = Math.max(victim.downT, TUNING.groundFollowWindow + 0.15);
+    victim.stun = Math.max(victim.stun, TUNING.groundFollowWindow + 0.18);
+    attacker.comboFollow = { target: victim, phase: 3, until: attacker.t + TUNING.groundFollowWindow };
+    if (attacker === Game.player) Game.callout('GROUND IMPACT · TAP MELEE!', 'smash');
+  }
   // kick connects: longer freeze, bigger shake, a shockwave facing the kick and a burst of sparks thrown along it
   function kickImpact(attacker, target, dir) {
     const c = target.center, col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
@@ -238,7 +262,36 @@ const Combat = (() => {
     CameraRig.shake(attacker === Game.player ? 0.55 : 0.6);
     if (attacker === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(45);
   }
+  function shuriken(attacker,target,aimMode,lvl=0) {
+    const cost=9+17*lvl;
+    if(attacker.awakenChargeT>0||attacker.blastCd>0||attacker.stun>0||attacker.energy<cost) return;
+    attacker.cancelCharge();attacker.energy-=cost;attacker.blastCd=.31+lvl*.22;
+    attacker.blastT=.24;attacker.blastLvl=lvl;
+    const origin=attacker.center.addScaledVector(attacker.forward(),.95);
+    const dir=aimMode==='target'?target.center.sub(origin).normalize():attacker.forward();
+    const n=lvl>.72?3:1;
+    for(let k=0;k<n;k++) {
+      const a=(k-(n-1)*.5)*.14;
+      const direction=dir.clone().applyAxisAngle(new V3(0,1,0),a).normalize();
+      const shape=new THREE.Shape();
+      for(let j=0;j<16;j++) {
+        const phi=j/16*TAU,r=j%4===0?.49:j%2===0?.19:.27;
+        if(j===0)shape.moveTo(Math.cos(phi)*r,Math.sin(phi)*r);
+        else shape.lineTo(Math.cos(phi)*r,Math.sin(phi)*r);
+      }
+      shape.closePath();
+      const mesh=new THREE.Mesh(new THREE.ShapeGeometry(shape),new THREE.MeshBasicMaterial({color:attacker.awakened?0xe6d2ff:0x9d88d2,side:THREE.DoubleSide}));
+      mesh.position.copy(origin).addScaledVector(direction,k*.10);
+      mesh.quaternion.setFromUnitVectors(new V3(0,0,1),direction);
+      scene.add(mesh);
+      projectiles.push({type:'shuriken',mesh,owner:attacker,target,color:attacker.pal.ki,lvl,
+        vel:direction.multiplyScalar(38+lvl*9),dmg:(7+lvl*6)*damageMul(attacker)/Math.sqrt(n),life:1.4,wakeT:0});
+    }
+    Sound.play('blast');
+    if(attacker===Game.player && lvl>.72)Game.callout('SHADOW VOLLEY','launch');
+  }
   function blast(attacker, target, aimMode, lvl = 0) {
+    if(attacker.characterId==='rin_sable') return shuriken(attacker,target,aimMode,lvl);
     const cost = TUNING.blastCost + TUNING.chargeCost * lvl;
     if (attacker.awakenChargeT > 0 || attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
     attacker.cancelCharge();
@@ -317,6 +370,20 @@ const Combat = (() => {
       const p = projectiles[i];
       const previousPosition = p.mesh.position.clone();
       p.mesh.position.addScaledVector(p.vel, dt); p.life -= dt;
+      if(p.type==='shuriken') {
+        p.mesh.rotateZ(dt*27);
+        p.wakeT-=dt;
+        if(p.wakeT<=0){p.wakeT=.055;Effects.trail(p.mesh.position,p.color,.34);}
+        let dead=p.life<=0||p.mesh.position.y<0||Math.hypot(p.mesh.position.x,p.mesh.position.z)>ARENA_RADIUS+20;
+        if(!dead&&Game.mode==='dojo'&&Dojo.hitBlast(previousPosition,p.mesh.position,p.lvl)){
+          Effects.sparks(p.mesh.position,p.color,5);dead=true;
+        }
+        if(!dead&&(Game.mode!=='dojo'||Game.dojoRival)&&p.target.hp>0&&p.mesh.position.distanceTo(p.target.center)<1.27){
+          hit(p.owner,p.target,p.dmg,p.vel.clone().normalize().multiplyScalar(5),false,'blast');
+          Effects.sparks(p.mesh.position,p.color,5);dead=true;
+        }
+        if(dead){remove(p);projectiles.splice(i,1);}continue;
+      }
       p.shell.rotation.y += dt * (7 + p.lvl * 5);
       p.shell.rotation.z += dt * 4;
       if (p.shell2) { p.shell2.rotation.x -= dt * 5.5; p.shell2.rotation.y += dt * 3.8; }
@@ -387,7 +454,7 @@ const Combat = (() => {
       Game.callout(attacker === Game.player ? 'Ground slam' : 'Rival slam', 'smash');
     }
   }
-  return { slam, melee, strike, blast, update, clear, projectiles };
+  return { slam, melee, strike, blast, update, clear, onMeteorLanding, projectiles };
 })();
 
 

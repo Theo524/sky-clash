@@ -11,6 +11,9 @@ const PALETTES = {
     boot: 0xf2f2f4, sole: 0x22222a, scarf: 0xd8323f, hair: 0x1c1f33, awakenHair: 0x4fc8ff, iris: 0x2d5fb0, aura: 0x6fd6ff, ki: 0x4cc9f0 },
   heroOld: { style: 'gi', skin: 0xf6cda8, top: 0xff8a1f, pants: 0xff8a1f, under: 0x1f3c9e, belt: 0x1f3c9e, wrist: 0x1f3c9e,
     boot: 0x1f3c9e, bootTrim: 0xd8332b, glove: null, hair: 0x17151f, awakenHair: 0xffd23f, iris: 0x2a1d14, aura: 0xffd166, ki: 0x4cc9f0 },
+  ninja: { style:'anime', ninja:true, meteor:[0xc7b9f2,0x6049a3], meteorAw:[0xffeaff,0x8d65e8],
+    skin:0xd9bca9, top:0x171b2c, accent:0x7661ba, pants:0x24243a, wrap:0x44485a, scarf:0x392e60,
+    glove:0x11121d, boot:0x222439, sole:0x0a0c14, hair:0x10101b, awakenHair:0xb58bff, iris:0x9068e7, aura:0x9465ec, ki:0xb49cff },
   rival: { style: 'anime', meteor: [0xbfe6ff, 0x5aa8ff], meteorAw: [0xbfe6ff, 0x5aa8ff], skin: 0xe9c2a2, top: 0x303052, accent: 0xbd3575, pants: 0x26223c, wrap: 0xd7cddd, scarf: 0x953d84, glove: 0x191629, boot: 0xb0a5cf, sole: 0x211729, hair: 0xc7bbec, awakenHair: 0xff4f9a, iris: 0x7a1030, aura: 0xff5fa8, ki: 0xff6b9a },
 };
 
@@ -308,6 +311,16 @@ function buildAnimeHero(pal, opts = {}) {
   // side locks framing the face, and a nape at the back
   for (const s of [-1, 1]) { lock(0.2 * s, 0.07, 0.03, 0.25 * s, -1, 0.15, 0.22, 0.05); lock(0.2 * s, 0.05, -0.05, 0.3 * s, -1, -0.2, 0.22, 0.06); }
   lock(0, -0.02, -0.2, 0, -1, -0.45, 0.24, 0.08);
+
+  if (pal.ninja) {
+    // Rin wears a low cloth hood and mouth wrap. Both move with the animated head;
+    // we intentionally do not reuse Kairo's detailed VRM mesh as the second fighter.
+    spikes.forEach(s => { s.visible = false; });
+    part(new THREE.SphereGeometry(.275,18,12,0,TAU,0,Math.PI*.62), mat('ninjaHood',0x131724),head,0,.22,-.027,{sz:1.08,rx:-.16});
+    part(new THREE.BoxGeometry(.43,.16,.15),mat('ninjaMask',0x29283f),head,0,-.015,.17,{sy:1,outline:true});
+    part(new THREE.BoxGeometry(.37,.032,.033),mat('ninjaBand',0x8f70cc),head,0,.255,.202,{outline:false});
+    for (const side of [-1,1]) part(new THREE.BoxGeometry(.09,.2,.04),mat('ninjaSide',0x131724),head,side*.21,.035,.087,{outline:false,rz:side*.15});
+  }
 
   // arms: bare shoulders, wrapped forearms, fingerless gloves
   const arms = [];

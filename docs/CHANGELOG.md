@@ -1,3 +1,8 @@
+## V51 — Falling Fist & Rin Sable
+- Manual ground follow-up unlocked by Meteor Kick's actual ground impact. Includes bounded chase, hit-confirm damage, second crater/debris event, button hint, and knockdown duration.
+- Rin Sable ninja added to the character registry, title screen choice, distinctive procedural hood/mask, accelerated melee, physical double jump, no flight, shuriken and charged volley projectiles, violet Nightveil palette.
+- New low-graphics particle caps for the meteor-impact effect. Kairo's abilities, VRM assets, dojo and the existing combat remain intact.
+
 ## V49 — Moving Combat & Aerial Pursuit
 - Attacks track nearby moving opponents through the wind-up, with finite forward/sideways travel and a strict contact frame.
 - Aerial punches steer in three dimensions; a grounded fighter can perform a short rising pursuit against reachable airborne foes.

@@ -7,6 +7,8 @@ const Game = {
   init() {
     const hero=CharacterRegistry.get('kairo_venn');
     this.player = new Fighter(hero.name, PALETTES.hero, new V3(0, STAGE_H, 12),hero.id);
+    this.heroes={kairo_venn:this.player,rin_sable:new Fighter('Rin Sable',PALETTES.ninja,new V3(0,STAGE_H,12),'rin_sable')};
+    this.heroes.rin_sable.model.root.visible=false;this.heroes.rin_sable.model.blob.visible=false;
     const nameLabel=$('pFighterName');if(nameLabel)nameLabel.textContent=hero.name;
     const dojoLabel=$('dojoTitle');if(dojoLabel)dojoLabel.textContent=hero.training.title.toUpperCase();
     this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12),'kairo_venn');
@@ -18,10 +20,10 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.player, modelSource, {hide:hiddenGear}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
-          try { $('pPortrait').src = renderVRMPortrait(this.player); }
+          try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
@@ -49,6 +51,28 @@ const Game = {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(); });
     window.addEventListener('blur', () => this.pause());
     if ('ontouchstart' in window) document.body.classList.add('force-touch');
+  },
+  selectCharacter(id) {
+    if(this.state!=='title') return;
+    const who=CharacterRegistry.get(id);
+    if(!this.heroes[who.id]) return;
+    if(this.player) { this.player.model.root.visible=false;this.player.model.blob.visible=false;this.player.orb.visible=false;this.player.orbCore.visible=false;this.player.cancelCharge(); }
+    this.player=this.heroes[who.id];this.player.reset();
+    this.player.model.root.visible=true;this.player.model.blob.visible=true;
+    $('pFighterName').textContent=who.name;
+    $('dojoTitle').textContent=who.training.title.toUpperCase();
+    const icon=who.id==='rin_sable'?'Shuriken':'Blast';
+    const b=document.querySelector('.cbtn.blast');b.querySelector('span').textContent=icon;
+    b.querySelector('small').textContent=who.id==='rin_sable'?'hold · volley':'hold · charge';
+    b.setAttribute('aria-label',who.id==='rin_sable'?'Shuriken: tap to throw, hold for a volley':'Blast: tap to fire, hold to charge');
+    const fly=document.querySelector('.cbtn.fly');fly.querySelector('span').textContent=who.mobility.flight?'Fly':'Jump';
+    fly.querySelector('small').textContent=who.mobility.flight?'slide ▼ down':'2× jump';
+    fly.setAttribute('aria-label',who.mobility.flight?'Fly or descend':'Jump, release and tap again to double jump');
+    if(who.id==='rin_sable') $('pPortrait').src=renderPortrait(PALETTES.ninja);
+    else $('pPortrait').src=this.kairoPortrait||renderPortrait(PALETTES.hero);
+    document.querySelectorAll('[data-hero]').forEach(el=>{const selected=el.dataset.hero===who.id;el.classList.toggle('selected',selected);el.setAttribute('aria-pressed',String(selected));});
+    const tip=$('heroTip');if(tip)tip.textContent=who.id==='rin_sable'? 'RIN · Twin jumps · Shurikens · Shadow Volley · Shadow Step · Nightveil.': 'KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.';
+    this.setLock(false,false);CameraRig.snapBehind(this.player,this.enemy);
   },
   setLock(on, notify = true) {
     this.lockOn = on;
@@ -323,9 +347,10 @@ const Game = {
     const bb = document.querySelector('.cbtn.blast');
     const mb = document.querySelector('.cbtn.melee');
     const step = p.t - p.lastMelee > TUNING.comboWindow ? 0 : p.combo;
-    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target && p.comboFollow.target.launched && !p.comboFollow.target.spiked;
+    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target &&
+      (p.comboFollow.phase===3?p.comboFollow.target.meteorWindow>0:p.comboFollow.target.launched&&!p.comboFollow.target.spiked);
     mb.classList.toggle('combo-ready', (step > 0 || follow) && p.stun <= 0);
-    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : 'FINISH: METEOR KICK') :
+    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : p.comboFollow.phase === 2 ? 'METEOR KICK' : 'FALLING FIST!') :
       step ? `${step + 1}/4 · ${step === 3 ? 'LAUNCHER' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
     bb.style.setProperty('--charge', p.charging ? Math.max(0.04, p.chargeLevel) : 0);
     bb.classList.toggle('charging', p.charging); bb.classList.toggle('full', p.chargeFull);

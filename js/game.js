@@ -34,6 +34,7 @@ const TUNING = {
   // V50: airborne extensions unlock ONLY after a confirmed ground launcher.
   airFollowWindow: 1.35, airFollowRange: 7.8, airFollowHeight: 6.3,
   airFollowBudget: 5.4, airFollowSpeed: 23.0,
+  groundFollowWindow: 2.1, groundFollowRange: 7.8, groundFollowHeight: 10.4,
   blastSpeed: 44, blastDamage: 9, blastCost: 14, blastCooldown: 0.34, blastAssistAngle: 0.38,
   awakenCost: 50, awakenTime: 12, awakenSpeed: 1.35, awakenDamage: 1.5, awakenChargeTime: 2.10, awakenGaugeMax: 100, defensiveVanishWindow: 0.85,
   energyRegen: 7,
@@ -87,6 +88,21 @@ const CharacterRegistry = (() => {
         awakening: Object.freeze({ id: 'stormheart', name: 'Stormheart', type: 'transformation', modifies: ['stance','attack_power','aura','movement'] }),
       }),
       training: Object.freeze({ title: 'Windstone Dojo', preferredProps: ['heavy_bag','martial_dummy','ki_target'] }),
+    }),
+    rin_sable: Object.freeze({
+      id: 'rin_sable', name: 'Rin Sable', epithet: 'The Shade Runner',
+      className: 'Shadow Ninja / Agile Skirmisher', style: 'agile',
+      model: 'procedural_ninja', dojo: 'windstone_dojo',
+      mobility: Object.freeze({ flight: false, boost: true, vanish: true, doubleJump: true, wallRun: false }),
+      resources: Object.freeze({ health: 'health', special: 'shadow', stamina: 'stamina', awakening: 'nightveil' }),
+      moves: Object.freeze({
+        melee: Object.freeze({id:'shade_chain',name:'Shade Chain',type:'melee_combo',animationSet:'ninja_unarmed'}),
+        ranged: Object.freeze({id:'shuriken',name:'Shuriken',type:'throw_projectile',hold:'shadow_volley'}),
+        charged: Object.freeze({id:'shadow_volley',name:'Shadow Volley',type:'multi_shuriken',input:'hold_ranged'}),
+        mobility: Object.freeze({id:'shadow_step',name:'Shadow Step',type:'dash_vanish'}),
+        awakening: Object.freeze({id:'nightveil',name:'Nightveil',type:'transformation',modifies:['stance','attack_power','aura','movement']}),
+      }),
+      training: Object.freeze({ title:'Windstone Dojo', preferredProps:['martial_dummy','ki_target'] }),
     }),
   });
   const defaultId = 'kairo_venn';
@@ -667,6 +683,9 @@ const PALETTES = {
     boot: 0xf2f2f4, sole: 0x22222a, scarf: 0xd8323f, hair: 0x1c1f33, awakenHair: 0x4fc8ff, iris: 0x2d5fb0, aura: 0x6fd6ff, ki: 0x4cc9f0 },
   heroOld: { style: 'gi', skin: 0xf6cda8, top: 0xff8a1f, pants: 0xff8a1f, under: 0x1f3c9e, belt: 0x1f3c9e, wrist: 0x1f3c9e,
     boot: 0x1f3c9e, bootTrim: 0xd8332b, glove: null, hair: 0x17151f, awakenHair: 0xffd23f, iris: 0x2a1d14, aura: 0xffd166, ki: 0x4cc9f0 },
+  ninja: { style:'anime', ninja:true, meteor:[0xc7b9f2,0x6049a3], meteorAw:[0xffeaff,0x8d65e8],
+    skin:0xd9bca9, top:0x171b2c, accent:0x7661ba, pants:0x24243a, wrap:0x44485a, scarf:0x392e60,
+    glove:0x11121d, boot:0x222439, sole:0x0a0c14, hair:0x10101b, awakenHair:0xb58bff, iris:0x9068e7, aura:0x9465ec, ki:0xb49cff },
   rival: { style: 'anime', meteor: [0xbfe6ff, 0x5aa8ff], meteorAw: [0xbfe6ff, 0x5aa8ff], skin: 0xe9c2a2, top: 0x303052, accent: 0xbd3575, pants: 0x26223c, wrap: 0xd7cddd, scarf: 0x953d84, glove: 0x191629, boot: 0xb0a5cf, sole: 0x211729, hair: 0xc7bbec, awakenHair: 0xff4f9a, iris: 0x7a1030, aura: 0xff5fa8, ki: 0xff6b9a },
 };
 
@@ -964,6 +983,16 @@ function buildAnimeHero(pal, opts = {}) {
   // side locks framing the face, and a nape at the back
   for (const s of [-1, 1]) { lock(0.2 * s, 0.07, 0.03, 0.25 * s, -1, 0.15, 0.22, 0.05); lock(0.2 * s, 0.05, -0.05, 0.3 * s, -1, -0.2, 0.22, 0.06); }
   lock(0, -0.02, -0.2, 0, -1, -0.45, 0.24, 0.08);
+
+  if (pal.ninja) {
+    // Rin wears a low cloth hood and mouth wrap. Both move with the animated head;
+    // we intentionally do not reuse Kairo's detailed VRM mesh as the second fighter.
+    spikes.forEach(s => { s.visible = false; });
+    part(new THREE.SphereGeometry(.275,18,12,0,TAU,0,Math.PI*.62), mat('ninjaHood',0x131724),head,0,.22,-.027,{sz:1.08,rx:-.16});
+    part(new THREE.BoxGeometry(.43,.16,.15),mat('ninjaMask',0x29283f),head,0,-.015,.17,{sy:1,outline:true});
+    part(new THREE.BoxGeometry(.37,.032,.033),mat('ninjaBand',0x8f70cc),head,0,.255,.202,{outline:false});
+    for (const side of [-1,1]) part(new THREE.BoxGeometry(.09,.2,.04),mat('ninjaSide',0x131724),head,side*.21,.035,.087,{outline:false,rz:side*.15});
+  }
 
   // arms: bare shoulders, wrapped forearms, fingerless gloves
   const arms = [];
@@ -1431,7 +1460,7 @@ class AnimLayer {
         const name = 'kick', c = Anim.clip(name);
         this.play(name, { from: 0, rate: 1.28, end: c.d,
           mask: grounded && hs < 1.2 ? null : this.UPPER, noH: true, fadeIn: 0.060, fadeOut: 0.18, blendOut: 0.16, warp: false });
-      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick') this.stop();
+      } else if (f.punchT > 0 && f.attackKind !== 'punch' && f.attackKind !== 'hook' && f.attackKind !== 'kick' && this.one && !this.one.done && this.one.name !== 'death' && f.attackKind !== 'skyUppercut' && f.attackKind !== 'skyKick' && f.attackKind !== 'fallingFist') this.stop();
       this.lastAttackSerial = f.attackSerial;
       if (f.superHitT > 0 && p.superHitT <= 0) this.play('qHitKnockback', {
         from: 0.06, rate: 1.30, end: 0.70, mask: this.UPPER,
@@ -1706,6 +1735,7 @@ class Fighter {
     this.characterId=characterId;
     this.character=typeof CharacterRegistry !== 'undefined' ? CharacterRegistry.get(characterId) : null;
     this.name = name; this.pal = pal; this.spawn = spawn.clone();
+    this.canFly = !this.character || this.character.mobility.flight;
     this.model = buildFighterModel(pal);
     // V37: no meteor, speed shell or glow geometry attached to movement.
     scene.add(this.model.root, this.model.blob);
@@ -1717,14 +1747,14 @@ class Fighter {
     this.pos = new V3(); this.vel = new V3(); this.reset();
   }
   reset() {
-    this.pos.copy(this.spawn); this.vel.set(0, 0, 0);
+    this.pos.copy(this.spawn); this.vel.set(0, 0, 0); this.jumpsUsed=0;
     this.facing = yawFromDir(-this.spawn.x, -this.spawn.z);
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
     this.stamina = TUNING.staminaMax; this.staminaRestT = 0;
     this.exhausted = false; this.staminaNoticeT = 0;
     this.flightBlend = 0; this.flightSpeedBlend = 0; this.airBank = 0;
-    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null;
+    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null; this.meteorWindow = 0; this.meteorSource = null;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
     this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
@@ -1835,8 +1865,17 @@ class Fighter {
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
   tryJump() {
-    if (this.awakenChargeT > 0 || this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
-    this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
+    if (this.awakenChargeT > 0 || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
+    if (!this.canFly) {
+      if (this.jumpsUsed >= 2) return false;
+      this.jumpsUsed++;
+      this.jumping = true; this.jumpHold = 0;
+      this.vel.y = this.jumpsUsed === 1 ? TUNING.jumpVel : TUNING.jumpVel * 0.89;
+      if (this.jumpsUsed === 2) this.startAcro('flip',.42);
+    } else {
+      if (this.flying || this.jumping) return false;
+      this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
+    }
     const speed = Math.hypot(this.vel.x, this.vel.z);
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
     const foe = this === Game.player ? Game.enemy : Game.player;
@@ -1940,7 +1979,8 @@ class Fighter {
     }
     this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
-    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !this.comboFollow.target.launched || this.comboFollow.target.spiked)) this.comboFollow = null;
+    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !(this.comboFollow.phase === 3 ? this.comboFollow.target.meteorWindow > 0 : this.comboFollow.target.launched && !this.comboFollow.target.spiked))) this.comboFollow = null;
+    this.meteorWindow = Math.max(0, (this.meteorWindow || 0) - dt);
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
     if (this.kickPend) {
@@ -1969,19 +2009,19 @@ class Fighter {
         const maxLvl = clamp((this.energy - TUNING.blastCost) / TUNING.chargeCost, 0, 1);
         this.chargeT = Math.min(this.chargeT + dt, TUNING.chargeMin + TUNING.chargeTime * maxLvl);
         const lvl = this.chargeLevel;
-        if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; Effects.chargeFull(this); }
+        if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; if(this.characterId!=='rin_sable') Effects.chargeFull(this); }
         // Hybrid environment choreography: compressed air first, fractured flagstones
         // only in the last moments of a powerful ground charge.
-        if (!this.flying && this.chargeT > 0.15) {
+        if (this.characterId !== 'rin_sable' && !this.flying && this.chargeT > 0.15) {
           this.pressureT -= dt;
           if (this.pressureT <= 0) { this.pressureT = 0.16; Effects.chargePressure(this, lvl); }
         }
-        if (!this.chargeCracked && !this.flying && lvl >= 0.90) {
+        if (this.characterId !== 'rin_sable' && !this.chargeCracked && !this.flying && lvl >= 0.90) {
           this.chargeCracked = true; Effects.chargeFracture(this, 0.95);
           if (this === Game.player) CameraRig.shake(0.075);
         }
         this.chargeFx -= dt;
-        if (this.chargeT > 0.12 && this.chargeFx <= 0) { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
+        if (this.chargeT > 0.12 && this.chargeFx <= 0 && this.characterId !== 'rin_sable') { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
       }
     }
     // guard: hold to block; a fresh block (not spammed) gets a short parry window
@@ -2061,8 +2101,9 @@ class Fighter {
     } else if (this.sprinting) {
       // steer with the stick; with no input keep going the way you face. Up/Down climbs and dives
       const dir = this.moveIntent.lengthSq() > 0.02 ? this.moveIntent.clone().setY(0).normalize() : this.forward();
-      const sp = (this.flying || this.vert ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
+      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
       const target = dir.multiplyScalar(sp); target.y = this.vert * sp * 0.75;
+      if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       this.vel.lerp(target, damp(TUNING.sprintTurn, dt));
       const hv = Math.hypot(this.vel.x, this.vel.z);
       if (hv > 2) this.facing = lerpAngle(this.facing, yawFromDir(this.vel.x, this.vel.z), damp(8, dt));
@@ -2078,13 +2119,13 @@ class Fighter {
       // frame. At impact the hands/feet strike where the opponent really is, not where
       // they were 150ms ago. After contact the character plants and recovers normally.
       const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
+      const contact = this.attackKind === 'fallingFist' ? 0.65 : this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
       const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
       const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
       const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
       let targetH = hsp * impulse;
       const foe = this.attackTarget;
-      const active = !!foe && foe.hp > 0 && !foe.spiked && this.kickPend &&
+      const active = !!foe && foe.hp > 0 && (!foe.spiked || this.attackKind === 'fallingFist') && this.kickPend &&
         p < contact + 0.035 && this.stun <= 0;
       let pursuing = false;
       if (active) {
@@ -2093,9 +2134,9 @@ class Fighter {
         const height = foe.pos.y - this.pos.y;
         const moved = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z);
         const left = this.attackTravelBudget - moved;
-        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick';
-        const limit = follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
-        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
+        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick' || this.attackKind === 'fallingFist';
+        const limit = this.attackKind === 'fallingFist' ? TUNING.groundFollowRange : follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
+        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (this.attackKind === 'fallingFist' ? TUNING.groundFollowHeight : follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
           pursuing = true;
           // A tiny lead follows strafing enemies, not a teleport toward future position.
           const lead = Math.min(0.11, Math.max(0.02, this.kickPend.t * 0.55));
@@ -2124,7 +2165,7 @@ class Fighter {
           if (this.attackAir) {
             // Fly up/down toward the opponent *during the approach*; hand/foot contact
             // remains a small 3D hit volume and won't connect from several metres away.
-            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.85 : 0.60), follow ? -17 : -14, follow ? 22 : 16);
+            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.92 : 0.60), this.attackKind === 'fallingFist' ? -35 : follow ? -17 : -14, follow ? 22 : 16);
             this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
           }
         }
@@ -2147,7 +2188,8 @@ class Fighter {
     } else {
       const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       target.y = this.vert * TUNING.flySpeed * speedMul;
-      if (this.jumping) {
+      if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
+      if (this.jumping && this.canFly) {
         // jump arc: gravity pulls you down unless you keep holding Up, which turns it into flight
         if (this.vert > 0) this.jumpHold += dt;
         if (this.jumpHold > TUNING.jumpToFly) { this.jumping = false; }
@@ -2175,13 +2217,15 @@ class Fighter {
       Effects.groundSlam(this.pos); CameraRig.shake(this === Game.player ? 0.5 : 0.35);
       if (this.slamTarget) Combat.slam(this, this.slamTarget);
     }
-    if (this.pos.y === floor && this.jumping && this.vel.y <= 0) { this.jumping = false; }
+    if (this.pos.y === floor && this.vel.y <= 0) { this.jumping = false; if (!this.canFly) this.jumpsUsed=0; }
     if (this.pos.y === floor && this.vel.y < 0) {
       // a smashed fighter hits the floor hard and stays down for a moment
       if (this.spiked) {
         this.spiked = false; this.launched = false; this.juggle = 0;
         this.downT = TUNING.downTime; this.stun = TUNING.downTime + 0.15;
-        Effects.groundSlam(this.pos); CameraRig.shake(0.55); Game.hitStop(0.06);
+        if (this.meteorSource) { Effects.meteorCrater(this.pos, this.meteorSource.pal.ki, false); Combat.onMeteorLanding(this); }
+        else Effects.groundSlam(this.pos);
+        CameraRig.shake(this.meteorSource ? 0.48 : 0.35); Game.hitStop(0.07);
         this.vel.set(this.vel.x * 0.2, 0, this.vel.z * 0.2);
       } else if (this.launched) { this.launched = false; this.juggle = 0; this.downT = 0.45; this.stun = Math.max(this.stun, 0.5); Effects.dust(this.pos, 6); this.vel.y = 0; }
       else this.vel.y = 0;
@@ -2337,6 +2381,7 @@ class Fighter {
 
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
+      if (this.characterId === 'rin_sable') return { arm:[[-1.4,.16,-1.35],[-.67,.34,-1.9]],leg:[[.32,.84,.23],[-.65,.86,.24]],spineY:-.27,spineX:.24,headX:-.14 };
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Ninja guard: low asymmetrical base, elbows tucked and hands shielding the face.
       // Subtle shifting weight keeps the character alive without idle foot-skating.
@@ -2477,8 +2522,8 @@ class Fighter {
     // charging: hands drawn together in front of the chest, wide braced stance
     if (this.charging && this.stun <= 0) {
       const lv = this.chargeLevel, sh = lv >= 1 ? Math.sin(this.t * 40) * 0.03 : 0;
-      P.arm = [[-1.05 + sh, -0.6, -1.15], [-1.05 - sh, -0.6, -1.15]]; P.spineY = 0; P.spineX = 0.04 + 0.03 * lv; P.headX = 0.1;
-      if (fw < 0.5) P.leg = [[0.16, 0.48, 0.21], [-0.24, 0.55, 0.18]];
+      P.arm = this.characterId === 'rin_sable' ? [[0.6,-.12,-1.3],[-1.5,-.4,-.34]] : [[-1.05 + sh, -0.6, -1.15], [-1.05 - sh, -0.6, -1.15]]; P.spineY = 0; P.spineX = 0.04 + 0.03 * lv; P.headX = 0.1;
+      if (fw < 0.5) P.leg = this.characterId === 'rin_sable' ? [[.46,.96,.23],[-.72,1.12,.19]] : [[0.16, 0.48, 0.21], [-0.24, 0.55, 0.18]];
     }
     // wind-up before an AI punch: rear fist pulled back
     if (this.windT > 0) { const w = 1 - this.windT / this.windLen; P.arm[0] = [0.55, 0.35, -1.9]; P.arm[1] = [-1.0, 0.25, -1.6]; P.spineY = 0.45 * Math.min(1, w * 2); }
@@ -2491,7 +2536,7 @@ class Fighter {
     } else if (this.punchT > 0) {
       const total = this.attackTotal || 0.235;
       const progress = clamp(this.attackElapsed / total, 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
+      const contact = this.attackKind === 'fallingFist' ? 0.65 : this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
       const lift = smooth01(progress / contact);
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
@@ -2508,6 +2553,11 @@ class Fighter {
         B.arm[1] = [-0.78, 0.42, -1.72];
         B.leg[0] = [-0.42, 1.1, 0.09]; B.leg[1] = [0.24, 0.45, 0.08];
         B.spineY = -0.18 + drive * 0.30; B.spineX = -0.16 + drive * 0.25; B.headX = -0.10;
+      } else if (this.attackKind === 'fallingFist') {
+        const dive = smooth01((progress - 0.18) / 0.46);
+        B.arm = [[-0.62 - dive * 1.9, 0.08, -1.72 + dive * 1.38], [-0.82, 0.41, -1.88]];
+        B.leg = [[-0.60, 1.28, 0.15], [0.24, 0.52, 0.12]];
+        B.spineX = 0.28 + dive * 0.35; B.headX = -0.24; B.spineY = 0.14;
       } else if (this.attackKind === 'skyKick') {
         // Fold the knee first, then drive the heel sharply down through target.
         const snap = smooth01((progress - 0.22) / 0.30);
@@ -2543,7 +2593,7 @@ class Fighter {
       }
       if (!flying) {
         const moveW = smooth01((this.attackDrive - 1.0) / 5.2) * (this.attackMoving ? 1 : 0.5);
-        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick') {
+        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick' && this.attackKind !== 'fallingFist') {
           const sideBias = this.attackTravel ? (this.attackTravel.x * Math.cos(yaw) - this.attackTravel.z * Math.sin(yaw)) : 0;
           const step = { arm: [[-1.18, 0.22, -1.65], [-0.82, 0.14, -1.88]],
             leg: [[0.54, 0.98, 0.18], [-0.72, 0.62, 0.14]],
@@ -2631,7 +2681,7 @@ class Fighter {
     });
     // charge orb grows with the charge and pulses at full power
     const lvc = this.chargeLevel, showOrb = this.charging && this.chargeT > 0.08;
-    this.orb.visible = this.orbCore.visible = showOrb;
+    this.orb.visible = this.orbCore.visible = showOrb && this.characterId !== 'rin_sable';
     if (showOrb) {
       const op = this.center.addScaledVector(this.forward(), 0.68); op.y -= 0.05;
       // Visual cap independent of charge damage: compact, bright, never hides the torso.
@@ -3122,10 +3172,65 @@ const Effects = (() => {
     const dummy=sprite(TEX.glow,col,.05,0);dummy.visible=false;
     push(dummy,.085,(e)=>{if(!e.done&&e.t>.065){e.done=true;sparks(to,col,low?6:perfect?19:13,dir,1.25);}});
   }
+  // Meteor slam: layered displaced rock plates, dense dust, and tumbling debris.
+  // All pieces are transient, use a mobile quality cap, and are anchored to groundAt().
+  function meteorCrater(pos, color, finisher = false) {
+    const low = Settings.get('quality') === 'low';
+    const centre = new V3(pos.x, groundAt(pos.x, pos.z) + 0.018, pos.z);
+    const count = low ? 8 : finisher ? 17 : 13;
+    const outer = finisher ? 3.9 : 3.0;
+    const dark = new THREE.Mesh(new THREE.CircleGeometry(outer * .65, 28),
+      new THREE.MeshBasicMaterial({ color: 0x191c22, transparent: true, opacity: .60, depthWrite: false, side: THREE.DoubleSide }));
+    dark.rotation.x = -Math.PI / 2; dark.position.copy(centre); dark.position.y += 0.011;
+    push(dark, 3.2, e => { const k=e.t/e.life; e.obj.material.opacity=.6*(1-smooth01((k-.55)/.45)); }, true);
+    for (let i=0;i<count;i++) {
+      const theta = TAU*(i+.13*Math.random())/count;
+      const radius = outer*(.52+.39*Math.random());
+      const w = .35 + .36*Math.random(), length = .65 + .85*Math.random();
+      const shape = new THREE.Shape();
+      shape.moveTo(-w*.5,-length*.42); shape.lineTo(w*.4,-length*.63);
+      shape.lineTo(w*.63,length*.24); shape.lineTo(-w*.10,length*.67);
+      shape.lineTo(-w*.62,length*.23); shape.closePath();
+      const slab = new THREE.Mesh(new THREE.ShapeGeometry(shape),
+        new THREE.MeshStandardMaterial({ color: [0x746f67,0x989087,0x55565a,0xaaa49b][i%4], roughness:1,
+          side:THREE.DoubleSide, transparent:true, opacity:.95, depthWrite:false }));
+      slab.rotation.set(-Math.PI/2,0,theta); slab.position.set(centre.x+Math.cos(theta)*radius,centre.y+.045,centre.z+Math.sin(theta)*radius);
+      const rise = (finisher ? .35 : .28) + Math.random()*.32, life=finisher?3.0:2.35;
+      push(slab,life,(e)=>{const k=e.t/e.life; e.obj.position.y=centre.y+.045+rise*Math.sin(Math.PI*Math.min(1,k*1.55));
+        e.obj.rotation.z=theta+.10*Math.sin(Math.PI*k);e.obj.material.opacity=.95*(1-smooth01((k-.73)/.27)); },true);
+    }
+    const debris = low ? 11 : finisher ? 30 : 24;
+    for(let i=0;i<debris;i++) {
+      const radius=.07+Math.random()*.19;
+      const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(radius,0),
+        new THREE.MeshStandardMaterial({ color:i%3===0?0xafa79d:0x66615a, roughness:1 }));
+      const a=Math.random()*TAU;
+      const speed=(finisher?6:4.5)+Math.random()*(finisher?10:8);
+      const v=new V3(Math.cos(a)*speed,3+Math.random()*8,Math.sin(a)*speed);
+      const p=centre.clone().add(new V3((Math.random()-.5)*.8,.1,(Math.random()-.5)*.8));
+      chunk.position.copy(p); const axis=new V3(Math.random(),Math.random(),Math.random()).normalize();
+      push(chunk,.63+Math.random()*.24,(e,dt)=>{const ground=groundAt(e.obj.position.x,e.obj.position.z)+radius;
+        v.y-=29*dt;e.obj.position.addScaledVector(v,dt);e.obj.rotation.x+=dt*6; e.obj.rotation.z+=dt*7;
+        if(e.obj.position.y<ground){e.obj.position.y=ground;v.multiplyScalar(.28);v.y=Math.max(0,-v.y*.18);} },true);
+    }
+    const dustCount = low ? 12 : finisher ? 38 : 27;
+    for(let i=0;i<dustCount;i++) {
+      const a=Math.random()*TAU, sp=1.5+Math.random()*(finisher?6:4.2);
+      const v=new V3(Math.cos(a)*sp,.7+Math.random()*2.2,Math.sin(a)*sp);
+      const s=sprite(TEX.smoke,i%4===0?0xc1beb6:0x77746f,.8+Math.random()*.9,.35,false);
+      s.position.copy(centre).add(new V3(0,.24,0));
+      const initial=s.scale.x;
+      push(s,.50+Math.random()*.43,(e,dt)=>{const t=e.t/e.life;
+        e.obj.position.addScaledVector(v,dt);e.obj.scale.setScalar(initial*(1+t*2.3));e.obj.material.opacity=.32*(1-t)*(1-t);});
+    }
+    flash(centre.clone().add(new V3(0,.75,0)), 0xffefc3, finisher?6:4.4, .10);
+    sparks(centre.clone().add(new V3(0,.65,0)),color,low?8:finisher?20:15,null,finisher?1.4:1.05);
+    dust(centre, low?7:12);
+  }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, meteorCrater, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 
 /* V39 — Cinematic effects. These are independent of gameplay: no movement,
@@ -3431,11 +3536,13 @@ const Combat = (() => {
   // V50: An optional, input-confirmed aerial extension of a successful launcher.
   // Unlike a free teleport, this is a bounded physical jump/flight pursuit.
   function airFollow(attacker, target, phase) {
-    const kind = phase === 1 ? 'skyUppercut' : 'skyKick';
+    const kind = phase === 1 ? 'skyUppercut' : phase === 2 ? 'skyKick' : 'fallingFist';
     const t = target.pos.clone().sub(attacker.pos);
     const h = Math.hypot(t.x, t.z);
-    if (h > TUNING.airFollowRange || Math.abs(t.y) > TUNING.airFollowHeight ||
-        !target.launched || target.spiked || target.hp <= 0) return false;
+    const groundedFinish = phase === 3;
+    if (h > (groundedFinish ? TUNING.groundFollowRange : TUNING.airFollowRange) ||
+        Math.abs(t.y) > (groundedFinish ? TUNING.groundFollowHeight : TUNING.airFollowHeight) ||
+        target.hp <= 0 || (groundedFinish ? target.meteorWindow <= 0 || target.spiked : !target.launched || target.spiked)) return false;
     attacker.comboFollow = null; // Consume the opening; only a real hit unlocks the next one.
     attacker.combo = 0;
     attacker.sprinting = false; attacker.skidT = 0; attacker.dashT = 0;
@@ -3444,20 +3551,21 @@ const Combat = (() => {
     attacker.attackKind = kind; attacker.punchSide = 0;
     attacker.attackTarget = target;
     attacker.attackOrigin.copy(attacker.pos);
-    attacker.attackTravelBudget = TUNING.airFollowBudget;
+    attacker.attackTravelBudget = groundedFinish ? 6.5 : TUNING.airFollowBudget;
     attacker.attackTravel.copy(new V3(t.x, 0, t.z).lengthSq() > 0.01 ? new V3(t.x, 0, t.z).normalize() : attacker.forward());
     attacker.attackDrive = TUNING.airFollowSpeed;
     attacker.facing = lerpAngle(attacker.facing, yawFromDir(t.x, t.z), 0.8);
     // A controlled rising chase; never warp the character's position.
     if (phase === 1 && t.y > 0.7) attacker.vel.y = Math.max(attacker.vel.y, Math.min(15.5, 7 + t.y * 2));
-    const total = phase === 1 ? 0.57 : 0.63;
-    const contact = phase === 1 ? 0.29 : 0.30;
+    if (groundedFinish) { attacker.vel.y = Math.min(attacker.vel.y, t.y < -1 ? -24 : -4); target.meteorWindow = 0; }
+    const total = phase === 1 ? 0.57 : phase === 2 ? 0.63 : 0.81;
+    const contact = phase === 1 ? 0.29 : phase === 2 ? 0.30 : 0.53;
     attacker.attackSerial++;
     attacker.punchT = total; attacker.attackTotal = total; attacker.attackElapsed = 0;
     attacker.meleeCd = total - 0.015;
-    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : 5,
+    attacker.kickPend = { target, t: contact, kick: phase === 2, stage: phase === 1 ? 4 : phase === 2 ? 5 : 6,
       counter: false, swingPlayed: false };
-    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : 'METEOR KICK', phase === 1 ? 'launch' : 'smash');
+    if (attacker === Game.player) Game.callout(phase === 1 ? 'SKY UPPERCUT' : phase === 2 ? 'METEOR KICK' : 'FALLING FIST', phase === 1 ? 'launch' : 'smash');
     return true;
   }
   // Four readable beats: jab > cross > turning hook > rising kick.
@@ -3507,8 +3615,9 @@ const Combat = (() => {
     attacker.attackKind = attacker.attackAir && stage === 3 ? 'airStrike' : kick ? 'kick' : stage === 2 ? 'hook' : 'punch';
     attacker.attackSerial++;
     // Distinct timing gives each attack identity. Last kick has a longer readable recovery.
-    const cd = [0.43, 0.51, 0.69, 0.88][stage];
-    const anim = [0.42, 0.50, 0.68, 0.87][stage];
+    const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
+    const cd = [0.43, 0.51, 0.69, 0.88][stage] * agile;
+    const anim = [0.42, 0.50, 0.68, 0.87][stage] * agile;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -3520,7 +3629,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage], kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: [0.15, 0.20, 0.33, 0.41][stage] * agile, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -3536,20 +3645,31 @@ const Combat = (() => {
     const h = Math.hypot(toT.x, toT.z), y = Math.abs(toT.y);
     // A volumetric melee hitbox reaches opponents slightly above/below a flying
     // fighter, but cannot touch a faraway opponent just because they're locked on.
-    const follow = stage === 4 || stage === 5;
-    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.26 : 0) + (attacker.awakened ? 0.08 : 0);
-    const rise = follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
+    const follow = stage >= 4;
+    const reach = TUNING.meleeRange + (kick ? 0.27 : 0) + (follow ? 0.48 : 0) + (attacker.awakened ? 0.08 : 0);
+    const rise = stage === 6 ? 2.4 : follow ? 3.05 : attacker.attackAir ? 2.55 : kick ? 1.9 : 1.42;
     if ((h / reach) ** 2 + (y / rise) ** 2 > 1 || h > reach || y > rise) return;
     const fwd = attacker.forward();
     if (h > 1.15 && fwd.dot(new V3(toT.x / h, 0, toT.z / h)) <= Math.cos(TUNING.meleeArc)) return;
-    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76][stage] * (counter ? 1.3 : 1);
+    const base = TUNING.meleeDamage * damageMul(attacker) * [0.87, 1, 1.2, 1.58, 1.12, 1.76, 2.35][stage] * (counter ? 1.3 : 1);
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;
-    if (air && stage === 5) {
+    if (stage === 6 && target.meteorSource === attacker && target.downT > 0) {
+      result = hit(attacker, target, base, fwd.clone().multiplyScalar(5).setY(0), true);
+      if (result === 'hit') {
+        target.meteorSource = null; target.meteorWindow = 0; target.downT = Math.max(target.downT, 0.72);
+        target.stun = Math.max(target.stun, 0.95);
+        Effects.meteorCrater(target.pos, col, true);
+        Effects.flash(target.center, 0xffffff, 4.2, 0.12);
+        Game.hitStop(0.115); CameraRig.shake(attacker === Game.player ? 0.41 : 0.27);
+        if (attacker === Game.player) Game.callout('FALLING FIST · FINISH!', 'smash');
+      }
+    } else if (air && stage === 5) {
       const kd = fwd.clone();
       result = hit(attacker, target, base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') {
         kickImpact(attacker, target, kd); target.spiked = true; target.stun = 1.65;
+        target.meteorSource = attacker; target.meteorWindow = 0;
         Game.callout('METEOR SMASH', 'smash'); Effects.flash(target.center, 0xffd166, 2.5, 0.14);
       }
     } else if (air && stage === 4) {
@@ -3592,6 +3712,15 @@ const Combat = (() => {
       if (counter) { target.stun = Math.max(target.stun, 0.63); attacker.energy = Math.min(100, attacker.energy + 5); }
     }
   }
+  function onMeteorLanding(victim) {
+    const attacker = victim.meteorSource;
+    if (!attacker || attacker.hp <= 0 || victim.hp <= 0 || attacker.stun > 0) { victim.meteorSource = null; return; }
+    victim.meteorWindow = TUNING.groundFollowWindow;
+    victim.downT = Math.max(victim.downT, TUNING.groundFollowWindow + 0.15);
+    victim.stun = Math.max(victim.stun, TUNING.groundFollowWindow + 0.18);
+    attacker.comboFollow = { target: victim, phase: 3, until: attacker.t + TUNING.groundFollowWindow };
+    if (attacker === Game.player) Game.callout('GROUND IMPACT · TAP MELEE!', 'smash');
+  }
   // kick connects: longer freeze, bigger shake, a shockwave facing the kick and a burst of sparks thrown along it
   function kickImpact(attacker, target, dir) {
     const c = target.center, col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
@@ -3600,7 +3729,36 @@ const Combat = (() => {
     CameraRig.shake(attacker === Game.player ? 0.55 : 0.6);
     if (attacker === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(45);
   }
+  function shuriken(attacker,target,aimMode,lvl=0) {
+    const cost=9+17*lvl;
+    if(attacker.awakenChargeT>0||attacker.blastCd>0||attacker.stun>0||attacker.energy<cost) return;
+    attacker.cancelCharge();attacker.energy-=cost;attacker.blastCd=.31+lvl*.22;
+    attacker.blastT=.24;attacker.blastLvl=lvl;
+    const origin=attacker.center.addScaledVector(attacker.forward(),.95);
+    const dir=aimMode==='target'?target.center.sub(origin).normalize():attacker.forward();
+    const n=lvl>.72?3:1;
+    for(let k=0;k<n;k++) {
+      const a=(k-(n-1)*.5)*.14;
+      const direction=dir.clone().applyAxisAngle(new V3(0,1,0),a).normalize();
+      const shape=new THREE.Shape();
+      for(let j=0;j<16;j++) {
+        const phi=j/16*TAU,r=j%4===0?.49:j%2===0?.19:.27;
+        if(j===0)shape.moveTo(Math.cos(phi)*r,Math.sin(phi)*r);
+        else shape.lineTo(Math.cos(phi)*r,Math.sin(phi)*r);
+      }
+      shape.closePath();
+      const mesh=new THREE.Mesh(new THREE.ShapeGeometry(shape),new THREE.MeshBasicMaterial({color:attacker.awakened?0xe6d2ff:0x9d88d2,side:THREE.DoubleSide}));
+      mesh.position.copy(origin).addScaledVector(direction,k*.10);
+      mesh.quaternion.setFromUnitVectors(new V3(0,0,1),direction);
+      scene.add(mesh);
+      projectiles.push({type:'shuriken',mesh,owner:attacker,target,color:attacker.pal.ki,lvl,
+        vel:direction.multiplyScalar(38+lvl*9),dmg:(7+lvl*6)*damageMul(attacker)/Math.sqrt(n),life:1.4,wakeT:0});
+    }
+    Sound.play('blast');
+    if(attacker===Game.player && lvl>.72)Game.callout('SHADOW VOLLEY','launch');
+  }
   function blast(attacker, target, aimMode, lvl = 0) {
+    if(attacker.characterId==='rin_sable') return shuriken(attacker,target,aimMode,lvl);
     const cost = TUNING.blastCost + TUNING.chargeCost * lvl;
     if (attacker.awakenChargeT > 0 || attacker.blastCd > 0 || attacker.stun > 0 || attacker.energy < cost - 0.01) return;
     attacker.cancelCharge();
@@ -3679,6 +3837,20 @@ const Combat = (() => {
       const p = projectiles[i];
       const previousPosition = p.mesh.position.clone();
       p.mesh.position.addScaledVector(p.vel, dt); p.life -= dt;
+      if(p.type==='shuriken') {
+        p.mesh.rotateZ(dt*27);
+        p.wakeT-=dt;
+        if(p.wakeT<=0){p.wakeT=.055;Effects.trail(p.mesh.position,p.color,.34);}
+        let dead=p.life<=0||p.mesh.position.y<0||Math.hypot(p.mesh.position.x,p.mesh.position.z)>ARENA_RADIUS+20;
+        if(!dead&&Game.mode==='dojo'&&Dojo.hitBlast(previousPosition,p.mesh.position,p.lvl)){
+          Effects.sparks(p.mesh.position,p.color,5);dead=true;
+        }
+        if(!dead&&(Game.mode!=='dojo'||Game.dojoRival)&&p.target.hp>0&&p.mesh.position.distanceTo(p.target.center)<1.27){
+          hit(p.owner,p.target,p.dmg,p.vel.clone().normalize().multiplyScalar(5),false,'blast');
+          Effects.sparks(p.mesh.position,p.color,5);dead=true;
+        }
+        if(dead){remove(p);projectiles.splice(i,1);}continue;
+      }
       p.shell.rotation.y += dt * (7 + p.lvl * 5);
       p.shell.rotation.z += dt * 4;
       if (p.shell2) { p.shell2.rotation.x -= dt * 5.5; p.shell2.rotation.y += dt * 3.8; }
@@ -3749,7 +3921,7 @@ const Combat = (() => {
       Game.callout(attacker === Game.player ? 'Ground slam' : 'Rival slam', 'smash');
     }
   }
-  return { slam, melee, strike, blast, update, clear, projectiles };
+  return { slam, melee, strike, blast, update, clear, onMeteorLanding, projectiles };
 })();
 
 
@@ -4125,6 +4297,7 @@ const Menus = (() => {
   $('settingsBtn').addEventListener('click', () => showView('settings'));
   $('controlsBtn').addEventListener('click', () => showView('controls'));
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
+  document.querySelectorAll('[data-hero]').forEach(el=>el.addEventListener('click',()=>Game.selectCharacter(el.dataset.hero)));
   $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
   $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
   const dojoTools=$('dojoTools'), dojoToggle=$('dojoToggle');
@@ -4200,6 +4373,8 @@ const Game = {
   init() {
     const hero=CharacterRegistry.get('kairo_venn');
     this.player = new Fighter(hero.name, PALETTES.hero, new V3(0, STAGE_H, 12),hero.id);
+    this.heroes={kairo_venn:this.player,rin_sable:new Fighter('Rin Sable',PALETTES.ninja,new V3(0,STAGE_H,12),'rin_sable')};
+    this.heroes.rin_sable.model.root.visible=false;this.heroes.rin_sable.model.blob.visible=false;
     const nameLabel=$('pFighterName');if(nameLabel)nameLabel.textContent=hero.name;
     const dojoLabel=$('dojoTitle');if(dojoLabel)dojoLabel.textContent=hero.training.title.toUpperCase();
     this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12),'kairo_venn');
@@ -4211,10 +4386,10 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.player, modelSource, {hide:hiddenGear}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
-          try { $('pPortrait').src = renderVRMPortrait(this.player); }
+          try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
         const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true});
@@ -4242,6 +4417,28 @@ const Game = {
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(); });
     window.addEventListener('blur', () => this.pause());
     if ('ontouchstart' in window) document.body.classList.add('force-touch');
+  },
+  selectCharacter(id) {
+    if(this.state!=='title') return;
+    const who=CharacterRegistry.get(id);
+    if(!this.heroes[who.id]) return;
+    if(this.player) { this.player.model.root.visible=false;this.player.model.blob.visible=false;this.player.orb.visible=false;this.player.orbCore.visible=false;this.player.cancelCharge(); }
+    this.player=this.heroes[who.id];this.player.reset();
+    this.player.model.root.visible=true;this.player.model.blob.visible=true;
+    $('pFighterName').textContent=who.name;
+    $('dojoTitle').textContent=who.training.title.toUpperCase();
+    const icon=who.id==='rin_sable'?'Shuriken':'Blast';
+    const b=document.querySelector('.cbtn.blast');b.querySelector('span').textContent=icon;
+    b.querySelector('small').textContent=who.id==='rin_sable'?'hold · volley':'hold · charge';
+    b.setAttribute('aria-label',who.id==='rin_sable'?'Shuriken: tap to throw, hold for a volley':'Blast: tap to fire, hold to charge');
+    const fly=document.querySelector('.cbtn.fly');fly.querySelector('span').textContent=who.mobility.flight?'Fly':'Jump';
+    fly.querySelector('small').textContent=who.mobility.flight?'slide ▼ down':'2× jump';
+    fly.setAttribute('aria-label',who.mobility.flight?'Fly or descend':'Jump, release and tap again to double jump');
+    if(who.id==='rin_sable') $('pPortrait').src=renderPortrait(PALETTES.ninja);
+    else $('pPortrait').src=this.kairoPortrait||renderPortrait(PALETTES.hero);
+    document.querySelectorAll('[data-hero]').forEach(el=>{const selected=el.dataset.hero===who.id;el.classList.toggle('selected',selected);el.setAttribute('aria-pressed',String(selected));});
+    const tip=$('heroTip');if(tip)tip.textContent=who.id==='rin_sable'? 'RIN · Twin jumps · Shurikens · Shadow Volley · Shadow Step · Nightveil.': 'KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.';
+    this.setLock(false,false);CameraRig.snapBehind(this.player,this.enemy);
   },
   setLock(on, notify = true) {
     this.lockOn = on;
@@ -4516,9 +4713,10 @@ const Game = {
     const bb = document.querySelector('.cbtn.blast');
     const mb = document.querySelector('.cbtn.melee');
     const step = p.t - p.lastMelee > TUNING.comboWindow ? 0 : p.combo;
-    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target && p.comboFollow.target.launched && !p.comboFollow.target.spiked;
+    const follow = p.comboFollow && p.comboFollow.until >= p.t && p.comboFollow.target &&
+      (p.comboFollow.phase===3?p.comboFollow.target.meteorWindow>0:p.comboFollow.target.launched&&!p.comboFollow.target.spiked);
     mb.classList.toggle('combo-ready', (step > 0 || follow) && p.stun <= 0);
-    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : 'FINISH: METEOR KICK') :
+    $('meleeHint').textContent = follow ? (p.comboFollow.phase === 1 ? 'FOLLOW: UPPERCUT' : p.comboFollow.phase === 2 ? 'METEOR KICK' : 'FALLING FIST!') :
       step ? `${step + 1}/4 · ${step === 3 ? 'LAUNCHER' : step === 2 ? 'VARIED STRIKE' : 'chain'}` : '4-hit combo';
     bb.style.setProperty('--charge', p.charging ? Math.max(0.04, p.chargeLevel) : 0);
     bb.classList.toggle('charging', p.charging); bb.classList.toggle('full', p.chargeFull);

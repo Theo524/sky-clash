@@ -462,9 +462,64 @@ const Effects = (() => {
     const dummy=sprite(TEX.glow,col,.05,0);dummy.visible=false;
     push(dummy,.085,(e)=>{if(!e.done&&e.t>.065){e.done=true;sparks(to,col,low?6:perfect?19:13,dir,1.25);}});
   }
+  // Meteor slam: layered displaced rock plates, dense dust, and tumbling debris.
+  // All pieces are transient, use a mobile quality cap, and are anchored to groundAt().
+  function meteorCrater(pos, color, finisher = false) {
+    const low = Settings.get('quality') === 'low';
+    const centre = new V3(pos.x, groundAt(pos.x, pos.z) + 0.018, pos.z);
+    const count = low ? 8 : finisher ? 17 : 13;
+    const outer = finisher ? 3.9 : 3.0;
+    const dark = new THREE.Mesh(new THREE.CircleGeometry(outer * .65, 28),
+      new THREE.MeshBasicMaterial({ color: 0x191c22, transparent: true, opacity: .60, depthWrite: false, side: THREE.DoubleSide }));
+    dark.rotation.x = -Math.PI / 2; dark.position.copy(centre); dark.position.y += 0.011;
+    push(dark, 3.2, e => { const k=e.t/e.life; e.obj.material.opacity=.6*(1-smooth01((k-.55)/.45)); }, true);
+    for (let i=0;i<count;i++) {
+      const theta = TAU*(i+.13*Math.random())/count;
+      const radius = outer*(.52+.39*Math.random());
+      const w = .35 + .36*Math.random(), length = .65 + .85*Math.random();
+      const shape = new THREE.Shape();
+      shape.moveTo(-w*.5,-length*.42); shape.lineTo(w*.4,-length*.63);
+      shape.lineTo(w*.63,length*.24); shape.lineTo(-w*.10,length*.67);
+      shape.lineTo(-w*.62,length*.23); shape.closePath();
+      const slab = new THREE.Mesh(new THREE.ShapeGeometry(shape),
+        new THREE.MeshStandardMaterial({ color: [0x746f67,0x989087,0x55565a,0xaaa49b][i%4], roughness:1,
+          side:THREE.DoubleSide, transparent:true, opacity:.95, depthWrite:false }));
+      slab.rotation.set(-Math.PI/2,0,theta); slab.position.set(centre.x+Math.cos(theta)*radius,centre.y+.045,centre.z+Math.sin(theta)*radius);
+      const rise = (finisher ? .35 : .28) + Math.random()*.32, life=finisher?3.0:2.35;
+      push(slab,life,(e)=>{const k=e.t/e.life; e.obj.position.y=centre.y+.045+rise*Math.sin(Math.PI*Math.min(1,k*1.55));
+        e.obj.rotation.z=theta+.10*Math.sin(Math.PI*k);e.obj.material.opacity=.95*(1-smooth01((k-.73)/.27)); },true);
+    }
+    const debris = low ? 11 : finisher ? 30 : 24;
+    for(let i=0;i<debris;i++) {
+      const radius=.07+Math.random()*.19;
+      const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(radius,0),
+        new THREE.MeshStandardMaterial({ color:i%3===0?0xafa79d:0x66615a, roughness:1 }));
+      const a=Math.random()*TAU;
+      const speed=(finisher?6:4.5)+Math.random()*(finisher?10:8);
+      const v=new V3(Math.cos(a)*speed,3+Math.random()*8,Math.sin(a)*speed);
+      const p=centre.clone().add(new V3((Math.random()-.5)*.8,.1,(Math.random()-.5)*.8));
+      chunk.position.copy(p); const axis=new V3(Math.random(),Math.random(),Math.random()).normalize();
+      push(chunk,.63+Math.random()*.24,(e,dt)=>{const ground=groundAt(e.obj.position.x,e.obj.position.z)+radius;
+        v.y-=29*dt;e.obj.position.addScaledVector(v,dt);e.obj.rotation.x+=dt*6; e.obj.rotation.z+=dt*7;
+        if(e.obj.position.y<ground){e.obj.position.y=ground;v.multiplyScalar(.28);v.y=Math.max(0,-v.y*.18);} },true);
+    }
+    const dustCount = low ? 12 : finisher ? 38 : 27;
+    for(let i=0;i<dustCount;i++) {
+      const a=Math.random()*TAU, sp=1.5+Math.random()*(finisher?6:4.2);
+      const v=new V3(Math.cos(a)*sp,.7+Math.random()*2.2,Math.sin(a)*sp);
+      const s=sprite(TEX.smoke,i%4===0?0xc1beb6:0x77746f,.8+Math.random()*.9,.35,false);
+      s.position.copy(centre).add(new V3(0,.24,0));
+      const initial=s.scale.x;
+      push(s,.50+Math.random()*.43,(e,dt)=>{const t=e.t/e.life;
+        e.obj.position.addScaledVector(v,dt);e.obj.scale.setScalar(initial*(1+t*2.3));e.obj.material.opacity=.32*(1-t)*(1-t);});
+    }
+    flash(centre.clone().add(new V3(0,.75,0)), 0xffefc3, finisher?6:4.4, .10);
+    sparks(centre.clone().add(new V3(0,.65,0)),color,low?8:finisher?20:15,null,finisher?1.4:1.05);
+    dust(centre, low?7:12);
+  }
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, meteorCrater, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 

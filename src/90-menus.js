@@ -36,6 +36,7 @@ const Menus = (() => {
   $('settingsBtn').addEventListener('click', () => showView('settings'));
   $('controlsBtn').addEventListener('click', () => showView('controls'));
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
+  document.querySelectorAll('[data-hero]').forEach(el=>el.addEventListener('click',()=>Game.selectCharacter(el.dataset.hero)));
   $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
   $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
   const dojoTools=$('dojoTools'), dojoToggle=$('dojoToggle');

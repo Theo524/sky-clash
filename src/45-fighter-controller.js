@@ -15,6 +15,7 @@ class Fighter {
     this.characterId=characterId;
     this.character=typeof CharacterRegistry !== 'undefined' ? CharacterRegistry.get(characterId) : null;
     this.name = name; this.pal = pal; this.spawn = spawn.clone();
+    this.canFly = !this.character || this.character.mobility.flight;
     this.model = buildFighterModel(pal);
     // V37: no meteor, speed shell or glow geometry attached to movement.
     scene.add(this.model.root, this.model.blob);
@@ -26,14 +27,14 @@ class Fighter {
     this.pos = new V3(); this.vel = new V3(); this.reset();
   }
   reset() {
-    this.pos.copy(this.spawn); this.vel.set(0, 0, 0);
+    this.pos.copy(this.spawn); this.vel.set(0, 0, 0); this.jumpsUsed=0;
     this.facing = yawFromDir(-this.spawn.x, -this.spawn.z);
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
     this.stamina = TUNING.staminaMax; this.staminaRestT = 0;
     this.exhausted = false; this.staminaNoticeT = 0;
     this.flightBlend = 0; this.flightSpeedBlend = 0; this.airBank = 0;
-    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null;
+    this.comboCycle = 0; this.attackVariant = 'hook'; this.comboFollow = null; this.meteorWindow = 0; this.meteorSource = null;
     this.dashT = 0; this.dashCd = 0; this.dashWakeT = 0; this.dashDir = new V3(0, 0, 1);
     this.meleeCd = 0; this.blastCd = 0; this.awakenT = 0; this.awakenGauge = 0; this.awakenChargeT = 0; this.awakenChargeFxT = 0; this.awakenChargeProgress = 0; this.awakenRuptured = false; this.stun = 0;
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
@@ -144,8 +145,17 @@ class Fighter {
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
   tryJump() {
-    if (this.awakenChargeT > 0 || this.flying || this.jumping || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
-    this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
+    if (this.awakenChargeT > 0 || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
+    if (!this.canFly) {
+      if (this.jumpsUsed >= 2) return false;
+      this.jumpsUsed++;
+      this.jumping = true; this.jumpHold = 0;
+      this.vel.y = this.jumpsUsed === 1 ? TUNING.jumpVel : TUNING.jumpVel * 0.89;
+      if (this.jumpsUsed === 2) this.startAcro('flip',.42);
+    } else {
+      if (this.flying || this.jumping) return false;
+      this.jumping = true; this.jumpHold = 0; this.vel.y = TUNING.jumpVel;
+    }
     const speed = Math.hypot(this.vel.x, this.vel.z);
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
     const foe = this === Game.player ? Game.enemy : Game.player;
@@ -249,7 +259,8 @@ class Fighter {
     }
     this.dashRecoverT = Math.max(0, this.dashRecoverT - dt); this.vanishRecoverT = Math.max(0, this.vanishRecoverT - dt);
     this.brokenT = Math.max(0, this.brokenT - dt); this.riposteT = Math.max(0, this.riposteT - dt);
-    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !this.comboFollow.target.launched || this.comboFollow.target.spiked)) this.comboFollow = null;
+    if (this.comboFollow && (this.t > this.comboFollow.until || this.stun > 0 || this.launched || this.hp <= 0 || !this.comboFollow.target || !(this.comboFollow.phase === 3 ? this.comboFollow.target.meteorWindow > 0 : this.comboFollow.target.launched && !this.comboFollow.target.spiked))) this.comboFollow = null;
+    this.meteorWindow = Math.max(0, (this.meteorWindow || 0) - dt);
     this.superHitT = Math.max(0, (this.superHitT || 0) - dt); this.downT = Math.max(0, this.downT - dt); this.vanishCd = Math.max(0, this.vanishCd - dt); this.vanishT = Math.max(0, this.vanishT - dt); this.slamLagT = Math.max(0, this.slamLagT - dt); this.invulnT = Math.max(0, this.invulnT - dt);
     if (this.launched) { this.launchT += dt; if (this.stun <= 0 && !this.spiked) { this.launched = false; this.juggle = 0; } }
     if (this.kickPend) {
@@ -278,19 +289,19 @@ class Fighter {
         const maxLvl = clamp((this.energy - TUNING.blastCost) / TUNING.chargeCost, 0, 1);
         this.chargeT = Math.min(this.chargeT + dt, TUNING.chargeMin + TUNING.chargeTime * maxLvl);
         const lvl = this.chargeLevel;
-        if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; Effects.chargeFull(this); }
+        if (lvl >= 1 && !this.chargeFull) { this.chargeFull = true; if(this.characterId!=='rin_sable') Effects.chargeFull(this); }
         // Hybrid environment choreography: compressed air first, fractured flagstones
         // only in the last moments of a powerful ground charge.
-        if (!this.flying && this.chargeT > 0.15) {
+        if (this.characterId !== 'rin_sable' && !this.flying && this.chargeT > 0.15) {
           this.pressureT -= dt;
           if (this.pressureT <= 0) { this.pressureT = 0.16; Effects.chargePressure(this, lvl); }
         }
-        if (!this.chargeCracked && !this.flying && lvl >= 0.90) {
+        if (this.characterId !== 'rin_sable' && !this.chargeCracked && !this.flying && lvl >= 0.90) {
           this.chargeCracked = true; Effects.chargeFracture(this, 0.95);
           if (this === Game.player) CameraRig.shake(0.075);
         }
         this.chargeFx -= dt;
-        if (this.chargeT > 0.12 && this.chargeFx <= 0) { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
+        if (this.chargeT > 0.12 && this.chargeFx <= 0 && this.characterId !== 'rin_sable') { this.chargeFx = 0.05; Effects.chargeSpark(this, this.orb.position, lvl); }
       }
     }
     // guard: hold to block; a fresh block (not spammed) gets a short parry window
@@ -370,8 +381,9 @@ class Fighter {
     } else if (this.sprinting) {
       // steer with the stick; with no input keep going the way you face. Up/Down climbs and dives
       const dir = this.moveIntent.lengthSq() > 0.02 ? this.moveIntent.clone().setY(0).normalize() : this.forward();
-      const sp = (this.flying || this.vert ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
+      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
       const target = dir.multiplyScalar(sp); target.y = this.vert * sp * 0.75;
+      if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       this.vel.lerp(target, damp(TUNING.sprintTurn, dt));
       const hv = Math.hypot(this.vel.x, this.vel.z);
       if (hv > 2) this.facing = lerpAngle(this.facing, yawFromDir(this.vel.x, this.vel.z), damp(8, dt));
@@ -387,13 +399,13 @@ class Fighter {
       // frame. At impact the hands/feet strike where the opponent really is, not where
       // they were 150ms ago. After contact the character plants and recovers normally.
       const p = clamp(this.attackElapsed / Math.max(0.001, this.attackTotal), 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
+      const contact = this.attackKind === 'fallingFist' ? 0.65 : this.attackKind === 'kick' || this.attackKind === 'airStrike' || this.attackKind === 'skyKick' ? 0.47 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.48 : 0.42;
       const impulse = Math.pow(Math.sin(Math.PI * Math.min(1, p / Math.max(0.1, contact))), 2) * (1 - smooth01(p / (contact + 0.15)) * 0.35);
       const travel = this.attackTravel && this.attackTravel.lengthSq() > 0.01 ? this.attackTravel.clone().setY(0).normalize() : this.forward();
       const hsp = (this.attackAir ? 8.2 : 5.8) * (this.attackMoving ? 1 : 0.48);
       let targetH = hsp * impulse;
       const foe = this.attackTarget;
-      const active = !!foe && foe.hp > 0 && !foe.spiked && this.kickPend &&
+      const active = !!foe && foe.hp > 0 && (!foe.spiked || this.attackKind === 'fallingFist') && this.kickPend &&
         p < contact + 0.035 && this.stun <= 0;
       let pursuing = false;
       if (active) {
@@ -402,9 +414,9 @@ class Fighter {
         const height = foe.pos.y - this.pos.y;
         const moved = Math.hypot(this.pos.x - this.attackOrigin.x, this.pos.z - this.attackOrigin.z);
         const left = this.attackTravelBudget - moved;
-        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick';
-        const limit = follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
-        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
+        const follow = this.attackKind === 'skyUppercut' || this.attackKind === 'skyKick' || this.attackKind === 'fallingFist';
+        const limit = this.attackKind === 'fallingFist' ? TUNING.groundFollowRange : follow ? TUNING.airFollowRange : TUNING.meleePursuitRange + (this.attackAir ? 0.95 : 0);
+        if (horizontal > 0.3 && horizontal < limit && Math.abs(height) < (this.attackKind === 'fallingFist' ? TUNING.groundFollowHeight : follow ? TUNING.airFollowHeight : TUNING.meleePursuitHeight + (this.attackAir ? 1.4 : 0)) && left > 0.06) {
           pursuing = true;
           // A tiny lead follows strafing enemies, not a teleport toward future position.
           const lead = Math.min(0.11, Math.max(0.02, this.kickPend.t * 0.55));
@@ -433,7 +445,7 @@ class Fighter {
           if (this.attackAir) {
             // Fly up/down toward the opponent *during the approach*; hand/foot contact
             // remains a small 3D hit volume and won't connect from several metres away.
-            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.85 : 0.60), follow ? -17 : -14, follow ? 22 : 16);
+            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.92 : 0.60), this.attackKind === 'fallingFist' ? -35 : follow ? -17 : -14, follow ? 22 : 16);
             this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
           }
         }
@@ -456,7 +468,8 @@ class Fighter {
     } else {
       const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       target.y = this.vert * TUNING.flySpeed * speedMul;
-      if (this.jumping) {
+      if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
+      if (this.jumping && this.canFly) {
         // jump arc: gravity pulls you down unless you keep holding Up, which turns it into flight
         if (this.vert > 0) this.jumpHold += dt;
         if (this.jumpHold > TUNING.jumpToFly) { this.jumping = false; }
@@ -484,13 +497,15 @@ class Fighter {
       Effects.groundSlam(this.pos); CameraRig.shake(this === Game.player ? 0.5 : 0.35);
       if (this.slamTarget) Combat.slam(this, this.slamTarget);
     }
-    if (this.pos.y === floor && this.jumping && this.vel.y <= 0) { this.jumping = false; }
+    if (this.pos.y === floor && this.vel.y <= 0) { this.jumping = false; if (!this.canFly) this.jumpsUsed=0; }
     if (this.pos.y === floor && this.vel.y < 0) {
       // a smashed fighter hits the floor hard and stays down for a moment
       if (this.spiked) {
         this.spiked = false; this.launched = false; this.juggle = 0;
         this.downT = TUNING.downTime; this.stun = TUNING.downTime + 0.15;
-        Effects.groundSlam(this.pos); CameraRig.shake(0.55); Game.hitStop(0.06);
+        if (this.meteorSource) { Effects.meteorCrater(this.pos, this.meteorSource.pal.ki, false); Combat.onMeteorLanding(this); }
+        else Effects.groundSlam(this.pos);
+        CameraRig.shake(this.meteorSource ? 0.48 : 0.35); Game.hitStop(0.07);
         this.vel.set(this.vel.x * 0.2, 0, this.vel.z * 0.2);
       } else if (this.launched) { this.launched = false; this.juggle = 0; this.downT = 0.45; this.stun = Math.max(this.stun, 0.5); Effects.dust(this.pos, 6); this.vel.y = 0; }
       else this.vel.y = 0;
@@ -646,6 +661,7 @@ class Fighter {
 
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
+      if (this.characterId === 'rin_sable') return { arm:[[-1.4,.16,-1.35],[-.67,.34,-1.9]],leg:[[.32,.84,.23],[-.65,.86,.24]],spineY:-.27,spineX:.24,headX:-.14 };
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Ninja guard: low asymmetrical base, elbows tucked and hands shielding the face.
       // Subtle shifting weight keeps the character alive without idle foot-skating.
@@ -786,8 +802,8 @@ class Fighter {
     // charging: hands drawn together in front of the chest, wide braced stance
     if (this.charging && this.stun <= 0) {
       const lv = this.chargeLevel, sh = lv >= 1 ? Math.sin(this.t * 40) * 0.03 : 0;
-      P.arm = [[-1.05 + sh, -0.6, -1.15], [-1.05 - sh, -0.6, -1.15]]; P.spineY = 0; P.spineX = 0.04 + 0.03 * lv; P.headX = 0.1;
-      if (fw < 0.5) P.leg = [[0.16, 0.48, 0.21], [-0.24, 0.55, 0.18]];
+      P.arm = this.characterId === 'rin_sable' ? [[0.6,-.12,-1.3],[-1.5,-.4,-.34]] : [[-1.05 + sh, -0.6, -1.15], [-1.05 - sh, -0.6, -1.15]]; P.spineY = 0; P.spineX = 0.04 + 0.03 * lv; P.headX = 0.1;
+      if (fw < 0.5) P.leg = this.characterId === 'rin_sable' ? [[.46,.96,.23],[-.72,1.12,.19]] : [[0.16, 0.48, 0.21], [-0.24, 0.55, 0.18]];
     }
     // wind-up before an AI punch: rear fist pulled back
     if (this.windT > 0) { const w = 1 - this.windT / this.windLen; P.arm[0] = [0.55, 0.35, -1.9]; P.arm[1] = [-1.0, 0.25, -1.6]; P.spineY = 0.45 * Math.min(1, w * 2); }
@@ -800,7 +816,7 @@ class Fighter {
     } else if (this.punchT > 0) {
       const total = this.attackTotal || 0.235;
       const progress = clamp(this.attackElapsed / total, 0, 1);
-      const contact = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
+      const contact = this.attackKind === 'fallingFist' ? 0.65 : this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 0.48 : this.attackKind === 'skyUppercut' ? 0.49 : this.attackKind === 'hook' ? 0.49 : 0.43;
       const lift = smooth01(progress / contact);
       const returnW = 1 - smooth01((progress - contact) / (1 - contact));
       const strength = clamp(lift * returnW * 1.55 + 0.13 * Math.sin(progress * Math.PI), 0, 1);
@@ -817,6 +833,11 @@ class Fighter {
         B.arm[1] = [-0.78, 0.42, -1.72];
         B.leg[0] = [-0.42, 1.1, 0.09]; B.leg[1] = [0.24, 0.45, 0.08];
         B.spineY = -0.18 + drive * 0.30; B.spineX = -0.16 + drive * 0.25; B.headX = -0.10;
+      } else if (this.attackKind === 'fallingFist') {
+        const dive = smooth01((progress - 0.18) / 0.46);
+        B.arm = [[-0.62 - dive * 1.9, 0.08, -1.72 + dive * 1.38], [-0.82, 0.41, -1.88]];
+        B.leg = [[-0.60, 1.28, 0.15], [0.24, 0.52, 0.12]];
+        B.spineX = 0.28 + dive * 0.35; B.headX = -0.24; B.spineY = 0.14;
       } else if (this.attackKind === 'skyKick') {
         // Fold the knee first, then drive the heel sharply down through target.
         const snap = smooth01((progress - 0.22) / 0.30);
@@ -852,7 +873,7 @@ class Fighter {
       }
       if (!flying) {
         const moveW = smooth01((this.attackDrive - 1.0) / 5.2) * (this.attackMoving ? 1 : 0.5);
-        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick') {
+        if (moveW > 0.01 && this.attackKind !== 'skyUppercut' && this.attackKind !== 'skyKick' && this.attackKind !== 'fallingFist') {
           const sideBias = this.attackTravel ? (this.attackTravel.x * Math.cos(yaw) - this.attackTravel.z * Math.sin(yaw)) : 0;
           const step = { arm: [[-1.18, 0.22, -1.65], [-0.82, 0.14, -1.88]],
             leg: [[0.54, 0.98, 0.18], [-0.72, 0.62, 0.14]],
@@ -940,7 +961,7 @@ class Fighter {
     });
     // charge orb grows with the charge and pulses at full power
     const lvc = this.chargeLevel, showOrb = this.charging && this.chargeT > 0.08;
-    this.orb.visible = this.orbCore.visible = showOrb;
+    this.orb.visible = this.orbCore.visible = showOrb && this.characterId !== 'rin_sable';
     if (showOrb) {
       const op = this.center.addScaledVector(this.forward(), 0.68); op.y -= 0.05;
       // Visual cap independent of charge damage: compact, bright, never hides the torso.

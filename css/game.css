@@ -360,3 +360,12 @@ body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:1;pointer-events:a
 .dojo-panel-actions button{flex:1;min-height:38px;font-size:11px}
 @media(max-width:700px){.dojo-tools{top:calc(83px + var(--safe-t));right:calc(7px + var(--safe-r));left:auto;transform:none;justify-content:initial;gap:0}.dojo-tools .dojo-toggle{min-height:33px;padding:6px 9px;font-size:10px}.dojo-tools .dojo-panel{width:min(238px,calc(100vw - 18px));max-height:60dvh;padding:11px}}
 @media(max-height:530px) and (orientation:landscape){.dojo-tools{top:calc(48px + var(--safe-t));left:auto;right:calc(8px + var(--safe-r));transform:none;width:max-content}.dojo-tools .dojo-toggle{min-height:29px}.dojo-tools .dojo-panel{max-height:70dvh}}
+
+/* V51 compact character selection; fits the existing mobile title overlay. */
+.character-select{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0 14px}
+.char-choice{text-align:left;border-radius:11px;padding:12px 10px;background:rgba(25,29,47,.83);border:1px solid rgba(160,165,220,.24);min-width:0;display:flex;flex-direction:column;gap:4px}
+.char-choice b{font-weight:900;letter-spacing:.045em;font-size:12px;white-space:nowrap}
+.char-choice small{font-size:10px;line-height:1.25;color:#c1bdd2}
+.char-choice.selected{border-color:#b7afff;background:rgba(66,59,118,.48);box-shadow:inset 0 0 0 1px rgba(215,201,255,.26)}
+.char-choice:focus-visible{outline:3px solid #d8ceff;outline-offset:2px}
+@media(max-width:560px){.character-select{gap:6px;margin:7px 0 9px}.char-choice{padding:9px 8px}.char-choice b{font-size:11px}.char-choice small{font-size:9px}}
