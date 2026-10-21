@@ -11,7 +11,9 @@ const MOTION_STYLES = Object.freeze({
 
 /* ---------------- Fighter ---------------- */
 class Fighter {
-  constructor(name, pal, spawn) {
+  constructor(name, pal, spawn, characterId='kairo_venn') {
+    this.characterId=characterId;
+    this.character=typeof CharacterRegistry !== 'undefined' ? CharacterRegistry.get(characterId) : null;
     this.name = name; this.pal = pal; this.spawn = spawn.clone();
     this.model = buildFighterModel(pal);
     // V37: no meteor, speed shell or glow geometry attached to movement.
@@ -19,7 +21,7 @@ class Fighter {
     // charge orb held between the hands while charging a blast
     this.orb = Effects.sprite(TEX.glow, pal.ki, 1, 0.95); this.orbCore = Effects.sprite(TEX.glow, 0xffffff, 0.5, 1);
     this.orb.visible = this.orbCore.visible = false; scene.add(this.orb, this.orbCore);
-    this.motionStyle = pal.motionStyle || 'martial';
+    this.motionStyle = pal.motionStyle || (this.character && this.character.style) || 'martial';
     this.motionProfile = MOTION_STYLES[this.motionStyle] || MOTION_STYLES.martial;
     this.pos = new V3(); this.vel = new V3(); this.reset();
   }
@@ -103,6 +105,7 @@ class Fighter {
   }
   // teleport dodge: vanish and reappear behind the rival; timed against an attack it's a perfect vanish
   tryVanish(foe, allowPerfect = true) {
+    if (this.character && !this.character.mobility.vanish) return false;
     if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.awakenChargeT > 0 || this.energy < (this.guardCounterWindow > 0 ? Math.max(6,TUNING.vanishCost-7) : TUNING.vanishCost)) return false;
     const guardEscape = this.guardCounterWindow > 0 && (!this.guardHitBy || this.guardHitBy === foe);
     if (!this.useStamina(guardEscape ? 9 : TUNING.staminaVanish)) return false;

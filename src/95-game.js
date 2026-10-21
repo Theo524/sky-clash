@@ -5,8 +5,11 @@ const Game = {
   lockOn: false,
   player: null, enemy: null,
   init() {
-    this.player = new Fighter('You', PALETTES.hero, new V3(0, STAGE_H, 12));
-    this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12));
+    const hero=CharacterRegistry.get('kairo_venn');
+    this.player = new Fighter(hero.name, PALETTES.hero, new V3(0, STAGE_H, 12),hero.id);
+    const nameLabel=$('pFighterName');if(nameLabel)nameLabel.textContent=hero.name;
+    const dojoLabel=$('dojoTitle');if(dojoLabel)dojoLabel.textContent=hero.training.title.toUpperCase();
+    this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12),'kairo_venn');
     try { $('pPortrait').src = renderPortrait(PALETTES.hero); $('ePortrait').src = renderPortrait(PALETTES.rival); } catch (err) { console.warn(err); }
     if (typeof LoadScreen !== 'undefined') LoadScreen.progress(28,'Preparing fighters');
     const modelSource = window.HERO_VRM_URL || window.HERO_VRM_B64;
@@ -79,6 +82,7 @@ const Game = {
     this.restart();
     this.setLock(false,false);
     $('dojoTools').classList.remove('hidden');
+    $('dojoTools').classList.add('collapsed'); $('dojoToggle').setAttribute('aria-expanded','false');
     this.banner('WELCOME TO THE DOJO','round');
   },
   setDojoRival(mode) {
@@ -137,6 +141,7 @@ const Game = {
     this.koT = 0; this.hitStopT = 0; this.lag = { p: 100, e: 100 }; this.combo.t = 0; $('comboBox').classList.remove('show', 'hot'); this._mv = {x:0,y:0}; this._upWas = false;
     this.state = 'playing'; this.showPlayUI(true); this.betweenT = 0;
     $('dojoTools').classList.toggle('hidden',this.mode!=='dojo');
+    $('dojoTools').classList.add('collapsed'); $('dojoToggle').setAttribute('aria-expanded','false');
     $('dojoRivalHud').classList.toggle('hidden',this.mode!=='dojo'||!this.dojoRival);
     this.timeLeft = +Settings.get('timer') || 0; this.timeUp = false;
     this.renderPips();

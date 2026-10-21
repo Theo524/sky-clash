@@ -57,7 +57,10 @@ const CameraRig = (() => {
     }
     if (instant) look.copy(desired); else look.lerp(desired, damp(14, dt));
     const cameraDistances = { close: 6.15, standard: 8.5, far: 11.4 };
-    const desiredDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
+    const presetDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
+    // A short camera push-in gives the transformation weight without stealing the orbit controls.
+    const cinematic = p.awakenChargeT > 0 ? Math.sin(Math.PI * smooth01(p.awakenChargeProgress)) : 0;
+    const desiredDist = presetDist * (1 - 0.16 * cinematic);
     rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
     const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
     const cp = Math.cos(rig.pitch);
@@ -66,6 +69,13 @@ const CameraRig = (() => {
     if (rig.shakeT > 0) {
       rig.shakeT -= dt; const a = rig.shakeAmp * 0.48 * Math.max(0, rig.shakeT / 0.25);
       camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a;
+    }
+    // Kairo's blast charge: controlled low-frequency camera vibration that grows
+    // with concentration. No high-frequency random jitter or persistent offset.
+    if (!instant && p.charging && p.chargeHeld && p.stun <= 0) {
+      const strength = smooth01((p.chargeLevel - 0.18) / 0.82) * 0.028;
+      camera.position.x += Math.sin(p.t * 21) * strength;
+      camera.position.y += Math.sin(p.t * 17 + 0.8) * strength * 0.65;
     }
     camera.lookAt(look);
   }

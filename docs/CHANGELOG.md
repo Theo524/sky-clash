@@ -1,3 +1,12 @@
+# Sky Clash changelog
+
+## V48 — Kairo Venn and Compact Dojo
+- Named Character 001 Kairo Venn (hybrid martial artist / energy warrior), retaining flight, Vanish and charged ki attacks.
+- Added `src/05-character-registry.js`, the first structured character and move-slot definition.
+- Redesigned Dojo tools as a compact, dismissible mobile drawer.
+- Added subtly graduated camera tremor when a charged blast builds energy.
+- Kept the existing V47 fighting mechanics, training props and movement systems.
+
 ## V47 — Combat Flow and Stamina
 - Stamina, sprint exhaustion, new HUD.
 - 5 CC0 baked animation clips; smoother air blend, recorded guard footwork, idle layers, charged blast release variant.

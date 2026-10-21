@@ -61,6 +61,35 @@ const Settings = (() => {
 })();
 
 
+/* V48: Character definitions, independent of the shared combat simulation.
+ * One fighter is implemented today. Other archetypes will supply their own
+ * action handlers and animations rather than inheriting Kairo's blast/flight.
+ */
+const CharacterRegistry = (() => {
+  const characters = Object.freeze({
+    kairo_venn: Object.freeze({
+      id: 'kairo_venn', name: 'Kairo Venn', epithet: 'The Storm Fist',
+      className: 'Hybrid Martial Artist / Energy Warrior', style: 'martial',
+      model: 'fighter.vrm', dojo: 'windstone_dojo',
+      mobility: Object.freeze({ flight: true, boost: true, vanish: true, doubleJump: false, wallRun: false }),
+      resources: Object.freeze({ health: 'health', special: 'ki', stamina: 'stamina', awakening: 'stormheart' }),
+      moves: Object.freeze({
+        melee: Object.freeze({ id: 'storm_fist', name: 'Storm Fist', type: 'melee_combo', animationSet: 'kairo_unarmed' }),
+        ranged: Object.freeze({ id: 'aether_shot', name: 'Aether Shot', type: 'energy_projectile', hold: 'aether_breaker' }),
+        charged: Object.freeze({ id: 'aether_breaker', name: 'Aether Breaker', type: 'charge_projectile', input: 'hold_ranged' }),
+        mobility: Object.freeze({ id: 'storm_step', name: 'Storm Step', type: 'dash_vanish' }),
+        awakening: Object.freeze({ id: 'stormheart', name: 'Stormheart', type: 'transformation', modifies: ['stance','attack_power','aura','movement'] }),
+      }),
+      training: Object.freeze({ title: 'Windstone Dojo', preferredProps: ['heavy_bag','martial_dummy','ki_target'] }),
+    }),
+  });
+  const defaultId = 'kairo_venn';
+  function get(id = defaultId) { return characters[id] || characters[defaultId]; }
+  function all() { return Object.values(characters); }
+  function can(id, movement) { return !!get(id).mobility[movement]; }
+  function move(id, slot) { return get(id).moves[slot] || null; }
+  return Object.freeze({ defaultId, get, all, can, move });
+})();
 /* ---------------- Renderer / scene ---------------- */
 const container = $('game');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -1659,7 +1688,9 @@ const MOTION_STYLES = Object.freeze({
 
 /* ---------------- Fighter ---------------- */
 class Fighter {
-  constructor(name, pal, spawn) {
+  constructor(name, pal, spawn, characterId='kairo_venn') {
+    this.characterId=characterId;
+    this.character=typeof CharacterRegistry !== 'undefined' ? CharacterRegistry.get(characterId) : null;
     this.name = name; this.pal = pal; this.spawn = spawn.clone();
     this.model = buildFighterModel(pal);
     // V37: no meteor, speed shell or glow geometry attached to movement.
@@ -1667,7 +1698,7 @@ class Fighter {
     // charge orb held between the hands while charging a blast
     this.orb = Effects.sprite(TEX.glow, pal.ki, 1, 0.95); this.orbCore = Effects.sprite(TEX.glow, 0xffffff, 0.5, 1);
     this.orb.visible = this.orbCore.visible = false; scene.add(this.orb, this.orbCore);
-    this.motionStyle = pal.motionStyle || 'martial';
+    this.motionStyle = pal.motionStyle || (this.character && this.character.style) || 'martial';
     this.motionProfile = MOTION_STYLES[this.motionStyle] || MOTION_STYLES.martial;
     this.pos = new V3(); this.vel = new V3(); this.reset();
   }
@@ -1751,6 +1782,7 @@ class Fighter {
   }
   // teleport dodge: vanish and reappear behind the rival; timed against an attack it's a perfect vanish
   tryVanish(foe, allowPerfect = true) {
+    if (this.character && !this.character.mobility.vanish) return false;
     if (this.vanishCd > 0 || this.stun > 0 || this.launched || this.awakenChargeT > 0 || this.energy < (this.guardCounterWindow > 0 ? Math.max(6,TUNING.vanishCost-7) : TUNING.vanishCost)) return false;
     const guardEscape = this.guardCounterWindow > 0 && (!this.guardHitBy || this.guardHitBy === foe);
     if (!this.useStamina(guardEscape ? 9 : TUNING.staminaVanish)) return false;
@@ -3773,6 +3805,13 @@ const CameraRig = (() => {
       rig.shakeT -= dt; const a = rig.shakeAmp * 0.48 * Math.max(0, rig.shakeT / 0.25);
       camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a;
     }
+    // Kairo's blast charge: controlled low-frequency camera vibration that grows
+    // with concentration. No high-frequency random jitter or persistent offset.
+    if (!instant && p.charging && p.chargeHeld && p.stun <= 0) {
+      const strength = smooth01((p.chargeLevel - 0.18) / 0.82) * 0.028;
+      camera.position.x += Math.sin(p.t * 21) * strength;
+      camera.position.y += Math.sin(p.t * 17 + 0.8) * strength * 0.65;
+    }
     camera.lookAt(look);
   }
   return { update, forward, right, onDash, snapBehind, isLockActive, shake(a) { rig.shakeT = 0.25; rig.shakeAmp = Math.max(rig.shakeAmp * 0.40, a); }, rig };
@@ -3932,9 +3971,18 @@ const Menus = (() => {
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
   $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
   $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
-  $('dojoRivalMode').addEventListener('change', e => Game.setDojoRival(e.target.value));
-  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); });
-  $('dojoHomeBtn').addEventListener('click', () => Game.returnHome());
+  const dojoTools=$('dojoTools'), dojoToggle=$('dojoToggle');
+  function closeDojoTools(){ dojoTools.classList.add('collapsed'); dojoToggle.setAttribute('aria-expanded','false'); dojoToggle.setAttribute('aria-label','Open dojo training controls'); }
+  dojoToggle.addEventListener('click', () => {
+    const expanded=dojoTools.classList.toggle('collapsed')===false;
+    dojoToggle.setAttribute('aria-expanded',String(expanded));
+    dojoToggle.setAttribute('aria-label',expanded?'Close dojo training controls':'Open dojo training controls');
+  });
+  document.addEventListener('pointerdown',e=>{if(!dojoTools.contains(e.target))closeDojoTools();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDojoTools();});
+    $('dojoRivalMode').addEventListener('change', e => { Game.setDojoRival(e.target.value); closeDojoTools(); });
+  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); closeDojoTools(); });
+  $('dojoHomeBtn').addEventListener('click', () => { closeDojoTools(); Game.returnHome(); });
   $('homeBtn').addEventListener('click', () => Game.returnHome());
   $('dojoFromPauseBtn').addEventListener('click', () => { closePause(); Game.enterDojo(); });
   $('titleSettingsBtn').addEventListener('click', () => openSettingsFrom(title));
@@ -3994,8 +4042,11 @@ const Game = {
   lockOn: false,
   player: null, enemy: null,
   init() {
-    this.player = new Fighter('You', PALETTES.hero, new V3(0, STAGE_H, 12));
-    this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12));
+    const hero=CharacterRegistry.get('kairo_venn');
+    this.player = new Fighter(hero.name, PALETTES.hero, new V3(0, STAGE_H, 12),hero.id);
+    const nameLabel=$('pFighterName');if(nameLabel)nameLabel.textContent=hero.name;
+    const dojoLabel=$('dojoTitle');if(dojoLabel)dojoLabel.textContent=hero.training.title.toUpperCase();
+    this.enemy = new Fighter('Rival', PALETTES.rival, new V3(0, STAGE_H, -12),'kairo_venn');
     try { $('pPortrait').src = renderPortrait(PALETTES.hero); $('ePortrait').src = renderPortrait(PALETTES.rival); } catch (err) { console.warn(err); }
     if (typeof LoadScreen !== 'undefined') LoadScreen.progress(28,'Preparing fighters');
     const modelSource = window.HERO_VRM_URL || window.HERO_VRM_B64;
@@ -4068,6 +4119,7 @@ const Game = {
     this.restart();
     this.setLock(false,false);
     $('dojoTools').classList.remove('hidden');
+    $('dojoTools').classList.add('collapsed'); $('dojoToggle').setAttribute('aria-expanded','false');
     this.banner('WELCOME TO THE DOJO','round');
   },
   setDojoRival(mode) {
@@ -4126,6 +4178,7 @@ const Game = {
     this.koT = 0; this.hitStopT = 0; this.lag = { p: 100, e: 100 }; this.combo.t = 0; $('comboBox').classList.remove('show', 'hot'); this._mv = {x:0,y:0}; this._upWas = false;
     this.state = 'playing'; this.showPlayUI(true); this.betweenT = 0;
     $('dojoTools').classList.toggle('hidden',this.mode!=='dojo');
+    $('dojoTools').classList.add('collapsed'); $('dojoToggle').setAttribute('aria-expanded','false');
     $('dojoRivalHud').classList.toggle('hidden',this.mode!=='dojo'||!this.dojoRival);
     this.timeLeft = +Settings.get('timer') || 0; this.timeUp = false;
     this.renderPips();

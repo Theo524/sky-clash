@@ -38,9 +38,18 @@ const Menus = (() => {
   pause.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', back));
   $('startBtn').addEventListener('click', () => { hide(title); Game.startFight(); syncSettingsUI(); });
   $('trainBtn').addEventListener('click', () => { hide(title); Game.enterDojo(); syncSettingsUI(); });
-  $('dojoRivalMode').addEventListener('change', e => Game.setDojoRival(e.target.value));
-  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); });
-  $('dojoHomeBtn').addEventListener('click', () => Game.returnHome());
+  const dojoTools=$('dojoTools'), dojoToggle=$('dojoToggle');
+  function closeDojoTools(){ dojoTools.classList.add('collapsed'); dojoToggle.setAttribute('aria-expanded','false'); dojoToggle.setAttribute('aria-label','Open dojo training controls'); }
+  dojoToggle.addEventListener('click', () => {
+    const expanded=dojoTools.classList.toggle('collapsed')===false;
+    dojoToggle.setAttribute('aria-expanded',String(expanded));
+    dojoToggle.setAttribute('aria-label',expanded?'Close dojo training controls':'Open dojo training controls');
+  });
+  document.addEventListener('pointerdown',e=>{if(!dojoTools.contains(e.target))closeDojoTools();});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDojoTools();});
+    $('dojoRivalMode').addEventListener('change', e => { Game.setDojoRival(e.target.value); closeDojoTools(); });
+  $('dojoResetBtn').addEventListener('click', () => { Dojo.resetProps(); toast('Equipment reset'); closeDojoTools(); });
+  $('dojoHomeBtn').addEventListener('click', () => { closeDojoTools(); Game.returnHome(); });
   $('homeBtn').addEventListener('click', () => Game.returnHome());
   $('dojoFromPauseBtn').addEventListener('click', () => { closePause(); Game.enterDojo(); });
   $('titleSettingsBtn').addEventListener('click', () => openSettingsFrom(title));

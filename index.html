@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V47 — Combat Flow & Stamina</title>
-<link rel="stylesheet" href="css/game.css?v=47">
+<title>Sky Clash V48 — Kairo and Compact Dojo</title>
+<link rel="stylesheet" href="css/game.css?v=48">
 </head>
 <body>
 <div id="game"></div>
@@ -29,24 +29,29 @@
 <div id="banner" class="banner" aria-live="polite"></div>
 
 <!-- HUD -->
-<div id="dojoTools" class="dojo-tools hidden" aria-label="Dojo training controls">
-  <div class="dojo-tools-title"><b>MARTIAL DOJO</b><span>FREE TRAINING · <strong id="dojoHits">0</strong> hits</span></div>
-  <label class="dojo-select">Training partner
-    <select id="dojoRivalMode" aria-label="Training partner behaviour">
-      <option value="solo">Solo · Equipment</option>
-      <option value="dummy">Stationary fighter</option>
-      <option value="moving">Moving fighter</option>
-      <option value="attacks">Sparring fighter</option>
-    </select>
-  </label>
-  <button id="dojoResetBtn" title="Reset bags and targets">Reset</button>
-  <button id="dojoHomeBtn" title="Return to main menu">Home</button>
+<div id="dojoTools" class="dojo-tools hidden collapsed" aria-label="Dojo training controls">
+  <button id="dojoToggle" class="dojo-toggle" aria-label="Open dojo training controls" aria-expanded="false" aria-controls="dojoPanel"><span aria-hidden="true">🥋</span> DOJO <span id="dojoToggleArrow" aria-hidden="true">▾</span></button>
+  <div id="dojoPanel" class="dojo-panel" aria-label="Training tools">
+    <div class="dojo-tools-title"><b id="dojoTitle">WINDSTONE DOJO</b><span>FREE TRAINING · <strong id="dojoHits">0</strong> hits</span></div>
+    <label class="dojo-select">Training partner
+      <select id="dojoRivalMode" aria-label="Training partner behaviour">
+        <option value="solo">Solo · Equipment</option>
+        <option value="dummy">Stationary fighter</option>
+        <option value="moving">Moving fighter</option>
+        <option value="attacks">Sparring fighter</option>
+      </select>
+    </label>
+    <div class="dojo-panel-actions">
+      <button id="dojoResetBtn" title="Reset bags and targets">Reset props</button>
+      <button id="dojoHomeBtn" title="Return to main menu">Go home</button>
+    </div>
+  </div>
 </div>
 <div id="hud" class="hidden">
   <div class="bars left">
     <img id="pPortrait" class="portrait" alt="">
     <div class="barstack">
-      <div class="name">You <b id="pHpNum">100</b><span class="pips hidden" id="pPips"></span></div>
+      <div class="name"><span id="pFighterName">Kairo Venn</span> <b id="pHpNum">100</b><span class="pips hidden" id="pPips"></span></div>
       <div class="bar hp"><s id="pLag"></s><i id="pHp"></i></div>
       <div class="bar en" id="pEnBar" title="KI — abilities and blasts"><i id="pEn"></i></div>
       <div class="bar st" id="pStBar" title="STAMINA — sprint and evasive movement"><i id="pSt"></i><span>STA</span></div>
@@ -95,14 +100,14 @@
 <!-- Main menu, intentionally separate from loading -->
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
-    <div class="home-identity"><span class="home-eyebrow">CHARACTER · MARTIAL ARTIST</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">V47 / COMBAT FLOW UPDATE</div>
+    <div class="home-identity"><span class="home-eyebrow">CHARACTER 001 · KAIRO VENN · STORM FIST</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
+    <div class="home-menu"><div class="home-version">V48 / CHARACTER FOUNDATIONS</div>
       <button class="home-action home-primary" id="trainBtn"><span class="action-number">01</span><span><b>Enter the Dojo</b><small>Your training space · Props · Sparring</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="startBtn"><span class="action-number">02</span><span><b>Enter Battle</b><small>Fight in the Highland Arena</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="titleSettingsBtn"><span class="action-number">03</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
-      <div class="home-tip">DOJO: explore freely, strike the bags and dummy, shoot the targets, or call in a training partner.</div>
+      <div class="home-tip">KAIRO · Storm Fist combos · Aether Breaker blast · Flight and Vanish · Stormheart Awakening.</div>
     </div>
-    <div class="home-footer">SEED-SAN · CHARACTER 01 <span>SKY CLASH / TRAINING GROUNDS</span></div>
+    <div class="home-footer">KAIRO VENN · CHARACTER 001 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
 
@@ -254,6 +259,6 @@ return{progress,finish};})();
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=47"></script>
+<script src="js/game.js?v=48"></script>
 </body>
 </html>
