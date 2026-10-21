@@ -464,7 +464,7 @@ class VRMRig {
     // Raises the VRM mesh if its ankle/sole or knee would intersect the real floor.
     // Does not move the hitbox or fighter's gameplay position.
     if (!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
-      vrm.scene.updateMatrixWorld(true);
+      this.vrm.scene.updateMatrixWorld(true);
       const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
       let correction = 0;
       const joint = this._floorJoint || (this._floorJoint = new V3());
@@ -485,11 +485,11 @@ class VRMRig {
       this.footLift = (this.footLift || 0);
       const wanted = clamp(this.footLift + correction, 0, 0.44);
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 27 : 14, dt);
-      vrm.scene.position.y += next - this.footLift;
+      this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     } else if (this.footLift) {
       const next = this.footLift * (1 - damp(17, dt));
-      vrm.scene.position.y += next - this.footLift;
+      this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     }
     // Distinct awakening colour on the rival's detailed hair, not only the hidden guide rig.
