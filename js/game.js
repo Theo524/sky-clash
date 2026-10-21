@@ -1169,13 +1169,7 @@ class VRMRig {
     const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
     for (const side of ['left', 'right']) {
       const sg = side === 'left' ? -1 : 1;
-      for (const fn of fingers) for (const [sn, a] of segs) {
-        const n = bone(side + fn + sn);
-        // Rin fights with open, slightly hooked fingers (ninja palm / shuriken
-        // hand), not a permanently clenched boxing fist.
-        const flex = opts.ninja ? a * (side === 'left' ? 0.27 : 0.47) : a;
-        if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), flex * sg);
-      }
+      for (const fn of fingers) for (const [sn, a] of segs) { const n = bone(side + fn + sn); if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), a * sg); }
       const t1 = bone(side + 'ThumbProximal'), t2 = bone(side + 'ThumbDistal'), tm = bone(side + 'ThumbMetacarpal');
       if (tm) tm.quaternion.setFromEuler(new THREE.Euler(0, 0.5 * sg, 0.2 * sg));
       if (t1) t1.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.6 * sg);
@@ -1222,7 +1216,11 @@ class VRMRig {
         if (joint) joint.quaternion.premultiply(fromNative).multiply(toNative).normalize();
       }
     }
-    if (this.anim) {
+    if (this.anim && typeof CharacterWorkshop !== 'undefined' && !CharacterWorkshop.allowRecorded(this.f) && !CharacterWorkshop._allowClipPreview()) {
+      this.anim.one=null;this.anim.prevOne=null;
+      for(const i of this.anim.unset){const n=this.anim.nodes[i];if(n)n.quaternion.identity();}
+    }
+    if (this.anim && (typeof CharacterWorkshop === "undefined" || (CharacterWorkshop.allowRecorded(this.f) && (!CharacterWorkshop.active || this.f !== Game.player)) || (CharacterWorkshop.active && this.f === Game.player && CharacterWorkshop._allowClipPreview()))) {
       try { this.anim.update(dt); }
       catch (err) {
         // An exotic recorded clip must never halt the whole match.
@@ -1967,7 +1965,7 @@ class Fighter {
     this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
     this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
-    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.ninjaStep = { phase: 0, swing: [0, 0] }; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
+    this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
   // Real positions remain under the physics engine, not the animation layer.
@@ -2387,7 +2385,7 @@ class Fighter {
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
       else this.vel.multiplyScalar(1 - damp(4, dt));
     } else {
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed * (this.characterId === 'rin_sable' ? 0.59 : 1)) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
@@ -2479,9 +2477,13 @@ class Fighter {
 
     // velocity in the fighter's own frame: lz = forward, lx = toward its left (+X local)
     const yaw = root.rotation.y;
-    const lz = this.vel.x * Math.sin(yaw) + this.vel.z * Math.cos(yaw);
-    const lx = this.vel.x * Math.cos(yaw) - this.vel.z * Math.sin(yaw);
-    const hspeed = Math.hypot(this.vel.x, this.vel.z);
+    let lz = this.vel.x * Math.sin(yaw) + this.vel.z * Math.cos(yaw);
+    let lx = this.vel.x * Math.cos(yaw) - this.vel.z * Math.sin(yaw);
+    let hspeed = Math.hypot(this.vel.x, this.vel.z);
+    // Workshop locomotion preview drives ONLY the rendered guide rig. Physics,
+    // speed and combat are not modified; both fighters keep independent tuning.
+    const wsVelocity = typeof CharacterWorkshop !== "undefined" && CharacterWorkshop.previewVelocity(this, dt);
+    if (wsVelocity) { lz=wsVelocity.lz;lx=wsVelocity.lx;hspeed=wsVelocity.speed; }
 
     // lean is relative to the body, so it always tips toward the direction of travel
     let pitchT, rollT;
@@ -2562,16 +2564,9 @@ class Fighter {
       }
     }
     // run cycle locked to distance: longer strides at speed, quick steps when slow, so feet don't skate
-    const isNinja = this.characterId === 'rin_sable';
-    // Successive ninja footprints are about 0.75 m apart at combat-walk speed;
-    // the old 1.5–3 m step length played the legs far too slowly (skating).
-    const stepLen = isNinja ? (this.sprinting || this.dashing ? 1.07 : 0.76)
-      : hspeed < 5 ? 0.55 + 0.19 * hspeed : Math.min(3.0, 1.5 + 0.075 * (hspeed - 5));
+    const stepLen = (hspeed < 5 ? 0.55 + 0.19 * hspeed : Math.min(3.0, 1.5 + 0.075 * (hspeed - 5))) * (typeof CharacterWorkshop !== "undefined" ? CharacterWorkshop.motion(this, "stride") : 1);
     this.stepLen = stepLen;
-    // Cap the cycle for anime boost speed; foot contacts are still tied to distance
-    // during ordinary walking and strafing.
-    this.runPh += Math.min(isNinja ? 27 : 100, hspeed / stepLen * Math.PI) * dt;
-    if (this.runPh > TAU * 200) this.runPh %= TAU;
+    this.runPh += hspeed / Math.max(0.15,stepLen) * Math.PI * dt * (typeof CharacterWorkshop !== "undefined" ? CharacterWorkshop.motion(this, "cadence") : 1);
     // hips turn toward the way you're actually moving (strafing / turning), chest stays on target
     let yawT = 0, dirT = 1;
     if (!flying && hspeed > 1.5 && !this.sprinting && !this.dashing) {
@@ -2594,11 +2589,7 @@ class Fighter {
     const stepBob = (0.5 + 0.5 * Math.cos(2 * this.runPh)) * (0.009 + 0.024 * runness) - 0.02 * runness;
     const hover = Math.sin(this.t * 2.4) * (0.035 + 0.035 * (1 - this.flightSpeedBlend));
     // Raised baseline: the VRM's sole (below the ankle joint) must remain visible above terrain.
-    // Ninja carries his weight in *bent knees*, rather than an erect/locked-leg
-    // avatar with a fake forward lean. The shared game hitbox stays unchanged.
-    const groundY = isNinja
-      ? 0.920 - 0.018 * rw * runness + 0.008 * Math.sin(this.t * 1.8) * (1-rw) + 0.024 * rw * stepBob
-      : 1.075 - 0.065 * (1-rw) - 0.025 * rw * runness + bounce * (1-rw) + stepBob * rw;
+    const groundY = 1.075 - (this.characterId === 'rin_sable' ? 0.035 : 0.065) * (1 - rw) - 0.025 * rw * runness + bounce * (1 - rw) + stepBob * rw;
     this.blockW += ((this.blocking ? 1 : 0) - this.blockW) * damp(22, dt);
     body.position.y = groundY * (1 - fw) + (1.0 + hover) * fw - 0.06 * this.blockW * (1 - fw);
     // Add clearance during a flip; tuck to absorb a landing or sidestep.
@@ -2615,7 +2606,10 @@ class Fighter {
     // poses: arm = [shoulderX, shoulderZ(out), elbowX], leg = [hipX, kneeX, hipZ(out)]; index 1 is the lead (left) side
     const stance = () => {
       if (this.characterId === 'rin_sable') {
-        return ninjaStance();
+        const breathe = Math.sin(this.t*1.85)*0.024;
+        // Shade Runner: asymmetric open-hand guard, forward left hand, low right hand; upright and light on the feet.
+        return { arm:[[-0.63+breathe,.30,-1.42],[-1.12-breathe,.24,-1.18]],
+          leg:[[.17,.16,.07],[-.24,.23,.10]],spineY:-.08,spineX:.015,headX:-.015 };
       }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Storm Fist: readable high boxing guard, grounded without an exaggerated forward bow.
@@ -2624,58 +2618,7 @@ class Fighter {
       return { arm: [[-0.88 + br, 0.24, -1.48], [-1.07 - br, 0.18, -1.55]],
                leg: [[0.24 + weight, 0.31, 0.15], [-0.31 - weight, 0.38, 0.15]], spineY: -0.15 + sway * 0.5, spineX: 0.065, headX: 0.0 };
     };
-    // V55.1: Rin-only two-bone leg solve. A named sole target determines the
-    // knee bend, instead of the previous almost-straight walking knee values.
-    // All angles are on the ORIGINAL guide rig; VRM0 axes are converted once
-    // by VRMRig. No Mixamo shoulder/hip rotation is blended on Rin.
-    const ninjaLegIK = (forward, lift, lateral, footRoll = 0) => {
-      const upper = 0.45, lower = 0.40;
-      const hipY = body.position.y - 0.06;
-      const down = Math.max(0.15, hipY - (0.15 + lift));
-      const reach = clamp(Math.hypot(forward, down), 0.16, upper + lower - 0.008);
-      const bend = Math.acos(clamp((reach * reach - upper * upper - lower * lower) / (2 * upper * lower), -1, 1));
-      const thigh = Math.atan2(forward, down) + Math.atan2(lower * Math.sin(bend), upper + lower * Math.cos(bend));
-      const lateralAngle = clamp(Math.atan2(lateral, down), -0.40, 0.40);
-      return [-clamp(thigh, -0.90, 1.48), clamp(bend, 0.22, 1.95), lateralAngle, footRoll];
-    };
-    const ninjaStance = () => {
-      const breath = Math.sin(this.t * 1.95), weight = Math.sin(this.t * 1.15) * 0.017;
-      return { arm: [[-0.54 - 0.045*breath, 0.26, -1.38],[-1.24 + 0.035*breath, 0.13, -0.92]],
-        leg: [ninjaLegIK(-0.245 - weight,0,0.105), ninjaLegIK(0.245 - weight,0,0.115)],
-        spineY: -0.23 + weight * 0.20, spineX: 0.015, headX: -0.02 };
-    };
-    const ninjaGait = () => {
-      const runFast = smooth01((hspeed - 5.5) / 13);
-      const lateralW = smooth01((Math.abs(lx) - Math.abs(lz)*0.55) / 5);
-      const backward = lz < -0.3 ? -1 : 1;
-      // Each foot spends 60% of its cycle on the floor (backwards travel
-      // relative to the hips) and 40% lifting/advancing into the next step.
-      const footStep = i => {
-        let c = ((this.runPh + (i === 1 ? Math.PI : 0)) % TAU + TAU) % TAU / TAU;
-        const stance = c < 0.60;
-        const swingT = stance ? 0 : (c - 0.60) / 0.40;
-        const travel = stance ? 1 - c / 0.60 * 2 : -1 + 2*smooth01(swingT);
-        // Match floor-contact travel to actual distance: ~0.86m stance
-        // sweep over 0.17s at ordinary ninja walk speed (~5m/s).
-        const reach = 0.425 + 0.020*runFast;
-        const moveForward = backward * reach * travel * (1 - 0.70*lateralW);
-        const swingLift = stance ? 0 : Math.sin(Math.PI * swingT) * (0.145 + 0.058*runFast);
-        // Side steps lead with the outside foot instead of crossing ankles.
-        const out = i === 1 ? 1 : -1;
-        const movingSide = Math.sign(lx) || 1;
-        const sideTravel = lateralW * movingSide * reach * travel * 0.32;
-        const footTarget = ninjaLegIK(moveForward, swingLift, 0.09 + out*sideTravel, stance ? 0.035*(c/0.60) : -0.11*Math.sin(Math.PI*swingT));
-        this.ninjaStep.swing[i] = stance ? 0 : Math.sin(Math.PI*swingT);
-        return footTarget;
-      };
-      const beat = Math.sin(this.runPh), arms =
-        [[-0.58 + beat*0.17,0.26,-1.33],[-1.08 - beat*0.15,0.12,-1.00]];
-      // Evasive shoulders stay guarded and counter-rotate against stepping hips.
-      return { arm:arms, leg:[footStep(0),footStep(1)],
-        spineY:-0.18 - 0.095*beat*(1-lateralW*0.4),spineX:0.025,headX:-0.035 };
-    };
     const run = () => {
-      if (isNinja) return ninjaGait();
       // knee folds most while the leg swings through (heel up under the hip), stays softly bent on the ground
       // stride angle matches the step length, so each foot covers exactly the ground travelled (no gliding)
       const ph = this.strideDir > 0 ? this.runPh : -this.runPh, sn = Math.sin(ph);   // backpedal runs the cycle in reverse
@@ -2726,15 +2669,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = isNinja ? [[0.69 + 0.10*Math.sin(this.runPh),0.13,-0.78],[0.55 - 0.10*Math.sin(this.runPh),0.18,-0.84]] : r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]);
-      if (!isNinja) r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]);
-      r.headX = -0.035; r.spineX = isNinja ? 0.025 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = isNinja ? [[0.69 + 0.10*Math.sin(this.runPh),0.13,-0.78],[0.55 - 0.10*Math.sin(this.runPh),0.18,-0.84]] : r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]);
-      if (!isNinja) r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]);
-      r.headX = -0.035; r.spineX = isNinja ? 0.025 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -2764,7 +2703,7 @@ class Fighter {
       const air = fz >= 0 ? mix(flyIdle(), flyFwd(), smooth01(fz)) : mix(flyIdle(), flyBack(), smooth01(-fz));
       P = mix(ground, air, fw);
       // Controlled lateral footwork: crossed arm guard, asymmetric sliding steps.
-      if (!isNinja && !flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
+      if (!flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
         const lateral = smooth01((Math.abs(lx) - Math.abs(lz) * 0.8) / 8) * (1 - smooth01((hspeed - 13) / 8));
         const side = Math.sign(lx) || 1;
         const sidePh = Math.sin(this.runPh), leadLift = Math.max(0, sidePh), trailLift = Math.max(0, -sidePh);
@@ -2955,9 +2894,8 @@ class Fighter {
       // Small braced dip; don't lift the whole mesh from the ground.
       body.position.y -= (0.055 - open * 0.03);
     }
-    const fast = this.punchT > 0 || this.blastT > 0 ? 19
-      : isNinja && !flying && hspeed > 0.6 ? 24
-      : this.moving || this.stun > 0 ? 18 : 11;
+    if (typeof CharacterWorkshop !== "undefined") P = CharacterWorkshop.applyPose(this,P);
+    const fast = this.punchT > 0 || this.blastT > 0 ? 19 : this.moving || this.stun > 0 ? 18 : 11;
     const k = damp(fast, dt), kb = damp(12, dt);
     m.arms.forEach((a, i) => {
       const [x, z, e] = P.arm[i];
@@ -2970,11 +2908,7 @@ class Fighter {
       l.hip.rotation.x += (h - l.hip.rotation.x) * k;
       l.hip.rotation.z += (hz * l.side - l.hip.rotation.z) * k;
       l.knee.rotation.x += (kn - l.knee.rotation.x) * k;
-      // The ninja foot target includes toe-off and swing foot pitch. Don't
-      // apply the generic ankle formula to him: it makes the sole point into
-      // the ground and cancels the footstep's visible lift.
-      const ankle = isNinja && !flying && rw > 0.02 ? -(h + kn) + (P.leg[i][3] || 0) : (fw > 0.5 ? 0.5 : -(h + kn) * 0.85);
-      l.foot.rotation.x += (ankle - l.foot.rotation.x) * kb;
+      l.foot.rotation.x += ((fw > 0.5 ? 0.5 : -(h + kn) * 0.85) - l.foot.rotation.x) * kb;   // keep boots flat on the ground
       l.foot.rotation.z += ((fw > 0.5 ? 0 : -hz * l.side) - l.foot.rotation.z) * kb;
     });
     m.spine.rotation.y += (P.spineY - this.hipYaw - m.spine.rotation.y) * k;   // chest counter-turns against the hips
@@ -4710,6 +4644,271 @@ let toastT = 0;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1400); }
 
 
+/* V56 Character Workshop — independent, bounded per-fighter pose controls.
+ * Profiles are LOCAL to the user's browser. No VRM bone transform is written
+ * here: angles modify the already-correct guide rig and VRMRig retargets once.
+ */
+const CharacterWorkshop = (() => {
+  const IDS = ['kairo_venn','rin_sable'];
+  const MODES = ['idle','walk','run'];
+  const DEFINITIONS = [
+    ['rShoulder','Right shoulder',-70,70,1,'Arms'],
+    ['rSpread','Right arm spread',-45,45,1,'Arms'],
+    ['rElbow','Right elbow',-75,75,1,'Arms'],
+    ['lShoulder','Left shoulder',-70,70,1,'Arms'],
+    ['lSpread','Left arm spread',-45,45,1,'Arms'],
+    ['lElbow','Left elbow',-75,75,1,'Arms'],
+    ['rHip','Right thigh',-55,55,1,'Legs'],
+    ['rKnee','Right knee',-45,65,1,'Legs'],
+    ['lHip','Left thigh',-55,55,1,'Legs'],
+    ['lKnee','Left knee',-45,65,1,'Legs'],
+    ['chestYaw','Chest turn',-35,35,1,'Body'],
+    ['chestPitch','Chest lean',-32,32,1,'Body'],
+    ['headPitch','Head tilt',-24,24,1,'Body'],
+    ['height','Body height',-25,25,1,'Body'],
+    ['stride','Stride length',60,160,1,'Locomotion'],
+    ['cadence','Step rhythm',60,165,1,'Locomotion'],
+    ['kneelift','Knee lift',50,170,1,'Locomotion']
+  ];
+  const DEF = Object.fromEntries(DEFINITIONS.map(d=>[d[0],d]));
+  const DEFAULT = () => Object.fromEntries(DEFINITIONS.map(d=>[d[0],d[5]==='Locomotion'?100:0]));
+  const make = () => Object.fromEntries(IDS.map(id=>[id,Object.fromEntries(MODES.map(mode=>[mode,DEFAULT()]))]));
+  const poses = make();
+  const options = {kairo_venn:{recorded:true,assigned:'none'},rin_sable:{recorded:false,assigned:'none'}};
+  const ACTIONS = ['none','punch','hook','kick','ninjaPalm','ninjaElbow','ninjaSpin','ninjaRising'];
+  const takes = {kairo_venn:[],rin_sable:[]};
+  let active=false, fighterId='rin_sable', mode='idle', scrub=0, duration=2, playing=false, time=0;
+  let clipPreview=false, isDirty=false, openBefore='title';
+  const $w=id=>document.getElementById(id);
+  const finite=(n,min,max)=>Math.max(min,Math.min(max,Number.isFinite(Number(n))?Number(n):0));
+  const clone = obj=>JSON.parse(JSON.stringify(obj));
+  const deg=Math.PI/180;
+  const format=v=>(Math.round(v*10)/10).toString();
+  function parsePose(src) {
+    const out=DEFAULT();
+    if(src&&typeof src==='object') for(const d of DEFINITIONS)if(Object.prototype.hasOwnProperty.call(src,d[0]))
+      out[d[0]]=finite(src[d[0]],d[2],d[3]);
+    return out;
+  }
+  function load() {
+    try {const raw=JSON.parse(localStorage.getItem('skyClashWorkshopV56')||'null');
+      if(!raw||raw.format!=='sky-clash-workshop'||raw.version!==1)return;
+      for(const id of IDS){for(const m of MODES)poses[id][m]=parsePose(raw.profiles?.[id]?.[m]);
+        if(raw.options?.[id]) {options[id].recorded=!!raw.options[id].recorded;
+          options[id].assigned=ACTIONS.includes(raw.options[id].assigned)?raw.options[id].assigned:'none';}
+        if(Array.isArray(raw.takes?.[id]))takes[id]=raw.takes[id].slice(0,120).map(f=>({t:finite(f.t,0,8),pose:parsePose(f.pose)})).sort((a,b)=>a.t-b.t);
+      }
+    }catch(e){console.warn('Workshop profile ignored',e);}
+  }
+  function payload(){return {format:'sky-clash-workshop',version:1,profiles:clone(poses),takes:clone(takes),options:clone(options)};}
+  function save(silent=false){try{localStorage.setItem('skyClashWorkshopV56',JSON.stringify(payload()));isDirty=false;if(!silent)status('Saved to this browser. Export JSON for a backup.');}catch(e){status('Browser storage unavailable. Export JSON instead.');}}
+  function status(msg){const el=$w('wsStatus');if(el)el.textContent=msg;}
+  function editable(){return poses[fighterId][mode];}
+  function refreshInputs(){
+    $w('wsFighter').value=fighterId; $w('wsMode').value=mode;
+    const values=editable();
+    if($w('wsRecorded')){$w('wsRecorded').checked=!!options[fighterId].recorded;$w('wsRecorded').disabled=fighterId==='rin_sable';}
+    if($w('wsAssign'))$w('wsAssign').value=options[fighterId].assigned;
+    if($w('wsPreset'))$w('wsPreset').textContent=fighterId==='rin_sable'?'✦ Try Shadow Runner preset':'↺ Restore Kairo baseline';
+    document.querySelectorAll('#wsSliders input[data-pose]').forEach(input=>{
+      input.value=values[input.dataset.pose];
+      const out=$w('wso-'+input.dataset.pose);if(out)out.textContent=format(values[input.dataset.pose])+(DEF[input.dataset.pose][5]==='Locomotion'?'%':'°');
+    });
+    const tip=$w('wsFighterNote');if(tip)tip.textContent=fighterId==='rin_sable'
+      ? 'Rin · VRM 0.x: safe guide-rig poses only. Raw Mixamo retargeting is deliberately disabled.'
+      : 'Kairo · VRM 1.x: safe pose edits plus baked animation previews.';
+    refreshTimeline();
+  }
+  function renderControls(){
+    const target=$w('wsSliders');if(!target)return;target.textContent='';
+    let last='';for(const [key,label,min,max,step,group] of DEFINITIONS){
+      if(group!==last){last=group;const h=document.createElement('h4');h.textContent=group;target.appendChild(h);}
+      const row=document.createElement('label');row.className='ws-slider';
+      const cap=document.createElement('span');cap.textContent=label;
+      const out=document.createElement('output');out.id='wso-'+key;
+      const input=document.createElement('input');input.type='range';input.min=min;input.max=max;input.step=step;
+      input.dataset.pose=key;
+      input.addEventListener('input',()=>{
+        editable()[key]=finite(input.value,min,max);out.textContent=format(input.value)+(group==='Locomotion'?'%':'°');
+        playing=false;isDirty=true;status('Unsaved changes · edit, save, or export');
+      });
+      row.append(cap,input,out);target.appendChild(row);
+    }
+  }
+  function snapshot(t=Number($w('wsTimeline')?.value||0)){
+    const arr=takes[fighterId];const pos=finite(t,0,8), data={t:pos,pose:clone(editable())};
+    const ix=arr.findIndex(a=>Math.abs(a.t-pos)<0.035);
+    if(ix<0)arr.push(data);else arr[ix]=data;
+    arr.sort((a,b)=>a.t-b.t);isDirty=true;refreshTimeline();status('Keyframe set. Add another frame at a different time.');
+  }
+  function refreshTimeline(){
+    const list=$w('wsKeyframes');if(!list)return;list.textContent='';
+    const arr=takes[fighterId];
+    for(let i=0;i<arr.length;i++){
+      const frame=arr[i];const b=document.createElement('button');b.type='button';b.className='ws-key';
+      b.textContent=frame.t.toFixed(2)+'s';b.title='Click to edit this pose';
+      b.addEventListener('click',()=>{playing=false;mode='idle';const x=frame.pose;Object.assign(editable(),parsePose(x));$w('wsTimeline').value=frame.t;time=frame.t;refreshInputs();});
+      list.appendChild(b);
+    }
+    const n=$w('wsCount');if(n)n.textContent=`${arr.length} frames · ${arr.length<2?'Add at least two to play':''}`;
+  }
+  function interpolate(arr,t){
+    if(!arr.length)return null;
+    if(t<=arr[0].t)return arr[0].pose;
+    if(t>=arr[arr.length-1].t)return arr[arr.length-1].pose;
+    let i=0;while(i<arr.length-2&&arr[i+1].t<t)i++;
+    const a=arr[i],b=arr[i+1],u=(t-a.t)/Math.max(0.001,b.t-a.t),v={};
+    for(const [key] of DEFINITIONS)v[key]=a.pose[key]+(b.pose[key]-a.pose[key])*u;
+    return v;
+  }
+  function rotateGuidePose(f, P, v){
+    if(!v)return P;
+    const p={arm:P.arm.map(a=>a.slice()),leg:P.leg.map(a=>a.slice()),spineY:P.spineY,spineX:P.spineX,headX:P.headX};
+    const adj=(arr,i,j,key)=>{arr[i][j]+=v[key]*deg;};
+    adj(p.arm,0,0,'rShoulder');adj(p.arm,0,1,'rSpread');adj(p.arm,0,2,'rElbow');
+    adj(p.arm,1,0,'lShoulder');adj(p.arm,1,1,'lSpread');adj(p.arm,1,2,'lElbow');
+    adj(p.leg,0,0,'rHip');adj(p.leg,0,1,'rKnee');adj(p.leg,1,0,'lHip');adj(p.leg,1,1,'lKnee');
+    if(actualMode(f)!=='idle' || active&&mode!=='idle') {
+      const lift=finite(v.kneelift,50,170)/100;
+      p.leg[0][1]=Math.max(0.03,p.leg[0][1]*lift);p.leg[1][1]=Math.max(0.03,p.leg[1][1]*lift);
+    }
+    p.spineY+=v.chestYaw*deg;p.spineX+=v.chestPitch*deg;p.headX+=v.headPitch*deg;
+    f.model.body.position.y+=v.height/100;
+    if(f.vrmRig?.anim && active && f===Game.player&&!clipPreview){f.vrmRig.anim.one=null;f.vrmRig.anim.prevOne=null;}
+    return p;
+  }
+  function actualMode(f){
+    if(active&&Game?.player===f)return mode;
+    if(f.sprinting)return 'run';
+    return f.runW>0.40?'walk':'idle';
+  }
+  function valuesFor(f){
+    const id=f.characterId;
+    if(!Object.prototype.hasOwnProperty.call(poses,id))return null;
+    if(active&&Game?.player===f&&playing&&takes[id].length>=2)
+      return interpolate(takes[id],time);
+    return poses[id][actualMode(f)];
+  }
+  function applyPose(f,P){
+    if(!P || !f || !f.model)return P;
+    if(active&&f===Game.player&&clipPreview)return P;
+    // Combat animations retain authority. Editing cannot distort a live strike.
+    const editing=active&&f===Game.player;
+    if(!editing && (f.stun>0||f.launched||f.downT>0||f.flying||f.awakenChargeT>0))return P;
+    if(!editing && f.punchT>0 && options[f.characterId]?.assigned===f.attackKind && takes[f.characterId]?.length>=2){
+      const arr=takes[f.characterId],maxT=arr[arr.length-1].t;
+      return rotateGuidePose(f,P,interpolate(arr, Math.max(0,Math.min(maxT,(f.attackElapsed/Math.max(0.01,f.attackTotal))*maxT))));
+    }
+    if(!editing && (f.punchT>0||f.blastT>0||f.charging))return P;
+    return rotateGuidePose(f,P,valuesFor(f));
+  }
+  function motion(f,key){const p=valuesFor(f);return p&&Number.isFinite(p[key])?p[key]/100:1;}
+  function previewVelocity(f,dt){
+    if(!active||f!==Game.player)return null;
+    const speed=mode==='idle'?0:mode==='walk'?5:13;
+    return {speed,lz:speed,lx:0};
+  }
+  function tick(dt){
+    if(!active||!playing)return;
+    const arr=takes[fighterId];if(arr.length<2){playing=false;return;}
+    duration=Math.max(0.5,arr[arr.length-1].t);
+    time=(time+dt*Math.max(0.25,Number($w('wsSpeed')?.value)||1))%duration;
+    const timeline=$w('wsTimeline');if(timeline){timeline.max=duration;timeline.value=time;}
+    if($w('wsTimeOut'))$w('wsTimeOut').textContent=time.toFixed(2)+'s';
+  }
+  function chooseFighter(id){
+    if(!IDS.includes(id)||id===fighterId)return;
+    playing=false;clipPreview=false;
+    const game=Game,previous=game.state;
+    // Reuse the existing character-selection path; no VRM clones or reloading.
+    game.state='title';game.selectCharacter(id);game.state=previous;
+    game.player.vel.set(0,0,0);game.player.moveIntent.set(0,0,0);
+    fighterId=id;game.setLock(false,false);CameraRig.snapBehind(game.player,game.enemy);CameraRig.rig.yaw=game.player.facing;
+    refreshInputs();status('Editing '+game.player.name+'. Other fighter profile is unchanged.');
+  }
+  function playClip(){
+    const name=$w('wsClip').value,rig=Game.player?.vrmRig,layer=rig?.anim;
+    if(!layer){status('Recorded clips are not calibrated for Rin’s VRM 0.x skeleton. Use keyframes instead.');return;}
+    if(!name||!SkyClashMixamo.has(name))return;
+    playing=false;clipPreview=true;
+    layer.one=null;layer.prevOne=null;
+    layer.play(name,{from:0,rate:Number($w('wsSpeed').value)||1,end:Anim.clip(name).d,noH:true,fadeIn:0.12,fadeOut:0.20,blendOut:0.16});
+    status('Clip preview: '+SkyClashMixamo.clips[name].source.replace(/^.*\//,'')+'. Pose sliders resume when stopped.');
+  }
+  function stopClip(){clipPreview=false;const layer=Game.player?.vrmRig?.anim;if(layer){layer.one=null;layer.prevOne=null;}status('Clip stopped. Safe rig is active.');}
+  function close(){if(!active)return;active=false;playing=false;stopClip();$w('workshop').classList.add('hidden');document.body.classList.remove('workshop-open');
+    if(Game.mode==='dojo'&&Game.state==='playing'){$w('controls').classList.remove('hidden');$w('dojoTools').classList.remove('hidden');}
+    Input.reset();}
+  function open(){
+    if(active)return;
+    const wasTitle=Game.state==='title';openBefore=wasTitle?'title':'dojo';
+    if(wasTitle){$w('titleScreen').classList.remove('show');$w('titleScreen').setAttribute('aria-hidden','true');}
+    if(Game.mode!=='dojo'||Game.state!=='playing')Game.enterDojo();
+    fighterId=Game.player.characterId;active=true;playing=false;clipPreview=false;time=0;
+    Game.player.vel.set(0,0,0);Game.player.moveIntent.set(0,0,0);Game.setLock(false,false);
+    Input.reset();document.body.classList.add('workshop-open');$w('workshop').classList.remove('hidden');
+    $w('controls').classList.add('hidden');$w('dojoTools').classList.add('hidden');
+    $w('wsTimeline').value=0;CameraRig.snapBehind(Game.player,Game.enemy);CameraRig.rig.yaw=Game.player.facing;
+    refreshInputs();status('Workshop ready · changes are previewed live. Save or export your work.');
+  }
+  function init(){
+    renderControls();load();
+    $w('wsOpenTitle').addEventListener('click',open);
+    $w('wsOpenDojo').addEventListener('click',open);
+    $w('wsClose').addEventListener('click',close);
+    $w('wsFighter').addEventListener('change',e=>chooseFighter(e.target.value));
+    $w('wsMode').addEventListener('change',e=>{playing=false;mode=e.target.value;refreshInputs();});
+    $w('wsRecorded').addEventListener('change',e=>{options[fighterId].recorded=!!e.target.checked;isDirty=true;status('Recorded layer changed. Save to keep this choice.');});
+    $w('wsAssign').addEventListener('change',e=>{const val=e.target.value;options[fighterId].assigned=ACTIONS.includes(val)?val:'none';
+      if(val!=='none'&&fighterId==='kairo_venn')options[fighterId].recorded=false;isDirty=true;refreshInputs();
+      status(val==='none'?'Custom move unassigned.':'Custom keyframes assigned to '+val+' · Save to keep.');});
+    $w('wsPreset').addEventListener('click',()=>{
+      if(fighterId==='rin_sable'){
+        Object.assign(poses.rin_sable.idle,parsePose({rShoulder:-8,rSpread:9,rElbow:14,lShoulder:-17,lSpread:-5,lElbow:10,rHip:6,rKnee:15,lHip:-6,lKnee:16,chestYaw:-8,chestPitch:1,headPitch:-2,height:3}));
+        Object.assign(poses.rin_sable.walk,parsePose({rShoulder:10,rSpread:5,rElbow:12,lShoulder:-10,lSpread:-3,lElbow:12,rHip:3,rKnee:18,lHip:-3,lKnee:18,chestPitch:1,stride:85,cadence:117,kneelift:124}));
+        Object.assign(poses.rin_sable.run,parsePose({rShoulder:12,rElbow:9,lShoulder:11,lElbow:9,rKnee:19,lKnee:19,chestPitch:3,height:3,stride:105,cadence:112,kneelift:135}));
+      }else{for(const m of MODES)poses.kairo_venn[m]=DEFAULT();options.kairo_venn.recorded=true;options.kairo_venn.assigned='none';}
+      playing=false;isDirty=true;refreshInputs();status('Preset applied to '+fighterId+'. Preview, adjust and Save if you like it.');
+    });
+    $w('wsResetMode').addEventListener('click',()=>{poses[fighterId][mode]=DEFAULT();playing=false;isDirty=true;refreshInputs();status('This pose reset. Save to keep it.');});
+    $w('wsResetFighter').addEventListener('click',()=>{
+      if(!confirm('Reset all poses AND keyframes for '+fighterId+'?'))return;
+      for(const m of MODES)poses[fighterId][m]=DEFAULT();takes[fighterId]=[];playing=false;isDirty=true;refreshInputs();status('Fighter reset (not saved yet).');
+    });
+    $w('wsSave').addEventListener('click',()=>save());
+    $w('wsExport').addEventListener('click',()=>{
+      const file=new Blob([JSON.stringify(payload(),null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download='sky-clash-character-workshop.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      status('JSON downloaded. Keep it as a backup / send it for integration.');
+    });
+    $w('wsImport').addEventListener('change',async e=>{
+      const file=e.target.files?.[0];if(!file)return;
+      try {if(file.size>250000)throw Error('File is too large (250 KB max)');
+        const data=JSON.parse(await file.text());if(data.format!=='sky-clash-workshop'||data.version!==1)throw Error('Not a workshop profile');
+        for(const id of IDS){for(const m of MODES)poses[id][m]=parsePose(data.profiles?.[id]?.[m]);
+          takes[id]=Array.isArray(data.takes?.[id])?data.takes[id].slice(0,120).map(f=>({t:finite(f.t,0,8),pose:parsePose(f.pose)})).sort((a,b)=>a.t-b.t):[];
+          if(data.options?.[id]) {options[id].recorded=!!data.options[id].recorded;options[id].assigned=ACTIONS.includes(data.options[id].assigned)?data.options[id].assigned:'none';}}
+        save(true);playing=false;refreshInputs();status('Workshop JSON imported and saved.');
+      }catch(err){status('Import failed: '+err.message);}finally{e.target.value='';}
+    });
+    $w('wsAddFrame').addEventListener('click',()=>snapshot());
+    $w('wsClearFrames').addEventListener('click',()=>{takes[fighterId]=[];playing=false;isDirty=true;refreshTimeline();status('Keyframes cleared (save to keep).');});
+    $w('wsPlayFrames').addEventListener('click',()=>{stopClip();if(takes[fighterId].length<2){status('Add at least two keyframes at different times.');return;}playing=true;time=0;mode='idle';refreshInputs();status('Playing your custom animation on the guide rig.');});
+    $w('wsStopFrames').addEventListener('click',()=>{playing=false;time=0;status('Keyframe playback stopped.');});
+    $w('wsTimeline').addEventListener('input',e=>{playing=false;time=Number(e.target.value);const v=interpolate(takes[fighterId],time);
+      if(v)Object.assign(editable(),parsePose(v));refreshInputs();});
+    $w('wsPlayClip').addEventListener('click',playClip);$w('wsStopClip').addEventListener('click',stopClip);
+    for(const [id,c] of Object.entries(SkyClashMixamo.clips)){
+      const option=document.createElement('option');option.value=id;option.textContent=(id.startsWith('mxK')?'Kairo: ':'Rin*: ')+c.source.split('/').pop().replace(/\.fbx$/i,'');$w('wsClip').appendChild(option);
+    }
+    $w('wsClip').value='mxKJab';
+    $w('wsView').addEventListener('click',()=>{const y=CameraRig.rig.yaw;CameraRig.rig.yaw=(y+Math.PI)%(2*Math.PI);});
+    refreshInputs();
+    document.addEventListener('keydown',e=>{if(active&&e.key==='Escape'){e.stopPropagation();e.preventDefault();close();}},true);
+  }
+  return {init,open,close,applyPose,motion,previewVelocity,tick,allowRecorded:f=>f&&f.characterId!=='rin_sable'&&!!options[f.characterId]?.recorded,
+    get active(){return active;},_allowClipPreview:()=>clipPreview,get isDirty(){return isDirty;},_test:{parsePose,interpolate,poses,takes,options,DEFAULT,DEFINITIONS}};
+})();
 /* ---------------- Game ---------------- */
 const Game = {
   state: 'title',   // title | playing | paused | over
@@ -4773,9 +4972,10 @@ const Game = {
     $('fps').classList.toggle('hidden', !Settings.get('fps'));
     $('pauseBtn').addEventListener('click', () => this.togglePause());
     // auto-pause when the app is backgrounded or loses focus
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(); });
-    window.addEventListener('blur', () => this.pause());
+    document.addEventListener('visibilitychange', () => { if (document.hidden && (typeof CharacterWorkshop==='undefined' || !CharacterWorkshop.active)) this.pause(); });
+    window.addEventListener('blur', () => { if (typeof CharacterWorkshop==='undefined' || !CharacterWorkshop.active) this.pause(); });
     if ('ontouchstart' in window) document.body.classList.add('force-touch');
+    if (typeof CharacterWorkshop !== 'undefined') CharacterWorkshop.init();
   },
   selectCharacter(id) {
     if(this.state!=='title') return;
@@ -4865,6 +5065,7 @@ const Game = {
     this.renderPips();
   },
   returnHome() {
+    if (typeof CharacterWorkshop !== "undefined" && CharacterWorkshop.active) CharacterWorkshop.close();
     if(this.state==='paused')Menus.closePause();
     this.state='title';this.showPlayUI(false);
     Combat.clear();Effects.clear();Spectacle.clear();Input.reset();
@@ -4968,6 +5169,9 @@ const Game = {
 
   handlePlayerInput(dt) {
     const p = this.player, e = this.enemy;
+    if (typeof CharacterWorkshop !== "undefined" && CharacterWorkshop.active) {
+      Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
+    }
     const raw = Input.move();
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
@@ -5046,6 +5250,7 @@ const Game = {
   },
 
   update(dt) {
+    if (typeof CharacterWorkshop !== "undefined") CharacterWorkshop.tick(dt);
     if (this.koT > 0 || this.introT > 0) { this.player.blockHeld = this.enemy.blockHeld = false; this.player.chargeHeld = this.enemy.chargeHeld = false; this.player.moveIntent.set(0, 0, 0); this.player.vert = 0; this.enemy.moveIntent.set(0, 0, 0); this.enemy.vert = 0; }
     else { this.handlePlayerInput(dt); if (this.mode!=='dojo' || this.dojoRival) RivalAI.update(dt, this.enemy, this.player); }
     this.player.update(dt);

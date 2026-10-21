@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V55.1 — Shinobi Footwork</title>
-<link rel="stylesheet" href="css/game.css?v=541">
+<title>Sky Clash V56 — Character Workshop</title>
+<link rel="stylesheet" href="css/game.css?v=560">
 </head>
 <body>
 <div id="game"></div>
@@ -41,10 +41,11 @@
         <option value="attacks">Sparring fighter</option>
       </select>
     </label>
-    <label class="dojo-select">Animation testing room · V55.1
+    <label class="dojo-select">Animation testing room · V56
       <select id="dojoMotion" aria-label="Choose recorded fighter animation"></select>
     </label>
-    <div class="dojo-panel-actions"><button id="dojoPreviewMotion" title="Play the selected animation on your fighter">▶ Preview motion</button></div>
+    <div class="dojo-panel-actions"><button id="dojoPreviewMotion" title="Play the selected animation on your fighter">▶ Preview motion</button>
+      <button type="button" class="mbtn" id="wsOpenDojo">✦ Character Workshop</button></div>
     <div class="dojo-panel-actions">
       <button id="dojoResetBtn" title="Reset bags and targets">Reset props</button>
       <button id="dojoHomeBtn" title="Return to main menu">Go home</button>
@@ -105,19 +106,49 @@
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
     <div class="home-identity"><span class="home-eyebrow">CHARACTER SELECT · KAIRO / RIN</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">V55.1 / SHINOBI FOOTWORK</div>
+    <div class="home-menu"><div class="home-version">V56 / CHARACTER WORKSHOP</div>
       <div class="character-select" role="group" aria-label="Choose your fighter">
         <button type="button" class="char-choice selected" data-hero="kairo_venn" aria-pressed="true"><b>KAIRO VENN</b><small>Martial artist · Flight · Energy</small></button>
         <button type="button" class="char-choice" data-hero="rin_sable" aria-pressed="false"><b>RIN SABLE</b><small>Ninja · Double Jump · Shurikens</small></button>
       </div>
       <button class="home-action home-primary" id="trainBtn"><span class="action-number">01</span><span><b>Enter the Dojo</b><small>Your training space · Props · Sparring</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="startBtn"><span class="action-number">02</span><span><b>Enter Battle</b><small>Fight in the Highland Arena</small></span><span class="action-arrow">↗</span></button>
-      <button class="home-action" id="titleSettingsBtn"><span class="action-number">03</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
+      <button class="home-action" id="wsOpenTitle"><span class="action-number">03</span><span><b>Character Workshop</b><small>Pose editor · Walk previews · Animation keyframes</small></span><span class="action-arrow">✦</span></button>
+      <button class="home-action" id="titleSettingsBtn"><span class="action-number">04</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
       <div class="home-tip" id="heroTip">KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.</div>
     </div>
-    <div class="home-footer">2 PLAYABLE FIGHTERS · V55.1 <span>SKY CLASH / TRAINING GROUNDS</span></div>
+    <div class="home-footer">2 PLAYABLE FIGHTERS · V56.0 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
+
+
+<!-- Character Workshop V56: edit poses without directly touching VRM0/VRM1 axes -->
+<aside id="workshop" class="workshop hidden" role="dialog" aria-label="Character and animation workshop">
+ <div class="ws-top"><div><small>SKY CLASH / CREATOR TOOLS</small><h2>Character Workshop <span>V56</span></h2></div><button type="button" id="wsClose" class="ws-close" aria-label="Close workshop">✕</button></div>
+ <p id="wsFighterNote" class="ws-note">Edit one fighter at a time.</p>
+ <div class="ws-two"><label>Character<select id="wsFighter"><option value="kairo_venn">Kairo Venn</option><option value="rin_sable">Rin Sable</option></select></label><label>Preview motion<select id="wsMode"><option value="idle">Ready stance</option><option value="walk">Walk in place</option><option value="run">Run in place</option></select></label></div>
+ <div class="ws-tools"><button id="wsView">↻ Front / back view</button></div>
+ <label class="ws-recorded"><input id="wsRecorded" type="checkbox" checked> Use recorded animation overlays in matches (Kairo only)</label>
+ <div class="ws-section-label">POSE + MOVEMENT <span>Changes preview instantly</span></div>
+ <div id="wsSliders" class="ws-sliders"></div>
+ <div class="ws-tools"><button id="wsPreset">✦ Try Shadow Runner preset</button></div>
+ <div class="ws-tools"><button id="wsResetMode">Reset pose</button><button id="wsResetFighter">Reset fighter</button></div>
+ <details class="ws-details"><summary>◆ Keyframe Animation Builder</summary>
+   <p>Move the timeline, adjust sliders, add a frame, repeat. Play your custom action on either fighter; export it as JSON.</p>
+   <div class="ws-timeline"><input id="wsTimeline" type="range" min="0" max="2" value="0" step="0.05"><output id="wsTimeOut">0.00s</output></div>
+   <div id="wsKeyframes" class="ws-keys"></div>
+   <label class="ws-play-speed">Use custom animation for this attack (optional)<select id="wsAssign"><option value="none">Not assigned — preview only</option><optgroup label="Kairo attacks"><option value="punch">Kairo · Jab / Cross</option><option value="hook">Kairo · Hook</option><option value="kick">Kairo · Kick</option></optgroup><optgroup label="Rin attacks"><option value="ninjaPalm">Rin · Palm</option><option value="ninjaElbow">Rin · Elbow</option><option value="ninjaSpin">Rin · Spinning kick</option><option value="ninjaRising">Rin · Rising kick</option></optgroup></select></label><div id="wsCount" class="ws-tip">0 frames</div>
+   <div class="ws-tools"><button id="wsAddFrame">+ Set keyframe</button><button id="wsPlayFrames">▶ Play</button><button id="wsStopFrames">■ Stop</button><button id="wsClearFrames">Clear</button></div>
+ </details>
+ <details class="ws-details"><summary>◈ Recorded Animation Library</summary>
+   <p>Kairo's retargeted recorded clips can be previewed. Rin's VRM 0.x is not yet calibrated; use custom keyframes for Rin.</p>
+   <select id="wsClip" aria-label="Recorded animation"></select><label class="ws-play-speed">Playback speed <select id="wsSpeed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option></select></label>
+   <div class="ws-tools"><button id="wsPlayClip">▶ Preview clip</button><button id="wsStopClip">■ Stop clip</button></div>
+ </details>
+ <div class="ws-tools ws-persistence"><button id="wsSave">Save here</button><button id="wsExport">Export JSON</button><label class="ws-import">Import JSON<input id="wsImport" type="file" accept=".json,application/json"></label></div>
+ <p id="wsStatus" class="ws-status" role="status">Loading workshop...</p>
+ <p class="ws-disclaimer">Saved profiles are per-browser; JSON export is your backup. This is a pose/keyframe editor, not yet a raw FBX importer or a full IK/3D modelling suite.</p>
+</aside>
 
 <!-- Pause menu -->
 <div id="pauseMenu" class="overlay" role="dialog" aria-modal="true" aria-labelledby="pauseH" aria-hidden="true">
@@ -267,6 +298,6 @@ return{progress,finish};})();
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=551"></script>
+<script src="js/game.js?v=560"></script>
 </body>
 </html>

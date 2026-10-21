@@ -497,13 +497,7 @@ class VRMRig {
     const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
     for (const side of ['left', 'right']) {
       const sg = side === 'left' ? -1 : 1;
-      for (const fn of fingers) for (const [sn, a] of segs) {
-        const n = bone(side + fn + sn);
-        // Rin fights with open, slightly hooked fingers (ninja palm / shuriken
-        // hand), not a permanently clenched boxing fist.
-        const flex = opts.ninja ? a * (side === 'left' ? 0.27 : 0.47) : a;
-        if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), flex * sg);
-      }
+      for (const fn of fingers) for (const [sn, a] of segs) { const n = bone(side + fn + sn); if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), a * sg); }
       const t1 = bone(side + 'ThumbProximal'), t2 = bone(side + 'ThumbDistal'), tm = bone(side + 'ThumbMetacarpal');
       if (tm) tm.quaternion.setFromEuler(new THREE.Euler(0, 0.5 * sg, 0.2 * sg));
       if (t1) t1.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.6 * sg);
@@ -550,7 +544,11 @@ class VRMRig {
         if (joint) joint.quaternion.premultiply(fromNative).multiply(toNative).normalize();
       }
     }
-    if (this.anim) {
+    if (this.anim && typeof CharacterWorkshop !== 'undefined' && !CharacterWorkshop.allowRecorded(this.f) && !CharacterWorkshop._allowClipPreview()) {
+      this.anim.one=null;this.anim.prevOne=null;
+      for(const i of this.anim.unset){const n=this.anim.nodes[i];if(n)n.quaternion.identity();}
+    }
+    if (this.anim && (typeof CharacterWorkshop === "undefined" || (CharacterWorkshop.allowRecorded(this.f) && (!CharacterWorkshop.active || this.f !== Game.player)) || (CharacterWorkshop.active && this.f === Game.player && CharacterWorkshop._allowClipPreview()))) {
       try { this.anim.update(dt); }
       catch (err) {
         // An exotic recorded clip must never halt the whole match.

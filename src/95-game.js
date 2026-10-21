@@ -61,9 +61,10 @@ const Game = {
     $('fps').classList.toggle('hidden', !Settings.get('fps'));
     $('pauseBtn').addEventListener('click', () => this.togglePause());
     // auto-pause when the app is backgrounded or loses focus
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.pause(); });
-    window.addEventListener('blur', () => this.pause());
+    document.addEventListener('visibilitychange', () => { if (document.hidden && (typeof CharacterWorkshop==='undefined' || !CharacterWorkshop.active)) this.pause(); });
+    window.addEventListener('blur', () => { if (typeof CharacterWorkshop==='undefined' || !CharacterWorkshop.active) this.pause(); });
     if ('ontouchstart' in window) document.body.classList.add('force-touch');
+    if (typeof CharacterWorkshop !== 'undefined') CharacterWorkshop.init();
   },
   selectCharacter(id) {
     if(this.state!=='title') return;
@@ -153,6 +154,7 @@ const Game = {
     this.renderPips();
   },
   returnHome() {
+    if (typeof CharacterWorkshop !== "undefined" && CharacterWorkshop.active) CharacterWorkshop.close();
     if(this.state==='paused')Menus.closePause();
     this.state='title';this.showPlayUI(false);
     Combat.clear();Effects.clear();Spectacle.clear();Input.reset();
@@ -256,6 +258,9 @@ const Game = {
 
   handlePlayerInput(dt) {
     const p = this.player, e = this.enemy;
+    if (typeof CharacterWorkshop !== "undefined" && CharacterWorkshop.active) {
+      Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
+    }
     const raw = Input.move();
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
@@ -334,6 +339,7 @@ const Game = {
   },
 
   update(dt) {
+    if (typeof CharacterWorkshop !== "undefined") CharacterWorkshop.tick(dt);
     if (this.koT > 0 || this.introT > 0) { this.player.blockHeld = this.enemy.blockHeld = false; this.player.chargeHeld = this.enemy.chargeHeld = false; this.player.moveIntent.set(0, 0, 0); this.player.vert = 0; this.enemy.moveIntent.set(0, 0, 0); this.enemy.vert = 0; }
     else { this.handlePlayerInput(dt); if (this.mode!=='dojo' || this.dojoRival) RivalAI.update(dt, this.enemy, this.player); }
     this.player.update(dt);

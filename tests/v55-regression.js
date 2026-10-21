@@ -53,7 +53,7 @@ assert(right.y<-.99,`Rin's right elbow should point down, got ${right.toArray()}
 assert(read('src/95-game.js').includes('ninja:true,legacyAxes:true'));
 assert(read('src/30-character-models.js').includes('if (this.legacyAxes) this.anim = null;'));
 assert(read('src/40-recorded-animations.js').includes('const legT = 0;'));
-assert(read('index.html').includes('js/game.js?v=550'));
+assert(read('index.html').includes('js/game.js?v=560'));
 const srcFiles=fs.readdirSync(path.join(root,'src')).filter(n=>n.endsWith('.js')).sort();
 assert.equal(read('js/game.js'),srcFiles.map(n=>read('src/'+n)).join(''),'bundle current');
 console.log('V55 200 live simulated jump frames, no third jump, landing reset, VRM0 left/right shoulder-basis checks, safe native ninja rig, bundle PASS');

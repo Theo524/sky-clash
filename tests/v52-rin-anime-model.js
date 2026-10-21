@@ -26,5 +26,5 @@ assert(game.includes('this.rinPortrait=renderVRMPortrait'));
 assert(vrm.includes('if (opts.ninja) attachRinNinjaDetails(this)'));
 assert(animations.includes("const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing)"));
 assert(animations.includes('const legT = 0;' ));
-assert(html.includes('V55') && html.includes('js/game.js?v=550'));
+assert(html.includes('V56') && html.includes('js/game.js?v=560'));
 console.log('V53: user VRM0 imported, outfit recoloured, cloth mask follows head, ninja sprint preserved');
