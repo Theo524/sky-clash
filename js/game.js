@@ -1111,6 +1111,12 @@ function attachRinNinjaDetails(rig) {
 class VRMRig {
   constructor(fighter, vrm, opts = {}) {
     this.f = fighter; this.vrm = vrm; const m = fighter.model;
+    // VRM0's glTF forward is -Z, unlike VRM1's +Z. rotateVRM0 fixes the
+    // displayed root, but local humanoid joint axes remain in the old space.
+    // Rotation deltas must be conjugated through that 180° change of basis.
+    this.legacyAxes = !!opts.legacyAxes;
+    this.legacyYaw = new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0), Math.PI);
+    this.legacyYawInverse = this.legacyYaw.clone().invert();
     const H = vrm.humanoid, bone = n => H.getNormalizedBoneNode(n);
     this.b = {};
     ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'leftUpperArm', 'leftLowerArm', 'leftHand', 'rightUpperArm', 'rightLowerArm', 'rightHand',
@@ -1170,7 +1176,11 @@ class VRMRig {
       if (t2) t2.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.5 * sg);
     }
     this.blinkT = 2; this.ex = vrm.expressionManager;
-    try { this.anim = new AnimLayer(this); } catch (err) { console.warn('clip layer unavailable', err); this.anim = null; }
+    // Quaternius / Mixamo baked world deltas were calibrated to VRM1.
+    // They are NOT yet a safe retarget for VRM0's opposite-facing raw skeleton.
+    // Do not let them override Rin's correct native-coordinate ninja poses.
+    if (this.legacyAxes) this.anim = null;
+    else try { this.anim = new AnimLayer(this); } catch (err) { console.warn('clip layer unavailable', err); this.anim = null; }
   }
   update(dt) {
     const m = this.f.model, b = this.b, s = this.scale;
@@ -1194,7 +1204,26 @@ class VRMRig {
       b[p + 'LowerLeg'].quaternion.copy(l.knee.quaternion);
       b[p + 'Foot'].quaternion.copy(l.foot.quaternion);
     });
-    if (this.anim) this.anim.update(dt);
+    // Convert our +Z-facing procedural joint pose into VRM0's -Z-facing
+    // normalized local coordinates. In particular this reverses the arm T-pose
+    // correction: otherwise the left/right upper arms fold UP and behind Rin.
+    if (this.legacyAxes) {
+      const toNative = this.legacyYaw, fromNative = this.legacyYawInverse;
+      for (const name of ['hips','spine','chest','neck','head',
+        'leftUpperArm','leftLowerArm','leftHand','rightUpperArm','rightLowerArm','rightHand',
+        'leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot']) {
+        const joint = b[name];
+        if (joint) joint.quaternion.premultiply(fromNative).multiply(toNative).normalize();
+      }
+    }
+    if (this.anim) {
+      try { this.anim.update(dt); }
+      catch (err) {
+        // An exotic recorded clip must never halt the whole match.
+        console.error('Recorded animation disabled for', this.f.name, err);
+        this.anim = null;
+      }
+    }
     if (this.ninjaTails) {
       const speed=Math.hypot(this.f.vel.x,this.f.vel.z);
       const trail=clamp(speed/21,0,1);
@@ -1234,8 +1263,8 @@ class VRMRig {
       // Never move the gameplay hitbox, and keep the correction deliberately tiny.
       // The earlier 13.5 cm lift cap could not correct buried feet on either VRM.
       // Allow model-specific rest-pose offsets while keeping a damped correction.
-      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.025, 0.50);
-      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 24 : 12, dt);
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.10, 0.70);
+      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 40 : 17, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     } else if (this.footLift) {
@@ -1644,9 +1673,9 @@ class AnimLayer {
     const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing); // V53: Kairo-quality walk, preserve beloved sprint
     // Stance is procedural for both fighters, especially Rin: no boxing-entry pose at rest.
     // Only drive imported legs while travelling, with strong strafe attenuation.
-    const legT = ninjaRun || busyLegs ? 0 : moveW * (1 - 0.88 * this.strafeW);
+    const legT = 0; // V55: exact in-game stride drives grounded legs; do not add FBX leg rotation on top
     // Procedural shoulders keep the chest upright instead of stacking recorded running lean.
-    const upT = ninjaRun || busyArms ? 0 : moveW * (f.characterId === 'rin_sable' ? 0 : 0.18);
+    const upT = 0; // V55: procedural upper-body guard keeps a stable facing/stance during movement
     this.moveW = moveW;
     this.locoLeg += (legT - this.locoLeg) * damp(12, dt);
     this.locoUp += (upT - this.locoUp) * damp(12, dt);
@@ -1756,8 +1785,10 @@ class AnimLayer {
     }
     this.prevW = prevW;
     // charging: the spell stance on the upper body, looped
-    const chargeT = f.charging && f.stun <= 0 && !dying ? 1 : 0;
-    this.chargeW = (this.chargeW || 0) + (chargeT - (this.chargeW || 0)) * damp(10, dt);
+    const chargeT = f.charging && f.stun <= 0 && !dying && f.blastT <= 0 ? 1 : 0;
+    this.chargeW = f.blastT > 0 ? 0 : (this.chargeW || 0) + (chargeT - (this.chargeW || 0)) * damp(10, dt);
+    // Charged release has exclusive ownership of both arms. Never crossfade
+    // the old charging FBX pose into the superblast's procedural energy push.
     if (this.chargeW > 0.01) { this.chargeT = (this.chargeT || 0) + dt; } else this.chargeT = 0;
 
     // Reset auxiliary humanoid joints even on fully procedural idle frames.
@@ -1799,7 +1830,7 @@ class AnimLayer {
       layer(Anim.sample('qGuardIdle', f.t * 0.4, true, this.tmp), this.guardIdleW * 0.24,
         this.LOWER, 0.32, true);
     // A little recorded breathing motion enriches the guard but never overwrites a punch.
-    if (this.idleBreathW > 0.01 && f.awakenChargeT <= 0 && oneW < 0.01)
+    if (this.idleBreathW > 0.01 && f.awakenChargeT <= 0 && f.blastT <= 0 && oneW < 0.01)
       layer(Anim.sample('qStandIdle', f.t * 0.42, true, this.tmp), this.idleBreathW * 0.09,
         this.UPPER, 0.12, true);
     if (this.chargeW > 0.01) {
@@ -2044,7 +2075,7 @@ class Fighter {
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
     const foe = this === Game.player ? Game.enemy : Game.player;
     const safe = !foe || this.pos.distanceTo(foe.pos) > 5;
-    if (safe && this.sprinting && speed > this.motionProfile.minFlipSpeed &&
+    if (this.canFly && safe && this.sprinting && speed > this.motionProfile.minFlipSpeed &&
         Math.random() < this.motionProfile.flipChance && this.t - this.lastAcroAt > 1.2) {
       this.startAcro('flip', 0.64);
     }
@@ -2420,7 +2451,18 @@ class Fighter {
   /* ---- animation ---- */
   animate(dt) {
     this.animateRig(dt);
-    if (this.vrmRig) this.vrmRig.update(dt);
+    if (this.vrmRig) {
+      try { this.vrmRig.update(dt); }
+      catch (err) {
+        // Fail open into the native procedural fighter, not a frozen match.
+        // A corrupt VRM expression/spring/retarget layer must not kill RAF.
+        console.error('Fighter VRM rendering fell back:', this.name, err);
+        const old=this.vrmRig;
+        old.vrm.scene.removeFromParent();
+        this.model.parts.forEach(part=>part.visible=true);
+        this.vrmRig=null;
+      }
+    }
   }
   animateRig(dt) {
     const m = this.model, root = m.root, body = m.body;
@@ -2472,7 +2514,8 @@ class Fighter {
       rollT = this.airBank * 0.86;
     }
     else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.055 + clamp(lz / 180, -0.035, 0.035) + clamp(this.accF / 350, -0.025, 0.04)) * rnL; rollT = clamp(-lx / 95, -0.11, 0.11) * rnL; }
-    if (this.sprinting && !flying) pitchT += clamp(this.accF / 450, -0.025, 0.04);
+    if (this.sprinting && !flying && this.characterId !== 'rin_sable') pitchT += clamp(this.accF / 450, -0.025, 0.04);
+    if (this.characterId === 'rin_sable' && !flying && this.downT <= 0 && this.stun <= 0) { pitchT = clamp(pitchT, -0.015, 0.065); rollT *= 0.55; }
     if (this.punchT > 0 && this.attackKind === 'kick') pitchT = 0.06;
     if (this.punchT > 0 && this.attackAir) pitchT = 0.14;
     if (this.slamLagT > 0) pitchT = 0.35;
@@ -2498,10 +2541,10 @@ class Fighter {
         // A complete flip; orientation returns to neutral without a hard snap.
         body.rotation.x += TAU * smooth01(acP);
        } else if (ac.type === 'ninjaLeap') {
-        const tuck = Math.sin(Math.PI * acP);
-        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
-          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
-          spineY:-0.12,spineX:0.11,headX:-0.09 };
+        // V55: This is a *pose* handled below, not an orientation transform.
+        // The old code reassigned `const A = this.acro`, throwing on every second jump
+        // and terminating requestAnimationFrame. Do not modify that immutable action.
+        // Keep the root upright: the knees tuck in the pose builder below.
       } else if (ac.type === 'airRoll' && this.flying) {
         body.rotation.z += ac.direction * TAU * smooth01(acP);
       } else if (ac.type === 'evade') {
@@ -2557,8 +2600,8 @@ class Fighter {
       if (this.characterId === 'rin_sable') {
         const breathe = Math.sin(this.t*1.85)*0.024;
         // Shade Runner: asymmetric open-hand guard, forward left hand, low right hand; upright and light on the feet.
-        return { arm:[[-0.69+breathe,.11,-1.22],[-1.19-breathe,.23,-1.40]],
-          leg:[[.22,.18,.10],[-.28,.22,.15]],spineY:-.16,spineX:.025,headX:.015 };
+        return { arm:[[-0.63+breathe,.30,-1.42],[-1.12-breathe,.24,-1.18]],
+          leg:[[.17,.16,.07],[-.24,.23,.10]],spineY:-.08,spineX:.015,headX:-.015 };
       }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Storm Fist: readable high boxing guard, grounded without an exaggerated forward bow.
@@ -2618,11 +2661,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -2655,10 +2698,11 @@ class Fighter {
       if (!flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
         const lateral = smooth01((Math.abs(lx) - Math.abs(lz) * 0.8) / 8) * (1 - smooth01((hspeed - 13) / 8));
         const side = Math.sign(lx) || 1;
-        const slide = { arm: [[-1.05, 0.28, -1.65], [-1.3, 0.15, -1.9]],
-          leg: [[0.23 + 0.15 * Math.sin(this.runPh), 0.82, 0.3], [-0.38 - 0.12 * Math.sin(this.runPh), 0.78, 0.27]],
+        const sidePh = Math.sin(this.runPh), leadLift = Math.max(0, sidePh), trailLift = Math.max(0, -sidePh);
+        const slide = { arm: [[-1.05 + 0.10*sidePh, 0.28, -1.65], [-1.3 - 0.10*sidePh, 0.15, -1.9]],
+          leg: [[0.18 + 0.40 * sidePh, 0.32 + 0.42 * leadLift, 0.18], [-0.18 - 0.40 * sidePh, 0.32 + 0.42 * trailLift, 0.18]],
           spineY: -0.25 * side, spineX: 0.07, headX: -0.03 };
-        P = mix(P, slide, lateral * 0.67);
+        P = mix(P, slide, lateral * 0.48);
       }
     }
     // Parkour pose overrides are only cosmetic and ease in/out during the move.
@@ -2668,10 +2712,10 @@ class Fighter {
         A = { arm: [[-1.45, 0.45, -1.5], [-1.4, 0.40, -1.45]],
           leg: [[-1.25, 1.9, 0.2], [-1.1, 1.75, 0.2]], spineY: 0, spineX: 0.12, headX: -0.12 };
        } else if (ac.type === 'ninjaLeap') {
-        const tuck = Math.sin(Math.PI * acP);
-        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
-          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
-          spineY:-0.12,spineX:0.11,headX:-0.09 };
+        // V55: This is a *pose* handled below, not an orientation transform.
+        // The old code reassigned `const A = this.acro`, throwing on every second jump
+        // and terminating requestAnimationFrame. Do not modify that immutable action.
+        // Keep the root upright: the knees tuck in the pose builder below.
       } else if (ac.type === 'airRoll' && this.flying) {
         A = { arm: [[-0.95, 0.5, -1.5], [-0.95, 0.5, -1.5]],
           leg: [[-0.65, 1.2, 0.15], [-0.65, 1.2, 0.15]], spineY: 0, spineX: 0.18, headX: -0.1 };
@@ -4630,7 +4674,7 @@ const Game = {
         // no geometric fallback unless the real model fails to load.
         const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
         const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
-          {hide:hiddenGear,ninja:true,scale:1.075});
+          {hide:hiddenGear,ninja:true,legacyAxes:true,scale:1.075});
         if (rinOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
           try {
@@ -4707,7 +4751,7 @@ const Game = {
   previewDojoMotion(name) {
     if(this.mode!=='dojo' || this.state!=='playing' || typeof SkyClashMixamo==='undefined' || !SkyClashMixamo.has(name))return false;
     const fighter=this.player,layer=fighter?.vrmRig?.anim;
-    if(!layer){toast('The detailed fighter model is still loading');return false;}
+    if(!layer){toast(fighter.characterId==='rin_sable'?'Rin uses the safe ninja rig; experimental FBX previews are disabled':'The detailed fighter model is still loading');return false;}
     if(fighter.punchT>0 || fighter.stun>0 || fighter.launched || fighter.downT>0){toast('Finish the current move first');return false;}
     fighter.sprinting=false;fighter.sprintHeld=false;
     const c=Anim.clip(name);
@@ -4775,6 +4819,10 @@ const Game = {
   },
   startRound() {
     this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); Spectacle.clear(); RivalAI.reset(); Input.reset();
+    for (const fighter of [this.player, this.enemy]) {
+      const layer=fighter.vrmRig?.anim;
+      if (layer) { layer.one=null; layer.prevOne=null; layer.lastAttackSerial=-1; layer.prev.hp=100; layer.prev.jumping=false; layer.ph=0; layer.locoLeg=0; layer.locoUp=0; }
+    }
     if(this.mode==='dojo') Dojo.resetProps();
     if(this.mode==='dojo') this.setRivalPresent(this.dojoRival);
     else this.setRivalPresent(true);
@@ -5026,6 +5074,9 @@ const Game = {
 
   _last: performance.now(), _fpsAcc: 0, _fpsN: 0,
   loop(now) {
+    // Schedule the next frame even if an unexpected gameplay error occurs.
+    // Otherwise one bad animation event silently freezes the entire browser tab.
+    try {
     const real = Math.min(0.05, (now - this._last) / 1000); this._last = now;
     let dt = real;
     if (this.state === 'playing') {
@@ -5046,7 +5097,18 @@ const Game = {
     sun.position.set(this.player.pos.x + 45, 60, this.player.pos.z + 30); sun.target.position.copy(this.player.pos);
     renderer.render(scene, camera);
     if (Settings.get('fps')) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { $('fps').textContent = Math.round(this._fpsN / this._fpsAcc) + ' fps'; this._fpsAcc = 0; this._fpsN = 0; } }
-    requestAnimationFrame(t => this.loop(t));
+    } catch (err) {
+      this.lastRuntimeError = String(err && err.stack || err);
+      console.error('Sky Clash recovered from a frame error', err);
+      // Stop broken simulation until player resumes; render/menus keep running.
+      if (this.state === 'playing') {
+        try { this.pause(); } catch (ignore) { this.state = 'paused'; }
+        try { toast('A game error was caught — pause to recover'); } catch (ignore) {}
+      }
+    } finally {
+      this._last = now;
+      requestAnimationFrame(t => this.loop(t));
+    }
   },
 };
 

@@ -37,7 +37,7 @@ const Game = {
         // no geometric fallback unless the real model fails to load.
         const rinSource = window.RIN_VRM_URL || 'assets/rin.vrm';
         const rinOK = await loadVRMInto(this.heroes.rin_sable, rinSource,
-          {hide:hiddenGear,ninja:true,scale:1.075});
+          {hide:hiddenGear,ninja:true,legacyAxes:true,scale:1.075});
         if (rinOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(96,'Ninja ready');
           try {
@@ -114,7 +114,7 @@ const Game = {
   previewDojoMotion(name) {
     if(this.mode!=='dojo' || this.state!=='playing' || typeof SkyClashMixamo==='undefined' || !SkyClashMixamo.has(name))return false;
     const fighter=this.player,layer=fighter?.vrmRig?.anim;
-    if(!layer){toast('The detailed fighter model is still loading');return false;}
+    if(!layer){toast(fighter.characterId==='rin_sable'?'Rin uses the safe ninja rig; experimental FBX previews are disabled':'The detailed fighter model is still loading');return false;}
     if(fighter.punchT>0 || fighter.stun>0 || fighter.launched || fighter.downT>0){toast('Finish the current move first');return false;}
     fighter.sprinting=false;fighter.sprintHeld=false;
     const c=Anim.clip(name);
@@ -182,6 +182,10 @@ const Game = {
   },
   startRound() {
     this.player.reset(); this.enemy.reset(); Combat.clear(); Effects.clear(); Spectacle.clear(); RivalAI.reset(); Input.reset();
+    for (const fighter of [this.player, this.enemy]) {
+      const layer=fighter.vrmRig?.anim;
+      if (layer) { layer.one=null; layer.prevOne=null; layer.lastAttackSerial=-1; layer.prev.hp=100; layer.prev.jumping=false; layer.ph=0; layer.locoLeg=0; layer.locoUp=0; }
+    }
     if(this.mode==='dojo') Dojo.resetProps();
     if(this.mode==='dojo') this.setRivalPresent(this.dojoRival);
     else this.setRivalPresent(true);
@@ -433,6 +437,9 @@ const Game = {
 
   _last: performance.now(), _fpsAcc: 0, _fpsN: 0,
   loop(now) {
+    // Schedule the next frame even if an unexpected gameplay error occurs.
+    // Otherwise one bad animation event silently freezes the entire browser tab.
+    try {
     const real = Math.min(0.05, (now - this._last) / 1000); this._last = now;
     let dt = real;
     if (this.state === 'playing') {
@@ -453,7 +460,18 @@ const Game = {
     sun.position.set(this.player.pos.x + 45, 60, this.player.pos.z + 30); sun.target.position.copy(this.player.pos);
     renderer.render(scene, camera);
     if (Settings.get('fps')) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { $('fps').textContent = Math.round(this._fpsN / this._fpsAcc) + ' fps'; this._fpsAcc = 0; this._fpsN = 0; } }
-    requestAnimationFrame(t => this.loop(t));
+    } catch (err) {
+      this.lastRuntimeError = String(err && err.stack || err);
+      console.error('Sky Clash recovered from a frame error', err);
+      // Stop broken simulation until player resumes; render/menus keep running.
+      if (this.state === 'playing') {
+        try { this.pause(); } catch (ignore) { this.state = 'paused'; }
+        try { toast('A game error was caught — pause to recover'); } catch (ignore) {}
+      }
+    } finally {
+      this._last = now;
+      requestAnimationFrame(t => this.loop(t));
+    }
   },
 };
 

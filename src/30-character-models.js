@@ -439,6 +439,12 @@ function attachRinNinjaDetails(rig) {
 class VRMRig {
   constructor(fighter, vrm, opts = {}) {
     this.f = fighter; this.vrm = vrm; const m = fighter.model;
+    // VRM0's glTF forward is -Z, unlike VRM1's +Z. rotateVRM0 fixes the
+    // displayed root, but local humanoid joint axes remain in the old space.
+    // Rotation deltas must be conjugated through that 180° change of basis.
+    this.legacyAxes = !!opts.legacyAxes;
+    this.legacyYaw = new THREE.Quaternion().setFromAxisAngle(new V3(0,1,0), Math.PI);
+    this.legacyYawInverse = this.legacyYaw.clone().invert();
     const H = vrm.humanoid, bone = n => H.getNormalizedBoneNode(n);
     this.b = {};
     ['hips', 'spine', 'chest', 'upperChest', 'neck', 'head', 'leftUpperArm', 'leftLowerArm', 'leftHand', 'rightUpperArm', 'rightLowerArm', 'rightHand',
@@ -498,7 +504,11 @@ class VRMRig {
       if (t2) t2.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.5 * sg);
     }
     this.blinkT = 2; this.ex = vrm.expressionManager;
-    try { this.anim = new AnimLayer(this); } catch (err) { console.warn('clip layer unavailable', err); this.anim = null; }
+    // Quaternius / Mixamo baked world deltas were calibrated to VRM1.
+    // They are NOT yet a safe retarget for VRM0's opposite-facing raw skeleton.
+    // Do not let them override Rin's correct native-coordinate ninja poses.
+    if (this.legacyAxes) this.anim = null;
+    else try { this.anim = new AnimLayer(this); } catch (err) { console.warn('clip layer unavailable', err); this.anim = null; }
   }
   update(dt) {
     const m = this.f.model, b = this.b, s = this.scale;
@@ -522,7 +532,26 @@ class VRMRig {
       b[p + 'LowerLeg'].quaternion.copy(l.knee.quaternion);
       b[p + 'Foot'].quaternion.copy(l.foot.quaternion);
     });
-    if (this.anim) this.anim.update(dt);
+    // Convert our +Z-facing procedural joint pose into VRM0's -Z-facing
+    // normalized local coordinates. In particular this reverses the arm T-pose
+    // correction: otherwise the left/right upper arms fold UP and behind Rin.
+    if (this.legacyAxes) {
+      const toNative = this.legacyYaw, fromNative = this.legacyYawInverse;
+      for (const name of ['hips','spine','chest','neck','head',
+        'leftUpperArm','leftLowerArm','leftHand','rightUpperArm','rightLowerArm','rightHand',
+        'leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot']) {
+        const joint = b[name];
+        if (joint) joint.quaternion.premultiply(fromNative).multiply(toNative).normalize();
+      }
+    }
+    if (this.anim) {
+      try { this.anim.update(dt); }
+      catch (err) {
+        // An exotic recorded clip must never halt the whole match.
+        console.error('Recorded animation disabled for', this.f.name, err);
+        this.anim = null;
+      }
+    }
     if (this.ninjaTails) {
       const speed=Math.hypot(this.f.vel.x,this.f.vel.z);
       const trail=clamp(speed/21,0,1);
@@ -562,8 +591,8 @@ class VRMRig {
       // Never move the gameplay hitbox, and keep the correction deliberately tiny.
       // The earlier 13.5 cm lift cap could not correct buried feet on either VRM.
       // Allow model-specific rest-pose offsets while keeping a damped correction.
-      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.025, 0.50);
-      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 24 : 12, dt);
+      const wanted = clamp(this.footLift + (Number.isFinite(correction) ? correction : 0), -0.10, 0.70);
+      const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 40 : 17, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
     } else if (this.footLift) {

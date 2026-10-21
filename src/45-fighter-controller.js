@@ -160,7 +160,7 @@ class Fighter {
     // Only decorate confident sprinting jumps, not normal precision jumps or combat hops.
     const foe = this === Game.player ? Game.enemy : Game.player;
     const safe = !foe || this.pos.distanceTo(foe.pos) > 5;
-    if (safe && this.sprinting && speed > this.motionProfile.minFlipSpeed &&
+    if (this.canFly && safe && this.sprinting && speed > this.motionProfile.minFlipSpeed &&
         Math.random() < this.motionProfile.flipChance && this.t - this.lastAcroAt > 1.2) {
       this.startAcro('flip', 0.64);
     }
@@ -536,7 +536,18 @@ class Fighter {
   /* ---- animation ---- */
   animate(dt) {
     this.animateRig(dt);
-    if (this.vrmRig) this.vrmRig.update(dt);
+    if (this.vrmRig) {
+      try { this.vrmRig.update(dt); }
+      catch (err) {
+        // Fail open into the native procedural fighter, not a frozen match.
+        // A corrupt VRM expression/spring/retarget layer must not kill RAF.
+        console.error('Fighter VRM rendering fell back:', this.name, err);
+        const old=this.vrmRig;
+        old.vrm.scene.removeFromParent();
+        this.model.parts.forEach(part=>part.visible=true);
+        this.vrmRig=null;
+      }
+    }
   }
   animateRig(dt) {
     const m = this.model, root = m.root, body = m.body;
@@ -588,7 +599,8 @@ class Fighter {
       rollT = this.airBank * 0.86;
     }
     else { const rnL = smooth01((hspeed - 1.5) / 9); pitchT = (0.055 + clamp(lz / 180, -0.035, 0.035) + clamp(this.accF / 350, -0.025, 0.04)) * rnL; rollT = clamp(-lx / 95, -0.11, 0.11) * rnL; }
-    if (this.sprinting && !flying) pitchT += clamp(this.accF / 450, -0.025, 0.04);
+    if (this.sprinting && !flying && this.characterId !== 'rin_sable') pitchT += clamp(this.accF / 450, -0.025, 0.04);
+    if (this.characterId === 'rin_sable' && !flying && this.downT <= 0 && this.stun <= 0) { pitchT = clamp(pitchT, -0.015, 0.065); rollT *= 0.55; }
     if (this.punchT > 0 && this.attackKind === 'kick') pitchT = 0.06;
     if (this.punchT > 0 && this.attackAir) pitchT = 0.14;
     if (this.slamLagT > 0) pitchT = 0.35;
@@ -614,10 +626,10 @@ class Fighter {
         // A complete flip; orientation returns to neutral without a hard snap.
         body.rotation.x += TAU * smooth01(acP);
        } else if (ac.type === 'ninjaLeap') {
-        const tuck = Math.sin(Math.PI * acP);
-        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
-          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
-          spineY:-0.12,spineX:0.11,headX:-0.09 };
+        // V55: This is a *pose* handled below, not an orientation transform.
+        // The old code reassigned `const A = this.acro`, throwing on every second jump
+        // and terminating requestAnimationFrame. Do not modify that immutable action.
+        // Keep the root upright: the knees tuck in the pose builder below.
       } else if (ac.type === 'airRoll' && this.flying) {
         body.rotation.z += ac.direction * TAU * smooth01(acP);
       } else if (ac.type === 'evade') {
@@ -673,8 +685,8 @@ class Fighter {
       if (this.characterId === 'rin_sable') {
         const breathe = Math.sin(this.t*1.85)*0.024;
         // Shade Runner: asymmetric open-hand guard, forward left hand, low right hand; upright and light on the feet.
-        return { arm:[[-0.69+breathe,.11,-1.22],[-1.19-breathe,.23,-1.40]],
-          leg:[[.22,.18,.10],[-.28,.22,.15]],spineY:-.16,spineX:.025,headX:.015 };
+        return { arm:[[-0.63+breathe,.30,-1.42],[-1.12-breathe,.24,-1.18]],
+          leg:[[.17,.16,.07],[-.24,.23,.10]],spineY:-.08,spineX:.015,headX:-.015 };
       }
       const br = Math.sin(this.t * 2) * 0.04, sway = Math.sin(this.t * 1.3) * 0.04;
       // Storm Fist: readable high boxing guard, grounded without an exaggerated forward bow.
@@ -734,11 +746,11 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.045; r.spineX = this.characterId==='rin_sable' ? 0.085 : 0.070;
+      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
       P = r;
     } else if (this.dashing) {
       // Power-dash pose: streamlined but upright enough to look purposeful.
@@ -771,10 +783,11 @@ class Fighter {
       if (!flying && hspeed > 1.5 && Math.abs(lx) > Math.abs(lz) * 0.8) {
         const lateral = smooth01((Math.abs(lx) - Math.abs(lz) * 0.8) / 8) * (1 - smooth01((hspeed - 13) / 8));
         const side = Math.sign(lx) || 1;
-        const slide = { arm: [[-1.05, 0.28, -1.65], [-1.3, 0.15, -1.9]],
-          leg: [[0.23 + 0.15 * Math.sin(this.runPh), 0.82, 0.3], [-0.38 - 0.12 * Math.sin(this.runPh), 0.78, 0.27]],
+        const sidePh = Math.sin(this.runPh), leadLift = Math.max(0, sidePh), trailLift = Math.max(0, -sidePh);
+        const slide = { arm: [[-1.05 + 0.10*sidePh, 0.28, -1.65], [-1.3 - 0.10*sidePh, 0.15, -1.9]],
+          leg: [[0.18 + 0.40 * sidePh, 0.32 + 0.42 * leadLift, 0.18], [-0.18 - 0.40 * sidePh, 0.32 + 0.42 * trailLift, 0.18]],
           spineY: -0.25 * side, spineX: 0.07, headX: -0.03 };
-        P = mix(P, slide, lateral * 0.67);
+        P = mix(P, slide, lateral * 0.48);
       }
     }
     // Parkour pose overrides are only cosmetic and ease in/out during the move.
@@ -784,10 +797,10 @@ class Fighter {
         A = { arm: [[-1.45, 0.45, -1.5], [-1.4, 0.40, -1.45]],
           leg: [[-1.25, 1.9, 0.2], [-1.1, 1.75, 0.2]], spineY: 0, spineX: 0.12, headX: -0.12 };
        } else if (ac.type === 'ninjaLeap') {
-        const tuck = Math.sin(Math.PI * acP);
-        A = { arm:[[-0.92,0.45,-1.54],[-1.12,0.24,-1.58]],
-          leg:[[-0.40-0.30*tuck,0.74+0.31*tuck,0.13],[-0.17-0.19*tuck,0.60+0.38*tuck,0.14]],
-          spineY:-0.12,spineX:0.11,headX:-0.09 };
+        // V55: This is a *pose* handled below, not an orientation transform.
+        // The old code reassigned `const A = this.acro`, throwing on every second jump
+        // and terminating requestAnimationFrame. Do not modify that immutable action.
+        // Keep the root upright: the knees tuck in the pose builder below.
       } else if (ac.type === 'airRoll' && this.flying) {
         A = { arm: [[-0.95, 0.5, -1.5], [-0.95, 0.5, -1.5]],
           leg: [[-0.65, 1.2, 0.15], [-0.65, 1.2, 0.15]], spineY: 0, spineX: 0.18, headX: -0.1 };

@@ -327,9 +327,9 @@ class AnimLayer {
     const ninjaRun = f.characterId === 'rin_sable' && (f.sprinting || f.dashing); // V53: Kairo-quality walk, preserve beloved sprint
     // Stance is procedural for both fighters, especially Rin: no boxing-entry pose at rest.
     // Only drive imported legs while travelling, with strong strafe attenuation.
-    const legT = ninjaRun || busyLegs ? 0 : moveW * (1 - 0.88 * this.strafeW);
+    const legT = 0; // V55: exact in-game stride drives grounded legs; do not add FBX leg rotation on top
     // Procedural shoulders keep the chest upright instead of stacking recorded running lean.
-    const upT = ninjaRun || busyArms ? 0 : moveW * (f.characterId === 'rin_sable' ? 0 : 0.18);
+    const upT = 0; // V55: procedural upper-body guard keeps a stable facing/stance during movement
     this.moveW = moveW;
     this.locoLeg += (legT - this.locoLeg) * damp(12, dt);
     this.locoUp += (upT - this.locoUp) * damp(12, dt);
@@ -439,8 +439,10 @@ class AnimLayer {
     }
     this.prevW = prevW;
     // charging: the spell stance on the upper body, looped
-    const chargeT = f.charging && f.stun <= 0 && !dying ? 1 : 0;
-    this.chargeW = (this.chargeW || 0) + (chargeT - (this.chargeW || 0)) * damp(10, dt);
+    const chargeT = f.charging && f.stun <= 0 && !dying && f.blastT <= 0 ? 1 : 0;
+    this.chargeW = f.blastT > 0 ? 0 : (this.chargeW || 0) + (chargeT - (this.chargeW || 0)) * damp(10, dt);
+    // Charged release has exclusive ownership of both arms. Never crossfade
+    // the old charging FBX pose into the superblast's procedural energy push.
     if (this.chargeW > 0.01) { this.chargeT = (this.chargeT || 0) + dt; } else this.chargeT = 0;
 
     // Reset auxiliary humanoid joints even on fully procedural idle frames.
@@ -482,7 +484,7 @@ class AnimLayer {
       layer(Anim.sample('qGuardIdle', f.t * 0.4, true, this.tmp), this.guardIdleW * 0.24,
         this.LOWER, 0.32, true);
     // A little recorded breathing motion enriches the guard but never overwrites a punch.
-    if (this.idleBreathW > 0.01 && f.awakenChargeT <= 0 && oneW < 0.01)
+    if (this.idleBreathW > 0.01 && f.awakenChargeT <= 0 && f.blastT <= 0 && oneW < 0.01)
       layer(Anim.sample('qStandIdle', f.t * 0.42, true, this.tmp), this.idleBreathW * 0.09,
         this.UPPER, 0.12, true);
     if (this.chargeW > 0.01) {

@@ -4,7 +4,7 @@ const source=fs.readFileSync(path.join(root,'src/40-recorded-animations.js'),'ut
 const mixamo=fs.readFileSync(path.join(root,'src/41-mixamo-animations.js'),'utf8');
 const bundled=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
-assert(index.includes('js/game.js?v=542'));
+assert(index.includes('js/game.js?v=550'));
 assert(bundled.includes('const SkyClashMixamo = (() => {'));
 assert(!bundled.includes('Sky Clash V54 — NOT BUILT'));
 assert.strictEqual(bundled,fs.readdirSync(path.join(root,'src')).filter(x=>x.endsWith('.js')).sort().map(x=>fs.readFileSync(path.join(root,'src',x),'utf8')).join(''));
