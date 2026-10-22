@@ -58,7 +58,7 @@
  function installPicker(){
   if(document.getElementById('v66ModelPicker'))return;
   const box=document.createElement('div');box.id='v66ModelPicker';
-  box.style.cssText='position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);right:12px;z-index:99999;display:flex;gap:6px;align-items:center;border-radius:12px;background:rgba(10,19,37,.93);border:1px solid #6e90b3;padding:8px;color:white;box-shadow:0 3px 15px #0008;font:12px system-ui';
+  box.style.cssText='position:fixed;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;z-index:99999;display:flex;gap:6px;align-items:center;border-radius:12px;background:rgba(10,19,37,.93);border:1px solid #6e90b3;padding:8px;color:white;box-shadow:0 3px 15px #0008;font:12px system-ui';
   const status=document.createElement('span');status.textContent='Kairo: choose VRM';status.style.cssText='max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   const btn=document.createElement('button');btn.type='button';btn.textContent='Import VRM';
   btn.style.cssText='padding:6px 10px;border:0;border-radius:6px;background:#39cbe0;color:#071522;font-weight:700;cursor:pointer';
