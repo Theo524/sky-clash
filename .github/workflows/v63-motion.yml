@@ -7,8 +7,12 @@ on:
       - 'src/40-recorded-animations.js'
       - 'src/41-mixamo-animations.js'
       - 'tests/v63-live-motion.js'
+      - 'assets/characters/master/anime-kairo.js'
+      - 'tests/v65-anime-fighter.js'
       - 'tests/v64-arm-clearance.js'
       - 'tests/v60-master-base.js'
+      - 'assets/characters/master/anime-kairo.js'
+      - 'tests/v65-anime-fighter.js'
   push:
     branches: [main]
     paths:
@@ -26,3 +30,4 @@ jobs:
       - run: node tests/v60-master-base.js
       - run: node tests/v63-live-motion.js
       - run: node tests/v64-arm-clearance.js
+      - run: node tests/v65-anime-fighter.js

@@ -42,10 +42,19 @@
   }
   try {
    m.body.add(anchor);anchor.updateMatrixWorld(true);
-   const master=skin.create(THREE,bones,anchor);
+   // V65 swaps only the visual skin; the V64 skeleton and recorded motions
+   // remain untouched. ?skin=master reverts to the previous test mannequin.
+   const anime=window.SkyClashAnimeKairo;
+   const useAnime=new URLSearchParams(location.search).get('skin')!=='master' && anime?.check(bones).valid;
+   let master;
+   if(useAnime){
+    try{master=anime.create(THREE,bones,anchor,{rival:fighter===game.enemy});}
+    catch(err){console.warn('V65 anime skin failed, using original master',err);}
+   }
+   if(!master)master=skin.create(THREE,bones,anchor);
    if(!master?.parts?.length)throw Error('Master has no meshes');
    for(const part of m.parts)part.visible=false;
-   fighter.v62Master={master,anchor,bones};
+   fighter.v62Master={master,anchor,bones,skin:master.source};
    const original=fighter.animate.bind(fighter);
    fighter.animate=function(dt){
     original(dt);
