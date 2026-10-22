@@ -1,0 +1,26 @@
+name: V63 Recorded Motion Validation
+on:
+  pull_request:
+    paths:
+      - 'js/v63-recorded-motion.js'
+      - 'js/v62-playable-master.js'
+      - 'src/40-recorded-animations.js'
+      - 'src/41-mixamo-animations.js'
+      - 'tests/v63-live-motion.js'
+      - 'tests/v60-master-base.js'
+  push:
+    branches: [main]
+    paths:
+      - 'js/v63-recorded-motion.js'
+      - 'tests/v63-live-motion.js'
+jobs:
+  motion-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node tests/v60-master-base.js
+      - run: node tests/v63-live-motion.js

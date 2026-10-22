@@ -25,7 +25,7 @@
   const head=bone('Head',neck,0,10,0,m.head);
   bone('HeadTop_End',head,0,22,0);
   for(const side of ['Left','Right']){
-   const index=side==='Left'?0:1,sign=side==='Left'?-1:1,a=m.arms[index],l=m.legs[index];
+   const index=side==='Left'?1:0,sign=side==='Left'?1:-1,a=m.arms[index],l=m.legs[index];
    const shoulder=bone(side+'Shoulder',spine2,sign*15,0,0);
    const arm=bone(side+'Arm',shoulder,sign*8,-6,0,a.sh);
    const forearm=bone(side+'ForeArm',arm,0,-33,0,a.el);
