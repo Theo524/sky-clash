@@ -24,6 +24,8 @@
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=710');
   await window.SkyClashV71Walk.start(window);
+  await script('js/v72-walk-arms.js?v=720');
+  await window.SkyClashV72Arms.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
   console.error('Sky Clash V66 boot failed',err);
