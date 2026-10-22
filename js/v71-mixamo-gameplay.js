@@ -9,6 +9,7 @@
  'use strict';
  const VERSION='71.0';
  const PATH='assets/animations/gameplay/kairo-walk-v1.json';
+ const REGISTRY='assets/animations/gameplay/actions-v1.json';
  const JOINTS=['leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot'];
  const EXPECT=['hips',...JOINTS];
  const MANIFEST=Object.freeze({
@@ -75,13 +76,16 @@
     if(!state.ready||state.rig!==this.vrmRig)capture(this.vrmRig);
     const safe=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
+    const action=status.action;
     const canWalk=this.hp>0&&!this.flying&&!this.launched&&!this.spiked&&
      !(this.downT>0)&&!(this.punchT>0)&&!(this.stun>0)&&
-     !(this.dashing||this.sprinting||this.slamming)&&speed>.75;
-    const desired=canWalk?Math.min(1,Math.max(0,(speed-.75)/1.15)):0;
-    state.weight+=(desired-state.weight)*(1-Math.exp(-safe*(desired>state.weight?10:13)));
+     !(this.dashing||this.sprinting||this.slamming)&&speed>action.minSpeed;
+    const desired=canWalk?Math.min(1,Math.max(0,
+      (speed-action.minSpeed)/(action.fullSpeed-action.minSpeed))):0;
+    const blendSeconds=desired>state.weight?action.blendInSeconds:action.blendOutSeconds;
+    state.weight+=(desired-state.weight)*(1-Math.exp(-safe/Math.max(.025,blendSeconds)));
     if(state.weight<.008){state.last='idle';return;}
-    if(canWalk)state.clock+=safe*Math.min(1.8,Math.max(.62,speed/3.4));
+    if(canWalk)state.clock+=safe*Math.min(1.8,Math.max(.62,speed/action.speedReference));
     motion.sample(state.clock,state.quats);
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);
@@ -124,7 +128,17 @@
   const THREE=context.THREE,Game=context.SkyClash?.Game;
   if(!THREE||!Game)throw Error('V71 needs initialized Sky Clash gameplay');
   try{
-   const response=await context.fetch(PATH+'?v=710',{cache:'force-cache'});
+   const mapResponse=await context.fetch(REGISTRY+'?v=710',{cache:'force-cache'});
+   if(!mapResponse.ok)throw Error('action manifest HTTP '+mapResponse.status);
+   const registry=await mapResponse.json();
+   const action=registry?.characters?.kairo_venn?.walk;
+   if(registry?.schema!=='sky-clash.game-actions.v1'||registry.version!==1||
+      action?.id!=='kairo.walk'||action.asset!==PATH||action.revision!==1||
+      !(action.minSpeed>=0&&action.fullSpeed>action.minSpeed&&action.speedReference>0&&
+        action.blendInSeconds>0&&action.blendOutSeconds>0))
+    throw Error('V71: invalid versioned game walk action mapping');
+   status.action=action;status.registryVersion=registry.version;
+   const response=await context.fetch(action.asset+'?v=710',{cache:'force-cache'});
    if(!response.ok)throw Error('walk asset HTTP '+response.status);
    const motion=decode(THREE,await response.json());
    const fighters=[Game.heroes?.kairo_venn,Game.enemy].filter(Boolean);
