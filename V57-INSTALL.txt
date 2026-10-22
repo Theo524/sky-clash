@@ -1,0 +1,24 @@
+SKY CLASH V57 — ANIMATION STUDIO
+
+This is an update ZIP intended to be uploaded on top of Sky Clash V56.
+Extract the ZIP and upload all of its contents to your GitHub repository,
+keeping the folder paths intact. In particular, upload:
+- index.html (replaces the root index.html)
+- animation-studio.html (new root page)
+- css/animation-studio.css (new)
+- js/animation-studio.js and js/animation-studio-core.js (new)
+- js/vendor/jszip.min.js and its MIT license (new)
+- docs/V57-ANIMATION-STUDIO.md (documentation)
+
+Then open Sky Clash > Animation Studio (or go directly to /animation-studio.html).
+Import your boxing.zip, kicking.zip, ninja.zip or other FBX packs.
+The studio generates moving preview tiles for one page at a time (16 clips)
+then you can inspect any motion in the 3D viewer, drag cards to Kairo / Rin,
+and export your selected animations as JSON.
+
+LIMITATIONS: FBX preview uses the original Mixamo skeleton, not the VRM fighter.
+Marking a clip here creates a shortlist only; it does not change real combat.
+The preview engine needs internet access for Three.js r158 FBXLoader modules via
+jsDelivr; JSZip is included locally. Original FBX files stay in the browser.
+Browser stores shortlist metadata only; re-import files after leaving the page.
+Imported FBX file contents are NEVER uploaded by this studio.

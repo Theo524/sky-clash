@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash V56 — Character Workshop</title>
-<link rel="stylesheet" href="css/game.css?v=560">
+<title>Sky Clash V57 — Animation Studio</title>
+<link rel="stylesheet" href="css/game.css?v=570">
 </head>
 <body>
 <div id="game"></div>
@@ -41,7 +41,7 @@
         <option value="attacks">Sparring fighter</option>
       </select>
     </label>
-    <label class="dojo-select">Animation testing room · V56
+    <label class="dojo-select">Animation testing room · V57
       <select id="dojoMotion" aria-label="Choose recorded fighter animation"></select>
     </label>
     <div class="dojo-panel-actions"><button id="dojoPreviewMotion" title="Play the selected animation on your fighter">▶ Preview motion</button>
@@ -106,7 +106,7 @@
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
     <div class="home-identity"><span class="home-eyebrow">CHARACTER SELECT · KAIRO / RIN</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">V56 / CHARACTER WORKSHOP</div>
+    <div class="home-menu"><div class="home-version">V57 / ANIMATION STUDIO</div>
       <div class="character-select" role="group" aria-label="Choose your fighter">
         <button type="button" class="char-choice selected" data-hero="kairo_venn" aria-pressed="true"><b>KAIRO VENN</b><small>Martial artist · Flight · Energy</small></button>
         <button type="button" class="char-choice" data-hero="rin_sable" aria-pressed="false"><b>RIN SABLE</b><small>Ninja · Double Jump · Shurikens</small></button>
@@ -114,20 +114,21 @@
       <button class="home-action home-primary" id="trainBtn"><span class="action-number">01</span><span><b>Enter the Dojo</b><small>Your training space · Props · Sparring</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="startBtn"><span class="action-number">02</span><span><b>Enter Battle</b><small>Fight in the Highland Arena</small></span><span class="action-arrow">↗</span></button>
       <button class="home-action" id="wsOpenTitle"><span class="action-number">03</span><span><b>Character Workshop</b><small>Pose editor · Walk previews · Animation keyframes</small></span><span class="action-arrow">✦</span></button>
-      <button class="home-action" id="titleSettingsBtn"><span class="action-number">04</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
+      <a class="home-action" id="openAnimationStudio" href="animation-studio.html" style="text-decoration:none;color:inherit"><span class="action-number">04</span><span><b>Animation Studio</b><small>FBX / ZIP import · Animated preview gallery</small></span><span class="action-arrow">↗</span></a>
+      <button class="home-action" id="titleSettingsBtn"><span class="action-number">05</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
       <div class="home-tip" id="heroTip">KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.</div>
     </div>
-    <div class="home-footer">2 PLAYABLE FIGHTERS · V56.0 <span>SKY CLASH / TRAINING GROUNDS</span></div>
+    <div class="home-footer">2 PLAYABLE FIGHTERS · V57.0 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
 
 
 <!-- Character Workshop V56: edit poses without directly touching VRM0/VRM1 axes -->
 <aside id="workshop" class="workshop hidden" role="dialog" aria-label="Character and animation workshop">
- <div class="ws-top"><div><small>SKY CLASH / CREATOR TOOLS</small><h2>Character Workshop <span>V56</span></h2></div><button type="button" id="wsClose" class="ws-close" aria-label="Close workshop">✕</button></div>
+ <div class="ws-top"><div><small>SKY CLASH / CREATOR TOOLS</small><h2>Character Workshop <span>V57</span></h2></div><button type="button" id="wsClose" class="ws-close" aria-label="Close workshop">✕</button></div>
  <p id="wsFighterNote" class="ws-note">Edit one fighter at a time.</p>
  <div class="ws-two"><label>Character<select id="wsFighter"><option value="kairo_venn">Kairo Venn</option><option value="rin_sable">Rin Sable</option></select></label><label>Preview motion<select id="wsMode"><option value="idle">Ready stance</option><option value="walk">Walk in place</option><option value="run">Run in place</option></select></label></div>
- <div class="ws-tools"><button id="wsView">↻ Front / back view</button></div>
+ <div class="ws-tools"><button id="wsView">↻ Front / back view</button><a href="animation-studio.html" class="ws-studio-link" style="padding:10px 12px;border:1px solid #5aab9b;border-radius:8px;color:#aff2d5;text-decoration:none;display:inline-block;font-size:12px">◈ Open FBX Preview Gallery ↗</a></div>
  <label class="ws-recorded"><input id="wsRecorded" type="checkbox" checked> Use recorded animation overlays in matches (Kairo only)</label>
  <div class="ws-section-label">POSE + MOVEMENT <span>Changes preview instantly</span></div>
  <div id="wsSliders" class="ws-sliders"></div>
@@ -147,7 +148,7 @@
  </details>
  <div class="ws-tools ws-persistence"><button id="wsSave">Save here</button><button id="wsExport">Export JSON</button><label class="ws-import">Import JSON<input id="wsImport" type="file" accept=".json,application/json"></label></div>
  <p id="wsStatus" class="ws-status" role="status">Loading workshop...</p>
- <p class="ws-disclaimer">Saved profiles are per-browser; JSON export is your backup. This is a pose/keyframe editor, not yet a raw FBX importer or a full IK/3D modelling suite.</p>
+ <p class="ws-disclaimer">Saved profiles are per-browser; JSON export is your backup. Import FBX files and ZIPs in the separate Animation Studio screen. This pose editor remains independent of FBX retargeting.</p>
 </aside>
 
 <!-- Pause menu -->
@@ -298,6 +299,6 @@ return{progress,finish};})();
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script>window.HERO_VRM_URL='assets/fighter.vrm';</script>
-<script src="js/game.js?v=560"></script>
+<script src="js/game.js?v=570"></script>
 </body>
 </html>

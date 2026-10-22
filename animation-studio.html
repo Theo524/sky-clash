@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0c101e"><title>Sky Clash V57 · Animation Studio</title>
+<link rel="stylesheet" href="css/animation-studio.css?v=570">
+<!-- The FBX parser uses the same Three.js release as the game, but in an isolated renderer.
+     External module is fetched only for the preview engine. Files are never uploaded. -->
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"}}</script>
+</head><body>
+<div class="app-shell">
+<header class="topbar">
+ <a class="back" href="index.html">← Back to Sky Clash</a>
+ <div class="brand"><span class="logo">SC<span>◇</span></span><div><strong>ANIMATION STUDIO</strong><small>SKY CLASH / V57 · LOCAL WORKSPACE</small></div></div>
+ <span class="privacy">● PRIVATE · FILES STAY IN YOUR BROWSER</span>
+</header>
+<main>
+ <section class="intro"><div><div class="eyebrow">YOUR MIXAMO COLLECTION · WITHOUT RENAMING</div><h1>See the move <em>before</em> you choose it.</h1><p>Drop in your downloaded <strong>FBX animations</strong> or entire <strong>ZIP packs</strong>. Every animation gets a looping preview. Click any motion to watch it up close.</p></div>
+  <button id="chooseTop" class="primary">＋ Import FBX / ZIP</button>
+ </section>
+ <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Import FBX or ZIP animations"><span class="drop-mark">↥</span><div><b>Drop your Mixamo ZIP packs or FBX files here</b><small>Or click to browse · Multiple files supported · Original filenames preserved</small></div><button id="chooseInside" type="button">Choose files</button></div>
+ <input type="file" id="fileInput" accept=".fbx,.zip" multiple hidden>
+ <div class="activity"><div id="loadStatus" role="status">Waiting for your animations. Try your <b>boxing.zip</b> first.</div><div id="loadProgress" class="progress" aria-hidden="true"><span></span></div><button id="cancelLoad" hidden>Stop processing</button></div>
+ <div class="workspace">
+  <section class="library">
+   <div class="section-head"><div><div class="eyebrow">01 / BROWSE</div><h2>Motion library <span id="clipCount">0</span></h2></div><div class="count" id="processedCount">No animations yet</div></div>
+   <div class="filters"><label class="search-wrap">⌕ <input id="search" placeholder="Search names, categories or pack..." aria-label="Filter animations"></label><select id="category" aria-label="Category"><option value="all">All categories</option><option value="combat">Combat</option><option value="kicks">Kicks</option><option value="movement">Movement</option><option value="jumps">Jumps / Acrobatics</option><option value="magic">Magic / Energy</option><option value="reaction">Reactions</option><option value="other">Other</option></select><select id="tagFilter" aria-label="Assigned fighter"><option value="all">All assignments</option><option value="kairo">Kairo candidates</option><option value="rin">Rin candidates</option><option value="saved">Shortlisted</option></select></div>
+   <div id="emptyLibrary" class="empty"><span>◈</span><h3>Your animation wall starts here</h3><p>Import your downloaded files and animated thumbnails will appear. The gallery is paged so hundreds of clips won't freeze your device.</p></div>
+   <div id="clipGrid" class="clip-grid" aria-label="Animation previews"></div>
+   <div class="page-controls" id="pageControls" hidden><button id="prevPage">← Previous</button><span id="pageInfo">Page 1</span><button id="nextPage">Next →</button></div>
+  </section>
+  <section class="inspector">
+   <div class="section-head"><div><div class="eyebrow">02 / PREVIEW</div><h2>3D motion viewer</h2></div><span class="tag" id="viewerType">Original Mixamo skeleton</span></div>
+   <div id="viewerShell" class="viewer-shell"><canvas id="viewer" aria-label="Interactive 3D animation preview"></canvas><div class="viewer-overlay" id="viewerOverlay">Select a clip to inspect its motion.</div><div class="viewer-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div></div>
+   <div class="player">
+    <div class="player-actions"><button id="playPause" disabled>▶ Play</button><button id="restart" disabled aria-label="Restart clip">↺</button><select id="speed" title="Playback speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select><label class="root-motion"><input id="rootMotion" type="checkbox"> Root travel</label></div>
+    <div class="timeline"><input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Animation timeline"><span id="timing">0.0 / 0.0s</span></div>
+   </div>
+   <div class="selected"><h3 id="selectedTitle">No animation selected</h3><div id="selectedMeta">Choose a thumbnail on the left.</div></div>
+   <div class="actions"><button id="markKairo" disabled>＋ Kairo</button><button id="markRin" disabled>＋ Rin</button><button id="markSaved" disabled>☆ Shortlist</button></div>
+   <div id="selectedStatus" class="selected-status" role="status">Preview uses the original Mixamo rig. Character retargeting is intentionally separate.</div>
+   <div class="note">These previews show <strong>the original FBX animation</strong> on a clear motion mannequin, not on Kairo or Rin. That way you can judge the animation before retargeting. Marking a clip here does <strong>not</strong> replace a move in live combat.</div>
+   <div class="selection-title"><h3>My selections</h3><span id="selectionCount">0 selected</span></div>
+   <div class="assignments"><div class="assign" id="binKairo" data-bin="kairo"><strong>🥊 KAIRO</strong><small>Drop a motion here</small><div class="assigned-list" id="listKairo"></div></div><div class="assign" id="binRin" data-bin="rin"><strong>🥷 RIN</strong><small>Drop a motion here</small><div class="assigned-list" id="listRin"></div></div></div>
+   <div class="export-actions"><button id="exportList" class="primary alt">↓ Export selection JSON</button><button id="clearMarks">Clear marks</button></div>
+   <div class="note subtle">Imported FBX data is not saved between visits. Your clip shortlist is stored locally in this browser; export JSON to keep a shareable copy. Existing game animations are untouched.</div>
+  </section>
+ </div>
+</main><footer>SKY CLASH / ANIMATION STUDIO V57 <span>NO BACKEND · NO FILE UPLOAD · THREE.JS FBX PREVIEW ENGINE</span></footer>
+</div>
+<script src="js/vendor/jszip.min.js"></script>
+<script src="js/animation-studio-core.js?v=570"></script>
+<script type="module">
+import("./js/animation-studio.js?v=570").catch(err=>{console.error("Animation Studio failed to start",err);
+ const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
+});
+</script>
+</body></html>
