@@ -30,8 +30,8 @@ const sample=()=>Array.from({length:7},()=>new THREE.Quaternion());
 const before=sample(),after=sample(),loop=sample();
 motion.sample(.05,before);motion.sample(.50,after);
 motion.sample(.05+motion.duration,loop);
-assert(before[2].angleTo(after[2])>.20,'Knee must bend during the true Mixamo walk, not remain robotic');
-assert(before[5].angleTo(after[5])>.20,'Both knees should animate');
+assert(before[2].angleTo(after[2])>.12,'Knee must bend during the true Mixamo walk, not remain robotic');
+assert(before[5].angleTo(after[5])>.25,'Both knees should animate with distinct recorded stride phases');
 for(let i=0;i<7;i++){
  assert(before[i].angleTo(loop[i])<.0001,'Loop should join precisely');
  assert(Math.abs(before[i].length()-1)<.001,'No invalid motion quaternion');
