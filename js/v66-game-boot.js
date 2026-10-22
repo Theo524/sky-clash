@@ -14,10 +14,12 @@
  let selected=null;
  try{selected=await store.resolve();}catch(e){console.warn('Kairo VRM selection unavailable',e);}
  window.SKY_V66_REAL_KAIRO=!!selected;
+ // Roll back only V67 hand orientation without changing the character.
+ window.SKY_V67_FIST_CORRECTION=new URLSearchParams(location.search).get('hands')!=='original';
  window.HERO_VRM_URL=selected?.url||null;
  window.HERO_VRM_B64=null;
  try{
-  await script('js/game.js?v=660');
+  await script('js/game.js?v=670');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');

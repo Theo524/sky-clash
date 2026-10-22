@@ -9,7 +9,7 @@ const index=read('index.html'),studio=read('animation-studio.html');
 const src=read('src/95-game.js');
 const preview=read('js/character-motion-preview.js');
 const startup=read('js/v66-character-source.js');
-assert(index.includes('js/v66-game-boot.js?v=660'),'Game must choose VRM before starting engine');
+assert(/js\/v66-game-boot\.js\?v=6\d{2}/.test(index),'Game must choose VRM before starting engine');
 assert(index.includes('js/v66-character-source.js?v=660'));
 assert(studio.includes('js/v66-character-source.js?v=660'),'Studio must use same Kairo');
 assert(studio.includes('js/character-motion-preview.js?v=660'));
