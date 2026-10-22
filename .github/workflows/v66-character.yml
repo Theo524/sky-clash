@@ -7,6 +7,7 @@ on:
       - 'js/v67-*'
       - 'js/v68-*'
       - 'js/v69-*'
+      - 'js/v70-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -15,6 +16,7 @@ on:
       - 'tests/v66-*.js'
       - 'tests/v68-*.js'
       - 'tests/v69-*.js'
+      - 'tests/v70-*.js'
       - '.github/workflows/v66-character.yml'
   push:
     branches: [main]
@@ -24,6 +26,7 @@ on:
       - 'js/v67-*'
       - 'js/v68-*'
       - 'js/v69-*'
+      - 'js/v70-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -32,6 +35,7 @@ on:
       - 'tests/v66-*.js'
       - 'tests/v68-*.js'
       - 'tests/v69-*.js'
+      - 'tests/v70-*.js'
       - '.github/workflows/v66-character.yml'
 permissions:
   contents: write
@@ -55,6 +59,7 @@ jobs:
       - run: node --check js/v67-vrm0-hands.js
       - run: node --check js/v68-humanoid-retarget.js
       - run: node --check js/v69-motion-library.js
+      - run: node --check js/v70-fbx-repair.js
       - run: node --check js/animation-studio.js
       - run: node --check js/character-motion-preview.js
       - run: node --check js/v62-playable-master.js
@@ -65,6 +70,7 @@ jobs:
       - run: node tests/v67-vrm0-hands.js
       - run: node tests/v68-humanoid-retarget.js
       - run: node tests/v69-motion-library.js
+      - run: node tests/v70-fbx-repair.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
