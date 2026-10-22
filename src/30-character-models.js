@@ -497,9 +497,13 @@ class VRMRig {
     // native -Z. The original universal Z-axis fist curl bent them backward.
     // Keep that original pose for Rin/legacy models, but use a calibrated
     // wrist + Y-axis curl for the real Boy TBB Kairo/rival.
-    this.vroidHandPose = opts.vroidHands && window.SkyClashVRM0Hands
+    // V73: Kairo's native VRoid hand bind pose matches V68 Studio.
+    // Don't twist wrists 90 degrees or force a fist while Mixamo owns the
+    // pose. Legacy hand flags remain available as a comparison/rollback.
+    this.studioHands = !!opts.studioHands;
+    this.vroidHandPose = !this.studioHands && opts.vroidHands && window.SkyClashVRM0Hands
       ? window.SkyClashVRM0Hands.configure(THREE, bone) : null;
-    if (!this.vroidHandPose) {
+    if (!this.vroidHandPose && !this.studioHands) {
       const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
       for (const side of ['left', 'right']) {
         const sg = side === 'left' ? -1 : 1;
