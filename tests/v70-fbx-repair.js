@@ -38,7 +38,7 @@ for(const args of [{extraLF:false},{binary:false},{magic:false}]){
 }
 const html=read('animation-studio.html'),studio=read('js/animation-studio.js');
 assert(html.includes('js/v70-fbx-repair.js?v=700'),'Repair loaded before studio');
-assert(html.includes('animation-studio.js?v=700'),'Fresh cache for FBX repair');
+assert(/animation-studio\\.js\\?v=\\d{3,}/.test(html),'Cache-busted FBX-aware Studio script');
 assert(studio.includes('SkyClashFBXRepair?.normalize(buffer)'),'Both ZIP & loose FBX buffers pass through repair');
 assert(studio.includes('if(result?.repaired)item.repaired=true'),'Mark fixed preview');
 assert(studio.includes('SkyClashHumanoidRetarget')===false,'Keep V68 retarget in separate working module');
