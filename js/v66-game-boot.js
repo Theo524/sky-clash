@@ -26,9 +26,9 @@
   await script('js/game.js?v=730');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
-  await script('js/v71-mixamo-gameplay.js?v=710');
+  await script('js/v71-mixamo-gameplay.js?v=740');
   await window.SkyClashV71Walk.start(window);
-  await script('js/v72-walk-arms.js?v=720');
+  await script('js/v72-walk-arms.js?v=740');
   await window.SkyClashV72Arms.start(window);
   await script('js/v72-published-actions.js?v=720');
   await window.SkyClashPublishedGamePack.start(window);

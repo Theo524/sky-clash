@@ -1,7 +1,7 @@
 {
   "schema": "sky-clash.game-actions.v1",
   "version": 1,
-  "description": "Permanent in-game Mixamo motion mapping. Game logic controls root movement; replace or tune assets through versioned updates.",
+  "description": "Permanent in-game Mixamo motion mapping. Game logic controls root movement; replace or tune assets through versioned updates. Walk-pose gains keep the fighting-game torso planted while preserving Mixamo feet and knee keyframes; adjustable and reversible.",
   "characters": {
     "kairo_venn": {
       "walk": {
@@ -21,7 +21,11 @@
           "attacking",
           "dashing",
           "sprinting"
-        ]
+        ],
+        "torsoStability": 0.72,
+        "shoulderSwing": 0.55,
+        "elbowSwing": 0.8,
+        "wristSwing": 0.74
       }
     }
   }

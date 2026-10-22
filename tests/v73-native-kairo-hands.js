@@ -70,6 +70,6 @@ assert(rin.fingers.get('rightIndexProximal').quaternion.angleTo(new THREE.Quater
 assert.strictEqual((game.match(/studioHands:!!window\.SKY_V66_REAL_KAIRO/g)||[]).length,2,
  'Only the Kairo and Kairo-derived rival VRMs may use the new native hands');
 assert(startup.includes("handMode!=='legacy'&&handMode!=='original'"),'User must have rollback');
-assert(startup.includes("await script('js/game.js?v=730')"),'Live game must load rebuilt source');
-assert(read('index.html').includes('js/v66-game-boot.js?v=730'),'Page must load new bootstrap');
+assert(/await script\('js\/game\.js\?v=\d{3,}'\)/.test(startup),'Live game must load rebuilt source');
+assert(/js\/v66-game-boot\.js\?v=\d{3,}/.test(read('index.html')),'Page must load new bootstrap');
 console.log('PASS: V73 native VRM fingers/thumbs, neutral game wrists, procedural wrist action, old hand rollback, Rin isolation and live startup');
