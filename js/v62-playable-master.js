@@ -26,10 +26,14 @@
   bone('HeadTop_End',head,0,22,0);
   for(const side of ['Left','Right']){
    const index=side==='Left'?1:0,sign=side==='Left'?1:-1,a=m.arms[index],l=m.legs[index];
+   // V64: bind a readable two-bend martial-arts guard instead of vertical
+   // shoulder-to-wrist columns. V63 treats the recorded idle as this bind
+   // reference, so the rest pose and motion agree instead of pulling elbows
+   // through the chest.
    const shoulder=bone(side+'Shoulder',spine2,sign*15,0,0);
    const arm=bone(side+'Arm',shoulder,sign*8,-6,0,a.sh);
-   const forearm=bone(side+'ForeArm',arm,0,-33,0,a.el);
-   const hand=bone(side+'Hand',forearm,0,-33,0,a.fist);
+   const forearm=bone(side+'ForeArm',arm,sign*16,-21,17,a.el);
+   const hand=bone(side+'Hand',forearm,-sign*14,25,15,a.fist);
    for(const [i,n] of ['Index','Middle','Ring','Pinky'].entries())bone(side+'Hand'+n+'1',hand,(i-1.5)*2,-7,3);
    const upper=bone(side+'UpLeg',hips,sign*14,-8,0,l.hip);
    const knee=bone(side+'Leg',upper,0,-43,0,l.knee);
