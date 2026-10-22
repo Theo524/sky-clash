@@ -483,7 +483,7 @@ const Game = {
 
 Game.init();
 requestAnimationFrame(t => { Game._last = t; Game.loop(t); });
-window.SkyClash = { Effects, Game, CameraRig, Settings, Input, Combat, TUNING, camera };
+window.SkyClash = { Effects, Game, CameraRig, Settings, Input, Combat, TUNING, camera, Anim, SkyClashMixamo };
 })();
 
 
