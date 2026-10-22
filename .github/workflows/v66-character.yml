@@ -1,0 +1,60 @@
+name: V66 VRM Character Integration
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'js/v66-*'
+      - 'js/character-motion-preview.js'
+      - 'js/animation-studio.js'
+      - 'js/v62-playable-master.js'
+      - 'index.html'
+      - 'animation-studio.html'
+      - 'tests/v66-*.js'
+      - '.github/workflows/v66-character.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'js/v66-*'
+      - 'js/character-motion-preview.js'
+      - 'js/animation-studio.js'
+      - 'js/v62-playable-master.js'
+      - 'index.html'
+      - 'animation-studio.html'
+      - 'tests/v66-*.js'
+      - '.github/workflows/v66-character.yml'
+permissions:
+  contents: write
+jobs:
+  character-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python tools/build.py
+      - run: node --check js/game.js
+      - run: node --check js/v66-character-source.js
+      - run: node --check js/v66-game-boot.js
+      - run: node --check js/character-motion-preview.js
+      - run: node --check js/v62-playable-master.js
+      - run: node tests/v60-master-base.js
+      - run: node tests/v64-arm-clearance.js
+      - run: node tests/v65-anime-fighter.js
+      - run: node tests/v66-character-source.js
+      - name: Publish rebuilt game bundle
+        if: github.event_name == 'push'
+        run: |
+          if ! git diff --quiet -- js/game.js; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add js/game.js
+            git commit -m 'Build V66 game bundle from source'
+            git push
+          fi

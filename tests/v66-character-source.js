@@ -1,0 +1,32 @@
+// Check V66 shared model sourcing, supported VRM0 configuration and live paths.
+const assert=require('assert');
+const fs=require('fs');
+const vm=require('vm');
+const path=require('path');
+const root=path.resolve(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const index=read('index.html'),studio=read('animation-studio.html');
+const src=read('src/95-game.js');
+const preview=read('js/character-motion-preview.js');
+const startup=read('js/v66-character-source.js');
+assert(index.includes('js/v66-game-boot.js?v=660'),'Game must choose VRM before starting engine');
+assert(index.includes('js/v66-character-source.js?v=660'));
+assert(studio.includes('js/v66-character-source.js?v=660'),'Studio must use same Kairo');
+assert(studio.includes('js/character-motion-preview.js?v=660'));
+assert(!preview.includes("fighter==='rin'?'assets/rin.vrm':'assets/fighter.vrm'"),'Old Kairo robot path must not remain');
+assert(preview.includes('SkyClashCharacterStore?.resolve()'),'Studio preview must share model source');
+assert(src.includes('legacyAxes:!!window.SKY_V66_REAL_KAIRO'),'VRM0 Kairo axes must be handled');
+assert(read('js/v62-playable-master.js').includes('if(window.SKY_V66_REAL_KAIRO)return;'),'Master overlay must skip real VRM');
+assert(read('js/animation-studio.js').includes("viewMode='character'"),'Studio should open real character tab');
+assert(read('js/v66-game-boot.js').includes('window.HERO_VRM_URL=selected?.url||null'));
+new Function(startup);
+new Function(read('js/v66-game-boot.js'));
+new Function(preview);
+const world={URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},indexedDB:null};
+const context={window:world,fetch:async url=>({ok:url==='assets/characters/kairo.vrm'}),console,Promise,Error,URLSearchParams};
+vm.runInNewContext(startup,context,{filename:'v66-character-source.js'});
+world.SkyClashCharacterStore.resolve().then(source=>{
+ assert.strictEqual(source.url,'assets/characters/kairo.vrm');
+ assert.strictEqual(source.source,'github');
+ console.log('PASS: V66 game and studio share Kairo source; VRM0 axis and old robot exclusions validated');
+}).catch(e=>{console.error(e);process.exitCode=1;});
