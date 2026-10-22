@@ -15,11 +15,15 @@
  try{selected=await store.resolve();}catch(e){console.warn('Kairo VRM selection unavailable',e);}
  window.SKY_V66_REAL_KAIRO=!!selected;
  // Roll back only V67 hand orientation without changing the character.
- window.SKY_V67_FIST_CORRECTION=new URLSearchParams(location.search).get('hands')!=='original';
+ const handMode=new URLSearchParams(location.search).get('hands');
+ // Studio-native hands are the new default. ?hands=legacy compares the
+ // previous V67 twisted-wrist/forced-fingers version, no other changes.
+ window.SKY_V73_NATIVE_HANDS=handMode!=='legacy'&&handMode!=='original';
+ window.SKY_V67_FIST_CORRECTION=handMode!=='original';
  window.HERO_VRM_URL=selected?.url||null;
  window.HERO_VRM_B64=null;
  try{
-  await script('js/game.js?v=670');
+  await script('js/game.js?v=730');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=710');
