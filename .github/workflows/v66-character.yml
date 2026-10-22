@@ -8,6 +8,9 @@ on:
       - 'js/v68-*'
       - 'js/v69-*'
       - 'js/v70-*'
+      - 'js/v71-*'
+      - 'assets/animations/gameplay/**'
+      - 'tests/v71-*.js'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -27,6 +30,9 @@ on:
       - 'js/v68-*'
       - 'js/v69-*'
       - 'js/v70-*'
+      - 'js/v71-*'
+      - 'assets/animations/gameplay/**'
+      - 'tests/v71-*.js'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -60,6 +66,7 @@ jobs:
       - run: node --check js/v68-humanoid-retarget.js
       - run: node --check js/v69-motion-library.js
       - run: node --check js/v70-fbx-repair.js
+      - run: node --check js/v71-mixamo-gameplay.js
       - run: node --check js/animation-studio.js
       - run: node --check js/character-motion-preview.js
       - run: node --check js/v62-playable-master.js
@@ -71,6 +78,7 @@ jobs:
       - run: node tests/v68-humanoid-retarget.js
       - run: node tests/v69-motion-library.js
       - run: node tests/v70-fbx-repair.js
+      - run: node tests/v71-permanent-game-walk.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
