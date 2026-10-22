@@ -9,6 +9,7 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/j
 
 const Core=window.SkyClashStudioCore;
 const Action=window.SkyClashActionCore;
+const MotionLibrary=window.SkyClashMotionLibrary;
 const $=id=>document.getElementById(id);
 const loader=new FBXLoader();
 const PAGE_SIZE=16;
@@ -43,36 +44,100 @@ function addEntry({file,zipEntry,origin,name,size,crc}){
  imported.push(clip);
  return true;
 }
-async function importFiles(files){
+async function importFiles(files,{restored=false}={}){
  if(!files.length)return;
  if(indexing){setStatus('Finish the current ZIP import first, or stop preview processing.');return;}
  indexing=true;cancelled=false;
- let added=0,skipped=0;
+ let added=0,skipped=0,saved=0;
+ const cacheErrors=[];
  $('cancelLoad').hidden=false;
  for(const file of files){
   if(cancelled)break;
+  let addedForFile=0;
   try{
    if(/\.fbx$/i.test(file.name)){
      if(file.size>MAX_FBX_BYTES){skipped++;continue;}
-     if(addEntry({file,origin:'Loose FBX',name:file.name,size:file.size,crc:file.lastModified}))added++;
+     if(addEntry({file,origin:'Loose FBX',name:file.name,size:file.size,crc:file.lastModified})){
+      added++;addedForFile++;
+     }
    }else if(/\.zip$/i.test(file.name)){
      if(file.size>MAX_ZIP_BYTES){setStatus(file.name+' is too large to unpack safely in your browser.');skipped++;continue;}
-     setStatus('Reading '+file.name+'…');await delay();
+     setStatus((restored?'Restoring ':'Reading ')+file.name+'…');await delay();
      const zip=await window.JSZip.loadAsync(file,{checkCRC32:false});
      const entries=Object.values(zip.files).filter(e=>!e.dir&&/\.fbx$/i.test(e.name));
      for(const ent of entries){
        if(imported.length>=MAX_FILES){skipped+=entries.length;break;}
        const size=ent._data?.uncompressedSize||0;
        if(size>MAX_FBX_BYTES){skipped++;continue;}
-       if(addEntry({zipEntry:ent,origin:file.name,name:ent.name,size,crc:ent._data?.crc32||''}))added++;
+       if(addEntry({zipEntry:ent,origin:file.name,name:ent.name,size,crc:ent._data?.crc32||''})){
+        added++;addedForFile++;
+       }
      }
    }else skipped++;
-  }catch(e){console.warn('Could not open',file.name,e);setStatus('Could not read '+file.name+': '+e.message);skipped++;}
+   // Store one compressed original ZIP rather than hundreds of unpacked FBXs.
+   // Local-only IndexedDB cache is optional; a quota failure must never
+   // prevent normal animation imports or change fighter action assignments.
+   if(addedForFile&&!restored&&MotionLibrary){
+    try{
+     setStatus('Saving '+file.name+' for your next visit…');
+     const result=await MotionLibrary.save(file);
+     if(result.saved)saved++;
+    }catch(e){
+     console.warn('V69 motion cache could not save '+file.name,e);
+     cacheErrors.push(file.name+': '+(e?.message||'storage unavailable'));
+    }
+   }
+  }catch(e){
+   console.warn('Could not open',file.name,e);
+   skipped++;setStatus('Could not read '+file.name+': '+e.message);
+  }
   await delay();
  }
  indexing=false;$('cancelLoad').hidden=true;
- setStatus('Imported '+added+' animations'+(skipped?' · '+skipped+' skipped':'')+'. Drag a preview into a fighter action slot.');
+ const prefix=restored?'Restored ':'Imported ';
+ let msg=prefix+added+' animations'+(skipped?' · '+skipped+' skipped':'')+'. ';
+ msg+=restored?'Your saved FBX/ZIP packs are ready to preview.':
+  saved?'Saved original packs in this browser for future visits.':'Drag a preview onto an action slot.';
+ if(cacheErrors.length)msg+=' Cache not saved: '+cacheErrors.slice(0,2).join('; ')+'.';
+ setStatus(msg);
  page=0;applyFilter();refreshActionSlots();
+ updateSavedLibraryStatus();
+}
+async function updateSavedLibraryStatus(){
+ const el=$('savedLibraryStatus');
+ if(!el||!MotionLibrary)return;
+ try{
+  const data=await MotionLibrary.info();
+  el.textContent=data.count
+   ? 'Saved offline: '+data.count+' original pack'+(data.count===1?'':'s')+' ('+(data.bytes/1048576).toFixed(1)+' MB)'
+   : 'No offline motion packs yet';
+  $('clearSavedLibrary').hidden=!data.count;
+ }catch(e){el.textContent='Offline library unavailable — manual imports still work';}
+}
+async function restoreMotionLibrary(){
+ if(!MotionLibrary){setStatus('Offline motion cache unavailable. Import FBX/ZIP files to start.');return;}
+ try{
+  const originals=await MotionLibrary.list();
+  if(originals.length)await importFiles(originals,{restored:true});
+  else {
+   setStatus('Animation Studio ready. Import FBX/ZIP once to save packs for future visits.');
+   updateSavedLibraryStatus();
+  }
+ }catch(e){
+  console.warn('V69 could not restore saved motion packs',e);
+  setStatus('Could not reopen the offline library: '+e.message+'. Your original files are safe; you can import again.');
+  updateSavedLibraryStatus();
+ }
+}
+function explainFBXError(error){
+ const detail=String(error?.message||error||'Unknown FBX error');
+ if(/unknown property type/i.test(detail))
+  return 'Unsupported FBX binary property. Try downloading this animation again as FBX Binary (Without Skin), or re-export via Blender to FBX 2014/2015. '+detail;
+ if(/unknown format|FBX version not supported|unsupported FBX/i.test(detail))
+  return 'Unsupported FBX file/version. Try a fresh FBX Binary export (not an archive renamed to .fbx). '+detail;
+ if(/no playable animation track|no animation/i.test(detail))
+  return 'This FBX has no playable animation data. Download the animated version (Without Skin is fine). '+detail;
+ return detail;
 }
 async function bufferFor(item){
  if(item.file)return await item.file.arrayBuffer();
@@ -223,7 +288,11 @@ async function processQueue(){
    }
    item.frames=frames;item.prepared=true;
    disposeSetup(thumbStage);
-  }catch(e){console.warn('FBX preview failed:',item.fileName,e);item.error=e?.message||'Preview failed';disposeSetup(thumbStage);}
+   }catch(e){
+    console.warn('FBX preview failed:',item.fileName,e);
+    item.error=explainFBXError(e);
+    disposeSetup(thumbStage);
+   }
   updateCard(item);updateStats();
   await delay();
  }
@@ -234,7 +303,7 @@ const observer=new IntersectionObserver(entries=>{
 },{root:null,rootMargin:'260px',threshold:0.01});
 function updateCard(item){const card=item.card;if(!card||!card.isConnected)return;
  const img=card.querySelector('img');if(item.frames?.length){img.src=item.frames[0];img.classList.remove('is-pending');}
- const err=card.querySelector('.clip-failure');if(err)err.textContent=item.error?'Preview failed: '+shortName(item.error):'';
+ const err=card.querySelector('.clip-failure');if(err){err.textContent=item.error?'Preview failed: '+shortName(item.error):'';err.title=item.error||'';}
  const meta=card.querySelector('.clip-meta');if(meta)meta.lastElementChild.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';
 }
 function updateStats(){const done=imported.filter(x=>x.prepared).length,errors=imported.filter(x=>x.error).length;
@@ -288,7 +357,7 @@ async function select(item){
    $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · Native Mixamo tracks checked${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
- }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+(e?.message||'Unknown error'));$('selectedStatus').textContent='Try another clip. The game itself is unaffected.';mainRig=null;}}
+ }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+explainFBXError(e));$('selectedStatus').textContent='The original file is kept. Try another export or animation; Kairo and live combat are unaffected.';mainRig=null;}}
 }
 function renderLoop(now){
  requestAnimationFrame(renderLoop);
@@ -436,4 +505,14 @@ const cv=$('characterViewer');let cp=null;cv.addEventListener('pointerdown',e=>{
 window.addEventListener('keydown',e=>{if(!current||e.target.matches('input,select,textarea'))return;if(e.code==='Space'){e.preventDefault();$('playPause').click();}});
 applyFilter();updateSelectionUI();
 switchView('character');
-setStatus('V66: import Kairo VRM below (once), then an FBX/ZIP animation to test it on the real model.');
+$('clearSavedLibrary').addEventListener('click',async()=>{
+ if(!MotionLibrary)return;
+ if(!confirm('Remove saved FBX/ZIP packs from this browser? Your current Animation Studio session and action assignments will remain available until you reload.'))return;
+ try{
+  await MotionLibrary.clear();
+  await updateSavedLibraryStatus();
+  setStatus('Saved offline packs cleared. Already loaded motions still work until you reload.');
+ }catch(e){setStatus('Could not clear saved packs: '+e.message);}
+});
+setStatus('Opening your saved Mixamo animation library…');
+restoreMotionLibrary();
