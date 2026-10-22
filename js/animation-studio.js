@@ -10,6 +10,7 @@ import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/j
 const Core=window.SkyClashStudioCore;
 const Action=window.SkyClashActionCore;
 const MotionLibrary=window.SkyClashMotionLibrary;
+const GameExporter=window.SkyClashGamePackExporter;
 const $=id=>document.getElementById(id);
 const loader=new FBXLoader();
 const PAGE_SIZE=16;
@@ -449,6 +450,46 @@ function exportActionMap(){
  const a=document.createElement('a');a.href=url;a.download='sky-clash-action-map.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
  setActionHelp('Exported the Kairo/Rin action map. Keep it with your source ZIPs. This is not yet a playable animation build.');
 }
+async function exportGamePack(){
+ if(!GameExporter){setActionHelp('V72 export module unavailable. Refresh Animation Studio.');return;}
+ const btn=$('exportGamePack');btn.disabled=true;
+ let count=0,missing=[],unsupported=[];
+ try{
+  const motions=[];
+  const assignments=Object.entries(actionData[actionFighter]||{});
+  for(const [slot,ref] of assignments){
+   const item=Action.findImport(imported,ref);
+   if(!item){missing.push(ref.name);continue;}
+   try{
+    setActionHelp('Baking '+ref.name+' for permanent '+displayActor()+' game motion…');
+    await delay();
+    const binary=await bufferFor(item);
+    const fbx=loader.parse(binary,'');
+    const motion=GameExporter.bake(THREE,fbx,{
+     slot,character:actionFighter,sourceArchive:item.origin,
+     sourceFile:item.fileName,sourceId:item.id,speed:ref.speed,yaw:ref.yaw
+    });
+    motions.push(motion);count++;
+   }catch(e){unsupported.push(ref.name+': '+(e?.message||'cannot bake'));}
+  }
+  if(!motions.length){
+   setActionHelp('No usable assigned FBX files found. Assign motions, restore/import the source ZIPs, and retry. '+unsupported.slice(0,2).join('; '));
+   return;
+  }
+  const pack=GameExporter.pack(motions);
+  const fileName='sky-clash-'+actionFighter+'-game-actions-v1.json';
+  const url=URL.createObjectURL(new Blob([JSON.stringify(pack)],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;a.download=fileName;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  let message='Exported '+count+' real Mixamo animations to '+fileName+'. ';
+  message+='For permanent GitHub hosting, upload this JSON to assets/animations/gameplay/studio-actions-v1.json; it will survive browser resets.';
+  if(missing.length)message+=' Missing source files: '+missing.slice(0,2).join(', ')+'.';
+  if(unsupported.length)message+=' Failed conversions: '+unsupported.slice(0,2).join('; ')+'.';
+  setActionHelp(message);
+ }catch(e){setActionHelp('Game export failed: '+e.message);}
+ finally{btn.disabled=false;}
+}
 async function showCharacter(){
  if(viewMode!=='character'||!mainRig||!current)return;
  const token=++charToken;$('viewerOverlay').hidden=false;$('viewerOverlay').textContent='Loading '+displayActor()+' model for preview…';
@@ -475,6 +516,7 @@ $('tuneSpeed').addEventListener('input',e=>{const ref=actionData[actionFighter][
 $('tuneYaw').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.yaw=Number(e.target.value);$('tuneYawValue').textContent=ref.yaw+'°';saveActions();});
 $('removeAssigned').addEventListener('click',()=>{if(!activeAction)return;delete actionData[actionFighter][activeAction];saveActions();activeAction='';refreshActionSlots();applyFilter();});
 $('exportActions').addEventListener('click',exportActionMap);
+$('exportGamePack').addEventListener('click',exportGamePack);
 $('importActions').addEventListener('click',()=>$('actionMapInput').click());
 $('actionMapInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='sky-clash-action-map'||data.version!==1)throw Error('This is not a V58 action map');const v=Action.sanitize(data.assignments);actionData.kairo=v.kairo;actionData.rin=v.rin;saveActions();refreshActionSlots();setActionHelp('Imported '+Action.count(v)+' action assignments. Import the matching FBX/ZIP files to preview.');}catch(err){setActionHelp('Could not import map: '+err.message);}e.target.value='';});
 $('clearActions').addEventListener('click',()=>{if(!confirm('Clear all '+displayActor()+' action assignments?'))return;actionData[actionFighter]={};saveActions();activeAction='idle';refreshActionSlots();applyFilter();});
