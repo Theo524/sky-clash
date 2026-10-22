@@ -149,8 +149,11 @@ function setupRig(stage,fbx){
  const bones=new Map();fbx.traverse(o=>{if(o.isBone){const key=norm(o.name);if(key&&!bones.has(key))bones.set(key,o);}});
  if(bones.size<8){stage.rigCenter.remove(wrap);throw Error('Cannot locate a Mixamo humanoid skeleton in this FBX');}
  // Capture the unanimated Mixamo bind pose before the clip starts, for VRM retarget comparison.
- fbx.updateMatrixWorld(true);const restWorld=new Map();
- for(const [key,bone] of bones)restWorld.set(key,bone.getWorldQuaternion(new THREE.Quaternion()));
+ fbx.updateMatrixWorld(true);const restWorld=new Map(),restPoints=new Map();
+ for(const [key,bone] of bones){
+  restWorld.set(key,bone.getWorldQuaternion(new THREE.Quaternion()));
+  restPoints.set(key,bone.getWorldPosition(new THREE.Vector3()));
+ }
  const mixer=new THREE.AnimationMixer(fbx);mixer.clipAction(clip).play();mixer.setTime(0);
  const hips=bones.get('hips');const initialHipX=hips?.position.x||0,initialHipZ=hips?.position.z||0;
  wrap.updateMatrixWorld(true);
@@ -185,7 +188,7 @@ function setupRig(stage,fbx){
  if(!inspection?.valid)throw Error('Mixamo track validation failed: '+(inspection?.warnings.join('; ')||'No valid humanoid motion'));
  const master=window.SkyClashMixamoMaster?.create(THREE,bones,fbx);
  if(!master)throw Error('Clean master model unavailable. Refresh the Animation Studio.');
- const rig={master,inspection,wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
+ const rig={master,inspection,wrap,fbx,mixer,clip,bones,restWorld,restPoints,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
  stage.loaded=rig;setRigDisplay(rig,stage.thumb?'master':viewMode);poseRig(stage,0,false);
  return rig;
 }
@@ -376,8 +379,8 @@ async function showCharacter(){
   if(!charPreview)charPreview=window.SkyClashCharacterMotionPreview.create($('characterViewer'));
   await charPreview.load(actionFighter);if(token!==charToken||viewMode!=='character')return;
   charPreview.render();$('viewerOverlay').hidden=true;
-  $('viewerType').textContent='Experimental '+displayActor()+' retarget';
-  $('selectedStatus').textContent='Preview on '+displayActor()+'. Look for shoulder twisting, knee reversal or feet crossing. This does not change gameplay.';
+  $('viewerType').textContent='V68 corrected '+displayActor()+' retarget';
+  $('selectedStatus').textContent='V68 anatomical forward-axis mapping on '+displayActor()+'. FBX diagnostic remains authoritative; preview does not change gameplay.';
  }catch(e){if(token!==charToken)return;console.warn('VRM preview unavailable',e);setActionHelp('Could not load fighter preview: '+e.message+'. Original Mixamo view still works.');switchView('master');}
 }
 function switchView(mode){
