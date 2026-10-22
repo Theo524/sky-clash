@@ -1,0 +1,14 @@
+SKY CLASH V58 — CHARACTER ACTION EDITOR
+
+1. Extract ZIP. Upload matching paths to Theo524/sky-clash, replacing existing files.
+2. Requires V57 already installed; do not delete assets/ or js/vendor/.
+3. Open https://theo524.github.io/sky-clash/animation-studio.html
+4. Import the clean 230-animation ZIP (or smaller themed ZIPs), select a motion,
+   drag it to an action slot for Kairo or Rin. Preview on character or mannequin.
+5. Assignments autosave to this browser. Use Export action map JSON as backup.
+6. Reimport original ZIP on future visits to restore 3D previews (FBX data isn't
+   stored in browser persistent storage).
+
+IMPORTANT: Experimental retarget preview only. Assigning actions DOES NOT change
+live gameplay animations; those require calibrated baking and game integration.
+This update makes no edits to the game's combat JS or VRM model files.

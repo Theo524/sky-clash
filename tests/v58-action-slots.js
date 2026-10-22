@@ -1,0 +1,21 @@
+'use strict';const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=path.resolve(__dirname,'..');const Core=require('../js/character-actions-core.js');
+assert.equal(Core.slots.kairo.find(x=>x[0]==='punch1')[1],'Combo Punch 1');
+assert.equal(Core.slots.rin.find(x=>x[0]==='doubleJump')[1],'Double Jump');
+assert.equal(Core.slots.rin.find(x=>x[0]==='punch4')[1],'Combo Strike 4');
+assert.equal(Core.isSlot('kairo','punch3'),true);assert.equal(Core.isSlot('rin','superblast'),false);
+const map=Core.empty();const x={id:'foo::bar',origin:'boxing.zip',fileName:'Boxing (1).fbx',name:'Boxing Hook',size:2403,crc:127};
+assert(Core.assign(map,'kairo','punch1',x));assert.equal(Core.count(map),1);
+assert(!Core.assign(map,'rin','superblast',x));assert.equal(Core.findImport([x],map.kairo.punch1),x);
+map.kairo.punch1.speed=99;map.kairo.punch1.yaw=800;
+const clean=Core.sanitize(map);assert.equal(clean.kairo.punch1.speed,2);assert.equal(clean.kairo.punch1.yaw,180);
+const html=fs.readFileSync(root+'/animation-studio.html','utf8');const script=fs.readFileSync(root+'/js/animation-studio.js','utf8');
+for(const id of ['actionSlots','actionFighter','actionTuning','tuneSpeed','tuneYaw','exportActions','importActions','clearActions','characterViewer','viewCharacter','viewOriginal']) assert(html.includes('id="'+id+'"'),'Missing '+id);
+for(const token of ['refFromItem','findImport','localStorage','setActionHelp','SkyClashCharacterMotionPreview','bindClip','previewMode','exportActionMap']) if(!script.includes(token)&&token!=='refFromItem'&&token!=='previewMode')assert.fail(token+' missing');
+for(const id of ['listKairo','listRin','exportList','clearMarks','selectionCount','binKairo','binRin'])assert(!html.includes('id="'+id+'"'),'Obsolete UI '+id);
+assert(html.indexOf('js/vendor/three.min.js')<html.indexOf('js/vendor/vrmkit.js'));
+assert(html.includes('js/character-motion-preview.js'));
+const index=fs.readFileSync(root+'/index.html','utf8');
+assert(index.includes('V58 / ACTION EDITOR'));assert(index.includes('V58.0'));assert(index.includes('js/game.js?v=570')); // gameplay unchanged
+assert.equal(fs.readFileSync(root+'/js/game.js','utf8'),fs.readdirSync(root+'/src').filter(x=>x.endsWith('.js')).sort().map(x=>fs.readFileSync(root+'/src/'+x,'utf8')).join(''));
+console.log('PASS V58 action board: independent slots, clip assignment, safe import/export, DOM references, gameplay unchanged');

@@ -1,19 +1,23 @@
-/* Sky Clash V57 / Animation Studio.
+/* Sky Clash V58 / Character Action Editor.
  * FBX and ZIP import stays entirely in the user's browser. Three.js and FBXLoader
  * are imported as an isolated r158 ES module — the live game's renderer is never touched.
- * Preview stick figure uses bone world transforms, NOT the unreliable VRM0 retargeting.
+ * Original FBX viewer remains authoritative; VRM retargeting is an isolated experimental preview,
+ * not connected to live gameplay.
  */
 import * as THREE from 'three';
 import { FBXLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/FBXLoader.js';
 
 const Core=window.SkyClashStudioCore;
+const Action=window.SkyClashActionCore;
 const $=id=>document.getElementById(id);
 const loader=new FBXLoader();
 const PAGE_SIZE=16;
 const MAX_FILES=500;
 const MAX_FBX_BYTES=30*1024*1024;
 const MAX_ZIP_BYTES=350*1024*1024;
-const STATE_KEY='skyClashV57AnimationSelections';
+const ACTION_KEY='skyClashV58ActionAssignments';
+const actionData=(()=>{try{return Action.sanitize(JSON.parse(localStorage.getItem(ACTION_KEY)||'{}'))}catch{return Action.empty()}})();
+let actionFighter='kairo', activeAction='idle', viewMode='original', charPreview=null, charToken=0;
 const imported=[];
 const seen=new Set();
 let current=null, page=0, filtering=[], cancelled=false, indexing=false;
@@ -23,10 +27,6 @@ let activeHovered=null, activeFrames=[];
 const fps=7;
 let lastSwap=0;
 
-function marksLoad(){try{const raw=JSON.parse(localStorage.getItem(STATE_KEY)||'{}');return raw&&typeof raw==='object'?raw:{}}catch{return {}}}
-let marks=marksLoad();
-function saveMarks(){try{localStorage.setItem(STATE_KEY,JSON.stringify(marks))}catch(e){setStatus('Browser storage unavailable. Export your selections to keep them.')}}
-function mark(item,key,force){if(!item)return;const m=Core.marksFor(marks,item.id);m[key]=typeof force==='boolean'?force:!m[key];marks[item.id]=m;saveMarks();updateSelectionUI();refreshGrid();}
 function setStatus(msg){$('loadStatus').textContent=msg;}
 function progress(p){const el=$('loadProgress');el.style.display=p==null?'none':'block';if(p!=null)el.firstElementChild.style.width=Math.round(Math.max(0,Math.min(100,p)))+'%';}
 const delay=()=>new Promise(ok=>requestAnimationFrame(ok));
@@ -71,8 +71,8 @@ async function importFiles(files){
   await delay();
  }
  indexing=false;$('cancelLoad').hidden=true;
- setStatus('Imported '+added+' animations'+(skipped?' · '+skipped+' skipped':'')+'. Browse the moving previews below.');
- page=0;applyFilter();
+ setStatus('Imported '+added+' animations'+(skipped?' · '+skipped+' skipped':'')+'. Drag a preview into a fighter action slot.');
+ page=0;applyFilter();refreshActionSlots();
 }
 async function bufferFor(item){
  if(item.file)return await item.file.arrayBuffer();
@@ -141,6 +141,9 @@ function setupRig(stage,fbx){
  fbx.traverse(o=>{if(o.isMesh||o.isLine)o.visible=false;});
  const bones=new Map();fbx.traverse(o=>{if(o.isBone){const key=norm(o.name);if(key&&!bones.has(key))bones.set(key,o);}});
  if(bones.size<8){stage.rigCenter.remove(wrap);throw Error('Cannot locate a Mixamo humanoid skeleton in this FBX');}
+ // Capture the unanimated Mixamo bind pose before the clip starts, for VRM retarget comparison.
+ fbx.updateMatrixWorld(true);const restWorld=new Map();
+ for(const [key,bone] of bones)restWorld.set(key,bone.getWorldQuaternion(new THREE.Quaternion()));
  const mixer=new THREE.AnimationMixer(fbx);mixer.clipAction(clip).play();mixer.setTime(0);
  const hips=bones.get('hips');const initialHipX=hips?.position.x||0,initialHipZ=hips?.position.z||0;
  wrap.updateMatrixWorld(true);
@@ -171,7 +174,7 @@ function setupRig(stage,fbx){
    const mesh=new THREE.Mesh(jointGeo,mat);mesh.scale.setScalar(key==='head'?.155:key==='hips'?.11:.07);wrap.add(mesh);joints.push({bone,mesh});
  }
  if(!segments.length){stage.rigCenter.remove(wrap);throw Error('Bone hierarchy not recognized');}
- const rig={wrap,fbx,mixer,clip,bones,hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
+ const rig={wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
  stage.loaded=rig;poseRig(stage,0,false);
  return rig;
 }
@@ -240,8 +243,7 @@ function refreshGrid(){
   const ct=document.createElement('span');ct.textContent=item.category;
   const sec=document.createElement('span');sec.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';meta.append(ct,sec);
   const tags=document.createElement('div');tags.className='clip-labels';
-  const m=Core.marksFor(marks,item.id);
-  for(const [key,label] of [['kairo','KAIRO'],['rin','RIN'],['saved','★']])if(m[key]){const labelEl=document.createElement('span');labelEl.textContent=label;labelEl.className=key;tags.appendChild(labelEl);}
+  for(const f of ['kairo','rin'])for(const [key,slot] of Object.entries(actionData[f]))if(slot&&Action.findImport([item],slot)===item){const tag=document.createElement('span');tag.className=f;tag.textContent=(f==='kairo'?'K':'R')+' · '+key;tags.appendChild(tag);}
   details.append(name,meta,tags);const err=document.createElement('div');err.className='clip-failure';
   b.append(img,sym,details,err);
   b.addEventListener('click',()=>select(item));
@@ -254,7 +256,7 @@ function refreshGrid(){
  $('prevPage').disabled=page===0;$('nextPage').disabled=(page+1)*PAGE_SIZE>=filtering.length;
  $('clipCount').textContent=filtering.length;
 }
-function applyFilter(){const q=$('search').value,category=$('category').value,tag=$('tagFilter').value;filtering=imported.filter(i=>Core.match(i,q,category,tag,marks));page=Math.min(page,Math.max(0,Math.ceil(filtering.length/PAGE_SIZE)-1));refreshGrid();updateStats();}
+function applyFilter(){const q=$('search').value,category=$('category').value,tag=$('tagFilter').value;filtering=imported.filter(i=>{const matching=Core.match(i,q,category,'all',{});const assigned=Object.values(actionData).some(group=>Object.values(group).some(ref=>ref&&Action.findImport([i],ref)===i));return matching&&(tag==='all'||(tag==='assigned'&&assigned)||(tag==='unassigned'&&!assigned));});page=Math.min(page,Math.max(0,Math.ceil(filtering.length/PAGE_SIZE)-1));refreshGrid();updateStats();}
 
 async function select(item){
  current=item;currentT=0;isPlaying=true;
@@ -271,18 +273,25 @@ async function select(item){
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
    $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.bones.size} animated bones · Original FBX motion (not VRM-retargeted).`;
    updateCard(item);
+   if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+(e?.message||'Unknown error'));$('selectedStatus').textContent='Try another clip. The game itself is unaffected.';mainRig=null;}}
 }
 function renderLoop(now){
  requestAnimationFrame(renderLoop);
  const dt=Math.min(.08,Math.max(0,(now-(renderLoop.last||now))/1000));renderLoop.last=now;
  if(current&&mainRig){const dur=mainRig.clip.duration;
-  if(isPlaying)currentT=(currentT+dt*rate)%dur;
+  const opts=actionData[actionFighter]?.[activeAction];
+  const motionSpeed=(viewMode==='character'&&opts&&Action.findImport(imported,opts)===current)?opts.speed:1;
+  if(isPlaying)currentT=(currentT+dt*rate*motionSpeed)%dur;
   poseRig(mainStage,currentT,$('rootMotion').checked);
+  if(viewMode==='character'&&charPreview?.hasModel()&&charPreview.who()===actionFighter){
+   try{charPreview.sample(mainRig,currentT,(opts&&Action.findImport(imported,opts)===current)?opts.yaw:0);charPreview.render();}
+   catch(e){console.warn('Character preview stopped safely',e);setActionHelp('Retarget preview issue: '+e.message+' · Original animation remains available.');switchView('original');}
+  }
   $('scrub').value=Math.round(1000*currentT/dur);
   $('timing').textContent=`${currentT.toFixed(1)} / ${dur.toFixed(1)}s`;
  }
- render(mainStage);
+ if(viewMode!=='character')render(mainStage);
  if(now-lastSwap>1000/fps){lastSwap=now;
    for(const item of visiblePage()){const card=item.card;
     if(card?.isConnected&&item.frames?.length&&card.getBoundingClientRect().bottom>0&&card.getBoundingClientRect().top<innerHeight){
@@ -293,28 +302,91 @@ function renderLoop(now){
 }
 requestAnimationFrame(renderLoop);
 
-function updateSelectionUI(){
- const selectedMarks=Core.marksFor(marks,current?.id);
- for(const [key,btn] of [['kairo','markKairo'],['rin','markRin'],['saved','markSaved']]){
-  $(btn).disabled=!current;$(btn).classList.toggle('marked',!!selectedMarks[key]);
-  $(btn).textContent=(selectedMarks[key]?'✓ ':'＋ ')+(key==='saved'?'Shortlist':key==='rin'?'Rin':'Kairo');
- }
- for(const [k,id] of [['kairo','listKairo'],['rin','listRin']]){
-  const list=$(id);list.textContent='';for(const clip of imported.filter(item=>Core.marksFor(marks,item.id)[k]).slice(0,30)){
-   const b=document.createElement('button');b.type='button';b.textContent=shortName(clip.name);b.title='Preview '+clip.name;b.addEventListener('click',()=>select(clip));list.appendChild(b);
+function updateSelectionUI(){const hint=$('selectedHint');if(hint)hint.textContent=current?'Selected: '+current.name+' · Drag its thumbnail to a move below, or tap Assign on an empty slot.':'Choose a motion, then assign it to a named action below.';}
+
+// ——— V58 action assignment board ———
+function saveActions(){try{localStorage.setItem(ACTION_KEY,JSON.stringify(actionData))}catch(e){setActionHelp('Browser storage is unavailable: export the action map to keep it.')}}
+function setActionHelp(message){$('actionHelp').textContent=message;}
+function displayActor(){return actionFighter==='rin'?'Rin Sable':'Kairo Venn';}
+function bindClip(item,key){
+ if(!item){setActionHelp('Import some FBX or ZIP files and select a clip first.');return;}
+ Action.assign(actionData,actionFighter,key,item);
+ activeAction=key;saveActions();refreshActionSlots();applyFilter();
+ setActionHelp('Assigned '+item.name+' → '+displayActor()+' / '+(Action.slots[actionFighter].find(s=>s[0]===key)||[])[1]+'. This preview does not replace live combat.');
+ select(item).then(()=>switchView('character')).catch(e=>setActionHelp('Could not preview: '+e.message));
+}
+function refreshActionSlots(){
+ const host=$('actionSlots');host.textContent='';let lastGroup='';
+ for(const [key,name,group] of Action.slots[actionFighter]){
+  if(group!==lastGroup){const h=document.createElement('div');h.className='slot-group-name';h.textContent=group;host.appendChild(h);lastGroup=group;}
+  const ref=actionData[actionFighter][key];const match=Action.findImport(imported,ref);
+  const row=document.createElement('div');row.className='action-slot'+(ref?' filled':'')+(activeAction===key?' active':'');row.dataset.slot=key;
+  const title=document.createElement('div');title.className='slot-main';
+  const nameEl=document.createElement('b');nameEl.textContent=name;
+  const state=document.createElement('small');state.textContent=ref?(match?'✓ '+ref.name:'↻ Reimport to preview: '+ref.name):'Drop a Mixamo motion here';if(match)state.className='slot-has';
+  title.append(nameEl,state);title.addEventListener('click',()=>{activeAction=key;refreshActionSlots();if(match)select(match).then(()=>switchView('character'));});
+  row.appendChild(title);
+  if(ref){
+   const preview=document.createElement('button');preview.className='slot-button slot-preview';preview.textContent='▶ Preview';preview.disabled=!match;preview.title=match?'Preview this animation on '+displayActor():'Reimport source FBX or ZIP first';
+   preview.addEventListener('click',()=>{activeAction=key;refreshActionSlots();select(match).then(()=>switchView('character'));});row.appendChild(preview);
+   const clear=document.createElement('button');clear.className='slot-button slot-clear';clear.textContent='×';clear.title='Remove motion from '+name;clear.addEventListener('click',()=>{delete actionData[actionFighter][key];saveActions();if(activeAction===key)activeAction='';refreshActionSlots();applyFilter();});row.appendChild(clear);
+  }else{
+   const assign=document.createElement('button');assign.className='slot-button';assign.textContent='↓ Assign';assign.title='Assign the selected animation';assign.disabled=!current;
+   assign.addEventListener('click',()=>bindClip(current,key));row.appendChild(assign);
   }
+  row.addEventListener('dragenter',e=>{e.preventDefault();row.classList.add('dragover');});
+  row.addEventListener('dragover',e=>{e.preventDefault();e.dataTransfer.dropEffect='copy';row.classList.add('dragover');});
+  row.addEventListener('dragleave',()=>row.classList.remove('dragover'));
+  row.addEventListener('drop',async e=>{e.preventDefault();e.stopPropagation();row.classList.remove('dragover');
+   const id=e.dataTransfer.getData('text/plain');const item=imported.find(i=>i.id===id);
+   if(item){bindClip(item,key);return;}
+   const files=[...e.dataTransfer.files].filter(f=>/\.fbx$/i.test(f.name));
+   if(files.length===1){const oldCount=imported.length;await importFiles(files);if(imported.length>oldCount)bindClip(imported[imported.length-1],key);else setActionHelp('File already exists in the library: select its thumbnail and assign it here.');}
+   else setActionHelp('To assign from a ZIP or group of files, import the pack above and then drag the desired preview onto this slot.');
+  });
+  host.appendChild(row);
  }
- const n=imported.filter(item=>{const m=Core.marksFor(marks,item.id);return m.kairo||m.rin||m.saved;}).length;
- $('selectionCount').textContent=n+' selected';
+ const ref=actionData[actionFighter][activeAction];$('actionTuning').hidden=!ref;
+ if(ref){$('tuneName').textContent=(Action.slots[actionFighter].find(v=>v[0]===activeAction)||[])[1]+' · '+ref.name;
+  $('tuneSpeed').value=ref.speed;$('tuneYaw').value=ref.yaw;
+  $('tuneSpeedValue').textContent=ref.speed.toFixed(2)+'×';$('tuneYawValue').textContent=ref.yaw+'°';}
+ $('previewFighterName').textContent=displayActor();
 }
-function saveSelection(){
- const selected=imported.filter(item=>{const m=Core.marksFor(marks,item.id);return m.kairo||m.rin||m.saved;}).map(item=>({name:item.name,sourceFile:item.fileName,sourceArchive:item.origin,size:item.size,category:item.category,duration:item.duration,rigBones:item.boneCount,assigned:Core.marksFor(marks,item.id)}));
- if(!selected.length){setStatus('Mark some animations for Kairo, Rin or your shortlist first.');return;}
- const payload={format:'sky-clash-animation-selection',version:1,createdAt:new Date().toISOString(),note:'This file is a shortlist. Import source FBX files to bake and retarget for game use.',animations:selected};
+function exportActionMap(){
+ const payload={format:'sky-clash-action-map',version:1,createdAt:new Date().toISOString(),note:'Action-slot assignments ONLY. Does not contain FBX data. Reimport FBX/ZIP files to preview; nothing is installed into live combat automatically.',assignments:Action.sanitize(actionData)};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
- const a=document.createElement('a');a.download='sky-clash-animation-selections.json';a.href=url;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
- setStatus('Your selection JSON was exported. Keep it with the source FBX ZIPs.');
+ const a=document.createElement('a');a.href=url;a.download='sky-clash-action-map.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
+ setActionHelp('Exported the Kairo/Rin action map. Keep it with your source ZIPs. This is not yet a playable animation build.');
 }
+async function showCharacter(){
+ if(viewMode!=='character'||!mainRig||!current)return;
+ const token=++charToken;$('viewerOverlay').hidden=false;$('viewerOverlay').textContent='Loading '+displayActor()+' model for preview…';
+ try{
+  if(!charPreview)charPreview=window.SkyClashCharacterMotionPreview.create($('characterViewer'));
+  await charPreview.load(actionFighter);if(token!==charToken||viewMode!=='character')return;
+  charPreview.render();$('viewerOverlay').hidden=true;
+  $('viewerType').textContent='Experimental '+displayActor()+' retarget';
+  $('selectedStatus').textContent='Preview on '+displayActor()+'. Look for shoulder twisting, knee reversal or feet crossing. This does not change gameplay.';
+ }catch(e){if(token!==charToken)return;console.warn('VRM preview unavailable',e);setActionHelp('Could not load fighter preview: '+e.message+'. Original Mixamo view still works.');switchView('original');}
+}
+function switchView(mode){
+ viewMode=mode;const isChar=mode==='character';
+ $('viewer').hidden=isChar;$('characterViewer').hidden=!isChar;
+ $('viewOriginal').classList.toggle('tab-on',!isChar);$('viewCharacter').classList.toggle('tab-on',isChar);
+ if(isChar){if(!mainRig){setActionHelp('Select or assign an animation to preview it on the character.');return;}showCharacter();}
+ else {++charToken;$('viewerOverlay').hidden=!mainRig;$('viewerType').textContent='Original Mixamo skeleton';$('selectedStatus').textContent=mainRig?'Showing unmodified original Mixamo motion.':'Select an animation to preview.';}
+}
+$('viewOriginal').addEventListener('click',()=>switchView('original'));
+$('viewCharacter').addEventListener('click',()=>switchView('character'));
+$('actionFighter').addEventListener('change',e=>{actionFighter=e.target.value;activeAction='idle';refreshActionSlots();if(viewMode==='character')showCharacter();});
+$('tuneSpeed').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.speed=Number(e.target.value);$('tuneSpeedValue').textContent=ref.speed.toFixed(2)+'×';saveActions();});
+$('tuneYaw').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.yaw=Number(e.target.value);$('tuneYawValue').textContent=ref.yaw+'°';saveActions();});
+$('removeAssigned').addEventListener('click',()=>{if(!activeAction)return;delete actionData[actionFighter][activeAction];saveActions();activeAction='';refreshActionSlots();applyFilter();});
+$('exportActions').addEventListener('click',exportActionMap);
+$('importActions').addEventListener('click',()=>$('actionMapInput').click());
+$('actionMapInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='sky-clash-action-map'||data.version!==1)throw Error('This is not a V58 action map');const v=Action.sanitize(data.assignments);actionData.kairo=v.kairo;actionData.rin=v.rin;saveActions();refreshActionSlots();setActionHelp('Imported '+Action.count(v)+' action assignments. Import the matching FBX/ZIP files to preview.');}catch(err){setActionHelp('Could not import map: '+err.message);}e.target.value='';});
+$('clearActions').addEventListener('click',()=>{if(!confirm('Clear all '+displayActor()+' action assignments?'))return;actionData[actionFighter]={};saveActions();activeAction='idle';refreshActionSlots();applyFilter();});
+refreshActionSlots();
 
 // File import events
 $('fileInput').addEventListener('change',async e=>{await importFiles([...e.target.files]);e.target.value='';});
@@ -327,8 +399,8 @@ for(const name of ['dragenter','dragover']){
 }
 for(const name of ['dragleave','drop'])zone.addEventListener(name,e=>{e.preventDefault();zone.classList.remove('dragover');});
 zone.addEventListener('drop',e=>importFiles([...e.dataTransfer.files]));
-// File drops work over the entire page, except the assignment bins.
-document.addEventListener('drop',e=>{if(e.dataTransfer?.files.length&&!e.target.closest('.assign')){e.preventDefault();if(!zone.contains(e.target))importFiles([...e.dataTransfer.files]);}});
+// File drops work over the entire page, except the action slots.
+document.addEventListener('drop',e=>{if(e.dataTransfer?.files.length&&!e.target.closest('.action-slot')){e.preventDefault();if(!zone.contains(e.target))importFiles([...e.dataTransfer.files]);}});
 $('cancelLoad').addEventListener('click',()=>{cancelled=true;workQueue.length=0;setStatus('Stopped thumbnail processing. Imported files remain available.');$('cancelLoad').hidden=true;progress(null);});
 for(const id of ['search','category','tagFilter'])$(id).addEventListener(id==='search'?'input':'change',()=>{page=0;applyFilter();});
 $('prevPage').addEventListener('click',()=>{page=Math.max(0,page-1);refreshGrid();});$('nextPage').addEventListener('click',()=>{page++;refreshGrid();});
@@ -336,15 +408,8 @@ $('playPause').addEventListener('click',()=>{isPlaying=!isPlaying;$('playPause')
 $('restart').addEventListener('click',()=>{currentT=0;isPlaying=true;$('playPause').textContent='Ⅱ Pause';});
 $('scrub').addEventListener('input',e=>{if(mainRig){currentT=(Number(e.target.value)/1000)*mainRig.clip.duration;isPlaying=false;$('playPause').textContent='▶ Play';}});
 $('speed').addEventListener('change',e=>{rate=Number(e.target.value)||1;});
-for(const [button,key] of [['markKairo','kairo'],['markRin','rin'],['markSaved','saved']])$(button).addEventListener('click',()=>mark(current,key));
-for(const k of ['kairo','rin']){
- const bin=$('bin'+k[0].toUpperCase()+k.slice(1));
- bin.addEventListener('dragover',e=>{e.preventDefault();bin.classList.add('dragover');});
- bin.addEventListener('dragleave',()=>bin.classList.remove('dragover'));
- bin.addEventListener('drop',e=>{e.preventDefault();bin.classList.remove('dragover');const id=e.dataTransfer.getData('text/plain');const item=imported.find(i=>i.id===id);if(item)mark(item,k,true);});
-}
-$('exportList').addEventListener('click',saveSelection);
-$('clearMarks').addEventListener('click',()=>{if(!confirm('Clear this browser’s Kairo/Rin/shortlist marks?'))return;marks={};saveMarks();updateSelectionUI();applyFilter();});
+
+
 // Camera orbit (mouse and touch); this changes only the dedicated 3D preview.
 const canvas=$('viewer');let pointer=null;
 canvas.addEventListener('pointerdown',e=>{pointer={id:e.pointerId,x:e.clientX};canvas.setPointerCapture(e.pointerId);});
@@ -352,6 +417,7 @@ canvas.addEventListener('pointermove',e=>{if(!pointer||pointer.id!==e.pointerId)
 canvas.addEventListener('pointerup',()=>pointer=null);canvas.addEventListener('pointercancel',()=>pointer=null);
 canvas.addEventListener('wheel',e=>{e.preventDefault();mainStage.zoom=Math.max(2.7,Math.min(8.5,mainStage.zoom+e.deltaY*.003));cameraPose(mainStage);},{passive:false});
 window.addEventListener('resize',()=>resizeStage(mainStage));
+const cv=$('characterViewer');let cp=null;cv.addEventListener('pointerdown',e=>{cp={id:e.pointerId,x:e.clientX};cv.setPointerCapture(e.pointerId);});cv.addEventListener('pointermove',e=>{if(!cp||cp.id!==e.pointerId)return;charPreview?.orbit(e.clientX-cp.x);cp.x=e.clientX;});cv.addEventListener('pointerup',()=>cp=null);cv.addEventListener('pointercancel',()=>cp=null);cv.addEventListener('wheel',e=>{e.preventDefault();charPreview?.zoomBy(e.deltaY);},{passive:false});
 window.addEventListener('keydown',e=>{if(!current||e.target.matches('input,select,textarea'))return;if(e.code==='Space'){e.preventDefault();$('playPause').click();}});
 applyFilter();updateSelectionUI();
-setStatus('Preview engine ready. Add FBX files or ZIP packs to start your animation wall.');
+setStatus('Action Studio ready. Import your FBX/ZIP pack, click a motion, then assign it to a character action.');
