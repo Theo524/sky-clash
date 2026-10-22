@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c101e"><title>Sky Clash V66 · Animation Studio</title>
+<meta name="theme-color" content="#0c101e"><title>Sky Clash V68 · Animation Studio</title>
 <link rel="stylesheet" href="css/animation-studio.css?v=600">
 <!-- The FBX parser uses the same Three.js release as the game, but in an isolated renderer.
      External module is fetched only for the preview engine. Files are never uploaded. -->
@@ -10,7 +10,7 @@
 <div class="app-shell">
 <header class="topbar">
  <a class="back" href="index.html">← Back to Sky Clash</a>
- <div class="brand"><span class="logo">SC<span>◇</span></span><div><strong>ANIMATION STUDIO</strong><small>SKY CLASH / V66 · BOY TBB VRM PREVIEW</small></div></div>
+ <div class="brand"><span class="logo">SC<span>◇</span></span><div><strong>ANIMATION STUDIO</strong><small>SKY CLASH / V68 · CORRECTED REAL CHARACTER</small></div></div>
  <span class="privacy">● PRIVATE · FILES STAY IN YOUR BROWSER</span>
 </header>
 <main>
@@ -59,13 +59,13 @@
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script src="js/character-actions-core.js?v=580"></script>
-<script src="js/v66-character-source.js?v=660"></script>
-<script src="js/character-motion-preview.js?v=660"></script>
-<script>window.SkyClashCharacterStore.installPicker();</script>
+<script src="js/v66-character-source.js?v=680"></script>
+<script src="js/v68-humanoid-retarget.js?v=680"></script>
+<script src="js/character-motion-preview.js?v=680"></script>
 <script src="assets/characters/master/model.js?v=610"></script>
 <script src="js/animation-studio-core.js?v=580"></script>
 <script type="module">
-import("./js/animation-studio.js?v=660").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=680").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>
