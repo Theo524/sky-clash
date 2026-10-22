@@ -71,6 +71,19 @@ for(const key of ['leftarm','leftforearm','rightarm']){
  const actual=bDst.getWorldQuaternion(new THREE.Quaternion());
  assert(actual.angleTo(expected)<EPS,key+' must match FBX world movement, without mirrored elbow bend');
 }
+// Full-body motion: the hips' quaternion must move, but the root's
+// positional offset and the source's root travel must never be transferred.
+const hipLocation=tgt.hips.position.clone();
+src.hips.rotation.y=.46;sourceRoot.updateMatrixWorld(true);
+driver.sample(rig,rest,mapping);
+const desiredHip=src.hips.getWorldQuaternion(new THREE.Quaternion())
+ .multiply(rig.restWorld.get('hips').clone().invert())
+ .multiply(rest.get('hips').world);
+assert(tgt.hips.getWorldQuaternion(new THREE.Quaternion()).angleTo(desiredHip)<EPS,
+ 'source pelvis turns must be reproduced for spins and full-body attacks');
+assert(tgt.hips.position.distanceTo(hipLocation)<EPS,'root travel is locked in preview');
+src.hips.rotation.y=0;sourceRoot.updateMatrixWorld(true);
+driver.sample(rig,rest,mapping);
 const first=tgt.leftforearm.quaternion.clone();
 driver.sample(rig,rest,mapping);
 assert(first.angleTo(tgt.leftforearm.quaternion)<EPS,'repeated animation frames must not accumulate rotation drift');
