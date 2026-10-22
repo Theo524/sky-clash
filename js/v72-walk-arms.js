@@ -81,7 +81,16 @@
     // local rotation relative to its currently animated parent.
     for(let i=0;i<NAMES.length;i++){
      const node=state.bones[i];
-     transformed.copy(basis).multiply(state.samples[i]).multiply(basisInv);
+     transformed.copy(basis).multiply(state.samples[i]).multiply(basisInv).normalize();
+     if(!status.originalWalkStyle){
+      // Keep the genuine Mixamo cadence, but reduce large upper-arm swings
+      // that read as dancing in a grounded fighting-game walk. The knees,
+      // feet, animation clock and recorded elbow direction are untouched.
+      const style=root.SkyClashGameplayMotions?.action;
+      const gain=(i%4===0||i%4===1)?(style?.shoulderSwing??.55):
+       i%4===2?(style?.elbowSwing??.80):(style?.wristSwing??.74);
+      transformed.slerp(zero,1-Math.max(0,Math.min(1,gain)));
+     }
      worldTarget.copy(qScene).multiply(transformed).multiply(state.bind[i]).normalize();
      node.parent.getWorldQuaternion(parentQ);
      target.copy(parentQ).invert().multiply(worldTarget).normalize();
@@ -105,7 +114,8 @@
   return state;
  }
  async function start(context=root){
-  const status={version:72,ready:false,active:'loading',error:null,frames:0};
+  const status={version:74,ready:false,active:'loading',error:null,frames:0,
+   originalWalkStyle:new URLSearchParams(context.location?.search||'').get('walkStyle')==='original'};
   context.SkyClashWalkArms=status;
   const query=new URLSearchParams(context.location?.search||'');
   if(query.get('walk')==='procedural'||query.get('arms')==='procedural'){
