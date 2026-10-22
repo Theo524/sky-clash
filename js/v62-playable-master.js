@@ -6,6 +6,8 @@
 (function () {
  'use strict';
  if(new URLSearchParams(location.search).get('classic')==='1')return;
+ // A real imported Kairo VRM takes priority over the V60/V65 procedural geometry.
+ if(window.SKY_V66_REAL_KAIRO)return;
  const game=window.SkyClash?.Game, THREE=window.THREE, skin=window.SkyClashMixamoMaster;
  if(!game||!THREE||!skin){console.warn('V62 master unavailable; retaining original geometry');return;}
  function attach(fighter){
