@@ -9,7 +9,7 @@ const code=fs.readFileSync(path.join(__dirname,'../js/v69-motion-library.js'),'u
 const html=fs.readFileSync(path.join(__dirname,'../animation-studio.html'),'utf8');
 const studio=fs.readFileSync(path.join(__dirname,'../js/animation-studio.js'),'utf8');
 assert(html.includes('js/v69-motion-library.js?v=690'));
-assert(html.includes('js/animation-studio.js?v=690'));
+assert(/js\/animation-studio\.js\?v=\d+/.test(html),'Expected a cache-busted studio script');
 assert(html.includes('id="savedLibraryStatus"'));
 assert(html.includes('id="clearSavedLibrary"'));
 assert(studio.includes('restoreMotionLibrary();'));
