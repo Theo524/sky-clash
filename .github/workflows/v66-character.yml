@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/**'
       - 'js/v66-*'
+      - 'js/v67-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'src/**'
       - 'js/v66-*'
+      - 'js/v67-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -42,12 +44,14 @@ jobs:
       - run: node --check js/game.js
       - run: node --check js/v66-character-source.js
       - run: node --check js/v66-game-boot.js
+      - run: node --check js/v67-vrm0-hands.js
       - run: node --check js/character-motion-preview.js
       - run: node --check js/v62-playable-master.js
       - run: node tests/v60-master-base.js
       - run: node tests/v64-arm-clearance.js
       - run: node tests/v65-anime-fighter.js
       - run: node tests/v66-character-source.js
+      - run: node tests/v67-vrm0-hands.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
