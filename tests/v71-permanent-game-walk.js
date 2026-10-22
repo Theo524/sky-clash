@@ -8,8 +8,13 @@ const path=require('path');
 const M=require('../js/v71-mixamo-gameplay.js');
 const root=path.join(__dirname,'..');
 const asset=JSON.parse(fs.readFileSync(path.join(root,'assets/animations/gameplay/kairo-walk-v1.json'),'utf8'));
+const registry=JSON.parse(fs.readFileSync(path.join(root,'assets/animations/gameplay/actions-v1.json'),'utf8'));
 const source=fs.readFileSync(path.join(root,'js/v66-game-boot.js'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
+assert.strictEqual(registry.schema,'sky-clash.game-actions.v1');
+assert.strictEqual(registry.version,1);
+assert.strictEqual(registry.characters.kairo_venn.walk.asset,'assets/animations/gameplay/kairo-walk-v1.json');
+assert(registry.characters.kairo_venn.walk.blendOutSeconds>0);
 assert.strictEqual(asset.id,'kairo.walk');
 assert.strictEqual(asset.source,'Movement/Standard/walking - Standard Movement.fbx');
 assert.strictEqual(asset.source_sha256,'e9e7c3446f79f526d66ff61bb2a6e8cdaf1721dc5cb3da63d79c3d09b2979f0b');
@@ -59,7 +64,7 @@ function fake(){
   }};
  return {fighter,humanoid,rig,scene};
 }
-const status={active:'idle',frames:0,weight:0,error:null};
+const status={active:'idle',frames:0,weight:0,error:null,action:registry.characters.kairo_venn.walk};
 const {fighter,humanoid,rig,scene}=fake();
 M.attach(THREE,fighter,motion,status);
 assert(fighter.v71Walk,'Walk motion should attach to real fighter');
@@ -88,9 +93,10 @@ async function startTest(){
  const rollback=await M.start(standIn);
  assert.strictEqual(rollback.active,'procedural-fallback');
  const app={THREE,SkyClash:{Game:{heroes:{kairo_venn:fake().fighter},enemy:fake().fighter}},
-   location:{search:''},fetch:async()=>({ok:true,json:async()=>asset})};
+   location:{search:''},fetch:async url=>({ok:true,json:async()=>url.includes('actions-v1')?registry:asset})};
  const boot=await M.start(app);
  assert(boot.loaded&&boot.characters===2,'Versioned action automatically ships to hero and rival');
+ assert.strictEqual(boot.registryVersion,1,'Runtime must use permanent action registry');
  console.log('PASS: V71 real Mixamo source, quantized leg cycles, both knees, VRM0 root turning, blend-out, rollback and live Kairo/rival registry');
 }
 startTest().catch(e=>{console.error(e);process.exitCode=1});
