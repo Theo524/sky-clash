@@ -1165,15 +1165,22 @@ class VRMRig {
     this.cL = new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), -Math.PI / 2);
     this.cR = new THREE.Quaternion().setFromAxisAngle(new V3(0, 0, 1), Math.PI / 2);
     this.cLi = this.cL.clone().invert(); this.cRi = this.cR.clone().invert();
-    // fists: curl the fingers
-    const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
-    for (const side of ['left', 'right']) {
-      const sg = side === 'left' ? -1 : 1;
-      for (const fn of fingers) for (const [sn, a] of segs) { const n = bone(side + fn + sn); if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), a * sg); }
-      const t1 = bone(side + 'ThumbProximal'), t2 = bone(side + 'ThumbDistal'), tm = bone(side + 'ThumbMetacarpal');
-      if (tm) tm.quaternion.setFromEuler(new THREE.Euler(0, 0.5 * sg, 0.2 * sg));
-      if (t1) t1.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.6 * sg);
-      if (t2) t2.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.5 * sg);
+    // V67: VRoid VRM0 has finger chains running out along +/-X and faces
+    // native -Z. The original universal Z-axis fist curl bent them backward.
+    // Keep that original pose for Rin/legacy models, but use a calibrated
+    // wrist + Y-axis curl for the real Boy TBB Kairo/rival.
+    this.vroidHandPose = opts.vroidHands && window.SkyClashVRM0Hands
+      ? window.SkyClashVRM0Hands.configure(THREE, bone) : null;
+    if (!this.vroidHandPose) {
+      const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
+      for (const side of ['left', 'right']) {
+        const sg = side === 'left' ? -1 : 1;
+        for (const fn of fingers) for (const [sn, a] of segs) { const n = bone(side + fn + sn); if (n) n.quaternion.setFromAxisAngle(new V3(0, 0, 1), a * sg); }
+        const t1 = bone(side + 'ThumbProximal'), t2 = bone(side + 'ThumbDistal'), tm = bone(side + 'ThumbMetacarpal');
+        if (tm) tm.quaternion.setFromEuler(new THREE.Euler(0, 0.5 * sg, 0.2 * sg));
+        if (t1) t1.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.6 * sg);
+        if (t2) t2.quaternion.setFromAxisAngle(new V3(0, 1, 0), 0.5 * sg);
+      }
     }
     this.blinkT = 2; this.ex = vrm.expressionManager;
     // Quaternius / Mixamo baked world deltas were calibrated to VRM1.
@@ -1197,6 +1204,9 @@ class VRMRig {
       b[p + 'UpperArm'].quaternion.copy(a.sh.quaternion).multiply(c);
       b[p + 'LowerArm'].quaternion.copy(ci).multiply(a.el.quaternion).multiply(c);
       b[p + 'Hand'].quaternion.copy(ci).multiply(a.fist.quaternion).multiply(c);
+      // Aim VRM0 knuckles along its native -Z front. The world-space 180°
+      // VRM0 orientation fix below then makes both fists face into the arena.
+      if (this.vroidHandPose) b[p + 'Hand'].quaternion.multiply(this.vroidHandPose[p]);
     });
     m.legs.forEach((l, i) => {
       const p = i === 1 ? 'left' : 'right';
@@ -4925,13 +4935,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
