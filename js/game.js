@@ -1169,9 +1169,13 @@ class VRMRig {
     // native -Z. The original universal Z-axis fist curl bent them backward.
     // Keep that original pose for Rin/legacy models, but use a calibrated
     // wrist + Y-axis curl for the real Boy TBB Kairo/rival.
-    this.vroidHandPose = opts.vroidHands && window.SkyClashVRM0Hands
+    // V73: Kairo's native VRoid hand bind pose matches V68 Studio.
+    // Don't twist wrists 90 degrees or force a fist while Mixamo owns the
+    // pose. Legacy hand flags remain available as a comparison/rollback.
+    this.studioHands = !!opts.studioHands;
+    this.vroidHandPose = !this.studioHands && opts.vroidHands && window.SkyClashVRM0Hands
       ? window.SkyClashVRM0Hands.configure(THREE, bone) : null;
-    if (!this.vroidHandPose) {
+    if (!this.vroidHandPose && !this.studioHands) {
       const fingers = ['Index', 'Middle', 'Ring', 'Little'], segs = [['Proximal', 1.35], ['Intermediate', 1.5], ['Distal', 0.9]];
       for (const side of ['left', 'right']) {
         const sg = side === 'left' ? -1 : 1;
@@ -4935,13 +4939,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,studioHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V73_NATIVE_HANDS!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,studioHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V73_NATIVE_HANDS!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
