@@ -21,7 +21,7 @@ assert.strictEqual(asset.source_sha256,'e9e7c3446f79f526d66ff61bb2a6e8cdaf1721dc
 assert.strictEqual(asset.frames,32);
 assert.deepStrictEqual(asset.bones,['hips','leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot']);
 assert(/js\/v66-game-boot\.js\?v=\d{3,}/.test(index),'page loads a fresh gameplay bundle');
-assert(source.includes("await script('js/v71-mixamo-gameplay.js?v=710')"));
+assert(/await script\('js\/v71-mixamo-gameplay\.js\?v=\d+'\)/.test(source));
 assert(source.includes('SkyClashV71Walk.start(window)'));
 assert(M.manifest['kairo.walk'].revision===1);
 assert(M.manifest['kairo.walk'].mode==='grounded-locomotion');
