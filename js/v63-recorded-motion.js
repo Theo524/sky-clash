@@ -69,6 +69,21 @@
   if(!rig||fighter.v63Recorded)return false;
   const bones=BONE_NAMES.map(n=>rig.bones.get(n));
   if(bones.some(b=>!b))throw Error('V62 master is missing humanoid joints');
+  // The baked quaternions are world-space deltas from a different rest
+  // skeleton. Re-reference EACH source to its own neutral first frame so
+  // V64's explicit martial guard remains the zero pose. The action layer and
+  // locomotion layer can then be blended without swinging elbows through the
+  // chest on their first frame.
+  const mixRef=pose(),walkRef=pose();
+  sample(mixamo,'mxKIdle',0,mixRef);
+  sample(recorded,'walk',0,walkRef);
+  const mixInv=mixRef.map(q=>q.clone().invert());
+  const walkInv=walkRef.map(q=>q.clone().invert());
+  function toGuard(p,source){
+   const reference=source===mixamo?mixInv:walkInv;
+   for(let i=0;i<22;i++)p[i].multiply(reference[i]).normalize();
+   return p;
+  }
   const state={
     fighter,clock:0,phase:0,idle:0,attack:null,serial:fighter.attackSerial,
     base:pose(),walk:pose(),strike:pose(),last:pose(),desired:pose(),local:pose(),
@@ -92,15 +107,15 @@
     if(ground&&hs>.55){
      state.phase=(state.phase+delta*clamp(hs/3.9,.5,2.5))%1;
      const c=pack.clips[baseClip];
-     sample(pack,baseClip,state.phase*c.d,state.base);
+     toGuard(sample(pack,baseClip,state.phase*c.d,state.base),pack);
      if(baseClip==='walk'&&hs>5){
       const run=recorded.clips.jog, w=ease((hs-5)/7);
-      sample(recorded,'jog',state.phase*run.d,state.walk);
+      toGuard(sample(recorded,'jog',state.phase*run.d,state.walk),recorded);
       for(let i=0;i<22;i++)state.base[i].slerp(state.walk[i],w);
      }
     }else{
      state.idle+=delta;
-     sample(pack,baseClip,state.idle,state.base);
+     toGuard(sample(pack,baseClip,state.idle,state.base),pack);
     }
     if(f.punchT>0&&state.serial!==f.attackSerial){
      state.serial=f.attackSerial;
@@ -123,7 +138,7 @@
       // Use anticipation -> contact -> recovery, not just one frozen hit pose.
       const start=a.kind==='kick'||a.kind==='skyKick'?.18:.10;
       const span=a.kind==='kick'||a.kind==='skyKick'?1.95:1.2;
-      sample(mixamo,a.name,Math.min(c.d-.005,start+a.progress*span),state.strike);
+      toGuard(sample(mixamo,a.name,Math.min(c.d-.005,start+a.progress*span),state.strike),mixamo);
       const punch=!['kick','skyKick','ninjaSpin'].includes(a.kind);
       const w=a.weight*(f.punchT>0?Math.min(1,.35+ease(a.progress/.13)*.65):1);
       for(let i=0;i<22;i++){
