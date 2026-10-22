@@ -20,13 +20,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,studioHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V73_NATIVE_HANDS!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,vroidHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V67_FIST_CORRECTION!==false,studioHands:!!window.SKY_V66_REAL_KAIRO&&window.SKY_V73_NATIVE_HANDS!==false,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
