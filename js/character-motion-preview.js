@@ -36,7 +36,10 @@ function create(canvas){
   if(loadPromise&&loaded===fighter)return loadPromise;
   const myKey=++loadKey;loaded=fighter;
   loadPromise=(async()=>{
-   const resp=await fetch(fighter==='rin'?'assets/rin.vrm':'assets/fighter.vrm');if(!resp.ok)throw Error('Cannot load '+fighter+' model: '+resp.status);
+   const candidate=fighter==='kairo' ? await root.SkyClashCharacterStore?.resolve() : null;
+   if(fighter==='kairo'&&!candidate)throw Error('Kairo model not installed. Click Import VRM, choose Boy TBB, and retry.');
+   const url=fighter==='rin'?'assets/rin.vrm':candidate.url;
+   const resp=await fetch(url);if(!resp.ok)throw Error('Cannot load '+fighter+' model: '+resp.status);
    const bytes=await resp.arrayBuffer();
    const {GLTFLoader,VRMLoaderPlugin,VRMUtils}=root.VRMKit;
    const loader=new GLTFLoader();loader.register(p=>new VRMLoaderPlugin(p));
