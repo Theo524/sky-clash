@@ -147,7 +147,7 @@
   const THREE=context.THREE,Game=context.SkyClash?.Game;
   if(!THREE||!Game)throw Error('V71 needs initialized Sky Clash gameplay');
   try{
-   const mapResponse=await context.fetch(REGISTRY+'?v=710',{cache:'force-cache'});
+   const mapResponse=await context.fetch(REGISTRY+'?v=740',{cache:'force-cache'});
    if(!mapResponse.ok)throw Error('action manifest HTTP '+mapResponse.status);
    const registry=await mapResponse.json();
    const action=registry?.characters?.kairo_venn?.walk;
