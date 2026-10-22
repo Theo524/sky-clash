@@ -28,9 +28,5 @@
   const status=document.getElementById('bootStatus');
   if(status)status.textContent='Could not start game: '+err.message;
  }
- store?.installPicker?.();
- if(!selected){
-  const message=document.getElementById('toast');
-  if(message)message.textContent='Import Boy TBB VRM below to replace the placeholder fighter.';
- }
+ if(!selected)console.warn('V68: assets/characters/kairo.vrm is missing; procedural fallback remains active');
 })();
