@@ -140,9 +140,16 @@ function explainFBXError(error){
  return detail;
 }
 async function bufferFor(item){
- if(item.file)return await item.file.arrayBuffer();
- if(item.zipEntry){const bytes=await item.zipEntry.async('uint8array');return bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);}
- throw Error('File not available in this browser session');
+ let buffer;
+ if(item.file)buffer=await item.file.arrayBuffer();
+ else if(item.zipEntry){const bytes=await item.zipEntry.async('uint8array');buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength);}
+ else throw Error('File not available in this browser session');
+ // V70: a trailing newline accidentally appended after the official FBX
+ // footer breaks Three.js FBXLoader's footer detection on ~1 in 8 files.
+ // Repair in RAM ONLY; retain untouched original ZIP/FBX in the offline library.
+ const result=window.SkyClashFBXRepair?.normalize(buffer);
+ if(result?.repaired)item.repaired=true;
+ return result?.buffer||buffer;
 }
 function norm(name){return String(name).split(':').pop().replace(/[^a-zA-Z0-9]/g,'').toLowerCase().replace(/^mixamorig\d*/,'');}
 const BONE_CHAINS=[
@@ -303,6 +310,7 @@ const observer=new IntersectionObserver(entries=>{
 },{root:null,rootMargin:'260px',threshold:0.01});
 function updateCard(item){const card=item.card;if(!card||!card.isConnected)return;
  const img=card.querySelector('img');if(item.frames?.length){img.src=item.frames[0];img.classList.remove('is-pending');}
+ if(item.repaired&&img)img.title='V70: safe FBX footer newline removed for preview only';
  const err=card.querySelector('.clip-failure');if(err){err.textContent=item.error?'Preview failed: '+shortName(item.error):'';err.title=item.error||'';}
  const meta=card.querySelector('.clip-meta');if(meta)meta.lastElementChild.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';
 }
@@ -354,7 +362,7 @@ async function select(item){
    const rig=setupRig(mainStage,fbx);setRigDisplay(rig,viewMode);
    mainRig=rig;item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
-   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · Native Mixamo tracks checked${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
+   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · Native Mixamo tracks checked${item.repaired?' · FBX footer automatically repaired':''}${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+explainFBXError(e));$('selectedStatus').textContent='The original file is kept. Try another export or animation; Kairo and live combat are unaffected.';mainRig=null;}}
