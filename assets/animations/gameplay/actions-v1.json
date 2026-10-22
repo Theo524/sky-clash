@@ -1,0 +1,28 @@
+{
+  "schema": "sky-clash.game-actions.v1",
+  "version": 1,
+  "description": "Permanent in-game Mixamo motion mapping. Game logic controls root movement; replace or tune assets through versioned updates.",
+  "characters": {
+    "kairo_venn": {
+      "walk": {
+        "id": "kairo.walk",
+        "asset": "assets/animations/gameplay/kairo-walk-v1.json",
+        "revision": 1,
+        "mode": "grounded",
+        "minSpeed": 0.75,
+        "fullSpeed": 1.9,
+        "speedReference": 3.4,
+        "blendInSeconds": 0.1,
+        "blendOutSeconds": 0.077,
+        "exclude": [
+          "airborne",
+          "downed",
+          "stunned",
+          "attacking",
+          "dashing",
+          "sprinting"
+        ]
+      }
+    }
+  }
+}
