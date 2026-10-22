@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c101e"><title>Sky Clash V70 · Animation Studio</title>
+<meta name="theme-color" content="#0c101e"><title>Sky Clash V72 · Animation Studio</title>
 <link rel="stylesheet" href="css/animation-studio.css?v=600">
 <!-- The FBX parser uses the same Three.js release as the game, but in an isolated renderer.
      External module is fetched only for the preview engine. Files are never uploaded. -->
@@ -10,7 +10,7 @@
 <div class="app-shell">
 <header class="topbar">
  <a class="back" href="index.html">← Back to Sky Clash</a>
- <div class="brand"><span class="logo">SC<span>◇</span></span><div><strong>ANIMATION STUDIO</strong><small>SKY CLASH / V70 · SAVED / FIXED MIXAMO</small></div></div>
+ <div class="brand"><span class="logo">SC<span>◇</span></span><div><strong>ANIMATION STUDIO</strong><small>SKY CLASH / V72 · EXPORT GAME MOVES</small></div></div>
  <span class="privacy">● PRIVATE · FILES STAY IN YOUR BROWSER</span>
 </header>
 <main>
@@ -50,8 +50,8 @@
       <label>Motion speed <span id="tuneSpeedValue">1.00×</span><input id="tuneSpeed" type="range" min="0.25" max="2" step="0.05" value="1"></label>
       <label>Facing adjustment <span id="tuneYawValue">0°</span><input id="tuneYaw" type="range" min="-180" max="180" step="5" value="0"></label>
     </div>
-    <div class="export-actions"><button id="exportActions" class="primary alt">↓ Export action map JSON</button><button id="importActions">↑ Import map</button><button id="clearActions">Reset this fighter</button><input id="actionMapInput" type="file" accept=".json" hidden></div>
-    <div class="action-help" id="actionHelp" role="status">Action assignments and imported source FBX/ZIP packs are saved in this browser where storage permits. Export saves the mapping only; keep a backup of your original FBX/ZIP files.</div>
+    <div class="export-actions"><button id="exportActions" class="primary alt">↓ Export action map JSON</button><button id="exportGamePack" type="button" class="primary">↓ Export for Game (motion data)</button><button id="importActions">↑ Import map</button><button id="clearActions">Reset this fighter</button><input id="actionMapInput" type="file" accept=".json" hidden></div>
+    <div class="action-help" id="actionHelp" role="status">Action assignments and imported source FBX/ZIP packs are saved in this browser where storage permits. Export action map saves names/settings only. Export for Game includes baked motion keyframes. To publish permanently, commit the exported JSON to your GitHub repository. Keep original FBX source backups.</div>
    </div>
   </section>
  </div>
@@ -68,8 +68,9 @@
 <script src="js/animation-studio-core.js?v=580"></script>
 <script src="js/v69-motion-library.js?v=690"></script>
 <script src="js/v70-fbx-repair.js?v=700"></script>
+<script src="js/v72-studio-game-export.js?v=720"></script>
 <script type="module">
-import("./js/animation-studio.js?v=700").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=720").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>
