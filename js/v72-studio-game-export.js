@@ -48,7 +48,12 @@
   if(side.lengthSq()<1e-8)throw Error('Cannot identify the source character facing direction');
   side.normalize();
   const mixer=new THREE.AnimationMixer(fbx);
-  mixer.clipAction(clip).play();
+  // Export exact terminal keyframe: the default LoopRepeat mode jumps to
+  // frame zero at t==duration, corrupting one-shot punches and kicks.
+  const action=mixer.clipAction(clip);
+  action.setLoop(THREE.LoopOnce,1);
+  action.clampWhenFinished=true;
+  action.play();
   const frames=Math.max(3,Math.min(MAX_FRAMES,Math.round(clip.duration*FPS)+1));
   const values=new Int16Array(frames*MAP.length*4);
   const current=new THREE.Quaternion(),q=new THREE.Quaternion();
