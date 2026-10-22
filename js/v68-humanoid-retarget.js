@@ -52,7 +52,8 @@
    const basisInv=basis.clone().invert();
    let applied=0, skipped=0, maximum=0;
    for(const [src] of targets){
-    if(src==='hips')continue; // root translation stays gameplay-independent
+    // Copy hip ROTATION as well: attacks and acrobatics often animate the
+    // pelvis. Position/root travel is still locked by never copying position.
     const rec=rest.get(src),bone=rig.bones.get(src),bind=rig.restWorld.get(src);
     if(!rec||!bone||!bind){skipped++;continue;}
     // Mixamo FBX world-space delta (current * inverse(bind)).
@@ -66,7 +67,8 @@
     local.copy(parentQ).invert().multiply(wanted).normalize();
     // Physical safety cap measured from this model's bind pose. It prevents
     // extreme clipping from malformed source tracks, not ordinary joint bends.
-    const limit=src.includes('forearm')||src.includes('hand')?2.65:
+    const limit=src==='hips'?Math.PI:
+      src.includes('forearm')||src.includes('hand')?2.65:
       src.includes('arm')||src.includes('shoulder')?2.45:
       src.includes('leg')||src.includes('foot')?2.4:1.9;
     const angle=rec.local.angleTo(local);
