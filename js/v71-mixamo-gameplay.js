@@ -86,6 +86,25 @@
     state.weight+=(desired-state.weight)*(1-Math.exp(-safe/Math.max(.025,blendSeconds)));
     if(state.weight<.008){state.last='idle';return;}
     if(canWalk)state.clock+=safe*Math.min(1.8,Math.max(.62,speed/action.speedReference));
+    // V74: the old procedural fighter still rolls/pitches its hips and
+    // chest while real Mixamo legs are stepping. Combining both gait
+    // rhythms makes the VRM look like it is dancing. Remove only that
+    // *extra procedural lean*, preserving hip yaw for strafing and all
+    // original Mixamo knee/foot rotation keyframes.
+    if(canWalk && !status.originalWalkStyle && state.weight>.008) {
+      const stability=Math.max(0,Math.min(1,Number(action.torsoStability)||0));
+      const keep=1-stability*state.weight;
+      const humanoid=state.rig.vrm.humanoid;
+      for(const name of ['hips','spine','chest']){
+        const joint=humanoid.getNormalizedBoneNode(name);
+        if(!joint)continue;
+        const e=new THREE.Euler().setFromQuaternion(joint.quaternion,'YXZ');
+        // Preserve hip/torso facing; quiet only side-roll and fore/aft bob.
+        e.x*=keep;e.z*=keep;
+        joint.quaternion.setFromEuler(e);
+        joint.updateMatrixWorld(true);
+      }
+    }
     motion.sample(state.clock,state.quats);
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);
@@ -135,9 +154,12 @@
    if(registry?.schema!=='sky-clash.game-actions.v1'||registry.version!==1||
       action?.id!=='kairo.walk'||action.asset!==PATH||action.revision!==1||
       !(action.minSpeed>=0&&action.fullSpeed>action.minSpeed&&action.speedReference>0&&
-        action.blendInSeconds>0&&action.blendOutSeconds>0))
+        action.blendInSeconds>0&&action.blendOutSeconds>0&&
+        ['torsoStability','shoulderSwing','elbowSwing','wristSwing']
+          .every(k=>action[k]===undefined||(Number.isFinite(action[k])&&action[k]>=0&&action[k]<=1))))
     throw Error('V71: invalid versioned game walk action mapping');
    status.action=action;status.registryVersion=registry.version;
+   status.originalWalkStyle=new URLSearchParams(context.location?.search||'').get('walkStyle')==='original';
    const response=await context.fetch(action.asset+'?v=710',{cache:'force-cache'});
    if(!response.ok)throw Error('walk asset HTTP '+response.status);
    const motion=decode(THREE,await response.json());
