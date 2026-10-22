@@ -3691,13 +3691,8 @@ const Sound = (() => {
     blast: [540, 190, 0.2, 'sawtooth', 0.06],
     charge: [320, 95, 0.36, 'triangle', 0.12],
     dash: [330, 105, 0.13, 'sawtooth', 0.045],
-    swing: [550, 240, 0.075, 'triangle', 0.022],
-    super: [180, 950, 0.52, 'sawtooth', 0.09],
-    superHit: [165, 42, 0.42, 'triangle', 0.11],
     vanish: [750, 170, 0.12, 'sine', 0.065],
     awaken: [180, 760, 0.6, 'triangle', 0.095],
-    powerRise: [72, 960, 1.95, 'sawtooth', 0.042],
-    powerRise: [83, 355, 1.95, 'triangle', 0.058],
   };
   function play(which) {
     if (!Settings.get('sound')) return;
@@ -4459,8 +4454,7 @@ const RivalAI = (() => {
     if (thinkT <= 0) {
       thinkT = cfg.think[0] + Math.random() * (cfg.think[1] - cfg.think[0]);
       const r = Math.random();
-      if (me.exhausted && r < 0.8) mode = 'retreat';
-      else if (me.hp < 30 && r < 0.2) mode = 'retreat';
+      if (me.hp < 30 && r < 0.2) mode = 'retreat';
       else if (dist > 14 && r < cfg.blast + 0.2) mode = 'blast';
       else if (dist > 5) mode = r < 0.75 ? 'approach' : 'strafe';
       else mode = r < cfg.aggro ? 'attack' : 'strafe';
@@ -4931,13 +4925,13 @@ const Game = {
       const hiddenGear = ['robo_arm','arm_mat','arm_plastic','green_emit','backpack',
         'anim_logo','armgear_plastic','robo_face','glass','wear_metal'];
       // Sequential decoding limits peak model-loading memory on phones.
-      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:hiddenGear,scale:1.075}).then(async ok => {
+      loadVRMInto(this.heroes.kairo_venn, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,legacyAxes:!!window.SKY_V66_REAL_KAIRO,scale:window.SKY_V66_REAL_KAIRO?1:1.075}).then(async ok => {
         if (ok) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(63,'Hero ready');
           try { this.kairoPortrait=renderVRMPortrait(this.heroes.kairo_venn); if(this.player===this.heroes.kairo_venn)$('pPortrait').src=this.kairoPortrait; }
           catch(err) { console.warn('Hero portrait',err); }
         }
-        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:hiddenGear,rival:true,scale:1.075});
+        const rivalOK = await loadVRMInto(this.enemy, modelSource, {hide:window.SKY_V66_REAL_KAIRO?[]:hiddenGear,rival:true,legacyAxes:!!window.SKY_V66_REAL_KAIRO,scale:window.SKY_V66_REAL_KAIRO?1:1.075});
         if (rivalOK) {
           if (typeof LoadScreen !== 'undefined') LoadScreen.progress(77,'Preparing training hall');
           try { $('ePortrait').src = renderVRMPortrait(this.enemy); }
