@@ -124,7 +124,38 @@ function create(THREE,bones,fbx){
  function dispose(){for(const x of parts)x.parent?.remove(x);for(const g of owned)g.dispose();for(const g of Object.values(shared))g.dispose();for(const m of Object.values(material))m.dispose();}
  return {version:VERSION,parts,setVisible,dispose,source:'native-mixamo-bones',jointCount:test.count};
 }
-const api={create,check,requiredBones:REQUIRED,version:VERSION};
+
+// Inspect an animation's actual keyframe bindings, not just its skeleton.
+// This is a diagnostic: an FBX can contain the correct bones yet animate none of them.
+function inspectClip(clip,bones){
+ const report={valid:false,animatedBones:0,missingBindings:[],invalidTracks:[],warnings:[]};
+ if(!clip||!Number.isFinite(clip.duration)||clip.duration<=0||!Array.isArray(clip.tracks)){
+   report.warnings.push('No playable animation clip');return report;
+ }
+ const animated=new Set();
+ for(const track of clip.tracks){
+   const target=String(track.name||'').split('.')[0].split('/').pop();
+   const normalized=target.split(':').pop().replace(/[^a-zA-Z0-9]/g,'').toLowerCase().replace(/^mixamorig\d*/,'');
+   if(!normalized)continue;
+   if(!bones?.has(normalized)){if(report.missingBindings.length<12)report.missingBindings.push(track.name);continue;}
+   const times=track.times,values=track.values;
+   if(!times?.length||!values?.length||!Number.isFinite(times[0])||!Number.isFinite(times[times.length-1])||
+      times[0]<-0.001||times[times.length-1]>clip.duration+.1||
+      !Number.isFinite(values[0])||!Number.isFinite(values[values.length-1])){
+      if(report.invalidTracks.length<12)report.invalidTracks.push(track.name);
+      continue;
+   }
+   animated.add(normalized);
+ }
+ report.animatedBones=animated.size;
+ if(!animated.has('hips'))report.warnings.push('Hips have no animation tracks');
+ if(animated.size<8)report.warnings.push('Fewer than 8 humanoid bones are animated');
+ if(report.missingBindings.length)report.warnings.push('Some track targets are missing from the loaded skeleton');
+ if(report.invalidTracks.length)report.warnings.push('Some tracks contain invalid or out-of-range samples');
+ report.valid=animated.has('hips')&&animated.size>=8&&!report.invalidTracks.length;
+ return report;
+}
+const api={create,check,inspectClip,requiredBones:REQUIRED,version:VERSION};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
 root.SkyClashMixamoMaster=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -181,9 +181,11 @@ function setupRig(stage,fbx){
    const mesh=new THREE.Mesh(jointGeo,mat);mesh.scale.setScalar(key==='head'?.155:key==='hips'?.11:.07);wrap.add(mesh);joints.push({bone,mesh});
  }
  if(!segments.length){stage.rigCenter.remove(wrap);throw Error('Bone hierarchy not recognized');}
+ const inspection=window.SkyClashMixamoMaster?.inspectClip(clip,bones);
+ if(!inspection?.valid)throw Error('Mixamo track validation failed: '+(inspection?.warnings.join('; ')||'No valid humanoid motion'));
  const master=window.SkyClashMixamoMaster?.create(THREE,bones,fbx);
  if(!master)throw Error('Clean master model unavailable. Refresh the Animation Studio.');
- const rig={master,wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
+ const rig={master,inspection,wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
  stage.loaded=rig;setRigDisplay(rig,stage.thumb?'master':viewMode);poseRig(stage,0,false);
  return rig;
 }
@@ -280,7 +282,7 @@ async function select(item){
    const rig=setupRig(mainStage,fbx);setRigDisplay(rig,viewMode);
    mainRig=rig;item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
-   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.bones.size} animated bones · Native Mixamo bones · no retargeting.`;
+   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · Native Mixamo tracks checked${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+(e?.message||'Unknown error'));$('selectedStatus').textContent='Try another clip. The game itself is unaffected.';mainRig=null;}}

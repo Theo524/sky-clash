@@ -1,0 +1,16 @@
+const assert=require('assert');
+const Master=require('../assets/characters/master/model.js');
+const bones=new Map(Master.requiredBones.map(n=>[n,{}]));
+const track=name=>({name:'mixamorig:'+name+'.quaternion',times:new Float32Array([0,1]),values:new Float32Array([0,0,0,1,0,0,0,1])});
+const names=['Hips','Spine','Spine1','Spine2','Neck','Head','LeftArm','LeftForeArm','LeftHand','RightArm','RightForeArm','RightHand'];
+const clip={duration:1,tracks:names.map(track)};
+const good=Master.inspectClip(clip,bones);
+assert(good.valid,JSON.stringify(good));assert.strictEqual(good.animatedBones,names.length);
+const empty=Master.inspectClip({duration:1,tracks:[]},bones);assert(!empty.valid);
+const missing=Master.inspectClip({duration:1,tracks:names.filter(n=>n!=='Hips').map(track)},bones);assert(!missing.valid);
+const bad={duration:1,tracks:names.map(track)};
+bad.tracks[0]={...bad.tracks[0],times:new Float32Array([0,2])};
+assert(!Master.inspectClip(bad,bones).valid);
+const unknown={duration:1,tracks:[...names.map(track),track('UnknownBone')]};
+assert(Master.inspectClip(unknown,bones).warnings.some(x=>x.includes('missing')));
+console.log('PASS: V61 Mixamo validation catches missing hips, missing tracks, invalid times, and unknown bone targets.');
