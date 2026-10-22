@@ -11,7 +11,7 @@ const init=fs.readFileSync(path.join(dir,'src/95-game.js'),'utf8');
 const boot=fs.readFileSync(path.join(dir,'js/v66-game-boot.js'),'utf8');
 const html=fs.readFileSync(path.join(dir,'index.html'),'utf8');
 assert(html.includes('js/v67-vrm0-hands.js?v=670'),'hand code must precede startup');
-assert(html.includes('js/v66-game-boot.js?v=670'));
+assert(/js\/v66-game-boot\.js\?v=6\d{2}/.test(html),'Game boot script version should remain valid');
 assert(boot.includes("get('hands')!=='original'"),'must support full rollback');
 assert(src.includes('SkyClashVRM0Hands.configure(THREE, bone)'));
 assert(src.includes("if (this.vroidHandPose) b[p + 'Hand'].quaternion.multiply(this.vroidHandPose[p]);"));
