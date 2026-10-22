@@ -26,6 +26,8 @@
   await window.SkyClashV71Walk.start(window);
   await script('js/v72-walk-arms.js?v=720');
   await window.SkyClashV72Arms.start(window);
+  await script('js/v72-published-actions.js?v=720');
+  await window.SkyClashPublishedGamePack.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
   console.error('Sky Clash V66 boot failed',err);
