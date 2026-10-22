@@ -17,7 +17,7 @@ const MAX_FBX_BYTES=30*1024*1024;
 const MAX_ZIP_BYTES=350*1024*1024;
 const ACTION_KEY='skyClashV58ActionAssignments';
 const actionData=(()=>{try{return Action.sanitize(JSON.parse(localStorage.getItem(ACTION_KEY)||'{}'))}catch{return Action.empty()}})();
-let actionFighter='kairo', activeAction='idle', viewMode='original', charPreview=null, charToken=0;
+let actionFighter='kairo', activeAction='idle', viewMode='master', charPreview=null, charToken=0;
 const imported=[];
 const seen=new Set();
 let current=null, page=0, filtering=[], cancelled=false, indexing=false;
@@ -111,16 +111,23 @@ function resizeStage(stage){
 function cameraPose(stage){const {camera,yaw,zoom}=stage;camera.position.set(Math.sin(yaw)*zoom,1.3+zoom*.18,Math.cos(yaw)*zoom);camera.lookAt(0,1.17,0);}
 function cleanupRig(stage){
  if(!stage.loaded)return;
- const rig=stage.loaded;rig.mixer?.stopAllAction();stage.rigCenter.remove(rig.wrap);
+ const rig=stage.loaded;rig.master?.dispose();rig.mixer?.stopAllAction();stage.rigCenter.remove(rig.wrap);
  rig.wrap.traverse(o=>{if(o.geometry&&o.userData.studioOwned)o.geometry.dispose();if(o.material&&o.userData.studioOwned){if(Array.isArray(o.material))o.material.forEach(m=>m.dispose());else o.material.dispose();}});
  stage.loaded=null;
+}
+function setRigDisplay(rig,mode){
+ if(!rig)return;
+ const on=mode==='master';
+ rig.master?.setVisible(on);
+ for(const s of rig.segments)s.mesh.visible=!on;
+ for(const j of rig.joints)j.mesh.visible=!on;
 }
 function poseRig(stage,time,allowTravel=false){
  const rig=stage.loaded;if(!rig)return;
  rig.mixer.setTime(Math.max(0,time));
  if(rig.hips&&!allowTravel){rig.hips.position.x=rig.initialHipX;rig.hips.position.z=rig.initialHipZ;}
  rig.wrap.updateMatrixWorld(true);
- for(const seg of rig.segments){
+ if(rig.segments[0]?.mesh.visible) for(const seg of rig.segments){
    seg.from.getWorldPosition(v1);seg.to.getWorldPosition(v2);
    rig.wrap.worldToLocal(v1);rig.wrap.worldToLocal(v2);
    const len=Math.max(.001,v1.distanceTo(v2));
@@ -128,7 +135,7 @@ function poseRig(stage,time,allowTravel=false){
    seg.mesh.quaternion.setFromUnitVectors(rig.yAxis,v3.copy(v2).sub(v1).normalize());
    seg.mesh.scale.set(seg.width,len,seg.width);
  }
- for(const joint of rig.joints){joint.bone.getWorldPosition(v1);rig.wrap.worldToLocal(v1);joint.mesh.position.copy(v1);}
+ if(rig.joints[0]?.mesh.visible) for(const joint of rig.joints){joint.bone.getWorldPosition(v1);rig.wrap.worldToLocal(v1);joint.mesh.position.copy(v1);}
  rig.wrap.updateMatrixWorld(true);
 }
 function setupRig(stage,fbx){
@@ -174,8 +181,10 @@ function setupRig(stage,fbx){
    const mesh=new THREE.Mesh(jointGeo,mat);mesh.scale.setScalar(key==='head'?.155:key==='hips'?.11:.07);wrap.add(mesh);joints.push({bone,mesh});
  }
  if(!segments.length){stage.rigCenter.remove(wrap);throw Error('Bone hierarchy not recognized');}
- const rig={wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
- stage.loaded=rig;poseRig(stage,0,false);
+ const master=window.SkyClashMixamoMaster?.create(THREE,bones,fbx);
+ if(!master)throw Error('Clean master model unavailable. Refresh the Animation Studio.');
+ const rig={master,wrap,fbx,mixer,clip,bones,restWorld,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
+ stage.loaded=rig;setRigDisplay(rig,stage.thumb?'master':viewMode);poseRig(stage,0,false);
  return rig;
 }
 function disposeSetup(stage){if(!stage?.loaded)return;const r=stage.loaded;cleanupRig(stage);for(const g of r.geometries)g.dispose();for(const m of r.materials)m.dispose();}
@@ -199,7 +208,7 @@ async function processQueue(){
    await delay();
    const input=await bufferFor(item);
    const object=loader.parse(input,'');
-   const rig=setupRig(thumbStage,object);
+   const rig=setupRig(thumbStage,object);setRigDisplay(rig,'master');
    item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    const nFrames=8,frames=[];
    for(let i=0;i<nFrames;i++){
@@ -268,10 +277,10 @@ async function select(item){
  try{
    await delay();const bytes=await bufferFor(item);if(token!==selectedLoadToken)return;
    const fbx=loader.parse(bytes,'');if(token!==selectedLoadToken)return;
-   const rig=setupRig(mainStage,fbx);
+   const rig=setupRig(mainStage,fbx);setRigDisplay(rig,viewMode);
    mainRig=rig;item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
-   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.bones.size} animated bones · Original FBX motion (not VRM-retargeted).`;
+   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.bones.size} animated bones · Native Mixamo bones · no retargeting.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+(e?.message||'Unknown error'));$('selectedStatus').textContent='Try another clip. The game itself is unaffected.';mainRig=null;}}
@@ -286,7 +295,7 @@ function renderLoop(now){
   poseRig(mainStage,currentT,$('rootMotion').checked);
   if(viewMode==='character'&&charPreview?.hasModel()&&charPreview.who()===actionFighter){
    try{charPreview.sample(mainRig,currentT,(opts&&Action.findImport(imported,opts)===current)?opts.yaw:0);charPreview.render();}
-   catch(e){console.warn('Character preview stopped safely',e);setActionHelp('Retarget preview issue: '+e.message+' · Original animation remains available.');switchView('original');}
+   catch(e){console.warn('Character preview stopped safely',e);setActionHelp('Retarget preview issue: '+e.message+' · Original animation remains available.');switchView('master');}
   }
   $('scrub').value=Math.round(1000*currentT/dur);
   $('timing').textContent=`${currentT.toFixed(1)} / ${dur.toFixed(1)}s`;
@@ -367,16 +376,17 @@ async function showCharacter(){
   charPreview.render();$('viewerOverlay').hidden=true;
   $('viewerType').textContent='Experimental '+displayActor()+' retarget';
   $('selectedStatus').textContent='Preview on '+displayActor()+'. Look for shoulder twisting, knee reversal or feet crossing. This does not change gameplay.';
- }catch(e){if(token!==charToken)return;console.warn('VRM preview unavailable',e);setActionHelp('Could not load fighter preview: '+e.message+'. Original Mixamo view still works.');switchView('original');}
+ }catch(e){if(token!==charToken)return;console.warn('VRM preview unavailable',e);setActionHelp('Could not load fighter preview: '+e.message+'. Original Mixamo view still works.');switchView('master');}
 }
 function switchView(mode){
- viewMode=mode;const isChar=mode==='character';
+ viewMode=mode;const isChar=mode==='character';setRigDisplay(mainRig,mode);
  $('viewer').hidden=isChar;$('characterViewer').hidden=!isChar;
- $('viewOriginal').classList.toggle('tab-on',!isChar);$('viewCharacter').classList.toggle('tab-on',isChar);
+ $('viewOriginal').classList.toggle('tab-on',mode==='original');$('viewMaster').classList.toggle('tab-on',mode==='master');$('viewCharacter').classList.toggle('tab-on',isChar);
  if(isChar){if(!mainRig){setActionHelp('Select or assign an animation to preview it on the character.');return;}showCharacter();}
- else {++charToken;$('viewerOverlay').hidden=!mainRig;$('viewerType').textContent='Original Mixamo skeleton';$('selectedStatus').textContent=mainRig?'Showing unmodified original Mixamo motion.':'Select an animation to preview.';}
+ else {++charToken;$('viewerOverlay').hidden=!mainRig;$('viewerType').textContent=mode==='master'?'Master body · native Mixamo rig':'Original Mixamo diagnostic';$('selectedStatus').textContent=mainRig?(mode==='master'?'Clean body follows Mixamo bones directly — no retargeting.':'Diagnostic mannequin shows unmodified Mixamo motion.'):'Select an animation to preview.';}
 }
 $('viewOriginal').addEventListener('click',()=>switchView('original'));
+$('viewMaster').addEventListener('click',()=>switchView('master'));
 $('viewCharacter').addEventListener('click',()=>switchView('character'));
 $('actionFighter').addEventListener('change',e=>{actionFighter=e.target.value;activeAction='idle';refreshActionSlots();if(viewMode==='character')showCharacter();});
 $('tuneSpeed').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.speed=Number(e.target.value);$('tuneSpeedValue').textContent=ref.speed.toFixed(2)+'×';saveActions();});

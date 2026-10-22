@@ -1,0 +1,15 @@
+{
+  "id": "mixamo_master_01",
+  "version": "60.1",
+  "kind": "native_mixamo_runtime_humanoid",
+  "visual_source": "original procedural geometry, no copied game avatar meshes",
+  "body_asset": "model.js",
+  "rig_source": "exact bones from the imported Mixamo FBX animation",
+  "required_bones": [
+    "hips", "spine", "spine1", "spine2", "neck", "head",
+    "leftarm", "leftforearm", "lefthand", "rightarm", "rightforearm", "righthand",
+    "leftupleg", "leftleg", "leftfoot", "rightupleg", "rightleg", "rightfoot"
+  ],
+  "preview_mode": "direct attachment, not quaternion retargeting",
+  "notes": "Runtime proof-of-compatibility/reference model with weighted body segments. Not yet a continuous production-ready mesh or standalone VRM/GLB. Never automatically replaces playable fighter assets."
+}

@@ -1,0 +1,27 @@
+SKY CLASH V60 - CLEAN NATIVE MIXAMO MASTER (STUDIO ONLY)
+
+This update is built for your currently deployed V58 Action Studio.
+
+Extract the ZIP at the repository root, keeping paths:
+  animation-studio.html
+  js/animation-studio.js
+  assets/characters/master/model.js
+  assets/characters/master/manifest.json
+  docs/V60-MASTER-BASE.md
+  tests/v60-master-base.js
+
+No playable-game JS or old character VRMs are replaced.
+
+Open https://theo524.github.io/sky-clash/animation-studio.html
+Import your cleaned Mixamo FBX ZIP, select an animation, then switch:
+  Master base (native bones, first preview)
+  Bone diagnostic (original FBX skeleton)
+  On character (old experimental VRM retarget preview)
+
+The clean master is a wholly new reference body generated from geometry
+attached to your FBX's *native* Mixamo bones. This first milestone is a smoothly weight-bent reference body, NOT a
+finished, fully integrated VRM/GLB avatar. It proves bone compatibility and
+lets you compare animations without risking either fighter in the game.
+
+The master file is `assets/characters/master/model.js` and can later be
+replaced with a polished skin following the same Mixamo rig interface.
