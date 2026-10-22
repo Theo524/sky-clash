@@ -20,7 +20,7 @@ assert.strictEqual(asset.source,'Movement/Standard/walking - Standard Movement.f
 assert.strictEqual(asset.source_sha256,'e9e7c3446f79f526d66ff61bb2a6e8cdaf1721dc5cb3da63d79c3d09b2979f0b');
 assert.strictEqual(asset.frames,32);
 assert.deepStrictEqual(asset.bones,['hips','leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot']);
-assert(index.includes('js/v66-game-boot.js?v=710'),'page loads V71 boot');
+assert(index.includes('js/v66-game-boot.js?v=720'),'page loads updated V72 boot including V71 game walking');
 assert(source.includes("await script('js/v71-mixamo-gameplay.js?v=710')"));
 assert(source.includes('SkyClashV71Walk.start(window)'));
 assert(M.manifest['kairo.walk'].revision===1);
