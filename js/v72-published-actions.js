@@ -52,6 +52,13 @@
   if(fighter.hp<=0)return null;
   const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
   const airborne=!!(fighter.jumping||fighter.flying||fighter.launched||fighter.spiked);
+  // Record the Boost release before airborne, landing, guard or acrobatics
+  // can return early. A stop gesture is armed only for a REAL grounded Boost
+  // skid, never for ordinary joystick running or a midair release.
+  const releasedBoost=!!fighter._v82WasBoost&&!fighter.sprinting;
+  fighter._v82WasBoost=!!fighter.sprinting;
+  if(releasedBoost&&!airborne&&(fighter.skidT||0)>0)
+   fighter._v82BoostStopEnd=(fighter.t||0)+.72;
   // V77: choose ONLY an expressly published slot in the active gameplay
   // state. In particular, an idle-only Studio export must NEVER play during
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
@@ -86,11 +93,6 @@
   if(fighter.landingMotionT>0&&!fighter.sprinting)return actions.landing?'landing':null;
   if(fighter.acro&&fighter.acro.type!=='landing')return null;
   if(fighter.dashing)return actions.dodge?'dodge':null;
-  // Only the actual completed super-speed Boost arms its stopping gesture.
-  // It lasts long enough to see while physics still handles ground contact.
-  if(fighter._v82WasBoost&&!fighter.sprinting&&fighter.skidT>0)
-   fighter._v82BoostStopEnd=(fighter.t||0)+.72;
-  fighter._v82WasBoost=!!fighter.sprinting;
   const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
   if(!fighter.sprinting&&actions.runStop&&
      (fighter.t||0)<(fighter._v82BoostStopEnd||-1)&&stick<.65)
