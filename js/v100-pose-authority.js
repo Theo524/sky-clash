@@ -46,7 +46,8 @@
   const st={rig:null,nodes:[],bind:[],side:null,phase:null,elapsed:0,
     exitElapsed:0,frames:0,prev:[],from:[],samples:[],
     wristAnchor:[],armAnchor:[],fingerNodes:[],fingerRest:[],
-    maxWristExcursion:0,clipsUsed:[]};
+    maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
+    jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -76,6 +77,8 @@
    st.prev=nodes.map(n=>n.quaternion.clone());
    st.from=nodes.map(n=>n.quaternion.clone());
    st.phase=null;st.elapsed=0;st.exitElapsed=0;
+   st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+   st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -83,8 +86,28 @@
      if(n){st.fingerNodes.push(n);st.fingerRest.push(n.quaternion.clone());}
     }
   }
-  function begin(next,visible){
+  function begin(next,visible,fighter){
+   const previous=st.phase;
    st.phase=next;st.elapsed=0;st.exitElapsed=0;
+   // V103: a running takeoff MUST inherit the last actually displayed
+   // walking/running stride. Never keep cycling walk/run legs while airborne.
+   // Capture just once from ground -> jump; the fall phase keeps that
+   // momentum context without grabbing the incoming fall clip as a new base.
+   if(next==='jump'&&previous!=='jump'&&previous!=='fall'){
+    const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
+    st.launchSpeed=speed;
+    // V71 resets v80AnalogRun as soon as jumping=true. Read the last
+    // confirmed GROUNDED gait instead of a flag already cleared by V71.
+    st.launchGait=st.groundWasRun?'run':speed>1.3?'walk':'stationary';
+    const amount=smooth((speed-1.3)/(6.2-1.3));
+    st.launchCarry=speed>1.3?.15+.17*amount:0;
+    st.launchLegs=st.launchCarry>0?
+      visible.slice(14,20).map(q=>q.clone()):[];
+    st.jumpAge=0;
+   }
+   if(next==='landing'){
+    st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+   }
    for(let i=0;i<BONES.length;i++)st.from[i].copy(visible[i]);
    // Keep the first grounded wrist/arm stance for the whole airborne arc.
    // A jump->fall phase change does not arbitrarily recapture the wrist.
@@ -125,6 +148,9 @@
    // against the actual last displayed V100 pose, never the procedural rig
    // that gets rewritten beneath the final owner on every update.
    const steadyLegs=params.get('airLegs')==='steady'&&
+     (next==='jump'||next==='fall');
+   const carryJump=params.get('movingJump')==='carry'&&
+     steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
    const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
@@ -171,6 +197,18 @@
      qRaw.copy(qTarget);
      qTarget.slerpQuaternions(st.from[i],qRaw,weight).normalize();
     }
+    if(carryJump&&i>=14){
+     // Velocity-aware *static* launch-stride inheritance: ~15%-32% of
+     // the last grounded leg pose, decreasing toward the apex/descent.
+     // Preserves actual left/right lead leg from the approved V95 gait.
+     // No synthetic stride loop, pelvis translation, or foot-direction
+     // inversion (the V93 mistake) is introduced.
+     const fade=1-.88*smooth((st.jumpAge-.10)/.70);
+     const carry=st.launchCarry*fade;
+     qTmp.copy(qTarget);
+     qTarget.slerpQuaternions(qTmp,st.launchLegs[i-14],carry).normalize();
+     status.movingJumpWeight=carry;
+    }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
      // original clips still drive the targets, but cannot twitch across
@@ -215,6 +253,7 @@
        (this.acro&&this.acro.type!=='landing');
      if(interrupted){
       st.phase=null;st.wristAnchor=[];st.armAnchor=[];
+      st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
       // The previous visible pose is now the interrupting combat/fly
       // controller, not the last V100 jumping frame.
       for(let i=0;i<BONES.length;i++)
@@ -232,7 +271,8 @@
       }
       st.rig.vrm.update(0);
       status.active=w>=1?'grounded-owner':'return-to-ground';
-      if(w>=1){st.phase=null;st.wristAnchor=[];st.armAnchor=[];}
+      if(w>=1){st.phase=null;st.wristAnchor=[];st.armAnchor=[];
+       st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;}
      }else{
       status.active='grounded-owners-preserved';
       // Crucial for V102: V100 is still attached while the older approved
@@ -241,12 +281,15 @@
       // from the very first frame, causing a large leg snap at takeoff.
       for(let i=0;i<BONES.length;i++)
        st.prev[i].copy(st.nodes[i].quaternion);
+      st.groundWasRun=!!this.v80AnalogRun&&!this.jumping&&!this.flying;
+      status.movingJumpWeight=0;
      }
      return;
     }
     const visible=before||st.nodes.map(n=>n.quaternion.clone());
-    if(st.phase!==state)begin(state,visible);
+    if(st.phase!==state)begin(state,visible,this);
     st.elapsed+=safe;
+    if(state==='jump'||state==='fall')st.jumpAge+=safe;
     const clips=root.SkyClashPublishedActions.motionClips;
     const slot=clipFor(state),clip=clips[slot];
     if(!clip)throw Error('V100 missing recorded pose '+slot);
@@ -262,6 +305,11 @@
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
     status.active=state;status.frames=st.frames;
+    status.movingJump=new URLSearchParams(root.location?.search||'')
+      .get('movingJump')==='carry'&&st.launchCarry>0&&
+      (state==='jump'||state==='fall')?
+      'V103 '+st.launchGait+' takeoff '+st.launchSpeed.toFixed(1):
+      'V102 standing baseline';
     status.legStyle=new URLSearchParams(root.location?.search||'')
       .get('airLegs')==='steady'&&(state==='jump'||state==='fall')?
       'V102 frame-bounded knees and ankles':state==='landing'?
