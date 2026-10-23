@@ -136,19 +136,30 @@ assert(['idle3','idle4','idle5','idleAdventure'].includes(first),
 idle.vel.x=3;
 assert.strictEqual(extras.choose(idle,motions,.1),null,'Joystick input cancels idle gesture');
 
-const sprint=actor();sprint.sprinting=true;sprint.vel.z=8;
+const normalRun=actor();normalRun.vel.z=8;
+extras.choose(normalRun,motions,.1);normalRun.vel.z=.1;
+assert.notStrictEqual(extras.choose(normalRun,motions,.1),'runStop',
+ 'Joystick-only running must NEVER trigger a Boost stop');
+const sprint=actor();sprint.sprinting=true;sprint.vel.z=18;
 extras.choose(sprint,motions,.1);
-sprint.sprinting=false;sprint.vel.z=4;
-extras.choose(sprint,motions,.1);
+sprint.sprinting=false;sprint.vel.z=5;
+assert.strictEqual(extras.choose(sprint,motions,.1),'runStop',
+ 'Releasing real Boost on the ground triggers braking clip');
 sprint.vel.z=.2;
-assert.strictEqual(extras.choose(sprint,motions,.1),'runStop','High-speed run to standing stop triggers braking clip');
 sprint.punchT=.3;
 assert.strictEqual(extras.choose(sprint,motions,.1),null,'Punch cancels run-stop instantly');
 
-const fall=actor();fall.jumping=true;fall.vel.y=-4;
-assert.strictEqual(extras.choose(fall,motions,.033),'fallingIdle','Descending in air enters falling loop');
-fall.jumping=false;fall.vel.y=0;
-assert.strictEqual(extras.choose(fall,motions,.033),'fallToRoll','Landing after descent plays rolling landing');
+const littleJump=actor();littleJump.jumping=true;littleJump.pos={y:1.4};littleJump.floor=0;
+littleJump.vel.y=-4;
+assert.strictEqual(extras.choose(littleJump,motions,.033),'fallingIdle');
+littleJump.jumping=false;littleJump.pos.y=0;littleJump.vel.y=0;
+assert.notStrictEqual(extras.choose(littleJump,motions,.033),'fallToRoll',
+ 'Ordinary low jump MUST NOT cause a big forward tumble');
+const fall=actor();fall.jumping=true;fall.pos={y:6};fall.floor=0;fall.vel.y=-9;fall.vel.z=3;
+assert.strictEqual(extras.choose(fall,motions,.033),'fallingIdle','Fast drop descends in a loop');
+fall.jumping=false;fall.pos.y=0;fall.vel.y=0;
+assert.strictEqual(extras.choose(fall,motions,.033),'fallToRoll',
+ 'Only substantial falls with horizontal momentum produce a roll');
 fall.blocking=true;
 assert.strictEqual(extras.choose(fall,motions,.033),null,'Block or hit cancels landing roll');
 const flight=actor();flight.flying=true;flight.vel.y=0;
