@@ -459,6 +459,13 @@ class VRMRig {
     this.hipRestY = hip.y; this.hipsRest = this.b.hips.position.clone();
     vrm.scene.scale.setScalar(this.scale);
     m.root.add(vrm.scene);
+    // V104: a loaded VRM may arrive *after* game rendering has begun.
+    // Do not expose its rest/T-pose or procedural arms while V72/V76/V81
+    // complete the first visible idle frames. Only Kairo-like rigs are
+    // gated; the approved motion data and Rin's separate rig stay intact.
+    this.startupPoseHidden=!!(window.SKY_V104_STARTUP_GATE&&opts.studioHands);
+    this.startupPoseFrames=0;
+    if(this.startupPoseHidden)vrm.scene.visible=false;
     // hide the blocky body; keep its joints for animation
     m.parts.forEach(p => p.visible = false);
     vrm.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
@@ -672,6 +679,9 @@ async function loadVRMInto(fighter, source, opts) {
 function renderVRMPortrait(fighter) {
   const size = 128, rig = fighter.vrmRig, vs = rig.vrm.scene, parent = vs.parent;
   const beforePos = vs.position.clone(), beforeQuat = vs.quaternion.clone();
+  // The portrait renderer is offscreen; make the gated model visible
+  // there without revealing its unready pose in the live arena.
+  const beforeVisible=vs.visible;vs.visible=true;
   const ps = new THREE.Scene();
   ps.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.6));
   const d = new THREE.DirectionalLight(0xffffff, 2.0); d.position.set(1, 2, 3); ps.add(d);
@@ -684,7 +694,8 @@ function renderVRMPortrait(fighter) {
   renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(ps, cam);
   const px = new Uint8Array(size * size * 4); renderer.readRenderTargetPixels(rt, 0, 0, size, size, px);
   renderer.setRenderTarget(null); rt.dispose(); parent.add(vs);
-  vs.position.copy(beforePos); vs.quaternion.copy(beforeQuat); vs.updateMatrixWorld(true);
+  vs.position.copy(beforePos); vs.quaternion.copy(beforeQuat);
+  vs.visible=beforeVisible;vs.updateMatrixWorld(true);
   const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d'); const img = g.createImageData(size, size);
   for (let y = 0; y < size; y++) img.data.set(px.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
   g.putImageData(img, 0, 0); return c.toDataURL();
