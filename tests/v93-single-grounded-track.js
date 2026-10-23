@@ -53,7 +53,7 @@ const f={hp:100,vrmRig:rig,vel:new THREE.Vector3(),moveIntent:new THREE.Vector3(
 const status={ready:true,frames:0,active:'waiting',error:null};
 assert(V93.attach(THREE,f,clips,status));
 function snap(){return V93.BONES.map(n=>bones[n].getWorldQuaternion(new THREE.Quaternion()));}
-let worst=0,frames=0;
+let worst=0,worstAt='',frames=0;
 function tick(mode,count,speed,radius){
  f.v89Step.mode=mode;f.v89Step.scale=mode==='anticipate'?0:1;
  f.moveIntent.z=speed?1:0;f.vel.z=speed;
@@ -66,7 +66,7 @@ function tick(mode,count,speed,radius){
   // hierarchical movement. Record diagnostics, but don't hide a bad pose
   // behind stage assertions alone.
   const now=snap(),max=Math.max(...prior.map((q,i)=>q.angleTo(now[i])));
-  worst=Math.max(max,worst);
+  if(max>worst){worst=max;worstAt=mode+' frame '+j+' angle '+(max*180/Math.PI).toFixed(1)+'deg';}
   frames++;
  }
 }
@@ -88,7 +88,7 @@ assert.equal(status.active,'approved-idle');
 const returnPose=snap();
 assert(returnPose.every((q,i)=>q.angleTo(idlePose[i])<.60),
  'standing returns to the same approved idle family, not raised boxing arms');
-assert(worst<1.1,'no single-frame full-body teleport in grounded motion');
+assert(worst<1.1,'no single-frame full-body teleport in grounded motion: '+worstAt);
 assert(status.frames===frames,'one owner sampled every frame');
 assert(!f.v76UpperBody,'second fighting-idle writer was not attached');
 assert(!f.v71Walk,'second walk-leg writer was not attached');
