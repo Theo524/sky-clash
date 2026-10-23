@@ -5,6 +5,12 @@
 (async function(){
  'use strict';
  const store=window.SkyClashCharacterStore;
+ // One public release identity. V71/V76/V97 are historical component
+ // revisions, NOT the currently deployed game build number.
+ const BUILD='V101';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:101,
+  preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
+   'compact-jump-guard':'existing-animation'});
  function script(src){
   return new Promise((resolve,reject)=>{
    const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v76-upper-body')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(new URLSearchParams(location.search).get('stance')==='unified'?'&fix=92':['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&fix=91':new URLSearchParams(location.search).get('stance')==='legacy90'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
@@ -39,6 +45,9 @@
       ['v71-mixamo-gameplay','v76-upper-body','v72-published-actions',
        'v81-pose-transitions'].some(k=>src.includes(k)))
      e.src+='&poseOwner=100';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpArms')==='compact')
+     e.src+='&arms=101';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -122,7 +131,7 @@
     background:'rgba(9,18,30,.92)',color:'#e2f7ff',border:'1px solid #7097a7',
     padding:'9px 12px',font:'12px/1.45 monospace',borderRadius:'9px',
     zIndex:'99999',pointerEvents:'none',whiteSpace:'pre-line'});
-   label.textContent=stepLab?'FIRST-STEP LAB V89 — preparing fighter…':'WALK TEST V88 — preparing fighter…';
+   label.textContent='SKY CLASH BUILD '+BUILD+' — checking active animation controllers…';
    document.body.appendChild(label);
    window.setInterval(()=>{
     const g=window.SkyClash?.Game,p=g?.player;
@@ -130,8 +139,21 @@
     const walk=window.SkyClashGameplayMotions?.weight||0;
     const mode=p?.sprinting?'BOOST':p?.v80AnalogRun?'RUN':'WALK / IDLE';
     const step=p?.v89Step?.mode||'idle';
+    const flags=new URLSearchParams(location.search);
+    const unifiedAir=flags.get('animator')==='unified';
+    const compactAir=flags.get('jumpArms')==='compact';
+    const airOwner=window.SkyClashPoseAuthority;
+    const airMode=unifiedAir?
+      airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
+        ' ('+(airOwner.active||'ready')+')':
+      'UNAVAILABLE ('+(airOwner?.active||'loading')+')':'LEGACY';
+    const groundMode=anchoredArmLab?'V97 APPROVED':
+      joystickLab?'V95 JOYSTICK':handoffLab?'V94 HANDOFF':
+      stepLab?'V89 STEP':'DEFAULT';
     label.textContent=stepLab?
-     (anchoredArmLab?'APPROVED IDLE ARMS · V97\n':steadyArmLab?'STEADY ARMS · V96\n':joystickLab?'JOYSTICK WALK / RUN · V95\n':handoffLab?'POSE BLEND REPAIR · V94\n':unifiedLab?'UNIFIED IDLE ARMS · V92\n':continuousLab?'IDLE / WALK CONTINUITY · V91\n':stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
+     'SKY CLASH · BUILD '+BUILD+'\n'+
+     'GROUND: '+groundMode+' | JUMP: '+airMode+'\n'+
+     'LAND: V100 UNCHANGED · JUMP-ARM TEST ONLY\n'+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
