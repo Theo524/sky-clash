@@ -18,9 +18,11 @@
       (src.includes('js/game.js')||src.includes('v71-mixamo-gameplay')||
        src.includes('v72-published-actions')))e.src+='&jrun=95';
    if(src.includes('v79-extra-actions')&&
-      ['steady','anchored'].includes(new URLSearchParams(location.search).get('idleArms')))
-     e.src+='&idle='+(
-       new URLSearchParams(location.search).get('idleArms')==='anchored'?'97':'96');
+      new URLSearchParams(location.search).get('idleArms')==='steady')
+     e.src+='&idle=96';
+   if(src.includes('v79-extra-actions')&&
+      new URLSearchParams(location.search).get('idleArms')==='anchored')
+     e.src+='&idle=97';
    if(['v76-upper-body','v72-published-actions'].some(k=>src.includes(k))&&
       new URLSearchParams(location.search).get('idleArms')==='anchored')
      e.src+='&arm=97';
