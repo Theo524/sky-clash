@@ -14,12 +14,17 @@
  'use strict';
  const PATH='assets/animations/gameplay/studio-actions-v1.json';
  const OVERRIDES='assets/animations/gameplay/v81-recorded-actions.json';
+ const UE5_PACK='assets/animations/gameplay/v86-ue5-converted-actions.json';
+ // Safe rollback: ?ue5=off restores all earlier published Studio motions.
+ const UE5_ACTIVE=new Set(['guard','jump','landing','runStop',
+  'floating','flying','fallingIdle']);
+
  const BONES=['hips','spine','chest','upperChest','neck','head',
   'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
   'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
   'leftUpperLeg','leftLowerLeg','leftFoot',
   'rightUpperLeg','rightLowerLeg','rightFoot'];
- const LOOP=new Set(['idle','walk','run','guard','boost']);
+ const LOOP=new Set(['idle','walk','run','guard','boost','floating','flying','fallingIdle']);
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -89,9 +94,18 @@
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
   if(airborne){
-   if(fighter.dropping||fighter.flying||fighter.launched||fighter.spiked)return null;
+   if(fighter.launched||fighter.spiked)return null;
+   // Controlled flight is NOT an uncontrolled gravity fall.
+   if(fighter.flying){
+    const fast=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>3;
+    if(fast&&actions.flying)return 'flying';
+    return actions.floating?'floating':null;
+   }
    if(fighter.jumping&&(fighter.vel?.y||0)>0&&
       fighter.acro?.type!=='flip')return actions.jump?'jump':null;
+   // Non-powered gravity descent only (includes double-tap fly cancel).
+   if((fighter.dropping||fighter.jumping&&(fighter.vel?.y||0)<-1)&&
+      actions.fallingIdle)return 'fallingIdle';
    return null;
   }
   // Recorded landing takes priority over the old procedural landing acro.
@@ -308,6 +322,30 @@
      }
     }
    }catch(e){console.warn('V81 recorded combat/boost poses unavailable',e);}
+   // V86 adds genuine, offline-baked UE5/Quinn Mixamo motions. The source
+   // FBX uses Z-up and pelvis/spine_01 naming; all joints are mapped into
+   // the SAME Y-up, world-bind-delta format as the older standard Mixamo
+   // library. Never replace the approved idle, Standard Run, or Boost.
+   if(new URLSearchParams(context.location?.search||'').get('ue5')!=='off'){
+    try{
+     const response=await context.fetch(UE5_PACK+'?v=860',{cache:'no-cache'});
+     if(response.ok){
+      const pack3=await response.json();
+      if(pack3?.schema==='sky-clash.studio-gamepack.v1'&&pack3.revision===1&&
+         Array.isArray(pack3.motions)&&pack3.motions.length===16){
+       const extras={};
+       for(const entry of pack3.motions){
+        if(entry.character!=='kairo')continue;
+        const motion=decode(context.THREE,entry);
+        extras[entry.slot]=motion;
+        if(UE5_ACTIVE.has(entry.slot))actions[entry.slot]=motion;
+       }
+       status.ue5Available=Object.keys(extras);
+       status.ue5Installed=[...UE5_ACTIVE].filter(name=>!!extras[name]);
+      }
+     }
+    }catch(e){status.ue5Error=String(e);console.warn('V86 UE5 motions unavailable; original animations retained',e);}
+   }
    if(!Object.keys(actions).length)return status;
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;

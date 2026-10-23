@@ -157,7 +157,20 @@ async function bufferFor(item){
  if(result?.repaired)item.repaired=true;
  return result?.buffer||buffer;
 }
-function norm(name){return String(name).split(':').pop().replace(/[^a-zA-Z0-9]/g,'').toLowerCase().replace(/^mixamorig\d*/,'');}
+const UNREAL_TO_MIXAMO=Object.freeze({
+ pelvis:'hips',spine01:'spine',spine02:'spine1',spine03:'spine2',
+ neck01:'neck',claviclel:'leftshoulder',upperarml:'leftarm',
+ lowerarml:'leftforearm',handl:'lefthand',
+ clavicler:'rightshoulder',upperarmr:'rightarm',
+ lowerarmr:'rightforearm',handr:'righthand',
+ thighl:'leftupleg',calfl:'leftleg',footl:'leftfoot',balll:'lefttoebase',
+ thighr:'rightupleg',calfr:'rightleg',footr:'rightfoot',ballr:'righttoebase'
+});
+function norm(name){
+ const n=String(name).split(':').pop().replace(/[^a-zA-Z0-9]/g,'')
+  .toLowerCase().replace(/^mixamorig\d*/,'');
+ return UNREAL_TO_MIXAMO[n]||n;
+}
 const BONE_CHAINS=[
  ['hips','spine','spine1','spine2','neck','head'],
  ['spine2','leftshoulder','leftarm','leftforearm','lefthand'],

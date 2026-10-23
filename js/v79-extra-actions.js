@@ -82,7 +82,9 @@
    // A proper roll needs a substantial FALL, horizontal motion, and floor
    // contact. Ordinary little jumps get the fighter's lightweight landing.
    s.active='fallToRoll';s.elapsed=0;s.rest=0;s.nextIdle=16;
-  }else if(descending&&actions.fallingIdle){
+  }else if(descending&&actions.fallingIdle&&
+            !root.SkyClashPublishedActions?.ue5Installed?.includes('fallingIdle')){
+   // V86: primary published UE5 fall already controls the same joints.
    s.active='fallingIdle';s.elapsed=0;
   }else if(new URLSearchParams(root.location?.search||'').get('boostStop')==='legacy'&&
            !inAir&&!f.sprinting&&s.boostStopWindow>0&&

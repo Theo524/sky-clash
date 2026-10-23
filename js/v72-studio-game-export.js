@@ -18,6 +18,21 @@
  ['leftupleg','leftUpperLeg'],['leftleg','leftLowerLeg'],['leftfoot','leftFoot'],
  ['rightupleg','rightUpperLeg'],['rightleg','rightLowerLeg'],['rightfoot','rightFoot']
  ];
+ // V86 UE5 Quinn Z-up FBX aliases. Three.js FBXLoader already handles
+ // source coordinate conversion to Y-up, so the existing WORLD bind-delta
+ // retarget remains intact; twist/IK helper bones must not override joints.
+ const UE5_ALIASES=Object.freeze({
+  pelvis:'hips',spine01:'spine',spine02:'spine1',spine03:'spine2',
+  neck01:'neck',head:'head',
+  claviclel:'leftshoulder',upperarml:'leftarm',lowerarml:'leftforearm',handl:'lefthand',
+  clavicler:'rightshoulder',upperarmr:'rightarm',lowerarmr:'rightforearm',handr:'righthand',
+  thighl:'leftupleg',calfl:'leftleg',footl:'leftfoot',
+  thighr:'rightupleg',calfr:'rightleg',footr:'rightfoot'
+ });
+ function canonical(name){
+  const key=norm(name);
+  return UE5_ALIASES[key]||key;
+ }
  const FPS=30,MAX_FRAMES=420,MAX_CLIPS=50;
  function norm(n){return String(n).split(':').pop().replace(/[^a-z0-9]/gi,'').toLowerCase().replace(/^mixamorig\d*/,'');}
  function encode(bytes){
@@ -32,7 +47,11 @@
   if(!clip)throw Error('No playable FBX animation');
   if(clip.duration>MAX_FRAMES/FPS)throw Error('Motion longer than 14 seconds; choose a shorter clip');
   const bones=new Map();
-  fbx.traverse(node=>{if(node.isBone&&!bones.has(norm(node.name)))bones.set(norm(node.name),node);});
+  fbx.traverse(node=>{
+   if(!node.isBone)return;
+   const key=canonical(node.name);
+   if(!bones.has(key))bones.set(key,node);
+  });
   if(!bones.has('hips')||!bones.has('leftarm')||!bones.has('rightarm'))
    throw Error('FBX does not contain a Mixamo humanoid skeleton');
   fbx.updateMatrixWorld(true);
@@ -100,7 +119,7 @@
    note:'Optimized motion samples for Sky Clash; no source FBX models or meshes. Commit the pack explicitly to publish.',
    generated:new Date().toISOString(),motions};
  }
- const api={bake,pack,MAP,FPS};
+ const api={bake,pack,MAP,FPS,canonical,UE5_ALIASES};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashGamePackExporter=api;
 })(typeof window!=='undefined'?window:globalThis);
