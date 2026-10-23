@@ -149,8 +149,13 @@
     state.transition=clamp(state.transition+safe*6.5,0,1);
     state.standClock+=safe;
     const walking=clamp(this.v71Walk?.weight||0,0,1);
-    const unified=new URLSearchParams(root.location?.search||'')
-      .get('stance')==='unified';
+    // V97: do not reveal the old Fighting Idle pose when the joystick
+    // stops. Reuse the user's approved idle (2) world-rest rotations for
+    // all eight shoulder, elbow and wrist joints. The V94 final handoff
+    // still blends between last visible walking pose and the real idle.
+    const armMode=new URLSearchParams(root.location?.search||'');
+    const unified=armMode.get('stance')==='unified'||
+      armMode.get('idleArms')==='anchored';
     const approved=unified?root.SkyClashPublishedActions?.approvedIdle:null;
     if(approved?.sample&&JSON.stringify(approved.bones)===JSON.stringify(APPROVED_BONES)){
      if(state.approvedClip!==approved){
@@ -175,6 +180,7 @@
         .multiply(state.approvedBasisInv).normalize();
      }
      status.idleSource='approved-idle (2)';
+     status.anchoredIdle=armMode.get('idleArms')==='anchored';
     }else{
      idle.sample(state.standClock,state.idlePose);
      status.idleSource='legacy-fighting-idle';
