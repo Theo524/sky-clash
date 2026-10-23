@@ -127,7 +127,7 @@ function check(){
  assert(authority.clipsUsed.includes('landing'));
  f.landingMotionT=0;
  u.step(16);
- assert.equal(authority.active,'grounded-owner');
+ assert.equal(authority.active,'grounded-owners-preserved');
  assert(u.count().primary>before.primary,
    'grounded approved idle recorder resumes after landing');
  u.step(130);
