@@ -27,18 +27,31 @@
    let seed=0x1c3a59ef;
    for(const c of String(f.name||'Kairo'))seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
    s={clock:0,rest:0,nextIdle:12,variant:0,lastVariant:null,seed,
-    active:null,elapsed:0,wasAir:false,wasDescending:false,speed:0,runAge:99};
+    active:null,elapsed:0,wasAir:false,wasDescending:false,speed:0,
+    boostWasActive:false,boostStopWindow:0,fallHeight:0,fallSpeed:0,runAge:99};
    STATE.set(f,s);
   }
   dt=clamp(Number.isFinite(dt)?dt:0,0,.08);
   const speed=speedOf(f);
   const wasAir=s.wasAir,wasDescending=s.wasDescending;
   const inAir=!!(f.jumping||f.flying||f.launched||f.spiked);
-  const descending=inAir&&!f.flying&&(f.vel?.y||0)<-1.1;
+  const descending=inAir&&!f.launched&&!f.spiked&&(f.vel?.y||0)<-1.1;
+  // Only an explicit Boost->non-Boost change can arm the dramatic stop.
+  // Normal analog walk/run must never trigger it, even at full joystick.
+  const boostFinished=s.boostWasActive&&!f.sprinting;
+  s.boostWasActive=!!f.sprinting;
+  if(boostFinished&&!inAir)s.boostStopWindow=.62;
+  else s.boostStopWindow=Math.max(0,s.boostStopWindow-dt);
+  if(inAir){
+   s.fallHeight=Math.max(s.fallHeight,Math.max(0,(f.pos?.y||0)-(f.floor||0)));
+   if(descending)s.fallSpeed=Math.max(s.fallSpeed,Math.abs(f.vel?.y||0));
+  }
+  const landedAfterDrop=wasDescending&&!inAir&&s.fallHeight>4.4&&s.fallSpeed>6.5;
+  if(!inAir&&!wasAir&&!wasDescending){s.fallHeight=0;s.fallSpeed=0;}
   const hostile=f.hp<=0||f.punchT>0||f.blastT>0||f.superHitT>0||
    f.stun>0||f.downT>0||f.slamming||f.blocking||f.blockHeld||
    f.charging||f.dashing||f.acro;
-  if(speed>5.2||f.sprinting)s.runAge=0;else s.runAge+=dt;
+  if(f.sprinting)s.runAge=0;else s.runAge+=dt;
   s.wasAir=inAir;s.wasDescending=descending;
   s.clock+=dt;
   if(hostile){
@@ -47,7 +60,8 @@
   }
   if(s.active){
    if(s.active==='fallingIdle'&&!descending)s.active=null;
-   else if(s.active==='runStop'&&(speed>1.3||inAir))s.active=null;
+   else if(s.active==='runStop'&&(inAir||f.sprinting||
+            Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)>.72))s.active=null;
    else if(s.active.startsWith('idle')&&(inAir||speed>.6))s.active=null;
    else if(s.active==='fallToRoll'&&(inAir||speed>3.8))s.active=null;
    else if(s.active!=='fallingIdle'){
@@ -60,13 +74,17 @@
   }
   // A falling-to-roll is selected only on transition from a downward
   // fall into grounded movement. Don't roll from ordinary jump ascent/flight.
-  if(wasDescending&&!inAir&&!f.sprinting&&actions.fallToRoll){
+  if(landedAfterDrop&&!f.sprinting&&speed>2.4&&actions.fallToRoll){
+   // A proper roll needs a substantial FALL, horizontal motion, and floor
+   // contact. Ordinary little jumps get the fighter's lightweight landing.
    s.active='fallToRoll';s.elapsed=0;s.rest=0;s.nextIdle=16;
   }else if(descending&&actions.fallingIdle){
    s.active='fallingIdle';s.elapsed=0;
-  }else if(!inAir&&!f.sprinting&&speed<.85&&s.runAge<1.15&&
-           s.speed>=.85&&actions.runStop){
-   s.active='runStop';s.elapsed=0;s.rest=0;s.runAge=99;s.nextIdle=14;
+  }else if(!inAir&&!f.sprinting&&s.boostStopWindow>0&&
+           speed>1.3&&Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)<.52&&
+           actions.runStop){
+   // Boost release only; let the native ground skid drive translation/feet.
+   s.active='runStop';s.elapsed=0;s.rest=0;s.boostStopWindow=0;s.nextIdle=14;
   }else if(!inAir&&!f.sprinting&&speed<.42){
    s.rest+=dt;
    if(s.rest>=s.nextIdle){
@@ -82,6 +100,7 @@
     }
    }
   }else{s.rest=0;s.nextIdle=12+((s.seed>>>16)%15);}
+  if(!inAir&&wasAir){s.fallHeight=0;s.fallSpeed=0;}
   s.speed=speed;
   return s.active;
  }
