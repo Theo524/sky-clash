@@ -30,7 +30,7 @@
   if(f.sprinting)return 'boost';
   if(f.landingMotionT>0)return 'landing';
   // A grounded Boost stop is distinct from a new run/walk cycle.
-  if((f.skidT||0)>0&&(f.t||0)<(f._v82BoostStopEnd||-1)&&
+  if((f.t||0)<(f._v82BoostStopEnd||-1)&&
      Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)<.8)
    return 'boost-stop';
   const speed=Math.hypot(f.vel?.x||0,f.vel?.z||0);
