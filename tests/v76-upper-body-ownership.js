@@ -88,7 +88,8 @@ assert(f.v76UpperBody.airWeight>.8);
 const jumpPose=pose('leftUpperArm');
 assert(jumpPose.angleTo(stopped)<.3,'Starting a jump should keep most of the grounded stance');
 for(let i=0;i<9;i++)frame();
-assert(f.v76UpperBody.airWeight<.1,'In-air pose should gradually release to the flight controller');
+assert(f.v76UpperBody.airWeight>=.31&&f.v76UpperBody.airWeight<.7,
+ 'Hovering keeps some grounded Mixamo elbow bend instead of returning to rigid procedural arms');
 f.jumping=false;frame();
 assert(f.v76UpperBody.transition>0&&f.v76UpperBody.transition<.15,'Landing smoothly resumes the grounded pose');
 for(let i=0;i<20;i++)frame();
