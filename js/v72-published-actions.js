@@ -18,7 +18,7 @@
  const COMBAT_PACK='assets/animations/gameplay/v87-recorded-combat.json';
  const COMBAT_SLOTS=new Set(['punch1','punch2','punch3','overhand','airStrike','kick','sideKick']);
  // Safe rollback: ?ue5=off restores all earlier published Studio motions.
- const UE5_ACTIVE=new Set(['guard','jump','landing','runStop',
+ const UE5_ACTIVE=new Set(['guard','jump','landing','fallingToLanding','runStop',
   'floating','flying','fallingIdle']);
 
  const BONES=['hips','spine','chest','upperChest','neck','head',

@@ -316,6 +316,87 @@ function movingTakeoffRegression(){
  assert(/BUILD V10[3-9]/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
+function contactLandingRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry';
+ function run(withContact,impactSpeed=14){
+  const u=setup(url+(withContact?'&landingLab=contact':''));
+  u.step(130);
+  const grounded=u.pose();
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
+  u.step(24);
+  u.f.vel.y=-10;u.step(17);
+  const fall=u.pose(),counters=u.count();
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;u.f.landingMotionT=.48;
+  u.f.v105ContactSerial=1;u.f.v105ImpactSpeed=impactSpeed;
+  const poses=[];
+  for(let frame=0;frame<28;frame++){
+   const before=u.pose();u.step(1);
+   const now=u.pose();
+   const delta=Math.max(...now.map((q,i)=>q.angleTo(before[i])));
+   poses.push({pose:now,delta,phase:u.authority.landingPhase,
+    recovery:u.authority.landingRecovery});
+   assert.equal(u.authority.active,'landing');
+   assert.deepEqual(u.count(),counters,
+    'a second VRM animator must never overwrite the landing pose');
+  }
+  assert.equal(u.authority.contactSerial,1);
+  assert.equal(u.authority.impactSpeed,impactSpeed);
+  return {u,grounded,fall,poses,last:u.pose()};
+ }
+ const legacy=run(false),contact=run(true),light=run(true,5);
+ assert.equal(contact.u.authority.landingStyle,'V105 contact / absorb / recover');
+ assert.equal(legacy.u.authority.landingStyle,'V100 recorded');
+ assert(contact.u.authority.clipsUsed.includes('fallingToLanding'),
+  'V105 must use the existing Mixamo falling-to-landing recording');
+ assert(!legacy.u.authority.clipsUsed.includes('fallingToLanding'),
+  'rollback stays with the old standing-land recording');
+ assert(contact.poses.some(p=>p.phase==='contact'));
+ assert(contact.poses.some(p=>p.phase==='absorb'));
+ assert(contact.poses.some(p=>p.phase==='recover'));
+ assert(contact.poses.at(-1).recovery>=99,'collision contact must finish at approved guard');
+ assert(contact.poses[0].delta<.48,
+  'the first contact frame must crossfade FROM the actual falling pose');
+ let bent=0;
+ for(let i=14;i<20;i++)
+  bent=Math.max(bent,contact.poses[11].pose[i].angleTo(contact.grounded[i]));
+ assert(bent>.1,'knees and hips must visibly absorb the contact, not freeze');
+ for(let i=0;i<20;i++){
+  assert(contact.last[i].angleTo(contact.grounded[i])<.006,
+   'recovery should reach Kairo approved grounded pose: '+V100.BONES[i]);
+ }
+ assert(contact.poses[0].delta<legacy.poses[0].delta+.25,
+  'new contact blending cannot create a worse initial full-body snap');
+ // Different actual floor impact speeds change the contact-source
+ // absorption depth but cannot change the final approved idle pose.
+ assert(V100.landingPlan(.17,14).sourceTime>
+   V100.landingPlan(.17,5).sourceTime+.025);
+ for(let i=0;i<20;i++)
+  assert(light.last[i].angleTo(contact.last[i])<.006,
+   'different impact strengths must still recover to identical V97 stance');
+ // The V105 flag does not touch the approved stand/move jumping states.
+ function jumpOnly(contact){
+  const u=setup(url+(contact?'&landingLab=contact':''));
+  u.step(130);u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;u.step(19);
+  const rising=u.pose();u.f.vel.y=-6;u.step(18);
+  return {rising,falling:u.pose()};
+ }
+ const oldJump=jumpOnly(false),newJump=jumpOnly(true);
+ for(let i=0;i<20;i++){
+  assert(oldJump.rising[i].angleTo(newJump.rising[i])<.0001,
+   'accepted rising pose changed: '+V100.BONES[i]);
+  assert(oldJump.falling[i].angleTo(newJump.falling[i])<.0001,
+   'accepted falling pose changed: '+V100.BONES[i]);
+ }
+ const interrupted=setup(url+'&landingLab=contact');
+ interrupted.step(130);
+ interrupted.f.pos.y=0;interrupted.f.landingMotionT=.48;
+ interrupted.f.v105ImpactSpeed=10;interrupted.f.v105ContactSerial=2;
+ interrupted.step(7);interrupted.f.blockHeld=true;interrupted.step(1);
+ assert.equal(interrupted.authority.active,'yielded-to-combat-or-flight',
+  'guard must instantly interrupt V105 landing');
+ assert(!contact.u.authority.error&&!legacy.u.authority.error);
+ console.log('PASS V105: real Mixamo landing contact, knee absorption, return to approved guard, no second writer, combat priority and unchanged V102/V103 jumps');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -379,6 +460,7 @@ try{
  compactGuardRegression();
  steadyAirLegRegression();
  movingTakeoffRegression();
+ contactLandingRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
