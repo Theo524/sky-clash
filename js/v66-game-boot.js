@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V102';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:102,
+ const BUILD='V103';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:103,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -51,6 +51,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('airLegs')==='steady')
      e.src+='&legs=102';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('movingJump')==='carry')
+     e.src+='&moving=103';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -146,6 +149,7 @@
     const unifiedAir=flags.get('animator')==='unified';
     const compactAir=flags.get('jumpArms')==='compact';
     const steadyLegs=flags.get('airLegs')==='steady';
+    const movingJump=flags.get('movingJump')==='carry';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -161,7 +165,11 @@
        'V102 STEADY | MAX '+(airOwner.maxLegStepDeg||0).toFixed(1)+
        '°/FRAME | corrected '+(airOwner.legStepClamps||0):
        steadyLegs?'UNAVAILABLE':'V100 ORIGINAL')+'\n'+
-     'LAND: V100 UNCHANGED · AIR-LEG TEST ONLY\n'+
+     'TAKEOFF: '+(movingJump&&airOwner?.ready?
+       airOwner.movingJump||'V103 PREPARING':
+       movingJump?'UNAVAILABLE':'V102 ORIGINAL')+
+       ' | mix: '+Math.round((airOwner?.movingJumpWeight||0)*100)+'%\n'+
+     'LAND: V100 UNCHANGED · MOVING-JUMP TEST ONLY\n'+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
