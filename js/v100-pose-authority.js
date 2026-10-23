@@ -18,6 +18,70 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
  const clipFor=(state)=>state==='fall'?'fallingIdle':state;
+ // V107 is a *small authored body-performance overlay*, not another clip.
+ // Separate rise/float/brace envelopes keep energy continuous across the
+ // jump -> fall sample switch, with the same physics and compact guard.
+ function jumpExpression(age,speed){
+  const t=clamp(age,0,1.0),run=clamp(speed/6.2,0,1);
+  const launch=smooth(t/.065)*(1-smooth((t-.12)/.25));
+  const float=smooth((t-.16)/.20)*(1-smooth((t-.46)/.17));
+  const brace=smooth((t-.43)/.20)*(1-smooth((t-.74)/.16));
+  return {
+   hipsX:.078*launch-.053*brace,
+   spineX:-.195*launch+.085*float+.135*brace,
+   chestX:-.115*launch+.075*float+.090*brace,
+   neckX:.040*launch-.030*brace,
+   spineZ:.048*run*(launch-brace),
+   chestY:.052*run*float,
+   energy:launch+float*.5+brace*.85
+  };
+ }
+ // Small IK support-foot correction for *moving* natural landings only.
+ // Works after V106 vertical sole contact, without moving physics/root.
+ function steadyLandingSupport(THREE,rig,anchor,strength,status){
+  if(!anchor||strength<=0)return;
+  const hum=rig.vrm.humanoid,scene=rig.vrm.scene;
+  const hip=hum.getNormalizedBoneNode(anchor.side+'UpperLeg');
+  const knee=hum.getNormalizedBoneNode(anchor.side+'LowerLeg');
+  const foot=hum.getNormalizedBoneNode(anchor.side+'Foot');
+  if(!hip||!knee||!foot)return;
+  const at=new THREE.Vector3(),end=new THREE.Vector3(),
+   curr=new THREE.Vector3(),goal=new THREE.Vector3(),
+   a=new THREE.Vector3(),b=new THREE.Vector3(),
+   dq=new THREE.Quaternion(),pq=new THREE.Quaternion(),local=new THREE.Quaternion();
+  scene.updateMatrixWorld(true);
+  foot.getWorldPosition(end);
+  goal.copy(anchor.point);goal.y=end.y;
+  // Never stretch across a whole running stride; preserve responsive
+  // horizontal movement and yield smoothly to V95's next ground step.
+  goal.sub(end);goal.y=0;
+  const raw=goal.length(),reach=.22*clamp(strength,0,1);
+  if(raw>reach)goal.multiplyScalar(reach/raw);
+  goal.add(end);
+  for(let pass=0;pass<2;pass++)for(const joint of [knee,hip]){
+   scene.updateMatrixWorld(true);
+   joint.getWorldPosition(at);foot.getWorldPosition(end);
+   a.subVectors(end,at);b.subVectors(goal,at);
+   if(a.lengthSq()<1e-7||b.lengthSq()<1e-7)continue;
+   a.normalize();b.normalize();
+   const cos=clamp(a.dot(b),-1,1),angle=Math.acos(cos);
+   if(angle<.0002)continue;
+   dq.setFromUnitVectors(a,b);
+   dq.slerp(new THREE.Quaternion(),0); // no-op: keep shortest path
+   const limit=(joint===hip?.105:.080)*clamp(strength,0,1);
+   dq.identity().slerp(new THREE.Quaternion().setFromUnitVectors(a,b),
+       Math.min(1,limit/angle));
+   joint.parent.getWorldQuaternion(pq);
+   local.copy(pq).invert().multiply(dq).multiply(pq);
+   joint.quaternion.premultiply(local).normalize();
+  }
+  scene.updateMatrixWorld(true);
+  foot.getWorldPosition(curr);
+  const slip=Math.hypot(curr.x-anchor.point.x,curr.z-anchor.point.z);
+  status.movingFootSlipCm=+(slip*100).toFixed(1);
+  status.movingFootPinFrames=(status.movingFootPinFrames||0)+1;
+  status.movingFootPin=anchor.side+' support';
+ }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
  // final joint orientations. Floor contact must be evaluated last.
@@ -102,7 +166,8 @@
     wristAnchor:[],armAnchor:[],fingerNodes:[],fingerRest:[],
     maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
     jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
-    restPose:[],landingRest:[],impactSpeed:0,contactSerial:0};
+    restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
+    landingSupport:null};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -135,6 +200,7 @@
    st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
    st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
+   st.landingSupport=null;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -163,6 +229,7 @@
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+    st.landingSupport=null;
     // Snapshot the last approved grounded stance, never an uncalibrated
     // local T-pose. The source landing clip cannot be trusted as an idle.
     st.landingRest=(st.restPose.length===BONES.length?
@@ -220,6 +287,10 @@
     status.landingPhase=contactPlan.phase;
     status.landingRecovery=Math.round(contactPlan.recover*100);
    }
+   const expressive=params.get('jumpStyle')==='expressive'&&
+     (next==='jump'||next==='fall');
+   const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
+   status.jumpExpression=expressive?+(performance.energy*100).toFixed(0):0;
    const carryJump=params.get('movingJump')==='carry'&&
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
@@ -262,6 +333,18 @@
       }
       if(i===9||i===13)
        st.maxWristExcursion=Math.max(st.maxWristExcursion,anchor.angleTo(qTarget));
+     }
+    }
+    // V107 enriches the source torso's launch recoil, airborne reach and
+    // descent brace; never touches approved legs or compact local guard.
+    if(performance&&i<=5){
+     let x=i===0?performance.hipsX:i===1?performance.spineX:
+       i===2?performance.chestX:i===4?performance.neckX:0;
+     let z=i===1?performance.spineZ:0;
+     let y=i===2?performance.chestY:0;
+     if(x||y||z){
+      qTmp.setFromEuler(new THREE.Euler(x,y,z,'XYZ'));
+      qTarget.multiply(qTmp).normalize();
      }
     }
     // V94's receiver/target alias is never used here.
@@ -340,8 +423,29 @@
     st.fingerNodes[i].quaternion.copy(st.fingerRest[i]);
    rig.vrm.update(0);
    if(next==='landing'&&params.get('landingLab')==='contact'&&
-      params.get('landingFeet')==='plant')
+      params.get('landingFeet')==='plant'){
     plantVisibleSoles(THREE,rig,f,status);
+    if(params.get('landingMove')==='pin'&&st.launchSpeed>1.3){
+     if(!st.landingSupport){
+      // The support foot is whichever *visible* ankle/toe sole is closest
+      // to the floor at the collision event. Never alternate arbitrarily.
+      const gaps=soleGaps(THREE,rig,f);
+      const source=gaps.reduce((best,x)=>!best||x.gap<best.gap?x:best,null);
+      if(source){
+       const side=source.bone.startsWith('left')?'left':'right';
+       const foot=rig.vrm.humanoid.getNormalizedBoneNode(side+'Foot');
+       if(foot)st.landingSupport={side,point:foot.getWorldPosition(new THREE.Vector3())};
+      }
+     }else{
+      const strength=1-smooth((st.elapsed-.04)/.23);
+      if(strength>.001){
+       steadyLandingSupport(THREE,rig,st.landingSupport,strength,status);
+       // IK may rotate toes downward. Apply V106 vertical support *last*.
+       plantVisibleSoles(THREE,rig,f,status);
+      }
+     }
+    }
+   }
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -464,6 +568,8 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
+    jumpExpression:0,movingFootPin:'off',movingFootSlipCm:0,
+    movingFootPinFrames:0,
     soleGapCm:null,otherSoleGapCm:null,soleLastShiftCm:0,
     soleCorrections:0,soleContact:'not-tested',error:null};
   context.SkyClashPoseAuthority=status;
@@ -482,7 +588,8 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,landingPlan,soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
+ const api={version:100,BONES,clipFor,landingPlan,jumpExpression,steadyLandingSupport,
+    soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;
 })(typeof window!=='undefined'?window:globalThis);
