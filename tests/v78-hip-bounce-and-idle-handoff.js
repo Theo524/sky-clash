@@ -42,7 +42,7 @@ assert(!bounce.apply(THREE,{hips:hip},rest).applied,'Missing first-frame referen
 const studioHTML=read('animation-studio.html'),studioJS=read('js/animation-studio.js'),
  preview=read('js/character-motion-preview.js');
 assert(studioHTML.includes('js/v78-studio-hip-bounce.js?v=780'),'Load solver before the preview');
-assert(studioHTML.includes('animation-studio.js?v=790'),'Refresh animation studio import');
+assert(studioHTML.includes('animation-studio.js?v=791'),'Refresh animation studio import');
 assert(studioJS.includes('rig.previewHipBaseY=hips.getWorldPosition'),'Measure hip in post-scale world meters');
 assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest)'));
 
@@ -95,5 +95,5 @@ f.punchT=.5;f.animate(1/60);
 assert(state.slot===null&&state.weight===0,'Combat must immediately own all arm/wrist joints');
 const boot=read('js/v66-game-boot.js'),gameHTML=read('index.html');
 assert(boot.includes('js/v72-published-actions.js?v=790'),'Game must load new motion handoff');
-assert(gameHTML.includes('js/v66-game-boot.js?v=790'),'Game HTML must refresh cache');
+assert(gameHTML.includes('js/v66-game-boot.js?v=791'),'Game HTML must refresh cache');
 console.log('PASS V78: 8.36cm run hip bounce without drift + smooth published idle joystick release + full combat isolation');
