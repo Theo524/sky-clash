@@ -20,7 +20,7 @@
  // "(1)" or "(2)". Their same internal FBX path, byte size and CRC define
  // a duplicate even when the outer archive name is different.
  function clipKey(fileName,size,crc){
-  return String(fileName||'').replace(/\\/g,'/').toLowerCase()+
+  return String(fileName||'').replace(/\\/g,'/').replace(/\/+/g,'/').toLowerCase()+
    '::'+Number(size||0)+'::'+String(crc??'');
  }
  function scan(imported){
