@@ -13,12 +13,13 @@
 (function(root){
  'use strict';
  const PATH='assets/animations/gameplay/studio-actions-v1.json';
+ const OVERRIDES='assets/animations/gameplay/v81-recorded-actions.json';
  const BONES=['hips','spine','chest','upperChest','neck','head',
   'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
   'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
   'leftUpperLeg','leftLowerLeg','leftFoot',
   'rightUpperLeg','rightLowerLeg','rightFoot'];
- const LOOP=new Set(['idle','walk','run']);
+ const LOOP=new Set(['idle','walk','run','guard','boost']);
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -56,8 +57,10 @@
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
   // branches fell through to "idle" if no matching action was exported.
   if((fighter.stun||0)>0)return actions.hit?'hit':null;
-  if(fighter.downT>0||fighter.slamming||fighter.superHitT>0||
-     fighter.blockHeld||fighter.blocking||fighter.acro)return null;
+  if(fighter.downT>0||fighter.slamming||fighter.superHitT>0||fighter.acro)return null;
+  // Native Mixamo blocking controls both forearms and wrists, rather
+  // than a pair of procedural diagonal, straight-fingered robot arms.
+  if(fighter.blockHeld||fighter.blocking)return actions.guard?'guard':null;
   if((fighter.punchT||0)>0){
    const kind=String(fighter.attackKind||'').toLowerCase();
    const special=kind.includes('kick')||kind.includes('spin')?
@@ -70,12 +73,18 @@
   }
   if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
   if(fighter.charging)return actions.charge?'charge':null;
-  if(airborne)return actions.jump?'jump':null;
+  if(airborne)return fighter.dropping?null:(actions.jump?'jump':null);
+  if(fighter.landingMotionT>0&&!fighter.sprinting)return actions.landing?'landing':null;
   if(fighter.dashing)return actions.dodge?'dodge':null;
   // V80: ordinary full-radius joystick running is NOT Boost. Boost is
   // exclusively the explicit sprint button and uses its own faster pose,
   // trail and skid FX. No normal-run clip during boost or midair.
-  if(fighter.sprinting){fighter.v80AnalogRun=false;return null;}
+  if(fighter.sprinting){
+   fighter.v80AnalogRun=false;
+   // Boost is NOT normal joystick running; use a dedicated genuine Mixamo
+   // high-speed forward-sprint cycle on the ground.
+   return actions.boost?'boost':null;
+  }
   if(speed>.75){
    const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
    const full=stick>(fighter.v80AnalogRun?.68:.86);
@@ -186,6 +195,9 @@
       let rate=entry.speed;
       if(slot==='walk'||slot==='run')rate*=Math.max(.55,Math.min(1.9,
         Math.hypot(this.vel?.x||0,this.vel?.z||0)/3.4));
+      if(slot==='boost')rate*=Math.max(.8,Math.min(1.5,
+        Math.hypot(this.vel?.x||0,this.vel?.z||0)/21));
+      if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
       state.clock+=elapsed*rate;
      }
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
@@ -203,7 +215,9 @@
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
      // this optional clip only supplies its braking upper-body gesture.
-     if(options.choose&&entry.slot==='runStop'&&(i===0||i>=14))continue;
+     if((options.choose&&entry.slot==='runStop'&&(i===0||i>=14))||
+        (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
+        (!options.choose&&entry.slot==='landing'&&i===0))continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
@@ -245,6 +259,21 @@
           'uppercut','kick','meteor','charge','superblast','hit'].includes(entry.slot))continue;
     actions[entry.slot]=decode(context.THREE,entry);
    }
+   // V81: user-supplied Magic pack, offline-baked into true
+   // 30fps normalized Mixamo quaternion clips. It is independent of their
+   // approved custom idle/run and retains fallback if an asset is unavailable.
+   try{
+    const recorded=await context.fetch(OVERRIDES+'?v=810',{cache:'force-cache'});
+    if(recorded.ok){
+     const pack2=await recorded.json();
+     if(pack2?.schema==='sky-clash.studio-gamepack.v1'&&pack2.revision===1&&
+        Array.isArray(pack2.motions)){
+      for(const entry of pack2.motions)if(
+       entry.character==='kairo'&&['boost','guard','landing'].includes(entry.slot))
+       actions[entry.slot]=decode(context.THREE,entry);
+     }
+    }
+   }catch(e){console.warn('V81 recorded combat/boost poses unavailable',e);}
    if(!Object.keys(actions).length)return status;
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;
