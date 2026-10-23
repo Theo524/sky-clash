@@ -137,7 +137,7 @@
   // Release the model/recording startup barrier ONLY after all wrappers
   // have been installed. Late VRMs have their own 18-frame pose gate.
   window.SKY_V104_ANIMATIONS_READY=true;
-  window.LoadScreen?.animationsFinished?.();
+  window.SkyClashLoadScreen?.animationsFinished?.();
   if(walkLab){
    // Native <details> is keyboard/touch friendly and starts collapsed
    // on narrow/mobile screens. Version + current action remain visible.
@@ -151,7 +151,7 @@
    detail.id='walkLabDetails';
    detail.textContent='Animation controllers initializing…';
    label.append(heading,detail);
-   label.open=!window.matchMedia?.('(max-width: 760px), (pointer: coarse)').matches;
+   label.open=!window.matchMedia?.('(max-width: 760px), (pointer: coarse)')?.matches;
    label.addEventListener('pointerdown',event=>event.stopPropagation());
    label.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
    document.body.appendChild(label);
@@ -216,7 +216,7 @@
   // Don't strand the opening screen if an optional action pack fails.
   // The engine's native fallback is still a playable fighter.
   window.SKY_V104_ANIMATIONS_READY=true;
-  window.LoadScreen?.animationsFinished?.();
+  window.SkyClashLoadScreen?.animationsFinished?.();
   console.error('Sky Clash V66 boot failed',err);
   const status=document.getElementById('bootStatus');
   if(status)status.textContent='Could not start game: '+err.message;
