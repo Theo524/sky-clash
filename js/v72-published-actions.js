@@ -50,7 +50,7 @@
  function choose(fighter,actions){
   if(fighter.hp<=0)return null;
   const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
-  const airborne=!!(fighter.flying||fighter.launched||fighter.spiked);
+  const airborne=!!(fighter.jumping||fighter.flying||fighter.launched||fighter.spiked);
   // V77: choose ONLY an expressly published slot in the active gameplay
   // state. In particular, an idle-only Studio export must NEVER play during
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
@@ -76,11 +76,13 @@
   if(speed>.75)return actions.walk?'walk':null;
   return actions.idle?'idle':null;
  }
- function attach(THREE,fighter,actions,status){
-  if(!fighter||typeof fighter.animate!=='function'||fighter.v72StudioPack)return null;
+ function attach(THREE,fighter,actions,status,options={}){
+  const marker=options.marker||'v72StudioPack';
+  if(!fighter||typeof fighter.animate!=='function'||fighter[marker])return null;
   const old=fighter.animate;
   const state={rig:null,bones:null,bind:null,targetSide:null,slot:null,clock:0,weight:0,
-    releasingIdle:false,samples:BONES.map(()=>new THREE.Quaternion()),frames:0};
+    releasingIdle:false,releasingExtra:false,releaseEntry:null,
+    samples:BONES.map(()=>new THREE.Quaternion()),frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
         qBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
@@ -109,19 +111,42 @@
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
-    const slot=choose(this,actions);
+    const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     // V78: this layer is drawn AFTER V76's idle->walk pose. Previously an
     // idle-only pack was removed in ONE FRAME as soon as speed exceeded .75:
     // the exposed V76 (different) idle made the arms briefly jump upwards.
     // Cross-fade the published idle OUT over ~0.2s when starting to walk;
     // never keep an idle overlay during attack/air/block/stun.
-    const safeWalk=slot===null&&speed>.75&&this.hp>0&&
-      !(this.flying||this.launched||this.spiked||this.dashing||this.sprinting||
+    const safeAir=!!(this.jumping||this.flying)&&
+      !(this.launched||this.spiked||this.dashing||
         this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
         this.superHitT>0||this.charging||this.blockHeld||this.blocking||
         this.slamming||this.acro);
-    if(slot!==state.slot){
+    const safeWalk=slot===null&&this.hp>0&&
+      (safeAir||(speed>.75&&
+      !(this.launched||this.spiked||this.dashing||this.sprinting||
+        this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
+        this.superHitT>0||this.charging||this.blockHeld||this.blocking||
+        this.slamming||this.acro)));
+    if(options.choose){
+     // Optional V79 action layer. Its independent one-shot motions fade out
+     // into the existing locomotion/idle animations, rather than snapping.
+     const hardCancel=this.punchT>0||this.blastT>0||this.stun>0||
+       this.hp<=0||this.blocking||this.blockHeld;
+     if(slot!==state.slot){
+      if(!slot&&state.slot&&!hardCancel&&state.weight>.01){
+       state.releaseEntry=actions[state.slot];state.releasingExtra=true;
+       state.slot=null;
+      }else{
+       state.slot=slot;state.clock=0;state.weight=0;
+       state.releasingExtra=false;state.releaseEntry=null;
+      }
+     }
+     if(state.releasingExtra&&hardCancel){
+      state.releasingExtra=false;state.weight=0;state.releaseEntry=null;
+     }
+    }else if(slot!==state.slot){
      if(slot==='idle'){
       state.slot=slot;state.clock=0;state.weight=0;state.releasingIdle=false;
      }else if(state.slot==='idle'&&safeWalk&&actions.idle){
@@ -134,12 +159,14 @@
     if(state.releasingIdle&&!safeWalk){
      state.releasingIdle=false;state.weight=0;
     }
-    const entry=slot?actions[slot]:(state.releasingIdle?actions.idle:null);
+    const entry=slot?actions[slot]:options.choose?
+      (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
     if(!entry){state.weight=0;return;}
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
-    if(state.releasingIdle){
-     state.weight*=Math.exp(-elapsed*15);
-     if(state.weight<.005){state.weight=0;state.releasingIdle=false;return;}
+    if(state.releasingIdle||state.releasingExtra){
+     state.weight*=Math.exp(-elapsed*(state.releasingExtra?12:15));
+     if(state.weight<.005){state.weight=0;state.releasingIdle=false;
+      state.releasingExtra=false;state.releaseEntry=null;return;}
     }else{
      state.weight+=(1-state.weight)*(1-Math.exp(-elapsed*11));
      if((this.punchT||0)>0){
@@ -151,7 +178,7 @@
         Math.hypot(this.vel?.x||0,this.vel?.z||0)/3.4));
       state.clock+=elapsed*rate;
      }
-     entry.sample(state.clock,state.samples,LOOP.has(slot));
+     entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
     }
     const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
     const sideDst=state.targetSide;
@@ -173,13 +200,16 @@
      node.updateMatrixWorld(true);
     }
     state.rig.vrm.update(0);
-    state.frames++;status.active=state.releasingIdle?'idle-blend-to-walk':slot;status.frames=state.frames;
+    state.frames++;
+    status.active=state.releasingExtra?'extra-blend-out':
+      state.releasingIdle?'idle-blend-to-walk':slot;
+    status.frames=state.frames;
    }catch(err){
     status.error=String(err);console.error('Studio game pack disabled for fighter',err);
-    fighter.animate=old;fighter.v72StudioPack=null;
+    fighter.animate=old;fighter[marker]=null;
    }
   };
-  fighter.v72StudioPack=state;
+  fighter[marker]=state;
   return state;
  }
  async function start(context=root){

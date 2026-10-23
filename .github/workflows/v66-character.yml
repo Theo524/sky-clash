@@ -19,6 +19,8 @@ on:
       - 'tests/v76-*.js'
       - 'tests/v77-*.js'
       - 'tests/v78-*.js'
+      - 'tests/v79-*.js'
+      - 'js/v79-*'
       - 'js/v78-*'
       - 'js/v76-*'
       - 'js/character-motion-preview.js'
@@ -51,6 +53,8 @@ on:
       - 'tests/v76-*.js'
       - 'tests/v77-*.js'
       - 'tests/v78-*.js'
+      - 'tests/v79-*.js'
+      - 'js/v79-*'
       - 'js/v78-*'
       - 'js/v76-*'
       - 'js/character-motion-preview.js'
@@ -91,6 +95,9 @@ jobs:
       - run: node --check js/v72-studio-game-export.js
       - run: node --check js/v72-published-actions.js
       - run: node --check js/v78-studio-hip-bounce.js
+      - run: node --check js/v79-pack-catalog.js
+      - run: node --check js/v79-gif-preview.js
+      - run: node --check js/v79-extra-actions.js
       - run: node --check js/v76-upper-body.js
       - run: node --check js/animation-studio.js
       - run: node --check js/character-motion-preview.js
@@ -111,6 +118,7 @@ jobs:
       - run: node tests/v76-upper-body-ownership.js
       - run: node tests/v77-published-idle.js
       - run: node tests/v78-hip-bounce-and-idle-handoff.js
+      - run: node tests/v79-catalog-and-actions.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |

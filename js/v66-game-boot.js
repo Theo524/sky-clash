@@ -35,11 +35,13 @@
    await script('js/v72-walk-arms.js?v=750');
    await window.SkyClashV72Arms.start(window);
   }else if(upperMode!=='procedural'){
-   await script('js/v76-upper-body.js?v=760');
+   await script('js/v76-upper-body.js?v=790');
    await window.SkyClashV76UpperBody.start(window);
   }
-  await script('js/v72-published-actions.js?v=780');
+  await script('js/v72-published-actions.js?v=790');
   await window.SkyClashPublishedGamePack.start(window);
+  await script('js/v79-extra-actions.js?v=790');
+  await window.SkyClashV79ExtraActions.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
   console.error('Sky Clash V66 boot failed',err);

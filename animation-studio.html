@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c101e"><title>Sky Clash V78 · Animation Studio</title>
+<meta name="theme-color" content="#0c101e"><title>Sky Clash V79 · Animation Studio</title>
 <link rel="stylesheet" href="css/animation-studio.css?v=600">
 <!-- The FBX parser uses the same Three.js release as the game, but in an isolated renderer.
      External module is fetched only for the preview engine. Files are never uploaded. -->
@@ -20,7 +20,9 @@
  <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Import FBX or ZIP animations"><span class="drop-mark">↥</span><div><b>Drop your Mixamo ZIP packs or FBX files here</b><small>Or click to browse · Multiple files supported · Original filenames preserved</small></div><button id="chooseInside" type="button">Choose files</button></div>
  <input type="file" id="fileInput" accept=".fbx,.zip" multiple hidden>
  <div class="activity"><div id="loadStatus" role="status">Reopening your saved Mixamo motions…</div><div id="loadProgress" class="progress" aria-hidden="true"><span></span></div><button id="cancelLoad" hidden>Stop processing</button>
-  <span id="savedLibraryStatus" aria-live="polite">Checking offline motion library…</span><button id="clearSavedLibrary" type="button" hidden title="Clears locally saved animation source files, not your assignments">Clear saved packs</button>
+  <span id="savedLibraryStatus" aria-live="polite">Checking offline motion library…</span>
+  <span id="packCoverage" title="The collection has four independently imported ZIP archives">0/230 clips from 4 source packs</span>
+  <button id="importMissingPacks" type="button">＋ Import missing packs</button><button id="clearSavedLibrary" type="button" hidden title="Clears locally saved animation source files, not your assignments">Clear saved packs</button>
  </div>
  <div class="workspace">
   <section class="library">
@@ -34,7 +36,7 @@
    <div class="section-head"><div><div class="eyebrow">02 / PREVIEW</div><h2>3D motion viewer</h2></div><span class="tag" id="viewerType">Native Mixamo master base</span></div>
    <div class="preview-tabs"><button type="button" id="viewMaster" class="tab-on">✦ Master base</button><button type="button" id="viewOriginal">◈ Bone diagnostic</button><button type="button" id="viewCharacter">◉ On character</button><span id="previewFighterName">Kairo Venn</span></div><div id="viewerShell" class="viewer-shell"><canvas id="viewer" aria-label="Interactive original 3D animation preview"></canvas><canvas id="characterViewer" hidden aria-label="Actual Kairo or Rin character preview"></canvas><div class="viewer-overlay" id="viewerOverlay">Select a clip to inspect its motion.</div><div class="viewer-hint">DRAG TO ROTATE · SCROLL TO ZOOM</div></div>
    <div class="player">
-    <div class="player-actions"><button id="playPause" disabled>▶ Play</button><button id="restart" disabled aria-label="Restart clip">↺</button><select id="speed" title="Playback speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select><label class="root-motion"><input id="rootMotion" type="checkbox"> Root travel</label></div>
+    <div class="player-actions"><button id="playPause" disabled>▶ Play</button><button id="restart" disabled aria-label="Restart clip">↺</button><button id="downloadPreviewGIF" type="button" disabled title="Export an actual looping animated GIF for the selected FBX">↓ Save preview GIF</button><select id="speed" title="Playback speed"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.5">1.5×</option></select><label class="root-motion"><input id="rootMotion" type="checkbox"> Root travel</label></div>
     <div class="timeline"><input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Animation timeline"><span id="timing">0.0 / 0.0s</span></div>
    </div>
    <div class="selected"><h3 id="selectedTitle">No animation selected</h3><div id="selectedMeta">Choose a thumbnail on the left.</div></div>
@@ -60,7 +62,7 @@
 <script src="js/vendor/jszip.min.js"></script>
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
-<script src="js/character-actions-core.js?v=580"></script>
+<script src="js/character-actions-core.js?v=790"></script>
 <script src="js/v66-character-source.js?v=680"></script>
 <script src="js/v68-humanoid-retarget.js?v=680"></script>
 <script src="js/v78-studio-hip-bounce.js?v=780"></script>
@@ -70,8 +72,10 @@
 <script src="js/v69-motion-library.js?v=690"></script>
 <script src="js/v70-fbx-repair.js?v=700"></script>
 <script src="js/v72-studio-game-export.js?v=720"></script>
+<script src="js/v79-pack-catalog.js?v=790"></script>
+<script src="js/v79-gif-preview.js?v=790"></script>
 <script type="module">
-import("./js/animation-studio.js?v=780").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=790").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>

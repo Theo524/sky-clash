@@ -11,6 +11,8 @@ const Core=window.SkyClashStudioCore;
 const Action=window.SkyClashActionCore;
 const MotionLibrary=window.SkyClashMotionLibrary;
 const GameExporter=window.SkyClashGamePackExporter;
+const PackCatalog=window.SkyClashPackCatalog;
+const GIFPreview=window.SkyClashGIFPreview;
 const $=id=>document.getElementById(id);
 const loader=new FBXLoader();
 const PAGE_SIZE=16;
@@ -320,7 +322,16 @@ function updateCard(item){const card=item.card;if(!card||!card.isConnected)retur
  const meta=card.querySelector('.clip-meta');if(meta)meta.lastElementChild.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';
 }
 function updateStats(){const done=imported.filter(x=>x.prepared).length,errors=imported.filter(x=>x.error).length;
- $('processedCount').textContent=imported.length?`${done} ready · ${errors} need attention`:'';
+ $('processedCount').textContent=imported.length?`${done} GIF-ready · ${errors} need attention`:'';
+ const coverage=PackCatalog?.scan(imported);
+ const badge=$('packCoverage'),choose=$('importMissingPacks');
+ if(badge&&coverage){
+  badge.textContent=coverage.loaded+'/'+coverage.expected+' clips from 4 source packs';
+  badge.title=coverage.packs.map(p=>p.name+': '+p.loaded+'/'+p.count).join(' | ');
+ }
+ if(choose&&coverage)choose.hidden=coverage.complete;
+ // Thumbnail previews are generated lazily, only as cards become visible;
+ // a pending image is not missing from the user's ZIP collection.
  const pending=imported.length-done-errors;
  progress(pending&&imported.length?100*(done+errors)/imported.length:null);
 }
@@ -356,6 +367,7 @@ function applyFilter(){const q=$('search').value,category=$('category').value,ta
 
 async function select(item){
  current=item;currentT=0;isPlaying=true;
+ const gifButton=$('downloadPreviewGIF');if(gifButton)gifButton.disabled=false;
  const token=++selectedLoadToken;
  refreshGrid();updateSelectionUI();
  $('selectedTitle').textContent=item.name;
@@ -542,6 +554,41 @@ document.addEventListener('drop',e=>{if(e.dataTransfer?.files.length&&!e.target.
 $('cancelLoad').addEventListener('click',()=>{cancelled=true;workQueue.length=0;setStatus('Stopped thumbnail processing. Imported files remain available.');$('cancelLoad').hidden=true;progress(null);});
 for(const id of ['search','category','tagFilter'])$(id).addEventListener(id==='search'?'input':'change',()=>{page=0;applyFilter();});
 $('prevPage').addEventListener('click',()=>{page=Math.max(0,page-1);refreshGrid();});$('nextPage').addEventListener('click',()=>{page++;refreshGrid();});
+$('importMissingPacks').addEventListener('click',()=>{
+ const cover=PackCatalog?.scan(imported);
+ const missing=cover?.packs.filter(p=>p.missing).map(p=>p.name+' ('+p.missing+' missing)').join('; ');
+ setStatus('Choose ALL your missing ZIP archives: '+(missing||'No packs missing')+'. They remain in your browser after importing; ChatGPT attachments do not automatically enter the website.');
+ $('fileInput').click();
+});
+$('downloadPreviewGIF').addEventListener('click',async()=>{
+ const item=current,button=$('downloadPreviewGIF');
+ if(!item||!GIFPreview)return;
+ button.disabled=true;button.textContent='Generating GIF…';
+ try{
+  // The normal thumbnail queue generates frame sequences only for clips
+  // visible in the gallery. A selected clip always deserves its own GIF.
+  while(busy)await delay();
+  if(!item.frames?.length){
+   const buffer=await bufferFor(item),fbx=loader.parse(buffer,'');
+   const rig=setupRig(thumbStage,fbx);setRigDisplay(rig,'master');
+   const frames=[];for(let i=0;i<8;i++){
+    poseRig(thumbStage,rig.clip.duration*(i+.22)/8,false);
+    render(thumbStage);frames.push(thumbCanvas.toDataURL('image/webp',.65));
+   }
+   item.frames=frames;item.prepared=true;item.error=null;
+   disposeSetup(thumbStage);updateCard(item);updateStats();
+  }
+  const blob=await GIFPreview.fromDataUrls(item.frames);
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  const clean=item.name.replace(/[^a-z0-9-]+/gi,'-').replace(/^-|-$/g,'');
+  a.href=url;a.download='Sky-Clash-'+(clean||'motion')+'-preview.gif';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+  setStatus('Saved animated GIF preview for '+item.name+' · '+item.frames.length+' motion frames.');
+ }catch(e){
+  disposeSetup(thumbStage);setStatus('GIF preview failed for '+item.name+': '+e.message);
+ }finally{button.disabled=false;button.textContent='↓ Save preview GIF';}
+});
 $('playPause').addEventListener('click',()=>{isPlaying=!isPlaying;$('playPause').textContent=isPlaying?'Ⅱ Pause':'▶ Play';});
 $('restart').addEventListener('click',()=>{currentT=0;isPlaying=true;$('playPause').textContent='Ⅱ Pause';});
 $('scrub').addEventListener('input',e=>{if(mainRig){currentT=(Number(e.target.value)/1000)*mainRig.clip.duration;isPlaying=false;$('playPause').textContent='▶ Play';}});
