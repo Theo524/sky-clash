@@ -24,6 +24,7 @@ const actionData=(()=>{try{return Action.sanitize(JSON.parse(localStorage.getIte
 let actionFighter='kairo', activeAction='idle', viewMode='character', charPreview=null, charToken=0;
 const imported=[];
 const seen=new Set();
+const seenContent=new Set();
 let current=null, page=0, filtering=[], cancelled=false, indexing=false;
 let isPlaying=true, rate=1, currentT=0, mainRig=null, selectedLoadToken=0;
 const workQueue=[];let busy=false;
@@ -41,8 +42,10 @@ function addEntry({file,zipEntry,origin,name,size,crc}){
  if(imported.length>=MAX_FILES)return false;
  if(!/\.fbx$/i.test(name))return false;
  const id=Core.makeId(origin,name,size,crc);
- if(seen.has(id))return false;
+ const contentKey=PackCatalog?.clipKey(name,size,crc);
+ if(seen.has(id)||(contentKey&&seenContent.has(contentKey)))return false;
  seen.add(id);
+ if(contentKey)seenContent.add(contentKey);
  const clip={id,origin,fileName:name,name:Core.displayName(name),size,crc,category:Core.category(name),file,zipEntry,frames:null,card:null,error:null,duration:null,boneCount:null,prepared:false};
  imported.push(clip);
  return true;
