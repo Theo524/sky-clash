@@ -29,6 +29,9 @@
    if(src.includes('v72-published-actions')&&
       new URLSearchParams(location.search).get('airLab')==='jump')
      e.src+='&air=98';
+   if(src.includes('v81-pose-transitions')&&
+      new URLSearchParams(location.search).get('airHands')==='stable')
+     e.src+='&hands=99';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -121,6 +124,9 @@
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
      (handoffLab?' | Actual pose blend: '+Math.round(100*(window.SkyClashPoseTransitions?.transition||0))+'%':'')+
      (steadyArmLab?' | Random idle gestures: OFF':'')+
+     (new URLSearchParams(location.search).get('airHands')==='stable'?
+       '\nAir hands: '+(window.SkyClashPoseTransitions?.airHands||'loading')+
+       ' | wrist clamps: '+(window.SkyClashPoseTransitions?.airWristClamps||0):'')+
      (anchoredArmLab?' | Arm source: '+
       (window.SkyClashUpperBody?.idleSource||'loading')+
       ' | Arm anchor: '+(window.SkyClashUpperBody?.anchoredIdle?'ON':'loading'):'')+
