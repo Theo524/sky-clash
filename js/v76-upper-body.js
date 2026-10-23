@@ -208,7 +208,14 @@
      qLocal.copy(qParent).invert().multiply(qWantedWorld).normalize();
      // Respect natural anatomy and avoid sudden bad FBX spikes.
      const angle=node.quaternion.angleTo(qLocal);
-     if(angle>2.7)qLocal.copy(node.quaternion).slerp(qLocal,2.7/angle);
+     if(angle>2.7){
+      if(armMode.get('idleArms')==='anchored'){
+       // Receiver/target alias would freeze the elbow on the previous
+       // frame when a large source mismatch occurs (same V94 bug).
+       const realTarget=qLocal.clone();
+       qLocal.copy(node.quaternion).slerp(realTarget,2.7/angle);
+      }else qLocal.copy(node.quaternion).slerp(qLocal,2.7/angle);
+     }
      node.quaternion.slerp(qLocal,state.transition);
      node.updateMatrixWorld(true);
      // Snapshot the fully applied pose for the first jump/fly frames.
