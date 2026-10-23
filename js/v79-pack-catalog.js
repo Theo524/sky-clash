@@ -16,6 +16,13 @@
    directories:['Boxing/'],archives:['Sky-Clash-Clean-Boxing-40']}
  ]);
  const expected=PACKS.reduce((n,p)=>n+p.count,0);
+ // ZIP archives can be downloaded again with renamed suffixes such as
+ // "(1)" or "(2)". Their same internal FBX path, byte size and CRC define
+ // a duplicate even when the outer archive name is different.
+ function clipKey(fileName,size,crc){
+  return String(fileName||'').replace(/\\/g,'/').toLowerCase()+
+   '::'+Number(size||0)+'::'+String(crc??'');
+ }
  function scan(imported){
   const loaded=new Set(),counts={};
   for(const pack of PACKS)counts[pack.id]=0;
@@ -31,7 +38,7 @@
   return {expected,loaded:loaded.size,complete:loaded.size===expected,
    packs:PACKS.map(p=>({...p,loaded:counts[p.id],missing:Math.max(0,p.count-counts[p.id])}))};
  }
- const api={PACKS,expected,scan};
+ const api={PACKS,expected,scan,clipKey};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPackCatalog=api;
 })(typeof window!=='undefined'?window:globalThis);
