@@ -18,6 +18,18 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
  const clipFor=(state)=>state==='fall'?'fallingIdle':state;
+ // One collision-clock plan for a single landing pose writer. The physics
+ // surface contact is elapsed=0, not arbitrary Mixamo frame zero.
+ function landingPlan(elapsed,impactSpeed){
+  const t=clamp(elapsed,0,.48);
+  const force=clamp((impactSpeed-4)/12,0,1);
+  return Object.freeze({
+   sourceTime:.30+(.28+.07*force)*smooth(t/.195),
+   recover:smooth((t-.20)/.255),
+   arms:smooth(t/.30),
+   phase:t<.085?'contact':t<.22?'absorb':t<.455?'recover':'settled'
+  });
+ }
  function stateOf(f){
   if(!f||f.hp<=0||f.launched||f.spiked||f.downT>0||
      f.stun>0||f.superHitT>0||f.punchT>0||f.blastT>0||
@@ -161,6 +173,11 @@
      (next==='jump'||next==='fall');
    const contactLanding=params.get('landingLab')==='contact'&&next==='landing'&&
       st.landingRest.length===BONES.length;
+   const contactPlan=contactLanding?landingPlan(st.elapsed,st.impactSpeed):null;
+   if(contactPlan){
+    status.landingPhase=contactPlan.phase;
+    status.landingRecovery=Math.round(contactPlan.recover*100);
+   }
    const carryJump=params.get('movingJump')==='carry'&&
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
@@ -223,16 +240,12 @@
      status.movingJumpWeight=carry;
     }
     if(contactLanding){
-     const t=st.elapsed;
-     // The existing falling-to-landing recording has planted-looking
-     // ankles near 0.30s, then weight absorption at 0.55-0.66s.
-     // Hold that contact trajectory briefly, then return to the user's
-     // real V97 fighting pose, not the clip's mismatched ending pose.
-     const recover=smooth((t-.20)/.255);
+     // Keep contact, absorption and recovery phases on ONE clock.
+     const recover=contactPlan.recover;
      if(i>=6&&i<=13){
       // Do not reintroduce the old landing clip's wide, crossing arms.
       // Return from the visible airborne V101 guard into the V97 guard.
-      const armRecover=smooth(t/.30);
+      const armRecover=contactPlan.arms;
       qTmp.copy(st.landingRest[i]);
       qTarget.slerp(qTmp,armRecover);
      }else{
@@ -244,9 +257,7 @@
       qTmp.copy(st.landingRest[i]);
       qTarget.slerp(qTmp,blendToRest);
      }
-     status.landingPhase=t<.085?'contact':t<.22?'absorb':
-       t<.47?'recover':'settled';
-     status.landingRecovery=Math.round(recover*100);
+
     }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
@@ -347,8 +358,7 @@
       // Collision contact is time=0. Use the authored planted-ankle and
       // knee-absorption section at its native 30 Hz sampling rate, without
       // compressing a 1.1s standing sequence into a 0.48s collision.
-      .30+(.28+.07*clamp((st.impactSpeed-4)/12,0,1))*
-        smooth(st.elapsed/.195):
+      landingPlan(st.elapsed,st.impactSpeed).sourceTime:
       state==='jump'?
       Math.min(clip.seconds*.96,st.elapsed*1.18):
       state==='fall'?
@@ -408,7 +418,7 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,stateOf,ownsAir,attach,start};
+ const api={version:100,BONES,clipFor,landingPlan,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;
 })(typeof window!=='undefined'?window:globalThis);
