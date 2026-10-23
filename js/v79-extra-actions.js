@@ -33,6 +33,19 @@
   }
   dt=clamp(Number.isFinite(dt)?dt:0,0,.08);
   const speed=speedOf(f);
+  // V96: Kairo's optional Adventure Idle lifts the hands high. At very
+  // small joystick deflections speed remains below the idle threshold,
+  // so the 12-26s random-gesture scheduler can fire WHILE the user is
+  // steering. In this opt-in movement preview, approved idle (2) is the
+  // ONLY idle source for playable Kairo. Preserve every non-idle extra
+  // (falling / landing / recorded stop) and leave all NPCs unchanged.
+  const steadyIdle=new URLSearchParams(root.location?.search||'')
+     .get('idleArms')==='steady'&&
+    f===root.SkyClash?.Game?.heroes?.kairo_venn;
+  if(steadyIdle){
+   if(s.active?.startsWith('idle'))s.active=null;
+   s.rest=0;s.nextIdle=12;s.elapsed=0;
+  }
   const wasAir=s.wasAir,wasDescending=s.wasDescending;
   const inAir=!!(f.jumping||f.flying||f.launched||f.spiked);
   // Distinguish unpowered gravity fall from *controlled Fly Down*.
@@ -92,7 +105,7 @@
            actions.runStop){
    // Boost release only; let the native ground skid drive translation/feet.
    s.active='runStop';s.elapsed=0;s.rest=0;s.boostStopWindow=0;s.nextIdle=14;
-  }else if(!inAir&&!f.sprinting&&speed<.42){
+  }else if(!steadyIdle&&!inAir&&!f.sprinting&&speed<.42){
    s.rest+=dt;
    if(s.rest>=s.nextIdle){
     const candidates=seq.filter(k=>!!actions[k]);
