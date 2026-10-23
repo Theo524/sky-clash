@@ -158,7 +158,7 @@ assert.strictEqual(extras.choose(dead,motions,.1),null,'Dead fighter may not ges
 const studio=read('animation-studio.html'),game=read('js/v66-game-boot.js');
 const app=read('js/animation-studio.js'),adapter=read('js/v72-published-actions.js');
 assert(studio.includes('id="downloadPreviewGIF"')&&studio.includes('js/v79-gif-preview.js?v=790'));
-assert(studio.includes('id="packCoverage"')&&studio.includes('js/v79-pack-catalog.js?v=790'));
+assert(studio.includes('id="packCoverage"')&&studio.includes('js/v79-pack-catalog.js?v=791'));
 assert(app.includes('GIFPreview.fromDataUrls(item.frames)'),'GIF button must save real rendered motion');
 assert(app.includes('seenContent.has(contentKey)'),'Reimport must dedupe same FBX in renamed ZIPs');
 assert(game.includes("SkyClashV79ExtraActions.start(window)"),'Optional real-game state scheduler must load');
