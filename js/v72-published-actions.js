@@ -50,7 +50,7 @@
  function choose(fighter,actions){
   if(fighter.hp<=0)return null;
   const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
-  const airborne=!!(fighter.flying||fighter.launched||fighter.spiked);
+  const airborne=!!(fighter.jumping||fighter.flying||fighter.launched||fighter.spiked);
   // V77: choose ONLY an expressly published slot in the active gameplay
   // state. In particular, an idle-only Studio export must NEVER play during
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
@@ -118,11 +118,17 @@
     // the exposed V76 (different) idle made the arms briefly jump upwards.
     // Cross-fade the published idle OUT over ~0.2s when starting to walk;
     // never keep an idle overlay during attack/air/block/stun.
-    const safeWalk=slot===null&&speed>.75&&this.hp>0&&
-      !(this.flying||this.launched||this.spiked||this.dashing||this.sprinting||
+    const safeAir=!!(this.jumping||this.flying)&&
+      !(this.launched||this.spiked||this.dashing||this.sprinting||
         this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
         this.superHitT>0||this.charging||this.blockHeld||this.blocking||
         this.slamming||this.acro);
+    const safeWalk=slot===null&&this.hp>0&&
+      (safeAir||(speed>.75&&
+      !(this.launched||this.spiked||this.dashing||this.sprinting||
+        this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
+        this.superHitT>0||this.charging||this.blockHeld||this.blocking||
+        this.slamming||this.acro)));
     if(options.choose){
      // Optional V79 action layer. Its independent one-shot motions fade out
      // into the existing locomotion/idle animations, rather than snapping.
