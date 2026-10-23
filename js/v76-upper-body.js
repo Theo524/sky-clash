@@ -98,7 +98,7 @@
   function eligible(f){
    return f.hp>0&&!f.jumping&&!f.flying&&!f.launched&&!f.spiked&&
     !(f.punchT>0||f.blastT>0||f.superHitT>0||f.downT>0||
-      f.stun>0||f.slamming||f.dashing||f.sprinting||f.charging||
+      f.stun>0||f.slamming||f.dashing||f.sprinting||f.v80AnalogRun||f.charging||
       f.blockHeld||f.blocking||f.acro);
   }
   fighter.animate=function(dt){
