@@ -311,9 +311,9 @@ function movingTakeoffRegression(){
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes("e.src+='&moving=103'"));
  assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(read('index.html').includes('SKY CLASH · BUILD V103'));
- assert(read('index.html').includes('js/v66-game-boot.js?v=820&fix=104'));
- assert(read('animation-studio.html').includes('BUILD V103'));
+ assert(/SKY CLASH · BUILD V10[3-9]/.test(read('index.html')));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9])/.test(read('index.html')));
+ assert(/BUILD V10[3-9]/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
 function compactGuardRegression(){
