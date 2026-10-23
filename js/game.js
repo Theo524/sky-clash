@@ -2422,17 +2422,13 @@ class Fighter {
       // branch; keep every other fighter and the normal game unchanged.
       const walkLab=window.SkyClashMovementLab?.enabled&&
        this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
-      // Joystick at the outside ring is visibly RUN, but not Boost.
-      // Digital WASD does not become running just because its value is 1.
       const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
-      const v93RunSpeed=walkLab&&window.SkyClashMovementLab?.version===93&&
-        this.v93AnalogRun?6.9:normalSpeed;
-      const stepLab=walkLab&&[89,93].includes(window.SkyClashMovementLab?.version)&&
+      const stepLab=walkLab&&window.SkyClashMovementLab?.version===89&&
        window.SkyClashWalkStep&&!this.flying;
       // One state machine owns movement takeoff: weight shift first,
       // then the first planted stride before reaching walking speed.
       const step=stepLab?window.SkyClashWalkStep.plan(this,dt):null;
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : v93RunSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : normalSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
@@ -5261,14 +5257,6 @@ const Game = {
       Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
     }
     const raw = Input.move();
-    // V93 lab: recognize PHYSICAL joystick radius, not keyboard's 1.0
-    // digital magnitude. WASD keeps the controlled walk you approved.
-    // Full thumbstick radius alone selects the original Standard Run,
-    // with hysteresis so crossing the ring doesn't flicker every frame.
-    if(window.SkyClashMovementLab?.version===93){
-      p.v93StickRadius=Math.min(1,Math.hypot(Input._stick?.x||0,Input._stick?.y||0));
-      p.v93AnalogRun=p.v93StickRadius>(p.v93AnalogRun?.79:.91);
-    }
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
     sm.x += (raw.x - sm.x) * ks; sm.y += (raw.y - sm.y) * ks;
