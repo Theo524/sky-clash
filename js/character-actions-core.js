@@ -4,6 +4,10 @@
 const slots={
   kairo:[
     ['idle','Ready Stance','Movement'],['walk','Walk','Movement'],['run','Run / Sprint','Movement'],['jump','Jump','Movement'],['dodge','Dodge / Evade','Movement'],
+    ['runStop','Run → Stop','Transitions'],
+    ['fallingIdle','Falling Idle','Air / Landings'],['fallToRoll','Fall → Roll','Air / Landings'],
+    ['idle3','Idle 3','Long Idle Variations'],['idle4','Idle 4','Long Idle Variations'],
+    ['idle5','Idle 5','Long Idle Variations'],['idleAdventure','Idle Adventure','Long Idle Variations'],
     ['punch1','Combo Punch 1','Combat'],['punch2','Combo Punch 2','Combat'],['punch3','Combo Punch 3','Combat'],['uppercut','Launcher Uppercut','Combat'],['kick','Combo Kick','Combat'],['meteor','Meteor Kick','Combat'],
     ['charge','Energy Charge','Powers'],['superblast','Superblast Release','Powers'],['hit','Hit Reaction','Reactions']
   ],
