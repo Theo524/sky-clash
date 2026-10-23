@@ -7,7 +7,7 @@
  const store=window.SkyClashCharacterStore;
  function script(src){
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions'))?(new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'');e.async=false;
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(new URLSearchParams(location.search).get('movementLab')==='walk'&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'');e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
  }
@@ -27,10 +27,8 @@
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=new URLSearchParams(location.search).get('movementLab')==='walk';
-  if(walkLab&&window.SkyClash?.TUNING){
-   window.SkyClash.TUNING.walkSpeed=4.8;
+  if(walkLab&&window.SkyClash?.TUNING)
    window.SkyClashMovementLab={version:88,enabled:true,targetWalkSpeed:4.8};
-  }
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=820');
