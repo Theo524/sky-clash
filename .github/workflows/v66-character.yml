@@ -35,6 +35,8 @@ on:
       - 'tests/v98-*.js'
       - 'tests/v99-*.js'
       - 'tests/v100-*.js'
+      - 'tests/v101-*.js'
+      - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -85,6 +87,8 @@ on:
       - 'tests/v98-*.js'
       - 'tests/v99-*.js'
       - 'tests/v100-*.js'
+      - 'tests/v101-*.js'
+      - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -131,6 +135,7 @@ jobs:
       - run: node --check js/v79-gif-preview.js
       - run: node --check js/v79-extra-actions.js
       - run: node --check js/v81-pose-transitions.js
+      - run: node --check js/v100-pose-authority.js
       - run: node --check js/v89-grounded-step.js
       - run: node --check js/v95-joystick-radius.js
       - run: node --check js/v91-stance-continuity.js

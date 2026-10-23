@@ -160,8 +160,67 @@ function check(){
  assert(!authority.error);
  console.log('PASS V100: exclusive real-jump/fall/land recorded owner, natural native fingers, bounded wrists, torso/knees, instant combat, approved idle and hover');
 }
+function compactGuardRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
+ const run=flag=>{
+  const u=setup(url+(flag?'&jumpArms=compact':''));
+  u.step(130);
+  const idle=u.pose();
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
+  const counts=u.count();
+  u.step(18);
+  assert.deepEqual(u.count(),counts,
+   'no old upper-body owner may write while unified jumping');
+  const jump=u.pose();
+  assert.equal(u.authority.active,'jump');
+  if(flag)assert.equal(u.authority.armStyle,'V101 compact guard',
+   'user must be able to tell which air-arm profile is active');
+  else assert.equal(u.authority.armStyle,'V100 recorded jump/fall arms');
+  u.f.vel.y=-8;u.step(14);
+  assert.equal(u.authority.active,'fall');
+  const fall=u.pose();
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;u.f.landingMotionT=.48;
+  u.step(15);
+  const land=u.pose();
+  assert.equal(u.authority.armStyle,'V100 recorded landing',
+   'the landing is intentionally unchanged in this small experiment');
+  return {idle,jump,fall,land,authority:u.authority};
+ };
+ const fixed=run(true),original=run(false);
+ const limits={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
+ let saved=0;
+ for(let i=6;i<=13;i++){
+  const dist=fixed.jump[i].angleTo(fixed.idle[i]);
+  const prior=original.jump[i].angleTo(original.idle[i]);
+  assert(dist<=limits[i]+.005,'jump guard bone '+i+' left last approved local pose');
+  const fallDist=fixed.fall[i].angleTo(fixed.idle[i]);
+  assert(fallDist<=limits[i]+.005,'fall guard bone '+i+' returned to two-arm reach');
+  saved=Math.max(saved,prior-dist);
+ }
+ assert(saved>.18,'the old recorded source must show the reported large arm reach');
+ // No hidden changes to lower-body jump, torso, head, or recorded landing.
+ for(const i of [0,1,2,3,4,5,14,15,16,17,18,19]){
+  assert(fixed.jump[i].angleTo(original.jump[i])<1e-4,
+   'recorded lower-body/head/torso movement changed unexpectedly: '+i);
+  assert(fixed.fall[i].angleTo(original.fall[i])<1e-4,
+   'recorded falling legs/head/torso movement changed unexpectedly: '+i);
+ }
+ for(let i=0;i<V100.BONES.length;i++)
+  assert(fixed.land[i].angleTo(original.land[i])<.001,
+   'landing source must be unchanged: '+V100.BONES[i]);
+ const html=read('index.html'),studio=read('animation-studio.html'),boot=read('js/v66-game-boot.js');
+ assert(html.includes('SKY CLASH · BUILD V101'));
+ assert(!html.includes('V58'));
+ assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
+ assert(html.includes('js/v66-game-boot.js?v=820&fix=102'));
+ assert(boot.includes('SkyClashBuild=Object.freeze'));
+ assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
+ assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
+ console.log('PASS V101: compact guard eliminates two-arm forward reach without changing jump legs, fall torso, landing or approved stance; build labels all match.');
+}
 try{
  check();
+ compactGuardRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
