@@ -21,6 +21,8 @@
  const WALK='assets/animations/gameplay/kairo-walk-arms-v1.json';
  const BONES=['leftShoulder','leftUpperArm','leftLowerArm','leftHand',
   'rightShoulder','rightUpperArm','rightLowerArm','rightHand'];
+ const APPROVED_BONES=['hips','spine','chest','upperChest','neck','head',...BONES,
+  'leftUpperLeg','leftLowerLeg','leftFoot','rightUpperLeg','rightLowerLeg','rightFoot'];
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  function decode(THREE,asset){
   if(!THREE?.Quaternion||asset?.schema!=='sky-clash.motion.v1'||
@@ -70,7 +72,10 @@
    mode:'waiting-for-VRM',samples:0,airWeight:0,
    lastPose:BONES.map(()=>new THREE.Quaternion()),
    idlePose:BONES.map(()=>new THREE.Quaternion()),
-   walkPose:BONES.map(()=>new THREE.Quaternion())};
+   walkPose:BONES.map(()=>new THREE.Quaternion()),
+   approvedClip:null,approvedSamples:APPROVED_BONES.map(()=>new THREE.Quaternion()),
+   approvedBasis:new THREE.Quaternion(),approvedBasisInv:new THREE.Quaternion(),
+   sideTarget:new THREE.Vector3()};
   const qScene=new THREE.Quaternion(),qSceneInv=new THREE.Quaternion(),
    qParent=new THREE.Quaternion(),qWantedWorld=new THREE.Quaternion(),
    qLocal=new THREE.Quaternion(),qDelta=new THREE.Quaternion(),
@@ -91,9 +96,16 @@
    scene.getWorldQuaternion(qSceneInv).invert();
    const bind=bones.map(node=>qSceneInv.clone()
      .multiply(node.getWorldQuaternion(new THREE.Quaternion())).normalize());
+   // Mirror the published-action's exact rest-facing calculation so that
+   // its full-body approved idle and these arms agree on which way is front.
+   const left=get('leftUpperArm').getWorldPosition(new THREE.Vector3());
+   const right=get('rightUpperArm').getWorldPosition(new THREE.Vector3());
+   state.sideTarget.copy(left.sub(right).applyQuaternion(qSceneInv));
+   state.sideTarget.y=0;state.sideTarget.normalize();
    for(let i=0;i<all.length;i++)all[i].quaternion.copy(old[i]);
    scene.updateMatrixWorld(true);
    state.rig=rig;state.bones=bones;state.bind=bind;
+   state.approvedClip=null;
   }
   function eligible(f){
    return f.hp>0&&!f.jumping&&!f.flying&&!f.launched&&!f.spiked&&
@@ -137,7 +149,36 @@
     state.transition=clamp(state.transition+safe*6.5,0,1);
     state.standClock+=safe;
     const walking=clamp(this.v71Walk?.weight||0,0,1);
-    idle.sample(state.standClock,state.idlePose);
+    const unified=new URLSearchParams(root.location?.search||'')
+      .get('stance')==='unified';
+    const approved=unified?root.SkyClashPublishedActions?.approvedIdle:null;
+    if(approved?.sample&&JSON.stringify(approved.bones)===JSON.stringify(APPROVED_BONES)){
+     if(state.approvedClip!==approved){
+      const side=new THREE.Vector3(approved.side[0],0,approved.side[1]).normalize();
+      const dst=state.sideTarget;
+      const cross=side.z*dst.x-side.x*dst.z;
+      const dot=side.x*dst.x+side.z*dst.z;
+      const yaw=Math.atan2(cross,dot)+(approved.yaw||0)*Math.PI/180;
+      // V72 uses this source->target facing correction; V76 may itself
+      // apply VRM0's half-turn. Remove its existing basis before blending.
+      const publishedBasis=new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0,1,0),yaw);
+      const v76Basis=rig.legacyAxes?turn:zero;
+      state.approvedBasis.copy(v76Basis).invert().multiply(publishedBasis).normalize();
+      state.approvedBasisInv.copy(state.approvedBasis).invert();
+      state.approvedClip=approved;
+     }
+     approved.sample(state.standClock,state.approvedSamples,true);
+     for(let i=0;i<BONES.length;i++){
+      state.idlePose[i].copy(state.approvedBasis)
+        .multiply(state.approvedSamples[i+6])
+        .multiply(state.approvedBasisInv).normalize();
+     }
+     status.idleSource='approved-idle (2)';
+    }else{
+     idle.sample(state.standClock,state.idlePose);
+     status.idleSource='legacy-fighting-idle';
+    }
     walk.sample(this.v71Walk?.clock||0,state.walkPose);
     const scene=rig.vrm.scene;scene.updateMatrixWorld(true);
     scene.getWorldQuaternion(qScene);
