@@ -43,8 +43,10 @@
      .get('idleArms')==='steady'&&
     f===root.SkyClash?.Game?.heroes?.kairo_venn;
   if(steadyIdle){
-   if(s.active?.startsWith('idle'))s.active=null;
-   s.rest=0;s.nextIdle=12;s.elapsed=0;
+   if(s.active?.startsWith('idle')){
+    s.active=null;s.elapsed=0;
+   }
+   s.rest=0;s.nextIdle=12;
   }
   const wasAir=s.wasAir,wasDescending=s.wasDescending;
   const inAir=!!(f.jumping||f.flying||f.launched||f.spiked);
