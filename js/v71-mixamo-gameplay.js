@@ -79,7 +79,7 @@
     const action=status.action;
     // V85: resolve full-radius analog run before applying walking legs.
     // The recorded full-body run layer used to set this flag too late.
-    const walkLab=new URLSearchParams(root.location?.search||'').get('movementLab')==='walk';
+    const walkLab=['walk','step'].includes(new URLSearchParams(root.location?.search||'').get('movementLab'));
     if(walkLab)this.v80AnalogRun=false;
     else if(root.SkyClashPublishedActions?.actions?.includes('run')&&
        new URLSearchParams(root.location?.search||'').get('animationV85')!=='legacy'){
@@ -98,8 +98,16 @@
      !(this.downT>0)&&!(this.punchT>0)&&!(this.stun>0)&&
      !(this.dashing||this.sprinting||this.slamming||this.v80AnalogRun)&&
      speed>action.minSpeed;
-    const desired=canWalk?Math.min(1,Math.max(0,
-      (speed-action.minSpeed)/(action.fullSpeed-action.minSpeed))):0;
+    // V89: shared animation/physics takeoff clock. Don't fade knees into
+    // a moving walk until Kairo has shifted weight and begun the first step.
+    const step=this.v89Step;
+    const prepared=walkLab&&root.SkyClashMovementLab?.version===89&&step;
+    const activation=prepared?
+      step.mode==='anticipate'||step.mode==='idle'?0:
+      step.mode==='first-step'?Math.max(0,Math.min(1,step.scale)):
+      1:1;
+    const desired=(canWalk?Math.min(1,Math.max(0,
+      (speed-action.minSpeed)/(action.fullSpeed-action.minSpeed))):0)*activation;
     const blendSeconds=desired>state.weight?action.blendInSeconds:action.blendOutSeconds;
     state.weight+=(desired-state.weight)*(1-Math.exp(-safe/Math.max(.025,blendSeconds)));
     // A faded walking knee animation must not run underneath a full-body
