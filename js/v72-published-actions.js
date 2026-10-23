@@ -317,8 +317,11 @@
      // standing, first-step and walking. V72 still owns the approved
      // hips/spine/head/legs. Do not let TWO different idle sources
      // overwrite the wrists/shoulders during the same frame.
-     const unified=new URLSearchParams(root.location?.search||'')
-        .get('stance')==='unified';
+     // V97: when V76 uses the same approved idle, it is the sole
+     // idle-arm writer. Do not overlay independently clocked idle arms.
+     const armMode=new URLSearchParams(root.location?.search||'');
+     const unified=armMode.get('stance')==='unified'||
+       armMode.get('idleArms')==='anchored';
      if(unified&&!options.choose&&entry.slot==='idle'&&i>=6&&i<=13&&
         root.SkyClashUpperBody?.ready&&status.approvedIdle)continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
