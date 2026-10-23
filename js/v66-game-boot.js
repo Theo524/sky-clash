@@ -40,7 +40,7 @@
   }
   await script('js/v72-published-actions.js?v=790');
   await window.SkyClashPublishedGamePack.start(window);
-  await script('js/v79-extra-actions.js?v=790');
+  await script('js/v79-extra-actions.js?v=791');
   await window.SkyClashV79ExtraActions.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
