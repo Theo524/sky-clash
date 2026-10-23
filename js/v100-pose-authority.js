@@ -215,6 +215,10 @@
        (this.acro&&this.acro.type!=='landing');
      if(interrupted){
       st.phase=null;st.wristAnchor=[];st.armAnchor=[];
+      // The previous visible pose is now the interrupting combat/fly
+      // controller, not the last V100 jumping frame.
+      for(let i=0;i<BONES.length;i++)
+       st.prev[i].copy(st.nodes[i].quaternion);
       status.active='yielded-to-combat-or-flight';return;
      }
      if(st.phase){
@@ -229,7 +233,15 @@
       st.rig.vrm.update(0);
       status.active=w>=1?'grounded-owner':'return-to-ground';
       if(w>=1){st.phase=null;st.wristAnchor=[];st.armAnchor=[];}
-     }else status.active='grounded-owners-preserved';
+     }else{
+      status.active='grounded-owners-preserved';
+      // Crucial for V102: V100 is still attached while the older approved
+      // grounded idle/walk controllers run. Capture their LAST VISIBLE pose
+      // every frame; otherwise st.prev remains the original rig setup pose
+      // from the very first frame, causing a large leg snap at takeoff.
+      for(let i=0;i<BONES.length;i++)
+       st.prev[i].copy(st.nodes[i].quaternion);
+     }
      return;
     }
     const visible=before||st.nodes.map(n=>n.quaternion.clone());
