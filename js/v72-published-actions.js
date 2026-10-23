@@ -299,6 +299,14 @@
      if((entry.slot==='runStop'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='landing'&&i===0))continue;
+     // V92: the approved idle arms are now owned by V76 throughout
+     // standing, first-step and walking. V72 still owns the approved
+     // hips/spine/head/legs. Do not let TWO different idle sources
+     // overwrite the wrists/shoulders during the same frame.
+     const unified=new URLSearchParams(root.location?.search||'')
+        .get('stance')==='unified';
+     if(unified&&!options.choose&&entry.slot==='idle'&&i>=6&&i<=13&&
+        root.SkyClashUpperBody?.ready&&status.approvedIdle)continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
@@ -397,6 +405,10 @@
      }
     }catch(e){status.combatError=String(e);console.warn('V87 recorded combat unavailable',e);}
    }
+   // Pass the actual approved idle recording (NOT the old fighting-idle
+   // fallback) to the continuous V76 upper-body owner for the V92 lab.
+   // This is the same clip already used by V72 for torso and legs.
+   if(actions.idle)status.approvedIdle=actions.idle;
    if(!Object.keys(actions).length)return status;
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;
