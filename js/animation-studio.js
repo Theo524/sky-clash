@@ -263,6 +263,10 @@ function setupRig(stage,fbx){
  if(!master)throw Error('Clean master model unavailable. Refresh the Animation Studio.');
  const rig={master,inspection,wrap,fbx,mixer,clip,bones,restWorld,restPoints,tempWorldQuat:new THREE.Quaternion(),hips,initialHipX,initialHipZ,segments,joints,yAxis:new THREE.Vector3(0,1,0),geometries:[segmentGeometry,jointGeo],materials:Object.values(mats)};
  stage.loaded=rig;setRigDisplay(rig,stage.thumb?'master':viewMode);poseRig(stage,0,false);
+ // V78: record source FBX Y-origin after the first sampled frame AND after
+ // scaling the diagnostic skeleton to 2.33m. On Character can reproduce
+ // real jogging bounce without copying horizontal/root translation.
+ if(hips)rig.previewHipBaseY=hips.getWorldPosition(new THREE.Vector3()).y;
  return rig;
 }
 function disposeSetup(stage){if(!stage?.loaded)return;const r=stage.loaded;cleanupRig(stage);for(const g of r.geometries)g.dispose();for(const m of r.materials)m.dispose();}
