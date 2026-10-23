@@ -303,7 +303,7 @@ const LoadScreen=(()=>{
  }
  function reveal(){
   if(finished)return;
-  finished=true;progress(100,modelMessage);
+  progress(100,modelMessage);finished=true;
   const boot=document.getElementById('bootScreen'),menu=document.getElementById('titleScreen');
   if(boot)boot.classList.add('finished');
   if(menu){menu.classList.add('show');menu.setAttribute('aria-hidden','false');}
