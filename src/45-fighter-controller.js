@@ -484,7 +484,13 @@ class Fighter {
       else if (this.launched) { this.vel.x *= 1 - damp(3, dt); this.vel.z *= 1 - damp(3, dt); this.vel.y = this.vel.y * (1 - damp(1.5, dt)) - 16 * dt; }
       else this.vel.multiplyScalar(1 - damp(4, dt));
     } else {
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : TUNING.walkSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      // V88: explicitly separate ordinary Kairo movement from Boost.
+      // Opt-in walk preview only. Sprint physics runs in its own earlier
+      // branch; keep every other fighter and the normal game unchanged.
+      const walkLab=window.SkyClashMovementLab?.enabled&&
+       this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
+      const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : normalSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
