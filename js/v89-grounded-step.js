@@ -40,7 +40,7 @@
   }
   const wants=Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)>.085;
   const speed=Math.hypot(f.vel?.x||0,f.vel?.z||0);
-  function enter(next){if(s.mode!==next){s.mode=next;s.elapsed=0;s.serial++;}}
+  function enter(next){if(s.mode!==next){s.mode=next;s.elapsed=0;s.serial++;if(next==='settle')s.slowElapsed=0;}}
   if(wants){
    if(s.mode==='idle'||s.mode==='inactive')enter(speed>.7?'first-step':'anticipate');
    else if(s.mode==='settle')enter(speed>.7?'walk':'anticipate');
@@ -113,7 +113,12 @@
   f.animate=function(dt){
    old.call(this,dt);
    const g=this.v89Step,rig=this.vrmRig;
-   if(!rig?.vrm||!g||g.mode==='inactive')return;
+   if(!rig?.vrm||!g)return;
+   if(g.mode==='inactive'){
+    // Discard stale standing samples after jumps, hits or aerial movement.
+    st.lastVisible=null;st.launchPose=null;st.stopPose=null;
+    st.lastMode='inactive';return;
+   }
    try{
     if(st.rig!==rig){
      st.rig=rig;const h=rig.vrm.humanoid;
