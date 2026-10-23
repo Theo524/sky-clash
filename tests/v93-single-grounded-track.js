@@ -99,6 +99,9 @@ assert(boot.includes("await window.SkyClashV93Grounded.start(window)"));
 assert(boot.indexOf("SkyClashV93Grounded.start(window)")<
  boot.indexOf("SkyClashWalkStep.start(window)"),
  'V89 authored foot placement comes after one grounded VRM pose owner');
+const stepController=fs.readFileSync(path.join(__dirname,'..','js/v89-grounded-step.js'),'utf8');
+assert(stepController.includes("this.v93SingleLocomotion.lastVisible="),
+ 'planted foot IK must update the single-track previous visible pose');
 const published=fs.readFileSync(path.join(__dirname,'..','js/v72-published-actions.js'),'utf8');
 assert(published.includes("get('stance')==='single'"),'V72 yields locomotion slots');
 const engine=fs.readFileSync(path.join(__dirname,'..','src/95-game.js'),'utf8');
