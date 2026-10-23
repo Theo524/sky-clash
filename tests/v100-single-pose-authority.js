@@ -221,12 +221,97 @@ function steadyAirLegRegression(){
  const boot=read('js/v66-game-boot.js'),html=read('index.html');
  assert(boot.includes("e.src+='&legs=102'"));
  assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(html.includes('SKY CLASH · BUILD V102'));
- assert(html.includes('js/v66-game-boot.js?v=820&fix=103'));
- assert(read('animation-studio.html').includes('BUILD V102'));
+ assert(/SKY CLASH · BUILD V10[2-9]/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9])/.test(html));
+ assert(/BUILD V10[2-9]/.test(read('animation-studio.html')));
  console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
   steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
   ' degrees/frame), V101 arms and V100 landing unchanged');
+}
+function movingTakeoffRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady';
+ function run({speed=0,mode='stand',carry=false}){
+  const u=setup(url+(carry?'&movingJump=carry':''));
+  u.step(130);
+  // For a true normal joystick run, use the actual APPROVED Standard Run
+  // recording. V95 outer-radius run is not the separate Boost/sprint button.
+  u.f.v95JoystickRun=mode==='run';
+  u.f.v89Step.mode=mode==='stand'?'idle':'walk';
+  u.f.moveIntent.z=mode==='stand'?0:1;
+  u.f.vel.z=speed;
+  if(mode==='walk'){
+   // V71 owns walk legs in the live game. Synthetic standalone harness
+   // does not attach V71, so seed a clearly asymmetrical last visible
+   // walk stride in the two actual normalized hip/knee bones.
+   u.bones.leftUpperLeg.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),.17);
+   u.bones.rightUpperLeg.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),-.17);
+   u.bones.leftLowerLeg.quaternion.setFromAxisAngle(new THREE.Vector3(1,0,0),.23);
+  }
+  u.step(mode==='run'?14:4);
+  assert(mode!=='run'||u.primaryStatus.active==='run','V95 should select genuine approved run');
+  const before=u.pose(),counts=u.count();
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
+  u.step(16);
+  const mid=u.pose();
+  assert.equal(u.authority.active,'jump');
+  assert.deepEqual(u.count(),counts,'no original controller continues animating legs midair');
+  const weight=u.authority.movingJumpWeight||0;
+  const title=u.authority.movingJump;
+  if(!carry||mode==='stand')assert(weight===0,'standing and old V102 must not inherit stride');
+  else{
+   assert(weight>.04&&weight<.33,'moving jump must inherit just a modest takeoff stride');
+   assert(title.includes(mode),'diagnostic must show walk vs standard run source');
+  }
+  u.f.vel.y=-7;u.step(25);
+  const falling=u.pose();
+  assert.equal(u.authority.active,'fall');
+  const tailWeight=u.authority.movingJumpWeight||0;
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;u.f.landingMotionT=.48;
+  u.step(22);
+  const landing=u.pose();
+  assert.equal(u.authority.active,'landing');
+  assert.equal(u.authority.legStyle,'V100 landing unchanged');
+  return {u,before,mid,falling,landing,weight,tailWeight};
+ }
+ const standOld=run({}),standFlag=run({carry:true});
+ for(const i of Array.from({length:20},(_,i)=>i)){
+  assert(standOld.mid[i].angleTo(standFlag.mid[i])<.0001,
+   'V103 must preserve APPROVED standing jump on '+V100.BONES[i]);
+  assert(standOld.falling[i].angleTo(standFlag.falling[i])<.0001,
+   'V103 must preserve APPROVED standing descent on '+V100.BONES[i]);
+ }
+ for(const [speed,mode]of [[4.8,'walk'],[6.2,'run']]){
+  const old=run({speed,mode}),fresh=run({speed,mode,carry:true});
+  let changed=0;
+  for(const i of [14,15,16,17,18,19])
+   changed=Math.max(changed,old.mid[i].angleTo(fresh.mid[i]));
+  assert(changed>.006,
+    mode+' must actually inherit a different launch stride from V102');
+  for(const i of Array.from({length:14},(_,i)=>i)){
+   assert(old.mid[i].angleTo(fresh.mid[i])<.0001,
+    mode+' must preserve approved compact arms/body: '+V100.BONES[i]);
+   assert(old.falling[i].angleTo(fresh.falling[i])<.0001,
+    mode+' must preserve approved arms during descent: '+V100.BONES[i]);
+  }
+  for(let i=0;i<20;i++)
+   assert(old.landing[i].angleTo(fresh.landing[i])<.001,
+    'landing must be 100% identical between modes: '+V100.BONES[i]);
+  assert(fresh.tailWeight<fresh.weight,
+   mode+' airborne stride inheritance must decay without a second stride loop');
+  assert(!fresh.u.authority.error);
+ }
+ // A fast Boost jump is a special move, and deliberately retains its old
+ // separate controller. This PR handles V95 normal run, not Boost flight.
+ const boost=setup(url+'&movingJump=carry');
+ boost.step(130);boost.f.sprinting=true;boost.f.pos.y=1.2;boost.f.jumping=true;
+ assert.equal(V100.ownsAir(boost.f),false,'Boost must not silently become a normal run jump');
+ const boot=read('js/v66-game-boot.js');
+ assert(boot.includes("e.src+='&moving=103'"));
+ assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
+ assert(read('index.html').includes('SKY CLASH · BUILD V103'));
+ assert(read('index.html').includes('js/v66-game-boot.js?v=820&fix=104'));
+ assert(read('animation-studio.html').includes('BUILD V103'));
+ console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
@@ -290,6 +375,7 @@ try{
  check();
  compactGuardRegression();
  steadyAirLegRegression();
+ movingTakeoffRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
