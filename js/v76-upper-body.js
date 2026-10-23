@@ -67,7 +67,8 @@
   if(!fighter||typeof fighter.animate!=='function'||fighter.v76UpperBody)return null;
   const previous=fighter.animate;
   const state={rig:null,bones:null,bind:null,standClock:0,transition:0,
-   mode:'waiting-for-VRM',samples:0,
+   mode:'waiting-for-VRM',samples:0,airWeight:0,
+   lastPose:BONES.map(()=>new THREE.Quaternion()),
    idlePose:BONES.map(()=>new THREE.Quaternion()),
    walkPose:BONES.map(()=>new THREE.Quaternion())};
   const qScene=new THREE.Quaternion(),qSceneInv=new THREE.Quaternion(),
@@ -95,7 +96,7 @@
    state.rig=rig;state.bones=bones;state.bind=bind;
   }
   function eligible(f){
-   return f.hp>0&&!f.flying&&!f.launched&&!f.spiked&&
+   return f.hp>0&&!f.jumping&&!f.flying&&!f.launched&&!f.spiked&&
     !(f.punchT>0||f.blastT>0||f.superHitT>0||f.downT>0||
       f.stun>0||f.slamming||f.dashing||f.sprinting||f.charging||
       f.blockHeld||f.blocking||f.acro);
@@ -107,9 +108,26 @@
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
    if(!rig?.vrm){state.transition=0;return;}
    if(!eligible(this)){
-    // Procedural combat takes over cleanly in this very frame. The return
-    // to real grounded idle is blended after recovery, not forced instantly.
-    state.transition=0;state.mode='combat-or-air';return;
+    // V79: the grounded Mixamo pose must not vanish IN ONE FRAME when
+    // the joystick triggers a jump or controlled flight. Hold the last
+    // recorded shoulder/elbow/wrist pose briefly, then blend it into the
+    // airborne controller. Punches, blocking and knockdowns still override
+    // immediately without retaining walking or standing arms.
+    const safeAir=(this.jumping||this.flying)&&
+      !(this.launched||this.spiked||this.punchT>0||this.blastT>0||
+        this.stun>0||this.downT>0||this.slamming||this.blocking||
+        this.blockHeld||this.charging||this.dashing||this.acro);
+    if(safeAir&&state.samples>0&&state.rig===rig){
+     if(state.mode!=='controlled-air')state.airWeight=1;
+     state.airWeight=Math.max(0,state.airWeight-safe*7.5);
+     for(let i=0;i<BONES.length;i++){
+      const n=state.bones[i];if(!n)continue;
+      n.quaternion.slerp(state.lastPose[i],state.airWeight);
+     }
+     rig.vrm.update(0);
+     state.mode='controlled-air';
+    }else{state.airWeight=0;state.mode='combat-or-air';}
+    state.transition=0;return;
    }
    try{
     if(state.rig!==rig)capture(rig);
@@ -143,6 +161,8 @@
      if(angle>2.7)qLocal.copy(node.quaternion).slerp(qLocal,2.7/angle);
      node.quaternion.slerp(qLocal,state.transition);
      node.updateMatrixWorld(true);
+     // Snapshot the fully applied pose for the first jump/fly frames.
+     state.lastPose[i].copy(node.quaternion);
     }
     rig.vrm.update(0);
     state.samples++;state.mode=walking>.02?'walking':'fighting-idle';
