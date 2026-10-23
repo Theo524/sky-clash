@@ -23,10 +23,10 @@
  window.HERO_VRM_URL=selected?.url||null;
  window.HERO_VRM_B64=null;
  try{
-  await script('js/game.js?v=810');
+  await script('js/game.js?v=820');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
-  await script('js/v71-mixamo-gameplay.js?v=740');
+  await script('js/v71-mixamo-gameplay.js?v=820');
   await window.SkyClashV71Walk.start(window);
   // V76: exactly ONE controller owns both standing and walking arms.
   // The old V72 walk-only arm layer is available solely for A/B rollback.
@@ -35,10 +35,10 @@
    await script('js/v72-walk-arms.js?v=750');
    await window.SkyClashV72Arms.start(window);
   }else if(upperMode!=='procedural'){
-   await script('js/v76-upper-body.js?v=810');
+   await script('js/v76-upper-body.js?v=820');
    await window.SkyClashV76UpperBody.start(window);
   }
-  await script('js/v72-published-actions.js?v=810');
+  await script('js/v72-published-actions.js?v=820');
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
