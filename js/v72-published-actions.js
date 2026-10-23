@@ -15,6 +15,8 @@
  const PATH='assets/animations/gameplay/studio-actions-v1.json';
  const OVERRIDES='assets/animations/gameplay/v81-recorded-actions.json';
  const UE5_PACK='assets/animations/gameplay/v86-ue5-converted-actions.json';
+ const COMBAT_PACK='assets/animations/gameplay/v87-recorded-combat.json';
+ const COMBAT_SLOTS=new Set(['punch1','punch2','punch3','overhand','airStrike','kick','sideKick']);
  // Safe rollback: ?ue5=off restores all earlier published Studio motions.
  const UE5_ACTIVE=new Set(['guard','jump','landing','runStop',
   'floating','flying','fallingIdle']);
@@ -80,13 +82,20 @@
   if(fighter.blockHeld||fighter.blocking)return actions.guard?'guard':null;
   if((fighter.punchT||0)>0){
    const kind=String(fighter.attackKind||'').toLowerCase();
-   const special=kind.includes('kick')||kind.includes('spin')?
-     (actions.kick?'kick':actions.meteor?'meteor':null):
-     null;
-   // Standard punches keep their original procedural fallback if no
-   // matching Move has been published. Never substitute standing idle.
-   return special||(kind.includes('upper')&&actions.uppercut?'uppercut':null)||
-     (actions.punch1?'punch1':null);
+   // V87: use the recorded strike matching each real combat beat instead
+   // of looping the same procedural punch for every combination.
+   if(kind.includes('airstrike')||kind.includes('elbow'))
+    return actions.airStrike?'airStrike':actions.punch1?'punch1':null;
+   if(kind.includes('sidekick'))return actions.sideKick?'sideKick':actions.kick?'kick':null;
+   if(kind.includes('kick')||kind.includes('spin'))
+    return actions.kick?'kick':actions.meteor?'meteor':null;
+   if(kind.includes('hook')||kind.includes('upper'))
+    return fighter.attackVariant==='overhand'&&actions.overhand?'overhand':
+      actions.punch3?'punch3':actions.uppercut?'uppercut':null;
+   const serial=Number(fighter.attackSerial||0);
+   return (fighter.punchSide===1&&actions.punch1?'punch1':null)||
+      (serial%2===0&&actions.punch2?'punch2':null)||
+      (actions.punch1?'punch1':actions.punch2?'punch2':null);
   }
   if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
   if(fighter.charging)return actions.charge?'charge':null;
@@ -234,12 +243,25 @@
     }else{
      state.weight+=(1-state.weight)*(1-Math.exp(-elapsed*11));
      if((this.punchT||0)>0){
-      state.clock=Math.max(0,Math.min(entry.seconds,
-       (this.attackElapsed||0)/Math.max(.07,this.attackTotal||.4)*entry.seconds));
+      const progress=Math.max(0,Math.min(1,
+       (this.attackElapsed||0)/Math.max(.07,this.attackTotal||.4)));
+      // V87: real punches usually include a long idle lead-in/recovery.
+      // Play their *contact window* over the gameplay strike, not the
+      // entire 2-3 second file squeezed into a split second.
+      const from=Number.isFinite(entry.attackStart)?entry.attackStart:0;
+      const to=Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
+      state.clock=from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
       let rate=entry.speed;
-      if(slot==='walk'||slot==='run')rate*=Math.max(.55,Math.min(1.9,
-        Math.hypot(this.vel?.x||0,this.vel?.z||0)/3.4));
+      if(slot==='walk'||slot==='run'){
+       const travel=Math.hypot(this.vel?.x||0,this.vel?.z||0);
+       // Match foot cycles to actual world speed. The previous 1.9x cap
+       // leaves Kairo gliding at ~9 world units/sec on full joystick.
+       const v87=new URLSearchParams(root.location?.search||'').get('gait')!=='legacy';
+       rate*=v87?Math.max(.65,Math.min(slot==='run'?3.35:3.0,
+         travel/(slot==='run'?2.7:2.45))):
+         Math.max(.55,Math.min(1.9,travel/3.4));
+      }
       if(slot==='boost')rate*=Math.max(.8,Math.min(1.5,
         Math.hypot(this.vel?.x||0,this.vel?.z||0)/21));
       if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
@@ -259,6 +281,11 @@
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
+     // Keep recorded boxing strikes above the belt so support feet stay
+     // planted, but allow real kicks to animate both legs and the torso.
+     if(COMBAT_SLOTS.has(entry.slot)&&
+        !['kick','sideKick'].includes(entry.slot)&&
+        (i===0||i>=14))continue;
      // V80: the 0.9-second Mixamo run-to-stop file contains airborne
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
@@ -345,6 +372,24 @@
       }
      }
     }catch(e){status.ue5Error=String(e);console.warn('V86 UE5 motions unavailable; original animations retained',e);}
+   }
+   // V87: independent recorded punch/kick pack, using already licensed
+   // motions in the game's original Mixamo library. Failure preserves the
+   // previous combat fallback and never blocks player controls.
+   if(new URLSearchParams(context.location?.search||'').get('recordedCombat')!=='off'){
+    try{
+     const response=await context.fetch(COMBAT_PACK+'?v=870',{cache:'no-cache'});
+     if(response.ok){
+      const combat=await response.json();
+      if(combat?.schema==='sky-clash.studio-gamepack.v1'&&
+         Array.isArray(combat.motions)&&combat.motions.length===7){
+       for(const entry of combat.motions)
+        if(COMBAT_SLOTS.has(entry.slot)&&entry.character==='kairo')
+         actions[entry.slot]=decode(context.THREE,entry);
+       status.combatClips=[...COMBAT_SLOTS].filter(slot=>!!actions[slot]);
+      }
+     }
+    }catch(e){status.combatError=String(e);console.warn('V87 recorded combat unavailable',e);}
    }
    if(!Object.keys(actions).length)return status;
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];

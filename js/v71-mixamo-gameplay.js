@@ -107,7 +107,14 @@
        (this.v80AnalogRun||this.jumping||this.flying||this.sprinting||this.dashing))
       state.weight=0;
     if(state.weight<.008){state.last='idle';return;}
-    if(canWalk)state.clock+=safe*Math.min(1.8,Math.max(.62,speed/action.speedReference));
+    if(canWalk){
+     const v87=new URLSearchParams(root.location?.search||'').get('gait')!=='legacy';
+     // Match actual ground travel: 9u/s with a 1.8x gait produced
+     // obvious skate/glide; stay smooth at tiny stick deflections.
+     const rate=v87?Math.min(3.05,Math.max(.60,speed/2.55)):
+       Math.min(1.8,Math.max(.62,speed/action.speedReference));
+     state.clock+=safe*rate;
+    }
     // V74: the old procedural fighter still rolls/pitches its hips and
     // chest while real Mixamo legs are stepping. Combining both gait
     // rhythms makes the VRM look like it is dancing. Remove only that

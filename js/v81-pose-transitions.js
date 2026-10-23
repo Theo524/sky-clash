@@ -84,7 +84,9 @@
     // Faster transitions into combat; no masking strike/contact frames.
     const seconds=next==='landing'?.23:
       next==='guard'?.16:next==='boost-stop'?.14:next==='fall'?.20:.18;
-    st.blend=combat(next)?1:clamp(st.elapsed/seconds,0,1);
+    // V87: strikes should enter fast but not snap in one frame from
+    // the preceding stance; damage reactions remain instantaneous.
+    st.blend=next==='damage'?1:clamp(st.elapsed/(next==='attack'?.075:seconds),0,1);
     const w=st.blend*st.blend*(3-2*st.blend);
     if(w<1)for(let i=0;i<st.nodes.length;i++){
      const node=st.nodes[i];
@@ -93,7 +95,7 @@
     // Neutral hands remain exactly as the user's approved idle.
     // Floating opens them only PARTIALLY, so they don't become robot palms;
     // recorded guard and Boost use compact natural-looking fists.
-    const grip=next==='guard'?.94:next==='boost'?.76:next==='boost-stop'?.55:
+    const grip=next==='attack'?.9:next==='guard'?.94:next==='boost'?.76:next==='boost-stop'?.55:
       next==='flight'||next==='flight-boost'?.46:
       next==='jump'||next==='fall'?.52:next==='landing'?.40:0;
     st.handGrip+=(grip-st.handGrip)*(1-Math.exp(-safe*13));
