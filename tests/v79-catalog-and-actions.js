@@ -47,9 +47,10 @@ const actor=()=>({hp:100,vel:new THREE.Vector3(),punchT:0,stun:0,
  blockHeld:false,charging:false,acro:null,dashing:false,sprinting:false,
  jumping:false,flying:false,launched:false,spiked:false});
 const idle=actor();
-for(let i=0;i<11;i++)assert.strictEqual(extras.choose(idle,motions,1),null);
-const first=extras.choose(idle,motions,1);
-assert.strictEqual(first,'idle3','After 12s first natural idle variation begins');
+for(let i=0;i<710;i++)assert.strictEqual(extras.choose(idle,motions,1/60),null);
+let first=null;
+for(let i=0;i<30;i++){first=extras.choose(idle,motions,1/60);if(first)break;}
+assert.strictEqual(first,'idle3','After about 12s first natural idle variation begins');
 idle.vel.x=3;
 assert.strictEqual(extras.choose(idle,motions,.1),null,'Joystick input cancels idle gesture');
 
