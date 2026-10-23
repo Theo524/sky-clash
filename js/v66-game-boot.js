@@ -7,7 +7,7 @@
  const store=window.SkyClashCharacterStore;
  function script(src){
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(new URLSearchParams(location.search).['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&fix=91':new URLSearchParams(location.search).get('stance')==='legacy90'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&fix=91':new URLSearchParams(location.search).get('stance')==='legacy90'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
     (src.includes('v89-grounded-step')?
    (['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&stance=91':
     new URLSearchParams(location.search).get('stance')==='legacy90'?'&stance=90':''):'');e.async=false;
