@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V103';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:103,
+ const BUILD='V104';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:104,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -84,7 +84,11 @@
   const continuousLab=stepLab&&['match','continuous','unified'].includes(new URLSearchParams(location.search).get('stance'));
   if(stepLab)await script('js/v89-grounded-step.js?v=890');
   if(joystickLab)await script('js/v95-joystick-radius.js?v=950');
-  await script('js/game.js?v=820');
+  // Game.init and its RAF start before the optional animation recordings
+  // finish loading. Keep Kairo's VRM meshes hidden until fully composed.
+  window.SKY_V104_STARTUP_GATE=true;
+  window.SKY_V104_ANIMATIONS_READY=false;
+  await script('js/game.js?v=820&startup=104');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
@@ -130,14 +134,26 @@
    await script('js/v100-pose-authority.js?v=1000');
    window.SkyClashV100Animator.start(window);
   }
+  // Release the model/recording startup barrier ONLY after all wrappers
+  // have been installed. Late VRMs have their own 18-frame pose gate.
+  window.SKY_V104_ANIMATIONS_READY=true;
+  window.SkyClashLoadScreen?.animationsFinished?.();
   if(walkLab){
-   const label=document.createElement('div');
+   // Native <details> is keyboard/touch friendly and starts collapsed
+   // on narrow/mobile screens. Version + current action remain visible.
+   const label=document.createElement('details');
    label.id='walkLabStatus';
-   Object.assign(label.style,{position:'fixed',bottom:'18px',left:'18px',
-    background:'rgba(9,18,30,.92)',color:'#e2f7ff',border:'1px solid #7097a7',
-    padding:'9px 12px',font:'12px/1.45 monospace',borderRadius:'9px',
-    zIndex:'99999',pointerEvents:'none',whiteSpace:'pre-line'});
-   label.textContent='SKY CLASH BUILD '+BUILD+' — checking active animation controllers…';
+   label.className='sky-lab-panel';
+   const heading=document.createElement('summary');
+   heading.id='walkLabSummary';
+   heading.textContent='BUILD '+BUILD+' · Loading… ▾';
+   const detail=document.createElement('pre');
+   detail.id='walkLabDetails';
+   detail.textContent='Animation controllers initializing…';
+   label.append(heading,detail);
+   label.open=!window.matchMedia?.('(max-width: 760px), (pointer: coarse)')?.matches;
+   label.addEventListener('pointerdown',event=>event.stopPropagation());
+   label.addEventListener('touchstart',event=>event.stopPropagation(),{passive:true});
    document.body.appendChild(label);
    window.setInterval(()=>{
     const g=window.SkyClash?.Game,p=g?.player;
@@ -158,7 +174,11 @@
     const groundMode=anchoredArmLab?'V97 APPROVED':
       joystickLab?'V95 JOYSTICK':handoffLab?'V94 HANDOFF':
       stepLab?'V89 STEP':'DEFAULT';
-    label.textContent=stepLab?
+    // Do not enlarge mobile panel automatically as the game state changes.
+    heading.textContent=BUILD+' · '+(p?.jumping?'JUMP':p?.landingMotionT>0?
+      'LANDING':p?.v80AnalogRun?'RUN':v>1.3?'WALK':'IDLE')+
+      (label.open?' ▲':' ▾');
+    detail.textContent=stepLab?
      'SKY CLASH · BUILD '+BUILD+'\n'+
      'GROUND: '+groundMode+' | JUMP: '+airMode+'\n'+
      'AIR LEGS: '+(steadyLegs&&airOwner?.ready?
@@ -193,6 +213,10 @@
   }
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
+  // Don't strand the opening screen if an optional action pack fails.
+  // The engine's native fallback is still a playable fighter.
+  window.SKY_V104_ANIMATIONS_READY=true;
+  window.SkyClashLoadScreen?.animationsFinished?.();
   console.error('Sky Clash V66 boot failed',err);
   const status=document.getElementById('bootStatus');
   if(status)status.textContent='Could not start game: '+err.message;

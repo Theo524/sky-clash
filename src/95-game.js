@@ -484,6 +484,22 @@ const Game = {
     // paused: simulation and camera frozen; scene still renders behind the blur
     if (this.state !== 'paused') Arena.update(real);
     sun.position.set(this.player.pos.x + 45, 60, this.player.pos.z + 30); sun.target.position.copy(this.player.pos);
+    // V104: after controllers are actually installed, reveal each newly
+    // decoded Kairo VRM only after 18 frames of the COMPLETE final pose.
+    // A late model can otherwise suddenly expose a T-pose even if the
+    // splash-screen watchdog has already released the playable fallback.
+    if(window.SKY_V104_ANIMATIONS_READY&&this.state!=='paused'){
+      for(const fighter of [this.heroes?.kairo_venn,this.enemy]){
+        const rig=fighter?.vrmRig;
+        if(!rig?.startupPoseHidden||
+           (fighter!==this.player&&fighter!==this.enemy))continue;
+        rig.startupPoseFrames++;
+        if(rig.startupPoseFrames>=18){
+          rig.vrm.scene.visible=true;
+          rig.startupPoseHidden=false;
+        }
+      }
+    }
     renderer.render(scene, camera);
     if (Settings.get('fps')) { this._fpsAcc += dt; this._fpsN++; if (this._fpsAcc > 0.5) { $('fps').textContent = Math.round(this._fpsN / this._fpsAcc) + ' fps'; this._fpsAcc = 0; this._fpsN = 0; } }
     } catch (err) {

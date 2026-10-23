@@ -36,6 +36,7 @@ on:
       - 'tests/v99-*.js'
       - 'tests/v100-*.js'
       - 'tests/v101-*.js'
+      - 'tests/v104-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -88,6 +89,7 @@ on:
       - 'tests/v99-*.js'
       - 'tests/v100-*.js'
       - 'tests/v101-*.js'
+      - 'tests/v104-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -177,6 +179,7 @@ jobs:
       - run: node tests/v98-jump-fall-routing.js
       - run: node tests/v99-airborne-hands.js
       - run: node tests/v100-single-pose-authority.js
+      - run: node tests/v104-startup-pose-mobile.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
