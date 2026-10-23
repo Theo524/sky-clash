@@ -408,3 +408,38 @@ body.vrm-loading #startBtn,body.vrm-loading #trainBtn{opacity:1;pointer-events:a
 @media(max-height:500px) and (orientation:landscape){.workshop{width:310px}.ws-sliders{max-height:25vh;min-height:100px}}
 
 @media(max-width:680px) and (orientation:portrait){.workshop{width:calc(100vw - 12px);height:min(57dvh,550px);top:auto;bottom:6px;left:6px}.ws-sliders{max-height:170px;min-height:110px}}
+
+
+/* V104: small, opt-in animation diagnostics. Mobile starts as a one-line
+   build/status chip; tap to expand. Never cover the joystick or buttons. */
+.sky-lab-panel{
+ position:fixed;bottom:calc(14px + var(--safe-b));left:calc(12px + var(--safe-l));
+ z-index:99999;max-width:min(440px,calc(100vw - 24px));
+ color:#e2f7ff;background:rgba(9,18,30,.92);
+ border:1px solid rgba(112,151,167,.8);border-radius:9px;
+ box-shadow:0 3px 12px rgba(0,0,0,.24);
+ font:11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;
+ pointer-events:auto;touch-action:manipulation;
+}
+.sky-lab-panel>summary{
+ display:list-item;cursor:pointer;padding:6px 10px;
+ font-weight:700;line-height:1.4;user-select:none;
+ outline-offset:3px;
+}
+.sky-lab-panel>summary::marker{color:#8ce3dc}
+.sky-lab-panel>pre{
+ margin:0;padding:7px 10px 9px;border-top:1px solid rgba(112,151,167,.35);
+ max-height:min(48vh,350px);overflow:auto;overscroll-behavior:contain;
+ white-space:pre-wrap;overflow-wrap:anywhere;
+ font:inherit;font-weight:400;user-select:text;
+}
+@media (max-width:760px), (pointer:coarse){
+ .sky-lab-panel{
+  top:calc(96px + var(--safe-t));right:calc(8px + var(--safe-r));
+  bottom:auto;left:auto;max-width:min(84vw,320px);
+  font-size:10px;
+ }
+ .sky-lab-panel:not([open]){max-width:min(49vw,176px)}
+ .sky-lab-panel>summary{padding:5px 7px;white-space:nowrap}
+ .sky-lab-panel>pre{max-height:min(39dvh,270px);font-size:10px}
+}
