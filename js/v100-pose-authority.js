@@ -336,7 +336,10 @@
     // V107 enriches the source torso's launch recoil, airborne reach and
     // descent brace; never touches approved legs or compact local guard.
     if(performance&&i<=5){
-     let x=i===0?performance.hipsX:i===1?performance.spineX:
+     // Hips must be adjusted LAST, after the six approved local leg
+     // joints are retargeted. Otherwise their parent basis changes and
+     // makes V102/V103 leg quaternions differ even with the same source.
+     let x=i===1?performance.spineX:
        i===2?performance.chestX:i===4?performance.neckX:0;
      let z=i===1?performance.spineZ:0;
      let y=i===2?performance.chestY:0;
@@ -414,6 +417,12 @@
     }
     node.quaternion.copy(qTarget);
     node.updateMatrixWorld(true);
+   }
+   if(performance){
+    const hips=st.nodes[0];
+    qTmp.setFromAxisAngle(new THREE.Vector3(1,0,0),performance.hipsX);
+    hips.quaternion.multiply(qTmp).normalize();
+    hips.updateMatrixWorld(true);
    }
    // V73 natural VRoid hands are the only finger source in this state.
    // No V81 artificial Y-axis curl and no independent extra-action writer.
