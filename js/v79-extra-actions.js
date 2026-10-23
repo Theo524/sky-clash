@@ -39,8 +39,9 @@
   // steering. In this opt-in movement preview, approved idle (2) is the
   // ONLY idle source for playable Kairo. Preserve every non-idle extra
   // (falling / landing / recorded stop) and leave all NPCs unchanged.
-  const steadyIdle=new URLSearchParams(root.location?.search||'')
-     .get('idleArms')==='steady'&&
+  const idleMode=new URLSearchParams(root.location?.search||'')
+     .get('idleArms');
+  const steadyIdle=['steady','anchored'].includes(idleMode)&&
     f===root.SkyClash?.Game?.heroes?.kairo_venn;
   if(steadyIdle){
    if(s.active?.startsWith('idle')){
