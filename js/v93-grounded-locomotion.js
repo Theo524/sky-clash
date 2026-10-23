@@ -46,6 +46,7 @@
    // can cross a 180-degree quaternion hemisphere and flip the elbow.
    armOffsets:ARMS.map(()=>new THREE.Quaternion()),
    legOffsets:LEG.map(()=>new THREE.Quaternion()),
+   lastVisible:null,angularCorrections:0,
    idle:BONES.map(()=>new THREE.Quaternion()),
    run:BONES.map(()=>new THREE.Quaternion()),
    legs:['hips',...LEG].map(()=>new THREE.Quaternion()),
@@ -112,6 +113,7 @@
     st.legOffsets[j].copy(idleStart).multiply(sourceStart.invert()).normalize();
    }
    st.rig=rig;st.fade=0;st.walkWeight=0;st.runWeight=0;
+   st.lastVisible=st.nodes.map(n=>n.quaternion.clone());
   }
   f.animate=function(dt){
    old.call(this,dt);
@@ -119,7 +121,7 @@
    if(!rig?.vrm)return;
    if(!eligibility(this)){
     // Never mask a strike, hit, Boost release, jump, guard or landing.
-    st.fade=0;st.active='other-action';
+    st.fade=0;st.active='other-action';st.lastVisible=null;
     return;
    }
    try{
@@ -183,9 +185,26 @@
      // First module activation alone is faded from the last real pose;
      // subsequent gait handoffs have no alternate writer or pose reset.
      bone.quaternion.slerp(target,st.fade).normalize();
+     // The recorded walk clip can produce a rapid *foot rotation* even
+     // though its individual FBX frames are continuous. Constrain angular
+     // movement within THIS sole pose owner (not a competing post-layer),
+     // using the previous player-visible local quaternion, never the
+     // procedural pose written underneath this frame.
+     const prior=st.lastVisible?.[i];
+     if(prior){
+      const maxRate=i<6?7:i<14?9:11;
+      const maxDelta=Math.max(.012,safe*maxRate);
+      const angle=prior.angleTo(bone.quaternion);
+      if(angle>maxDelta){
+       const dest=bone.quaternion.clone();
+       bone.quaternion.copy(prior).slerp(dest,maxDelta/angle).normalize();
+       st.angularCorrections++;
+      }
+     }
      bone.updateMatrixWorld(true);
     }
     rig.vrm.update(0);
+    st.lastVisible=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
     st.active=st.runWeight>.55?'standard-run':st.walkWeight>.15?'walk':'approved-idle';
     this.v80AnalogRun=st.runWeight>.45;
@@ -194,6 +213,7 @@
      root.SkyClashMovementLab.sourceOwner='V93 single track';
      root.SkyClashMovementLab.walkMix=st.walkWeight;
      root.SkyClashMovementLab.runMix=st.runWeight;
+     root.SkyClashMovementLab.angularCorrections=st.angularCorrections;
     }
     status.frames=st.frames;status.active=st.active;
    }catch(err){
