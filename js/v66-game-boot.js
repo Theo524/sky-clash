@@ -23,7 +23,7 @@
  window.HERO_VRM_URL=selected?.url||null;
  window.HERO_VRM_B64=null;
  try{
-  await script('js/game.js?v=800');
+  await script('js/game.js?v=810');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=740');
@@ -35,13 +35,17 @@
    await script('js/v72-walk-arms.js?v=750');
    await window.SkyClashV72Arms.start(window);
   }else if(upperMode!=='procedural'){
-   await script('js/v76-upper-body.js?v=790');
+   await script('js/v76-upper-body.js?v=810');
    await window.SkyClashV76UpperBody.start(window);
   }
-  await script('js/v72-published-actions.js?v=800');
+  await script('js/v72-published-actions.js?v=810');
   await window.SkyClashPublishedGamePack.start(window);
-  await script('js/v79-extra-actions.js?v=800');
+  await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
+  // Final pose owner runs after all optional Move layers. This keeps
+  // whole-body transitions smooth instead of exposing old procedural arms.
+  await script('js/v81-pose-transitions.js?v=810');
+  window.SkyClashV81Transitions.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
   console.error('Sky Clash V66 boot failed',err);

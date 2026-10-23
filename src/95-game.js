@@ -272,9 +272,21 @@ const Game = {
     const mg = Math.min(1, m.mag), pace = mg < 0.08 ? 0 : mg < 0.4 ? 0.12 + (mg - 0.08) / 0.32 * 0.13 : mg < 0.75 ? 0.25 + (mg - 0.4) / 0.35 * 0.25 : 0.5 + (mg - 0.75) / 0.25 * 0.5;
     if (dir.lengthSq() > 1e-6) p.moveIntent.copy(dir).normalize().multiplyScalar(pace); else p.moveIntent.set(0, 0, 0);
     p.vert = Input.vertical();
-    // tap Up on the ground to jump (holding it carries on into flight)
-    if (p.vert > 0 && !this._upWas) p.tryJump();
-    this._upWas = p.vert > 0;
+    // V81: tap Up once for a normal jump/ascend. Once HOVERING, a
+    // deliberate double-tap Up within 380ms cancels powered flight and
+    // switches to a real gravity-driven fall. Holding Fly Down remains a
+    // controlled descent and must NEVER trigger falling body animations.
+    if(p.vert>0&&!this._upWas){
+      const now=p.t||0;
+      if(p.flying&&!p.jumping&&now-(this._upLastTap??-100)<.38){
+       if(p.dropFromFlight?.())this._upLastTap=-100;
+       else this._upLastTap=now;
+      }else{
+       if(!p.dropping)p.tryJump();
+       this._upLastTap=now;
+      }
+    }
+    this._upWas=p.vert>0;
     if (p.awakenChargeT > 0) {
       // Consume queued inputs without interrupting transformation or spamming an action afterward.
       for (const act of ['dash','dash2','vanish','melee','blast','awaken','lock']) Input.consume(act);

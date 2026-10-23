@@ -119,7 +119,10 @@
         this.blockHeld||this.charging||this.dashing||this.acro);
     if(safeAir&&state.samples>0&&state.rig===rig){
      if(state.mode!=='controlled-air')state.airWeight=1;
-     state.airWeight=Math.max(0,state.airWeight-safe*7.5);
+     // Keep a SMALL share of the recorded, naturally bent fighting
+     // elbows while hovering. Previously the remembered posture faded to
+     // zero and exposed the old straight-arm procedural 'robot flight'.
+     state.airWeight=Math.max(.32,state.airWeight-safe*5.5);
      for(let i=0;i<BONES.length;i++){
       const n=state.bones[i];if(!n)continue;
       n.quaternion.slerp(state.lastPose[i],state.airWeight);

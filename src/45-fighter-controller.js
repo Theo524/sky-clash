@@ -45,7 +45,7 @@ class Fighter {
     this.acro = null; this.acroClock = 0; this.lastAcroAt = -20; this.landingVariant = 0;
     this.guard = TUNING.guardMax; this.guardDelay = 0; this.blockHeld = false; this.blocking = false; this.blockT = 0; this.parryOk = 0; this.guardCounterWindow = 0; this.guardHitBy = null;
     this.lastBlockEnd = -9; this.brokenT = 0; this.blockW = 0; this.windT = 0; this.windTarget = null; this.windLen = 0;
-    this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
+    this.vanishRecoverT = 0; this.launched = false; this.launchT = 0; this.juggle = 0; this.spiked = false; this.downT = 0; this.invulnT = 0; this.chase = null; this.vanishCd = 0; this.vanishT = 0; this.sprintHeld = false; this.sprinting = false; this.dropping = false; this.landingMotionT = 0; this.dashWasChase = false; this.sprintFx = 0; this.jumping = false; this.jumpHold = 0; this.slamming = false; this.slamWindT = 0; this.slamTarget = null; this.slamLagT = 0; this.tumble = 0;
     this.chargeHeld = false; this.charging = false; this.chargeT = 0; this.chargeTarget = null; this.chargeAim = 'target'; this.chargeFull = false; this.chargeFx = 0; this.chargeCracked = false; this.auraFxT = 0; this.runPh = 0; this.runW = 0; this.dashPrep = 0; this.skidT = 0; this.accF = 0; this.prevLz = 0; this.hipYaw = 0; this.strideDir = 1; this.flyW = 0; this.hurtT = 0; this.attackDrive = 0; this.attackMoving = false; this.attackTravel = new V3(0,0,1); this.attackAir = false; this.attackTarget = null; this.attackOrigin = new V3(); this.attackTravelBudget = 0; this.dashRecoverT = 0; this.sprintShakeT = 0;
   }
   // Cosmetic acrobatics: no displacement, hitbox changes, input lock or camera spin.
@@ -141,6 +141,16 @@ class Fighter {
       Game.callout(this === Game.player ? 'Perfect vanish' : 'Rival vanished', 'parry');
     } else if (guardEscape && this === Game.player) Game.callout('GUARD VANISH!', 'parry');
     else if (this !== Game.player) Game.callout('Rival vanished', 'parry');
+    return true;
+  }
+  // V81: deliberate double-tap Up while hovering releases powered flight.
+  // The real falling motion starts with gravity, not merely pressing Down.
+  dropFromFlight(){
+    if(!this.canFly||!this.flying||this.jumping||this.launched||this.spiked||
+       this.stun>0||this.slamming)return false;
+    this.dropping=true;this.jumping=false;this.jumpHold=0;
+    this.sprinting=false;this.sprintHeld=false;this.vert=0;
+    this.vel.y=Math.min(this.vel.y,-2.5);
     return true;
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
@@ -324,7 +334,9 @@ class Fighter {
     if (this.sprinting && (!this.sprintHeld || this.stun > 0 || this.blockHeld || this.charging || this.punchT > 0 || this.blastT > 0 || this.windT > 0 || this.launched || this.energy <= 0 || this.exhausted || this.stamina < 0.1)) {
       this.sprinting = false; this.vel.multiplyScalar(0.88);
       if (!this.flying && this.stun <= 0 && Math.hypot(this.vel.x, this.vel.z) > 9 && this.punchT <= 0) {
-        this.skidT = TUNING.skidTime;
+        // V81: a readable ~0.42s physical skid for ending super-fast
+        // Boost; unlike the old Run to Stop clip this NEVER pauses midair.
+        this.skidT = Math.max(TUNING.skidTime,0.42);
         // V80: a burst of grounded grit/smoke when ending *Boost*, not
         // ordinary joystick running. Native skid physics remain in charge.
         Effects.dust(this.pos, 10);
@@ -490,7 +502,15 @@ class Fighter {
       // build up speed with some weight, stop a little quicker; floatier in the air
       const speedingUp = target.lengthSq() > this.vel.lengthSq() * 0.9;
       const rate = this.flying ? (speedingUp ? 6.1 : 6.6) : (speedingUp ? TUNING.accel : TUNING.decel);
+      if(this.dropping&&this.canFly){
+       // Flight Down is controlled travel. Only the explicit flight-cancel
+       // state uses true gravity and the falling idle animation.
+       target.y=this.vel.y-TUNING.gravity*dt;
+      }
       this.vel.lerp(target, damp(rate, dt));
+      if(this.dropping&&this.canFly)
+       this.vel.y=Math.max(-TUNING.flySpeed,
+        Math.min(-2.5,this.vel.y-TUNING.gravity*dt));
     }
     this.pos.addScaledVector(this.vel, dt);
     const r = Math.hypot(this.pos.x, this.pos.z);
@@ -503,7 +523,10 @@ class Fighter {
       Effects.groundSlam(this.pos); CameraRig.shake(this === Game.player ? 0.5 : 0.35);
       if (this.slamTarget) Combat.slam(this, this.slamTarget);
     }
-    if (this.pos.y === floor && this.vel.y <= 0) { this.jumping = false; if (!this.canFly) this.jumpsUsed=0; }
+    if (this.pos.y === floor && this.vel.y <= 0) {
+      this.jumping = false;this.dropping=false;
+      if (!this.canFly) this.jumpsUsed=0;
+    }
     if (this.pos.y === floor && this.vel.y < 0) {
       // a smashed fighter hits the floor hard and stays down for a moment
       if (this.spiked) {
@@ -523,13 +546,18 @@ class Fighter {
       const speed = Math.hypot(this.vel.x, this.vel.z);
       if (!this.launched && !this.spiked && !this.slamming && this.stun <= 0 && this.hp > 0) {
         this.landingVariant = (this.landingVariant + 1) % 3;
-        this.startAcro('landing', speed > 9 ? 0.42 : 0.30, this.landingVariant === 0 ? -1 : 1);
+        if(this.characterId==='kairo_venn'){
+          // Recorded Mixamo landing replaces the old 0.5-radian procedural
+          // forward bow. Physics controls the ground contact throughout.
+          this.acro=null;this.landingMotionT=.48;
+        }else this.startAcro('landing', speed > 9 ? 0.42 : 0.30, this.landingVariant === 0 ? -1 : 1);
       }
     }
     this.wasFlying = flying;
     this.dustT -= dt;
     if (this.dashing && this.pos.y < floor + 1.2 && this.dustT <= 0) { Effects.dust(this.pos, 2); this.dustT = 0.05; }
     this.animate(dt);
+    this.landingMotionT=Math.max(0,(this.landingMotionT||0)-dt);
     if (this.awakened) {
       this.auraFxT -= dt;
       if (this.auraFxT <= 0) {
