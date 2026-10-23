@@ -109,7 +109,17 @@
    qSourceBasis.setFromAxisAngle(axisY,
      Math.atan2(cross,dot)+(clip.yaw||0)*Math.PI/180);
    qBasisInv.copy(qSourceBasis).invert();
-   const wristLimit=.44;  // Local wrist bend relative to last visible fighting pose.
+   const wristLimit=.44;  // V100 rollback: recorded source with bounded wrists.
+   // V101 opt-in: the UE5 jump moves BOTH arms straight forward. That is
+   // authored in the clip, not a second animator overriding it. Keep
+   // Kairo's last *approved* guard as the arm baseline and take only a
+   // gentle fraction of the recorded counter-swing; the knees, hips,
+   // torso and recorded jump timing are unchanged.
+   const compactArms=new URLSearchParams(root.location?.search||'')
+      .get('jumpArms')==='compact'&&(next==='jump'||next==='fall');
+   const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
+   status.armStyle=compactArms?'V101 compact guard':next==='landing'?
+     'V100 recorded landing':'V100 recorded jump/fall arms';
    for(let i=0;i<BONES.length;i++){
     const node=st.nodes[i];
     if(!node?.parent)continue;
@@ -118,9 +128,21 @@
     qWanted.copy(qScene).multiply(qMapped).multiply(st.bind[i]).normalize();
     node.parent.getWorldQuaternion(qParent);
     qTarget.copy(qParent).invert().multiply(qWanted).normalize();
-    // Never recreate the double-writer's extreme wrists or cross-body
-    // elbows while following the *actual* UE5 source jump keyframes.
-    if(next==='jump'||next==='fall'){
+    // One physically readable airborne stance: elbows stay separated near
+    // the ribs, wrists stay aligned with Kairo's existing fighting guard.
+    // A ~18% recorded counter-swing prevents a frozen upper body without
+    // allowing the clip's forward two-hand thrust.
+    if(compactArms&&i>=6&&i<=13){
+     const anchor=st.armAnchor[i],distance=anchor.angleTo(qTarget);
+     const amount=Math.min(distance*.18,armCap[i]);
+     if(distance>1e-5){
+      qTmp.copy(qTarget);
+      qTarget.copy(anchor).slerp(qTmp,amount/distance).normalize();
+     }else qTarget.copy(anchor);
+     status.maxJumpArmDeviation=Math.max(status.maxJumpArmDeviation||0,amount);
+    // V100 rollback: the raw source arm motion remains available
+    // simply by removing &jumpArms=compact from the test URL.
+    }else if(next==='jump'||next==='fall'){
      const anchor=(i===9?st.wristAnchor[0]:i===13?st.wristAnchor[1]:
        [6,7,8,10,11,12].includes(i)?st.armAnchor[i]:null);
      const bound=i===9||i===13?wristLimit:1.34;
