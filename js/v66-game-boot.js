@@ -26,6 +26,9 @@
    if(['v76-upper-body','v72-published-actions'].some(k=>src.includes(k))&&
       new URLSearchParams(location.search).get('idleArms')==='anchored')
      e.src+='&arm=97';
+   if(src.includes('v72-published-actions')&&
+      new URLSearchParams(location.search).get('airLab')==='jump')
+     e.src+='&air=98';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
