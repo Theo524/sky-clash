@@ -57,8 +57,12 @@
   // skid, never for ordinary joystick running or a midair release.
   const releasedBoost=!!fighter._v82WasBoost&&!fighter.sprinting;
   fighter._v82WasBoost=!!fighter.sprinting;
-  if(releasedBoost&&!airborne&&(fighter.skidT||0)>0)
-   fighter._v82BoostStopEnd=(fighter.t||0)+.72;
+  if(releasedBoost&&!airborne&&(fighter.skidT||0)>0){
+   // Align the visual stop to the real grounded skid instead of holding a
+   // braking pose after the collision/feet have finished stopping.
+   fighter._v85StopDuration=Math.max(.28,Math.min(.58,fighter.skidT));
+   fighter._v82BoostStopEnd=(fighter.t||0)+fighter._v85StopDuration;
+  }
   // V77: choose ONLY an expressly published slot in the active gameplay
   // state. In particular, an idle-only Studio export must NEVER play during
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
@@ -94,8 +98,9 @@
   if(fighter.acro&&fighter.acro.type!=='landing')return null;
   if(fighter.dashing)return actions.dodge?'dodge':null;
   const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
-  if(!fighter.sprinting&&actions.runStop&&
-     (fighter.t||0)<(fighter._v82BoostStopEnd||-1)&&stick<.65)
+  if(!fighter.sprinting&&actions.runStop&&!airborne&&
+     (fighter.skidT||0)>0&&
+     (fighter.t||0)<(fighter._v82BoostStopEnd||-1)&&stick<.8)
    return 'runStop';
   // V80: ordinary full-radius joystick running is NOT Boost. Boost is
   // exclusively the explicit sprint button and uses its own faster pose,
@@ -193,7 +198,12 @@
       state.slot=null;state.releasingIdle=true;
       // Retain the LAST published idle keyframe and fade its influence.
      }else{
-      state.slot=slot;state.clock=0;state.weight=0;state.releasingIdle=false;
+      state.slot=slot;state.clock=0;
+      // V85: V81 is the final crossfade owner for the primary gameplay
+      // states. Do not double-blend the recorded pose with procedural arms.
+      state.weight=options.choose||new URLSearchParams(root.location?.search||'')
+        .get('animationV85')==='legacy'?0:1;
+      state.releasingIdle=false;
      }
     }
     if(state.releasingIdle&&!safeWalk){
@@ -219,6 +229,9 @@
       if(slot==='boost')rate*=Math.max(.8,Math.min(1.5,
         Math.hypot(this.vel?.x||0,this.vel?.z||0)/21));
       if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
+      if(slot==='runStop'&&new URLSearchParams(root.location?.search||'')
+        .get('animationV85')!=='legacy')
+       rate*=entry.seconds/Math.max(.28,this._v85StopDuration||.42);
       state.clock+=elapsed*rate;
      }
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
