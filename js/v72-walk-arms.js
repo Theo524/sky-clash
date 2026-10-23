@@ -39,16 +39,17 @@
   const center=NAMES.map(()=>new THREE.Quaternion());
   const frame=NAMES.map(()=>new THREE.Quaternion());
   const reference=NAMES.map(()=>new THREE.Quaternion());
+  const sums=NAMES.map(()=>[0,0,0,0]);
   sample(0,reference);
-  for(let i=0;i<NAMES.length;i++){
-   let x=0,y=0,z=0,w=0;
-   for(let f=0;f<asset.frames-1;f++){
-    sample(f/asset.fps,frame);
+  for(let f=0;f<asset.frames-1;f++){
+   sample(f/asset.fps,frame);
+   for(let i=0;i<NAMES.length;i++){
     const q=frame[i],sign=q.dot(reference[i])<0?-1:1;
-    x+=sign*q.x;y+=sign*q.y;z+=sign*q.z;w+=sign*q.w;
+    sums[i][0]+=sign*q.x;sums[i][1]+=sign*q.y;
+    sums[i][2]+=sign*q.z;sums[i][3]+=sign*q.w;
    }
-   center[i].set(x,y,z,w).normalize();
   }
+  for(let i=0;i<NAMES.length;i++)center[i].fromArray(sums[i]).normalize();
   return {sample,asset,names:NAMES,center};
  }
  function attach(THREE,fighter,motion,status){
@@ -56,7 +57,7 @@
   const old=fighter.animate;
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),worldTarget=new THREE.Quaternion(),
-    transformed=new THREE.Quaternion(),zero=new THREE.Quaternion(),
+    transformed=new THREE.Quaternion(),centered=new THREE.Quaternion(),zero=new THREE.Quaternion(),
     turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI);
   const invTurn=turn.clone().invert();
   const state={rig:null,bones:null,bind:null,samples:NAMES.map(()=>new THREE.Quaternion()),frames:0};
@@ -106,8 +107,7 @@
       const style=root.SkyClashGameplayMotions?.action;
       const gain=(i%4===0||i%4===1)?(style?.shoulderSwing??.55):
        i%4===2?(style?.elbowSwing??.80):(style?.wristSwing??.74);
-      const centered=new THREE.Quaternion().copy(basis)
-       .multiply(motion.center[i]).multiply(basisInv).normalize();
+      centered.copy(basis).multiply(motion.center[i]).multiply(basisInv).normalize();
       transformed.copy(centered).slerp(transformed,Math.max(0,Math.min(1,gain)));
      }
      worldTarget.copy(qScene).multiply(transformed).multiply(state.bind[i]).normalize();
