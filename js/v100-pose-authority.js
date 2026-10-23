@@ -18,6 +18,48 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
  const clipFor=(state)=>state==='fall'?'fallingIdle':state;
+ // V106 sole alignment: measure the *already retargeted* visible VRM bones.
+ // The older procedural ground solver runs before V100 and never sees these
+ // final joint orientations. Floor contact must be evaluated last.
+ const soleNames=['leftFoot','leftToes','rightFoot','rightToes'];
+ const soleHeight=[.15,.07,.15,.07]; // ankle and toe joint -> visible shoe underside
+ function soleGaps(THREE,rig,fighter){
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  scene.updateMatrixWorld(true);
+  const ground=Number(fighter.floor);
+  if(!Number.isFinite(ground))return [];
+  const world=new THREE.Vector3(),gaps=[];
+  for(let i=0;i<soleNames.length;i++){
+   const node=hum.getNormalizedBoneNode(soleNames[i]);
+   if(!node)continue;
+   node.getWorldPosition(world);
+   gaps.push({bone:soleNames[i],gap:world.y-ground-soleHeight[i]});
+  }
+  return gaps;
+ }
+ function plantVisibleSoles(THREE,rig,fighter,status){
+  if(!rig?.vrm?.scene||!fighter||fighter.flying)return;
+  const gaps=soleGaps(THREE,rig,fighter);
+  if(!gaps.length)return;
+  // Zero the lowest sole on the collision floor. Other foot may still be
+  // briefly raised by its authored swing; never force a planted ankle
+  // below the terrain just to make the other foot appear grounded.
+  const minGap=Math.min(...gaps.map(x=>x.gap));
+  const shift=clamp(-minGap,-1.2,1.2);
+  rig.vrm.scene.position.y+=shift;
+  rig.footLift=(rig.footLift||0)+shift;
+  rig.vrm.scene.updateMatrixWorld(true);
+  const result=soleGaps(THREE,rig,fighter);
+  status.soleGapCm=+(Math.min(...result.map(x=>x.gap))*100).toFixed(1);
+  status.otherSoleGapCm=+(Math.max(
+   ...['left','right'].map(side=>{
+    const values=result.filter(x=>x.bone.startsWith(side)).map(x=>x.gap);
+    return values.length?Math.min(...values):0;
+   }))*100).toFixed(1);
+  status.soleLastShiftCm=+(shift*100).toFixed(1);
+  status.soleCorrections=(status.soleCorrections||0)+1;
+  status.soleContact=Math.abs(status.soleGapCm)<2?'PLANTED':'NEEDS ADJUSTMENT';
+ }
  // One collision-clock plan for a single landing pose writer. The physics
  // surface contact is elapsed=0, not arbitrary Mixamo frame zero.
  function landingPlan(elapsed,impactSpeed){
@@ -297,6 +339,9 @@
    for(let i=0;i<st.fingerNodes.length;i++)
     st.fingerNodes[i].quaternion.copy(st.fingerRest[i]);
    rig.vrm.update(0);
+   if(next==='landing'&&params.get('landingLab')==='contact'&&
+      params.get('landingFeet')==='plant')
+    plantVisibleSoles(THREE,rig,f,status);
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -334,6 +379,9 @@
        n.updateMatrixWorld(true);
       }
       st.rig.vrm.update(0);
+      if(new URLSearchParams(root.location?.search||'').get('landingFeet')==='plant'&&
+         st.phase==='landing')
+       plantVisibleSoles(THREE,st.rig,this,status);
       status.active=w>=1?'grounded-owner':'return-to-ground';
       if(w>=1){st.phase=null;st.wristAnchor=[];st.armAnchor=[];
        st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;}
@@ -415,7 +463,9 @@
   const status={version:100,ready:false,active:'not-installed',
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
-    impactSpeed:0,contactSerial:0,landingJointClamps:0,error:null};
+    impactSpeed:0,contactSerial:0,landingJointClamps:0,
+    soleGapCm:null,otherSoleGapCm:null,soleLastShiftCm:0,
+    soleCorrections:0,soleContact:'not-tested',error:null};
   context.SkyClashPoseAuthority=status;
   // Install only after V71/V76/V72/V79/V81/V89 have finished attaching.
   // Every lower recorded motion wrapper checks ownsAir() and yields.
@@ -432,7 +482,7 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,landingPlan,stateOf,ownsAir,attach,start};
+ const api={version:100,BONES,clipFor,landingPlan,soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;
 })(typeof window!=='undefined'?window:globalThis);
