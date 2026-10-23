@@ -33,6 +33,7 @@ on:
       - 'tests/v96-*.js'
       - 'tests/v97-*.js'
       - 'tests/v98-*.js'
+      - 'tests/v99-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -81,6 +82,7 @@ on:
       - 'tests/v96-*.js'
       - 'tests/v97-*.js'
       - 'tests/v98-*.js'
+      - 'tests/v99-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -166,6 +168,7 @@ jobs:
       - run: node tests/v96-no-surprise-idle-arms.js
       - run: node tests/v97-approved-idle-arm-return.js
       - run: node tests/v98-jump-fall-routing.js
+      - run: node tests/v99-airborne-hands.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
