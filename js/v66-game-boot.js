@@ -7,7 +7,8 @@
  const store=window.SkyClashCharacterStore;
  function script(src){
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?'&fix=89':new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'');e.async=false;
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(new URLSearchParams(location.search).get('stance')==='match'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
+    (src.includes('v89-grounded-step')&&new URLSearchParams(location.search).get('stance')==='match'?'&stance=90':'');e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
  }
@@ -25,6 +26,7 @@
  try{
   // V89 step planner must exist before the physics module is initialized.
   const stepLab=new URLSearchParams(location.search).get('movementLab')==='step';
+  const stanceLab=stepLab&&new URLSearchParams(location.search).get('stance')==='match';
   if(stepLab)await script('js/v89-grounded-step.js?v=890');
   await script('js/game.js?v=820');
   // Isolated V88 walk evaluation. Original live game settings are untouched
@@ -75,9 +77,11 @@
     const mode=p?.sprinting?'BOOST':p?.v80AnalogRun?'RUN':'WALK / IDLE';
     const step=p?.v89Step?.mode||'idle';
     label.textContent=stepLab?
-     'FIRST-STEP LAB · V89\nIdle > weight shift > first step > walk > settle\n'+
+     (stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
+     'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
-     'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0):
+     'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
+     (stanceLab?' | Stance match: '+Math.round((window.SkyClashMovementLab?.stanceBlend??1)*100)+'%':''):
      'MOVEMENT LAB · V88\nWASD = WALK  |  Boost = original\n'+
      'Speed: '+v.toFixed(1)+'  Motion: '+mode+'  Walk blend: '+Math.round(walk*100)+'%';
    },180);
