@@ -104,7 +104,15 @@ try{
   })),
   localQuaternions:armNames.map((n,i)=>({bone:n,
    stable:stable.bone[n].quaternion.toArray().map(x=>+x.toFixed(2)),
-   source:source.bone[n].quaternion.toArray().map(x=>+x.toFixed(2))}))
+   source:source.bone[n].quaternion.toArray().map(x=>+x.toFixed(2))})),
+  clipSamples:armNames.slice(0,4).map((n,i)=>({name:n,
+   original:stable.f.v76UpperBody.approvedSamples[i+6].toArray().map(x=>+x.toFixed(2)),
+   transformed:stable.f.v76UpperBody.idlePose[i].toArray().map(x=>+x.toFixed(2)),
+   published:stable.f.v72StudioPack.samples[V72.BONES.indexOf(n)].toArray().map(x=>+x.toFixed(2)),
+   reference:source.f.v72StudioPack.samples[V72.BONES.indexOf(n)].toArray().map(x=>+x.toFixed(2))
+  })),
+  basis:stable.f.v76UpperBody.approvedBasis.toArray().map(x=>+x.toFixed(2)),
+  publishedWeight:source.f.v72StudioPack.weight
  };
  assert(compare(resting,idleReference)<.30,
   'V76 approved idle vs V72 actual: '+JSON.stringify(comparison));
