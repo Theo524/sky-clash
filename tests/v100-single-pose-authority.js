@@ -160,6 +160,74 @@ function check(){
  assert(!authority.error);
  console.log('PASS V100: exclusive real-jump/fall/land recorded owner, natural native fingers, bounded wrists, torso/knees, instant combat, approved idle and hover');
 }
+function steadyAirLegRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact';
+ function run(steady){
+  const u=setup(url+(steady?'&airLegs=steady':''));
+  u.step(130);
+  const standing=u.pose(),counts=u.count();
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
+  let biggest=0;
+  const phases=[];
+  for(let frame=0;frame<48;frame++){
+   // Mirror the actual rise/apex/fall velocity timeline at ~60fps.
+   u.f.vel.y=14-(frame+1)*34/60;
+   const before=u.pose();
+   u.step(1);
+   const now=u.pose();
+   const delta=Math.max(...[14,15,16,17,18,19].map(i=>
+     before[i].angleTo(now[i])*180/Math.PI));
+   biggest=Math.max(biggest,delta);
+   phases.push({frame,phase:u.authority.active,delta});
+   assert.equal(u.authority.active,frame<26?'jump':'fall',
+    'velocity determines one transition at the actual apex');
+   assert.deepEqual(u.count(),counts,
+    'no second controller may write knees or ankles in the air');
+   if(steady){
+    const cap=Math.max(4.19,3.14)*180/Math.PI/60;
+    assert(delta<=cap+.025,
+     'jump/fall knee or ankle exceeded V102 visible angular cap: '+delta);
+   }
+  }
+  assert.equal(u.authority.active,'fall');
+  const airPose=u.pose();
+  const peak=u.authority.maxLegStepDeg||0;
+  const clamps=u.authority.legStepClamps||0;
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;
+  u.f.landingMotionT=.48;u.step(20);
+  const landing=u.pose();
+  assert.equal(u.authority.active,'landing');
+  assert.equal(u.authority.legStyle,'V100 landing unchanged');
+  return {u,standing,airPose,landing,biggest,peak,clamps,phases};
+ }
+ const steady=run(true),original=run(false);
+ assert(steady.clamps>0,
+  'actual UE5 source disagreement must exercise the V102 angular limiter');
+ assert(steady.biggest<=4.03,'visible thighs/knees/feet must stay below ~4 deg/frame');
+ assert(steady.biggest<original.biggest,
+  'V102 must measurably reduce actual source leg twitch: '+JSON.stringify({
+   stable:steady.biggest,unmodified:original.biggest}));
+ // The first-leg-joint smoothing must never alter the accepted V101 guard,
+ // torso or head while in the air.
+ for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13]){
+  assert(steady.airPose[i].angleTo(original.airPose[i])<.0001,
+   'V102 must not change approved guard/torso/head: '+V100.BONES[i]);
+ }
+ // The authored V100 landing is fully restored after its standard .1 s
+ // blend, regardless of the final fall pose that entered it.
+ for(let i=0;i<V100.BONES.length;i++)
+  assert(steady.landing[i].angleTo(original.landing[i])<.001,
+   'V102 must not change the original landing: '+V100.BONES[i]);
+ const boot=read('js/v66-game-boot.js'),html=read('index.html');
+ assert(boot.includes("e.src+='&legs=102'"));
+ assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
+ assert(html.includes('SKY CLASH · BUILD V102'));
+ assert(html.includes('js/v66-game-boot.js?v=820&fix=103'));
+ assert(read('animation-studio.html').includes('BUILD V102'));
+ console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
+  steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
+  ' degrees/frame), V101 arms and V100 landing unchanged');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -209,18 +277,19 @@ function compactGuardRegression(){
   assert(fixed.land[i].angleTo(original.land[i])<.001,
    'landing source must be unchanged: '+V100.BONES[i]);
  const html=read('index.html'),studio=read('animation-studio.html'),boot=read('js/v66-game-boot.js');
- assert(html.includes('SKY CLASH · BUILD V101'));
+ assert(/SKY CLASH · BUILD V10[1-9]/.test(html));
  assert(!html.includes('V58'));
  assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
- assert(html.includes('js/v66-game-boot.js?v=820&fix=102'));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9])/.test(html));
  assert(boot.includes('SkyClashBuild=Object.freeze'));
  assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
  assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
- console.log('PASS V101: compact guard eliminates two-arm forward reach without changing jump legs, fall torso, landing or approved stance; build labels all match.');
+ console.log('PASS V101: approved compact guard stays intact; current build labels are consistent.');
 }
 try{
  check();
  compactGuardRegression();
+ steadyAirLegRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V101';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:101,
+ const BUILD='V102';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:102,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -48,6 +48,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('jumpArms')==='compact')
      e.src+='&arms=101';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('airLegs')==='steady')
+     e.src+='&legs=102';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -142,6 +145,7 @@
     const flags=new URLSearchParams(location.search);
     const unifiedAir=flags.get('animator')==='unified';
     const compactAir=flags.get('jumpArms')==='compact';
+    const steadyLegs=flags.get('airLegs')==='steady';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -153,7 +157,11 @@
     label.textContent=stepLab?
      'SKY CLASH · BUILD '+BUILD+'\n'+
      'GROUND: '+groundMode+' | JUMP: '+airMode+'\n'+
-     'LAND: V100 UNCHANGED · JUMP-ARM TEST ONLY\n'+
+     'AIR LEGS: '+(steadyLegs&&airOwner?.ready?
+       'V102 STEADY | MAX '+(airOwner.maxLegStepDeg||0).toFixed(1)+
+       '°/FRAME | corrected '+(airOwner.legStepClamps||0):
+       steadyLegs?'UNAVAILABLE':'V100 ORIGINAL')+'\n'+
+     'LAND: V100 UNCHANGED · AIR-LEG TEST ONLY\n'+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
