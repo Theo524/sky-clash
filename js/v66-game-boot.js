@@ -7,7 +7,7 @@
  const store=window.SkyClashCharacterStore;
  function script(src){
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src;e.async=false;
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions'))?'&fix=85':'');e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
  }
@@ -26,7 +26,7 @@
   await script('js/game.js?v=820');
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
-  await script('js/v71-mixamo-gameplay.js?v=820&fix=85');
+  await script('js/v71-mixamo-gameplay.js?v=820');
   await window.SkyClashV71Walk.start(window);
   // V76: exactly ONE controller owns both standing and walking arms.
   // The old V72 walk-only arm layer is available solely for A/B rollback.
@@ -38,13 +38,13 @@
    await script('js/v76-upper-body.js?v=820');
    await window.SkyClashV76UpperBody.start(window);
   }
-  await script('js/v72-published-actions.js?v=820&fix=85');
+  await script('js/v72-published-actions.js?v=820');
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
   // Final pose owner runs after all optional Move layers. This keeps
   // whole-body transitions smooth instead of exposing old procedural arms.
-  await script('js/v81-pose-transitions.js?v=810&fix=85');
+  await script('js/v81-pose-transitions.js?v=810');
   window.SkyClashV81Transitions.start(window);
   console.info('Sky Clash V66 model source:',selected?.source||'procedural fallback');
  }catch(err){
