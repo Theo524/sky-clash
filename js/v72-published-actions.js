@@ -135,6 +135,12 @@
    return actions.boost?'boost':null;
   }
   if(speed>.75){
+   // V88 walk lab: a full WASD press is a WALK, not an implicit
+   // Standard Run. Keep the approved Standard Run asset untouched.
+   if(new URLSearchParams(root.location?.search||'').get('movementLab')==='walk'){
+    fighter.v80AnalogRun=false;
+    return actions.walk?'walk':null; // V71 owns recorded walking legs.
+   }
    const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
    const full=stick>(fighter.v80AnalogRun?.68:.86);
    fighter.v80AnalogRun=!!(actions.run&&full&&speed>3);
