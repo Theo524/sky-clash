@@ -131,6 +131,7 @@ jobs:
       - run: node tests/v80-analog-locomotion.js
       - run: node tests/v81-state-ownership.js
       - run: node tests/v82-studio-jump-and-locomotion.js
+      - run: node tests/v86-ue5-mixamo-export.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
