@@ -32,14 +32,32 @@
    }
    return out;
   }
-  return {sample,asset,names:NAMES};
+  // V75: the source FBX walk is centred around arms DOWN, not its T-pose.
+  // Calculate its mean quaternion for each joint over one complete gait
+  // cycle. V74 unintentionally attenuated toward identity (T-pose), lifting
+  // both arms out to the sides as it tried to reduce dancing/swing.
+  const center=NAMES.map(()=>new THREE.Quaternion());
+  const frame=NAMES.map(()=>new THREE.Quaternion());
+  const reference=NAMES.map(()=>new THREE.Quaternion());
+  const sums=NAMES.map(()=>[0,0,0,0]);
+  sample(0,reference);
+  for(let f=0;f<asset.frames-1;f++){
+   sample(f/asset.fps,frame);
+   for(let i=0;i<NAMES.length;i++){
+    const q=frame[i],sign=q.dot(reference[i])<0?-1:1;
+    sums[i][0]+=sign*q.x;sums[i][1]+=sign*q.y;
+    sums[i][2]+=sign*q.z;sums[i][3]+=sign*q.w;
+   }
+  }
+  for(let i=0;i<NAMES.length;i++)center[i].fromArray(sums[i]).normalize();
+  return {sample,asset,names:NAMES,center};
  }
  function attach(THREE,fighter,motion,status){
   if(!fighter?.v71Walk||fighter.v72WalkArms||typeof fighter.animate!=='function')return null;
   const old=fighter.animate;
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),worldTarget=new THREE.Quaternion(),
-    transformed=new THREE.Quaternion(),zero=new THREE.Quaternion(),
+    transformed=new THREE.Quaternion(),centered=new THREE.Quaternion(),zero=new THREE.Quaternion(),
     turn=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI);
   const invTurn=turn.clone().invert();
   const state={rig:null,bones:null,bind:null,samples:NAMES.map(()=>new THREE.Quaternion()),frames:0};
@@ -82,14 +100,17 @@
     for(let i=0;i<NAMES.length;i++){
      const node=state.bones[i];
      transformed.copy(basis).multiply(state.samples[i]).multiply(basisInv).normalize();
-     if(!status.originalWalkStyle){
-      // Keep the genuine Mixamo cadence, but reduce large upper-arm swings
-      // that read as dancing in a grounded fighting-game walk. The knees,
-      // feet, animation clock and recorded elbow direction are untouched.
+     if(!status.originalWalkStyle&&motion.center?.[i]){
+      // V75: fade *only gait variation* around the FBX's naturally lowered
+      // arm pose. Do NOT slerp toward the identity rest quaternion: that
+      // would pull the arms back toward the VRM's outstretched T-pose.
       const style=root.SkyClashGameplayMotions?.action;
       const gain=(i%4===0||i%4===1)?(style?.shoulderSwing??.55):
        i%4===2?(style?.elbowSwing??.80):(style?.wristSwing??.74);
-      transformed.slerp(zero,1-Math.max(0,Math.min(1,gain)));
+      centered.copy(basis).multiply(motion.center[i]).multiply(basisInv).normalize();
+      // Keep the sampled rotation as the slerp SOURCE. Copying centered
+      // over transformed first aliases the target and freezes the joints.
+      transformed.slerp(centered,1-Math.max(0,Math.min(1,gain)));
      }
      worldTarget.copy(qScene).multiply(transformed).multiply(state.bind[i]).normalize();
      node.parent.getWorldQuaternion(parentQ);

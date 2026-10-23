@@ -72,10 +72,18 @@ const eOriginal=new THREE.Euler().setFromQuaternion(original.nodes.hips.quaterni
 assert(Math.abs(eCalm.y-eOriginal.y)<.003,'V74 must preserve walking facing/turning');
 assert(Math.abs(eCalm.x)<Math.abs(eOriginal.x)*.55,'Less old procedural pitch when walking');
 assert(Math.abs(eCalm.z)<Math.abs(eOriginal.z)*.55,'Less old procedural side-to-side body roll');
-const axisDelta=(set)=>set.reduce((a,q)=>Math.max(a,q.angleTo(new THREE.Quaternion())),0);
-const calmSwing=axisDelta(calm.samples.arms),oldSwing=axisDelta(original.samples.arms);
-assert(calmSwing<oldSwing*.85,'Upper-arm swing should be visibly reduced');
-assert(calmSwing>.05,'Recorded arm movement is still visibly present');
+// V75: measure cyclic swing AROUND the natural lowered walk stance,
+ // not the absolute angle to the T-pose. The latter would reward unnaturally
+ // outstretched arms and penalise a correct athletic lowered shoulder.
+const swingRange=(set)=>{
+ let max=0;
+ for(let i=0;i<set.length;i++)for(let j=i+1;j<set.length;j++)
+  max=Math.max(max,set[i].angleTo(set[j]));
+ return max;
+};
+const calmSwing=swingRange(calm.samples.arms),oldSwing=swingRange(original.samples.arms);
+assert(calmSwing<oldSwing*.85,'Upper-arm cyclic swing should be visibly reduced');
+assert(calmSwing>.02,'Recorded arm movement is still visibly present');
 assert(calm.nodes.leftLowerLeg.quaternion.angleTo(original.nodes.leftLowerLeg.quaternion)<.0001,
  'V74 must not alter recorded Mixamo knees');
 assert(calm.samples.knees[5].angleTo(calm.samples.knees[27])>.03,
