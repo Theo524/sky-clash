@@ -58,8 +58,8 @@ assert.notStrictEqual(extra.choose(walk,optional,.05),'runStop',
 const boost=actor(1,23,true);
 extra.choose(boost,optional,.05);
 boost.sprinting=false;boost.moveIntent.z=0;boost.vel.z=8;
-assert.strictEqual(extra.choose(boost,optional,.05),'runStop',
- 'An explicit grounded Boost release should trigger its stop');
+assert.notStrictEqual(extra.choose(boost,optional,.05),'runStop',
+ 'A rootless, airborne-looking Run to Stop is disabled by default');
 boost.jumping=true;boost.flying=true;
 assert.notStrictEqual(extra.choose(boost,optional,.05),'runStop',
  'Stop pose must immediately release on takeoff');
@@ -91,7 +91,7 @@ assert(studio.includes('renderAllPreviews&&!visiblePage().includes(item)'),
 assert(studio.includes('previews ready')&&studio.includes('awaiting render'),
  'Explain loaded versus rendered count rather than saying clips are missing');
 const game=read('js/v66-game-boot.js');
-assert(game.includes('js/game.js?v=800'),'Rebuilt game bundle used');
-assert(game.includes('js/v72-published-actions.js?v=800'));
-assert(game.includes('js/v79-extra-actions.js?v=800'));
+assert(game.includes('js/game.js?v=810'),'Rebuilt game bundle used');
+assert(game.includes('js/v72-published-actions.js?v=810'));
+assert(game.includes('js/v79-extra-actions.js?v=810'));
 console.log('PASS V80: approved idle retained; 23-frame real run on full analog stick; Boost-only grounded stop and smoke; normal landings stay upright; 230-preview backlog actionable');
