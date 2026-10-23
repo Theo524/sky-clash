@@ -36,6 +36,52 @@ for(let i=0;i<animated.length-1;i++){
 }
 assert(images>=3&&comments>=3,'GIF must contain three actual timed animation images');
 assert.throws(()=>gif.make(2,2,[rgba(1,2,3)]),/GIF exporter requires/);
+// GIF byte/header tests aren't enough: actually DECOMPRESS each emitted
+// GIF LZW image to ensure a browser can play the animation, not just save
+// a file with a .gif extension.
+function decodeLZW(block,minCode,pixels){
+ let dict=[],size=minCode+1,next=(1<<minCode)+2,bit=0,previous=null,output=[];
+ const clear=1<<minCode,end=clear+1;
+ function reset(){dict=[];for(let i=0;i<clear;i++)dict[i]=[i];size=minCode+1;next=end+1;previous=null;}
+ function readCode(){let value=0;for(let b=0;b<size;b++){const k=bit++,byte=block[k>>3];value|=((byte>>(k&7))&1)<<b;}return value;}
+ reset();
+ while(bit+size<=block.length*8){
+  const code=readCode();if(code===clear){reset();continue;}
+  if(code===end)break;
+  let entry=dict[code];
+  if(!entry&&code===next&&previous)entry=previous.concat(previous[0]);
+  if(!entry)throw Error('Invalid GIF LZW code '+code+' at '+bit+' of '+block.length*8);
+  output.push(...entry);
+  if(previous&&next<4096){dict[next++]=previous.concat(entry[0]);if(next===(1<<size)&&size<12)size++;}
+  previous=entry;
+  if(output.length>pixels+100)break;
+ }
+ assert.strictEqual(output.length,pixels,'Each GIF frame must decode to exactly the image pixel count');
+ return output;
+}
+function framesOfGIF(buf){
+ let offset=13+256*3,images=[];
+ while(offset<buf.length){
+  const lead=buf[offset++];
+  if(lead===0x3b)break;
+  if(lead===0x21){ // graphic control, application or any extension
+   offset++;
+   while(true){const n=buf[offset++];if(!n)break;offset+=n;}
+  }else if(lead===0x2c){
+   const width=buf[offset+4]|(buf[offset+5]<<8),height=buf[offset+6]|(buf[offset+7]<<8);
+   const packed=buf[offset+8];offset+=9;
+   if(packed&0x80)offset+=3*(1<<((packed&7)+1));
+   const min=buf[offset++],compressed=[];
+   while(true){const n=buf[offset++];if(!n)break;
+    for(let k=0;k<n;k++)compressed.push(buf[offset++]);}
+   images.push(decodeLZW(compressed,min,width*height));
+  }else throw Error('Invalid GIF block marker '+lead+' at offset '+offset);
+ }
+ return images;
+}
+const decoded=framesOfGIF(animated);
+assert.strictEqual(decoded.length,3);
+assert.deepStrictEqual(decoded.map(f=>f[0]),[224,28,3],'GIF must preserve red/green/blue actual frame colors');
 
 const motions={
  runStop:{seconds:.9},idle3:{seconds:3.266},idle4:{seconds:2.566},
