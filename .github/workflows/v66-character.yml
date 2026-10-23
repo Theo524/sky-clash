@@ -23,6 +23,7 @@ on:
       - 'tests/v80-*.js'
       - 'tests/v81-*.js'
       - 'tests/v82-*.js'
+      - 'tests/v87-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -61,6 +62,7 @@ on:
       - 'tests/v80-*.js'
       - 'tests/v81-*.js'
       - 'tests/v82-*.js'
+      - 'tests/v87-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -132,6 +134,7 @@ jobs:
       - run: node tests/v81-state-ownership.js
       - run: node tests/v82-studio-jump-and-locomotion.js
       - run: node tests/v86-ue5-mixamo-export.js
+      - run: node tests/v87-recorded-combat.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
