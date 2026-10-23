@@ -2423,12 +2423,16 @@ class Fighter {
       const walkLab=window.SkyClashMovementLab?.enabled&&
        this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
       const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
+      // Standard Run has its own modest pace, never Boost's sprint speed.
+      // No changes to the V94 approved first-step and ordinary WASD walk.
+      const joystickRunPace=walkLab&&window.SkyClashMovementLab?.joystickRun&&
+        this.v95JoystickRun&&!this.sprinting&&!this.flying?6.2:normalSpeed;
       const stepLab=walkLab&&window.SkyClashMovementLab?.version===89&&
        window.SkyClashWalkStep&&!this.flying;
       // One state machine owns movement takeoff: weight shift first,
       // then the first planted stride before reaching walking speed.
       const step=stepLab?window.SkyClashWalkStep.plan(this,dt):null;
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : normalSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : joystickRunPace) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
@@ -5257,6 +5261,14 @@ const Game = {
       Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
     }
     const raw = Input.move();
+    // V95: digital WASD is magnitude 1, but it is NOT a thumbstick
+    // reaching its outer ring. Use only the physical stick coordinates.
+    if(window.SkyClashMovementLab?.joystickRun&&window.SkyClashV95Joystick){
+      const radius=window.SkyClashV95Joystick.physicalRadius(Input._stick);
+      p.v95StickRadius=radius;
+      p.v95JoystickRun=window.SkyClashV95Joystick.decide(
+        p.v95JoystickRun,radius,!p.sprinting&&!p.flying&&!p.jumping);
+    }
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
     sm.x += (raw.x - sm.x) * ks; sm.y += (raw.y - sm.y) * ks;
