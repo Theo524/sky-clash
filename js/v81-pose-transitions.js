@@ -39,7 +39,9 @@
   const old=f.animate;
   const st={rig:null,mode:null,elapsed:1,blend:1,nodes:[],
    previous:[],fingerNodes:[],fingerRest:[],handGrip:0,frames:0};
-  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion();
+  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),
+   headWorld=new THREE.Quaternion(),parentWorld=new THREE.Quaternion(),
+   euler=new THREE.Euler();
   function capture(rig){
    const humanoid=rig.vrm?.humanoid;if(!humanoid)throw Error('V81: normalized humanoid required');
    st.nodes=names.map(n=>humanoid.getNormalizedBoneNode(n));
@@ -95,6 +97,24 @@
      const {node,sign,angle}=st.fingerNodes[i];
      extra.setFromAxisAngle(y,sign*angle*st.handGrip);
      node.quaternion.copy(st.fingerRest[i]).multiply(extra);
+    }
+    // Clip changes shouldn't tilt Kairo's gaze toward the floor while
+    // locomoting. Constrain *world* head pitch, not its local pitch (which
+    // inherits hips + spine tilt). Original Studio idle, attacks and guard
+    // are entirely untouched by this horizon correction.
+    if((next==='walk'||next==='run'||next==='boost')&&
+       new URLSearchParams(root.location?.search||'').get('head')!=='original'){
+      const head=st.nodes[5];
+      if(head?.parent){
+       this.vrmRig.vrm.scene.updateMatrixWorld(true);
+       head.getWorldQuaternion(headWorld);
+       euler.setFromQuaternion(headWorld,'YXZ');
+       euler.x=clamp(euler.x,-.055,.075);
+       euler.z=clamp(euler.z,-.08,.08);
+       headWorld.setFromEuler(euler);
+       head.parent.getWorldQuaternion(parentWorld);
+       head.quaternion.copy(parentWorld.invert().multiply(headWorld)).normalize();
+      }
     }
     this.vrmRig.vrm.update(0);
     status.active=next;status.frames=++st.frames;status.transition=w;
