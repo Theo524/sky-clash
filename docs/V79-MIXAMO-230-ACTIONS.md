@@ -20,9 +20,9 @@ Imported motion thumbnails are rendered as actual 8-frame looping webp animation
 
 Two separate animation controllers previously abandoned their last grounded pose instantly on jump/fly. V79 treats `jumping` as airborne, allows the user-published idle to fade into controlled flight, and also blends V76's recorded arm pose into the procedural airborne pose over several frames. Punches, blocks, stuns, knockdowns and acrobatics retain priority and cancel pose blending immediately. V77's chosen `idle (2).fbx` and V71/V75 walking assets are not changed.
 
-## Specific action pack (optional until published)
+## Seven permanently published specific gameplay actions
 
-The seven fully baked recordings from the user's Movement ZIP are available as an independent `extra-actions-v1.json` gameplay pack:
+The seven fully baked recordings from the user's Movement ZIP are now **committed permanently to GitHub** as `assets/animations/gameplay/extra-actions-v1.json`, automatically loaded by V79 for Kairo and his training rival:
 
 | Action slot | Original FBX | Selection rule |
 | --- | --- | --- |
@@ -36,7 +36,7 @@ The seven fully baked recordings from the user's Movement ZIP are available as a
 
 The looping idle is still V77 `idle (2)`; long-idle gestures are occasional one-shots after approximately **12–26 seconds of uninterrupted neutral standing**. Fighting, movement, blocking, jump/fly interrupt idle gestures. The state machine is intentionally conservative about changing physics: there is no artificial avatar root displacement or gameplay collision modification.
 
-**Publishing action pack:** Upload the baked compact motion JSON to `assets/animations/gameplay/extra-actions-v1.json` in the repository. The game checks for that path at startup, validates motion keyframes with the existing V72 published-motion decoder, and attaches the state triggers automatically. If the pack isn't published, V79 adds **no blank animations** and leaves V77 idle/V76 walking/flight working unchanged. The optional action pack contains quantized quaternion samples, not source FBX geometry, textures or extracted FBX files. To disable extra game actions for comparison, use `?extraActions=off`.
+**Installed game pack:** The compact motion JSON has been committed to `assets/animations/gameplay/extra-actions-v1.json`. The game validates its keyframes with the V72 published-motion decoder and attaches the state triggers automatically at startup. V77 idle and V76 walking remain the fallback outside these specific actions. This pack contains quantized quaternion samples, not source FBX geometry, textures or extracted FBX files. To disable only these specific action animations for comparison, use `?extraActions=off`.
 
 This does not yet add every animation as a gameplay move, nor map all complex combat attacks to specific states; no action is claimed to be verified beyond its actual event handler. More complex motions require animation masks, timed hitboxes, air/ground permissions and manually checked gameplay conditions.
 
@@ -46,4 +46,4 @@ The bespoke FBX bake script read the actual uploaded Binary FBX 7700 files at 30
 
 ## Next
 
-Once the pack is committed and GitHub Pages deploys, visually inspect run→stop, 20-second idle and jump→fall→roll. GIF previews in the browser can help vet other motions, but the game must test each move and its timing against hitbox/physics state before expanding beyond the seven mapped animations.
+After GitHub Pages deploys, visually inspect run→stop, 20-second idle and jump→fall→roll. GIF previews in the browser can help vet other motions, but the game must test each move and its timing against hitbox/physics state before expanding beyond the seven mapped animations.
