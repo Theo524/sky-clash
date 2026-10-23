@@ -70,6 +70,9 @@
    const before=rig?.vrm&&st.rig===rig?st.nodes.map((node,i)=>
     node?node.quaternion.clone():st.previous[i].clone()):null;
    old.call(this,dt);
+   // V100 owns whole-body jump/fall/landing fades and neutral fingers.
+   // Do not also perform V81's full-skeleton crossfade or finger curls.
+   if(root.SkyClashV100Animator?.ownsAir(this))return;
    if(!this.vrmRig?.vrm)return;
    try{
     if(st.rig!==this.vrmRig)capture(this.vrmRig);
