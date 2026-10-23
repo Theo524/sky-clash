@@ -143,8 +143,8 @@ assert.notStrictEqual(extras.choose(normalRun,motions,.1),'runStop',
 const sprint=actor();sprint.sprinting=true;sprint.vel.z=18;
 extras.choose(sprint,motions,.1);
 sprint.sprinting=false;sprint.vel.z=5;
-assert.strictEqual(extras.choose(sprint,motions,.1),'runStop',
- 'Releasing real Boost on the ground triggers braking clip');
+assert.notStrictEqual(extras.choose(sprint,motions,.1),'runStop',
+ 'Do not freeze player with rootless old Run to Stop pose');
 sprint.vel.z=.2;
 sprint.punchT=.3;
 assert.strictEqual(extras.choose(sprint,motions,.1),null,'Punch cancels run-stop instantly');
