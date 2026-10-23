@@ -60,12 +60,13 @@ const originals=JSON.parse(read('assets/animations/gameplay/studio-actions-v1.js
 assert.equal(originals.motions.find(m=>m.slot==='idle').sourceFile,'Movement/Adventure/idle (2).fbx');
 assert.equal(originals.motions.find(m=>m.slot==='run').sourceFile,'Movement/Male/standard run.fbx');
 const boot=read('js/v66-game-boot.js');
-assert(boot.includes("get('stance')==='continuous'"));
+assert(boot.includes("['match','continuous'].includes"));
 assert(boot.includes("await script('js/v91-stance-continuity.js?v=910')"));
 assert(boot.includes('if(stepLab)window.SkyClashWalkStep.start(window)'));
 assert(boot.indexOf('window.SkyClashWalkStep.start(window)')<
  boot.indexOf('window.SkyClashV91Stance.start(window)'),'continuity has final pose ownership');
 const step=read('js/v89-grounded-step.js');
-assert(step.includes("get('stance')==='match'"),
- 'V90 blend is only enabled when specifically selected, not for V91');
+assert(step.includes("get('stance')==='legacy90'"),
+ 'V90 blend is only enabled in explicit legacy mode, not on the previous broken URL');
+assert(boot.includes("get('stance')==='legacy90'"),'keep old V90 solely as an explicit rollback');
 console.log('PASS V91: no frame above skeletal angular limit when older animation layers teleport; untouched idle/run; V89 regression available');
