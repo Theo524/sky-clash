@@ -20,7 +20,10 @@ test('real Boost release selects grounded run-stop briefly',()=>{
  assert.equal(published.choose(f,actions),'runStop');
  assert.ok(f._v85StopDuration>=.28&&f._v85StopDuration<=.58);
  assert.equal(transitions.stateOf(f),'boost-stop');
- f.t=.5;f.skidT=0;
+ f.t=.55;f.skidT=0;
+ assert.equal(published.choose(f,actions),'runStop','planted follow-through remains visible');
+ assert.equal(transitions.stateOf(f),'boost-stop');
+ f.t=.9;
  assert.notEqual(published.choose(f,actions),'runStop');
  assert.notEqual(transitions.stateOf(f),'boost-stop');
 });
