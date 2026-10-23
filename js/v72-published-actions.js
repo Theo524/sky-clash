@@ -205,6 +205,9 @@
   }
   fighter.animate=function(dt){
    old.call(this,dt);
+   // Also applies to the V79 optional-action wrapper, which reuses
+   // this attach() function. One authoritative pose during air.
+   if(root.SkyClashV100Animator?.ownsAir(this))return;
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
@@ -441,6 +444,9 @@
    // fallback) to the continuous V76 upper-body owner for the V92 lab.
    // This is the same clip already used by V72 for torso and legs.
    if(actions.idle)status.approvedIdle=actions.idle;
+   // V100 reuses these exact decoded UE5/approved clips without a second
+   // asset loader or another wrapper that fights over the same bones.
+   status.motionClips=actions;
    if(!Object.keys(actions).length)return status;
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;

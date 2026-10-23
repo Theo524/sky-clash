@@ -102,6 +102,12 @@
    await script('js/v91-stance-continuity.js?v=910');
    window.SkyClashV91Stance.start(window);
   }
+  // V100 unified air owner is installed LAST after every legacy layer.
+  // The old wrappers yield only during natural jump/fall/landing states.
+  if(new URLSearchParams(location.search).get('animator')==='unified'){
+   await script('js/v100-pose-authority.js?v=1000');
+   window.SkyClashV100Animator.start(window);
+  }
   if(walkLab){
    const label=document.createElement('div');
    label.id='walkLabStatus';

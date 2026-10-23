@@ -117,6 +117,11 @@
    // Call the original gameplay animation exactly once. It still controls
    // physics, attacks, animations outside upper body and VRM expressions.
    previous.call(this,dt);
+   // V100 airborne recorded clips own shoulders/elbows/wrists outright.
+   // The approved V97 idle arms resume only after the air authority yields.
+   if(root.SkyClashV100Animator?.ownsAir(this)){
+    state.airWeight=0;state.mode='unified-air';return;
+   }
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
    if(!rig?.vrm){state.transition=0;return;}
    if(!eligible(this)){

@@ -71,6 +71,11 @@
   }
   fighter.animate=function(dt){
    original.call(this,dt);
+   // V100: jump/fall/landing belong to the single final recorded pose
+   // authority. Do not let this independent gait writer touch air bones.
+   if(root.SkyClashV100Animator?.ownsAir(this)){
+    state.weight=0;state.last='unified-air';return;
+   }
    if(!this.vrmRig?.vrm)return; // Game loads the model asynchronously.
    try{
     if(!state.ready||state.rig!==this.vrmRig)capture(this.vrmRig);
