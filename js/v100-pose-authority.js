@@ -47,7 +47,7 @@
     exitElapsed:0,frames:0,prev:[],from:[],samples:[],
     wristAnchor:[],armAnchor:[],fingerNodes:[],fingerRest:[],
     maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
-    jumpAge:0,launchSpeed:0,launchGait:'stationary'};
+    jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -78,7 +78,7 @@
    st.from=nodes.map(n=>n.quaternion.clone());
    st.phase=null;st.elapsed=0;st.exitElapsed=0;
    st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
-   st.launchSpeed=0;st.launchGait='stationary';
+   st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -96,7 +96,9 @@
    if(next==='jump'&&previous!=='jump'&&previous!=='fall'){
     const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.launchSpeed=speed;
-    st.launchGait=fighter.v80AnalogRun?'run':speed>1.3?'walk':'stationary';
+    // V71 resets v80AnalogRun as soon as jumping=true. Read the last
+    // confirmed GROUNDED gait instead of a flag already cleared by V71.
+    st.launchGait=st.groundWasRun?'run':speed>1.3?'walk':'stationary';
     const amount=smooth((speed-1.3)/(6.2-1.3));
     st.launchCarry=speed>1.3?.15+.17*amount:0;
     st.launchLegs=st.launchCarry>0?
@@ -279,6 +281,8 @@
       // from the very first frame, causing a large leg snap at takeoff.
       for(let i=0;i<BONES.length;i++)
        st.prev[i].copy(st.nodes[i].quaternion);
+      st.groundWasRun=!!this.v80AnalogRun&&!this.jumping&&!this.flying;
+      status.movingJumpWeight=0;
      }
      return;
     }
