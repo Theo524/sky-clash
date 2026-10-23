@@ -24,6 +24,35 @@ const four=packs.scan([
 assert.strictEqual(four.loaded,4,'Never count the same FBX twice');
 assert.deepStrictEqual(four.packs.map(p=>p.loaded),[1,1,1,1]);
 assert.strictEqual(four.complete,false);
+// When user publishes the separately generated 7-action compact pack,
+// CI also validates its source identity, keyframe sizes and the set of
+// allowable runtime slots. Until then, no missing asset should break play.
+const optionalPath=path.join(root,'assets/animations/gameplay/extra-actions-v1.json');
+if(fs.existsSync(optionalPath)){
+ const extra=JSON.parse(fs.readFileSync(optionalPath,'utf8'));
+ const expected={
+  runStop:'Movement/Adventure/run to stop.fbx',
+  idle3:'Movement/Adventure/idle (3).fbx',
+  idle4:'Movement/Adventure/idle (4).fbx',
+  idle5:'Movement/Adventure/idle (5).fbx',
+  idleAdventure:'Movement/Adventure/idle - Adventure.fbx',
+  fallingIdle:'Movement/Adventure/falling idle.fbx',
+  fallToRoll:'Movement/Adventure/falling to roll.fbx'
+ };
+ assert.strictEqual(extra.schema,'sky-clash.studio-gamepack.v1');
+ assert.strictEqual(extra.revision,1);
+ assert.deepStrictEqual(extra.motions.map(m=>m.slot).sort(),Object.keys(expected).sort());
+ for(const entry of extra.motions){
+  assert.strictEqual(entry.sourceFile,expected[entry.slot]);
+  assert.strictEqual(entry.character,'kairo');
+  assert.strictEqual(entry.fps,30);
+  assert(entry.frames>=3&&entry.frames<=420);
+  assert.strictEqual(entry.bones.length,published.BONES.length);
+  const bytes=Buffer.from(entry.data,'base64');
+  assert.strictEqual(bytes.length,entry.frames*20*4*2,'Invalid raw quaternion length');
+  assert(published.decode(THREE,entry),'All optional clips must decode in actual game');
+ }
+}
 const rgba=(r,g,b)=>new Uint8ClampedArray([r,g,b,255,r,g,b,255,r,g,b,255,r,g,b,255]);
 const animated=gif.make(2,2,[rgba(255,0,0),rgba(0,255,0),rgba(0,0,255)],140);
 assert.strictEqual(String.fromCharCode(...animated.subarray(0,6)),'GIF89a');
