@@ -100,6 +100,9 @@
   function retarget(clip,seconds,weight,next){
    const rig=st.rig,scene=rig.vrm.scene;
    clip.sample(seconds,st.samples,false);
+   // One matrix-world refresh per frame, not once for each humanoid bone.
+   scene.updateMatrixWorld(true);
+   scene.getWorldQuaternion(qScene);
    const fromSide=new THREE.Vector3(clip.side[0],0,clip.side[1]).normalize();
    const cross=fromSide.z*st.side.x-fromSide.x*st.side.z;
    const dot=fromSide.x*st.side.x+fromSide.z*st.side.z;
@@ -110,8 +113,6 @@
    for(let i=0;i<BONES.length;i++){
     const node=st.nodes[i];
     if(!node?.parent)continue;
-    scene.updateMatrixWorld(true);
-    scene.getWorldQuaternion(qScene);
     qMapped.copy(qSourceBasis).multiply(st.samples[i])
       .multiply(qBasisInv).normalize();
     qWanted.copy(qScene).multiply(qMapped).multiply(st.bind[i]).normalize();
