@@ -35,7 +35,10 @@
   const speed=speedOf(f);
   const wasAir=s.wasAir,wasDescending=s.wasDescending;
   const inAir=!!(f.jumping||f.flying||f.launched||f.spiked);
-  const descending=inAir&&!f.launched&&!f.spiked&&(f.vel?.y||0)<-1.1;
+  // Distinguish unpowered gravity fall from *controlled Fly Down*.
+  // Height and negative vertical velocity alone are not proof of falling.
+  const descending=inAir&&!f.launched&&!f.spiked&&
+   (f.dropping||f.jumping&&(f.vel?.y||0)<-1.1);
   // Only an explicit Boost->non-Boost change can arm the dramatic stop.
   // Normal analog walk/run must never trigger it, even at full joystick.
   const boostFinished=s.boostWasActive&&!f.sprinting;
@@ -50,7 +53,8 @@
   if(!inAir&&!wasAir&&!wasDescending){s.fallHeight=0;s.fallSpeed=0;}
   const hostile=f.hp<=0||f.punchT>0||f.blastT>0||f.superHitT>0||
    f.stun>0||f.downT>0||f.slamming||f.blocking||f.blockHeld||
-   f.charging||f.dashing||(f.acro&&f.acro.type!=='landing');
+   f.charging||f.dashing||f.landingMotionT>0||
+   (f.acro&&f.acro.type!=='landing');
   if(f.sprinting)s.runAge=0;else s.runAge+=dt;
   s.wasAir=inAir;s.wasDescending=descending;
   s.clock+=dt;
@@ -80,7 +84,8 @@
    s.active='fallToRoll';s.elapsed=0;s.rest=0;s.nextIdle=16;
   }else if(descending&&actions.fallingIdle){
    s.active='fallingIdle';s.elapsed=0;
-  }else if(!inAir&&!f.sprinting&&s.boostStopWindow>0&&
+  }else if(new URLSearchParams(root.location?.search||'').get('boostStop')==='legacy'&&
+           !inAir&&!f.sprinting&&s.boostStopWindow>0&&
            speed>1.3&&Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)<.52&&
            actions.runStop){
    // Boost release only; let the native ground skid drive translation/feet.
