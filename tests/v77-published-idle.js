@@ -95,7 +95,7 @@ fighter.animate(1/60);
 assert.strictEqual(handle.slot,null,'Walking must use already-published V71 recording, not idle');
 fighter.vel.z=0;
 fighter.animate(1/60);
-assert.strictEqual(handle.slot,'idle','Return to the user's chosen recorded idle on stopping');
+assert.strictEqual(handle.slot,'idle',"Return to the user's chosen recorded idle on stopping");
 const game=fs.readFileSync(path.join(root,'js/v66-game-boot.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(game.includes("js/v72-published-actions.js?v=770"));
