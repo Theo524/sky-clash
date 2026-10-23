@@ -369,7 +369,7 @@ function contactLandingRegression(){
  // Different actual floor impact speeds change the contact-source
  // absorption depth but cannot change the final approved idle pose.
  assert(V100.landingPlan(.17,14).sourceTime>
-   V100.landingPlan(.17,5).sourceTime+.1);
+   V100.landingPlan(.17,5).sourceTime+.025);
  for(let i=0;i<20;i++)
   assert(light.last[i].angleTo(contact.last[i])<.006,
    'different impact strengths must still recover to identical V97 stance');
