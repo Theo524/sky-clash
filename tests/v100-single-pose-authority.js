@@ -444,6 +444,97 @@ function visibleLandingFootRegression(){
  assert(!planted.u.authority.error);
  console.log('PASS V106 full motion stack: every recorded landing frame finishes with actual world-space foot-ground contact, no change to quaternion animations');
 }
+function expressiveJumpRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant';
+ function run(creative,speed=0){
+  const u=setup(base+(creative?'&jumpStyle=expressive':''));
+  u.step(130);
+  u.f.vel.z=speed;
+  u.f.moveIntent.z=speed>0?1:0;
+  u.step(5);
+  const grounded=u.pose(),counts=u.count();
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
+  u.step(14);
+  const rise=u.pose(),energy=u.authority.jumpExpression;
+  u.f.vel.y=-10;u.step(19);
+  const fall=u.pose();
+  assert.deepEqual(u.count(),counts,
+   'expressive jump must still use only the sole V100 pose writer');
+  u.f.pos.y=0;u.f.vel.y=0;u.f.jumping=false;
+  u.f.landingMotionT=.48;u.step(25);
+  return {u,grounded,rise,fall,land:u.pose(),energy};
+ }
+ for(const speed of [0,4.8,6.2]){
+  const old=run(false,speed),fresh=run(true,speed);
+  assert(fresh.energy>15,'standing and moving launch need visible body energy');
+  assert.equal(old.energy,0);
+  for(const i of [6,7,8,9,10,11,12,13,14,15,16,17,18,19]){
+   assert(old.rise[i].angleTo(fresh.rise[i])<.0001,
+    'V107 must preserve V101 guard and V102/V103 local legs: '+V100.BONES[i]);
+   assert(old.fall[i].angleTo(fresh.fall[i])<.0001,
+    'V107 cannot change approved guard/legs during descent: '+V100.BONES[i]);
+   assert(old.land[i].angleTo(fresh.land[i])<.0001,
+    'V107 cannot change any V106 landing bone: '+V100.BONES[i]);
+  }
+  let difference=0;
+  for(const i of [0,1,2,3,4,5])
+   difference=Math.max(difference,old.rise[i].angleTo(fresh.rise[i]));
+  assert(difference>.03,'the expressive option must visibly change upper body');
+  assert(!fresh.u.authority.error);
+ }
+}
+function movingLandingSupportRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant';
+ function run(speed,pin){
+  const u=setup(url+(pin?'&landingMove=pin':''));
+  u.f.floor=0;u.step(130);
+  u.f.vel.z=speed;u.f.moveIntent.z=speed>0?1:0;
+  u.step(5);
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;u.step(18);
+  const rising=u.pose();
+  u.f.vel.y=-8;u.step(20);
+  const falling=u.pose(),count=u.count();
+  u.f.pos.y=0;u.f.jumping=false;u.f.landingMotionT=.48;
+  const poses=[],gaps=[];
+  for(let j=0;j<18;j++){
+   u.f.vrmRig.vrm.scene.position.z+=speed/60;
+   u.step(1);
+   poses.push(u.pose());
+   gaps.push(Math.min(...V100.soleGaps(THREE,u.f.vrmRig,u.f).map(x=>x.gap)));
+   assert.deepEqual(u.count(),count,'moving support cannot add another animator');
+  }
+  return {u,rising,falling,poses,gaps};
+ }
+ for(const speed of [0,4.8,6.2]){
+  const old=run(speed,false),fresh=run(speed,true);
+  for(let i=0;i<20;i++){
+   assert(old.rising[i].angleTo(fresh.rising[i])<1e-5,
+    'moving pin cannot change jump: '+V100.BONES[i]);
+   assert(old.falling[i].angleTo(fresh.falling[i])<1e-5,
+    'moving pin cannot change fall: '+V100.BONES[i]);
+  }
+  assert(fresh.gaps.every(g=>Math.abs(g)<.021),
+   'V106 visible vertical contact remains planted during V107 support IK');
+  if(speed===0){
+   assert.equal(fresh.u.authority.movingFootPinFrames,0,
+    'approved stationary landing is exactly unchanged');
+   for(let j=0;j<18;j++)for(let i=0;i<20;i++)
+    assert(old.poses[j][i].angleTo(fresh.poses[j][i])<1e-5,
+     'V107 must preserve approved static landing bone '+V100.BONES[i]);
+  }else{
+   assert(fresh.u.authority.movingFootPinFrames>0,
+    'walking/running landing must engage post-retarget support IK');
+   for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13])
+    assert(old.poses[5][i].angleTo(fresh.poses[5][i])<1e-5,
+     'moving foot pin must leave approved upper-body + guard untouched: '+V100.BONES[i]);
+   // Support IK adjusts hip/knee joints. Subsequent world-space source
+   // retargets may also adjust child ankle LOCAL rotations: those cannot
+   // be asserted quaternion-identical, only physically planted.
+   assert(fresh.u.authority.movingFootSlipCm>=0);
+  }
+  assert(!fresh.u.authority.error);
+ }
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -509,6 +600,8 @@ try{
  movingTakeoffRegression();
  contactLandingRegression();
  visibleLandingFootRegression();
+ expressiveJumpRegression();
+ movingLandingSupportRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
