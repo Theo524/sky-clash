@@ -101,5 +101,5 @@ assert(boot.includes('SkyClashPublishedGamePack.start(window)'),
 assert(!/^[ \t]*await window\.SkyClashV72Arms\.start\(window\);$/m.test(
  boot.slice(0,boot.indexOf("upperMode==='legacy'"))),
  'Do not attach two simultaneous default upper-body animators');
-assert(page.includes('js/v66-game-boot.js?v=760'));
+assert(/js\/v66-game-boot\.js\?v=\d{3,}/.test(page),'Keep versioned gameplay bootstrap');
 console.log('PASS V76: full Mixamo fighting idle + walking, continuous ownership, skinned wrists, attack priority, eased recovery and no idle fallback');

@@ -51,23 +51,30 @@
   if(fighter.hp<=0)return null;
   const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
   const airborne=!!(fighter.flying||fighter.launched||fighter.spiked);
-  const hit=(fighter.stun||0)>0;
-  if(hit&&actions.hit)return 'hit';
+  // V77: choose ONLY an expressly published slot in the active gameplay
+  // state. In particular, an idle-only Studio export must NEVER play during
+  // a jump, kick, dash, block, knockdown or stun. Before this fix those
+  // branches fell through to "idle" if no matching action was exported.
+  if((fighter.stun||0)>0)return actions.hit?'hit':null;
+  if(fighter.downT>0||fighter.slamming||fighter.superHitT>0||
+     fighter.blockHeld||fighter.blocking||fighter.acro)return null;
   if((fighter.punchT||0)>0){
    const kind=String(fighter.attackKind||'').toLowerCase();
-   const slot=kind.includes('kick')||kind.includes('spin')?
+   const special=kind.includes('kick')||kind.includes('spin')?
      (actions.kick?'kick':actions.meteor?'meteor':null):
-     kind.includes('upper')?'uppercut':null;
-   return slot||(actions.punch1?'punch1':null);
+     null;
+   // Standard punches keep their original procedural fallback if no
+   // matching Move has been published. Never substitute standing idle.
+   return special||(kind.includes('upper')&&actions.uppercut?'uppercut':null)||
+     (actions.punch1?'punch1':null);
   }
-  if((fighter.blastT||0)>0&&actions.superblast)return 'superblast';
-  if(fighter.charging&&actions.charge)return 'charge';
-  if(airborne&&actions.jump)return 'jump';
-  if(fighter.dashing&&actions.dodge)return 'dodge';
-  if(fighter.sprinting&&actions.run)return 'run';
-  if(speed>.75&&actions.walk)return 'walk';
-  if(speed<=.75&&actions.idle)return 'idle';
-  return null;
+  if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
+  if(fighter.charging)return actions.charge?'charge':null;
+  if(airborne)return actions.jump?'jump':null;
+  if(fighter.dashing)return actions.dodge?'dodge':null;
+  if(fighter.sprinting)return actions.run?'run':null;
+  if(speed>.75)return actions.walk?'walk':null;
+  return actions.idle?'idle':null;
  }
  function attach(THREE,fighter,actions,status){
   if(!fighter||typeof fighter.animate!=='function'||fighter.v72StudioPack)return null;
