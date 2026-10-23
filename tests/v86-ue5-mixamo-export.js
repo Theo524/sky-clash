@@ -54,3 +54,36 @@ for(const ue of [false,true]){
  assert.equal(pack.schema,'sky-clash.studio-gamepack.v1');
 }
 console.log('PASS V86: both Mixamo and UE5 Quinn skeleton exports use real 30fps world-bind samples');
+
+const fs=require('node:fs');
+const recorded=require('../js/v72-published-actions.js');
+const imported=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,
+ '../assets/animations/gameplay/v86-ue5-converted-actions.json'),'utf8'));
+assert.equal(imported.schema,'sky-clash.studio-gamepack.v1');
+assert.equal(imported.motions.length,16);
+assert.equal(new Set(imported.motions.map(m=>m.slot)).size,16);
+for(const m of imported.motions){
+ const action=recorded.decode(THREE,m);
+ assert.equal(action.frames,m.frames);
+ assert.equal(action.bones.length,20);
+ const a=Array.from({length:20},()=>new THREE.Quaternion());
+ const b=Array.from({length:20},()=>new THREE.Quaternion());
+ action.sample(0,a,false);
+ action.sample(action.seconds*.5,b,false);
+ assert.ok(a.every((q,i)=>Number.isFinite(q.lengthSq())&&Math.abs(q.length()-1)<.003));
+ assert.ok(b.every(q=>Number.isFinite(q.lengthSq())&&Math.abs(q.length()-1)<.003));
+}
+const base=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,
+ '../assets/animations/gameplay/studio-actions-v1.json'),'utf8'));
+assert.equal(base.motions.find(m=>m.slot==='idle').sourceFile,'Movement/Adventure/idle (2).fbx');
+assert.equal(base.motions.find(m=>m.slot==='run').sourceFile,'Movement/Male/standard run.fbx');
+const motionBySlot=Object.fromEntries(imported.motions.map(m=>[m.slot,recorded.decode(THREE,m)]));
+function fake(data={}){return Object.assign({hp:100,t:1,vel:{x:0,y:0,z:0},
+ moveIntent:{x:0,z:0},sprinting:false,skidT:0},data)}
+assert.equal(recorded.choose(fake({flying:true}),motionBySlot),'floating');
+assert.equal(recorded.choose(fake({flying:true,vel:{x:7,y:0,z:0}}),motionBySlot),'flying');
+assert.equal(recorded.choose(fake({jumping:true,vel:{x:0,y:8,z:0}}),motionBySlot),'jump');
+assert.equal(recorded.choose(fake({jumping:true,vel:{x:0,y:-8,z:0},dropping:true}),motionBySlot),'fallingIdle');
+assert.equal(recorded.choose(fake({landingMotionT:.3}),motionBySlot),'landing');
+assert.equal(recorded.choose(fake({blockHeld:true}),motionBySlot),'guard');
+console.log('PASS V86: 16 real FBX recordings decoded with source skeleton mapping; game states verified');
