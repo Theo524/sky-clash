@@ -85,7 +85,7 @@ assert(fighter.includes('spineX: 0.10, headX: 0.07'),
  'Kairo normal landing must not face-plant');
 const html=read('animation-studio.html'),studio=read('js/animation-studio.js');
 assert(html.includes('id="generateAllPreviews"'),'Render every imported clip on demand');
-assert(html.includes('animation-studio.js?v=820'),'Current cache-busted Studio module');
+assert(html.includes('animation-studio.js?v=830'),'Current cache-busted Studio module');
 assert(studio.includes('renderAllPreviews&&!visiblePage().includes(item)'),
  'Full-render queue must process nonvisible library pages');
 assert(studio.includes('previews ready')&&studio.includes('awaiting render'),

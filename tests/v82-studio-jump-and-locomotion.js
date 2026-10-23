@@ -70,8 +70,10 @@ const adapter=read('js/v72-published-actions.js');
 assert(adapter.includes("entry.slot==='runStop'&&(i===0||i>=14)"),
  'Recorded boost stop must leave grounded hips and feet to physics');
 const studio=read('animation-studio.html');
-assert(studio.includes('id="quickActionSlot"')&&studio.includes('id="quickAssign"'),
- 'Selected Studio motion can be assigned at the preview');
+assert(!studio.includes('id="quickActionSlot"')&&!studio.includes('id="quickAssign"'),
+ 'V83 removes the duplicate quick assignment box by user request');
+assert(studio.includes('id="actionSlots"'),
+ 'Existing character action slots still support normal assignment');
 assert(!studio.includes('V68 anatomical forward-axis mapping on Kairo Venn.'),
  'Obsolete V68 anatomical status removed from visual editor');
 assert(!studio.includes('The <strong>Master base</strong> runs directly'),
@@ -79,8 +81,10 @@ assert(!studio.includes('The <strong>Master base</strong> runs directly'),
 assert(!studio.includes('Drag its thumbnail to a move below'),
  'Dragging should no longer be the only workflow');
 const editor=read('js/animation-studio.js');
-assert(editor.includes("bindClip(current,slot)"),'Quick assignment must use same persisted action map');
-assert(editor.includes("quick.replaceChildren()"),'Kairo/Rin action choice must refresh when switching fighter');
+assert(!editor.includes('quickAssign')&&!editor.includes('quickActionSlot'),
+ 'Do not keep event handlers referencing removed DOM controls');
+assert(editor.includes("bindClip(item,key)"),
+ 'Original action slot assignment logic remains operational');
 const boot=read('js/v66-game-boot.js'),index=read('index.html');
 assert(boot.includes('js/v71-mixamo-gameplay.js?v=820'));
 assert(boot.includes('js/v76-upper-body.js?v=820'));

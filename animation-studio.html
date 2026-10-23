@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c101e"><title>Sky Clash V82 · Animation Studio</title>
-<link rel="stylesheet" href="css/animation-studio.css?v=820">
+<meta name="theme-color" content="#0c101e"><title>Sky Clash V83 · Animation Studio</title>
+<link rel="stylesheet" href="css/animation-studio.css?v=830">
 <!-- The FBX parser uses the same Three.js release as the game, but in an isolated renderer.
      External module is fetched only for the preview engine. Files are never uploaded. -->
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js"}}</script>
@@ -40,11 +40,6 @@
     <div class="timeline"><input type="range" id="scrub" min="0" max="1000" value="0" disabled aria-label="Animation timeline"><span id="timing">0.0 / 0.0s</span></div>
    </div>
    <div class="selected"><h3 id="selectedTitle">No animation selected</h3><div id="selectedMeta">Choose a thumbnail on the left.</div></div>
-   <div class="quick-assign" aria-label="Quickly assign the currently selected motion">
-    <label for="quickActionSlot">Assign selected motion to</label>
-    <select id="quickActionSlot" aria-label="Choose action slot"></select>
-    <button type="button" id="quickAssign" class="primary">＋ Assign selected</button>
-   </div>
    <div id="selectedHint" hidden></div>
    <div id="selectedStatus" hidden role="status"></div>
    <div class="action-editor" id="actionEditor">
@@ -78,7 +73,7 @@
 <script src="js/v79-pack-catalog.js?v=791"></script>
 <script src="js/v79-gif-preview.js?v=790"></script>
 <script type="module">
-import("./js/animation-studio.js?v=820").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=830").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>
