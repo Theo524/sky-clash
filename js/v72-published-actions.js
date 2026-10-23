@@ -104,6 +104,21 @@
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
   if(airborne){
    if(fighter.launched||fighter.spiked)return null;
+   // V98 opt-in: "flying" measures height above terrain, not intentional
+   // flight. During an ordinary hop it becomes true almost immediately,
+   // hiding the recorded jumping-up / falling clips under floating.
+   // Route genuine jump ascent, apex, gravity descent and deliberate
+   // fly-cancel BEFORE checking height-based flight. Do not alter physics,
+   // acrobatics, combat or the default (non-lab) animation pipeline.
+   if(new URLSearchParams(root.location?.search||'').get('airLab')==='jump'){
+    if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
+    if(fighter.jumping&&fighter.acro?.type!=='flip'){
+     const vy=fighter.vel?.y||0;
+     // Small apex deadband avoids a single frame of hovering between clips.
+     if(vy>=-.7)return actions.jump?'jump':null;
+     return actions.fallingIdle?'fallingIdle':null;
+    }
+   }
    // Controlled flight is NOT an uncontrolled gravity fall.
    if(fighter.flying){
     const fast=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>3;
