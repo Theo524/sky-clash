@@ -41,6 +41,10 @@
   const st={rig:null,nodes:[],bind:[],targetSide:new THREE.Vector3(),
    idleClock:0,walkClock:0,runClock:0,walkWeight:0,runWeight:0,
    fade:0,frames:0,active:'waiting',error:null,
+   // Align source walk arms to APPROVED idle at their first frame. The
+   // two FBX clips have different starting limb orientations; raw blends
+   // can cross a 180-degree quaternion hemisphere and flip the elbow.
+   armOffsets:ARMS.map(()=>new THREE.Quaternion()),
    idle:BONES.map(()=>new THREE.Quaternion()),
    run:BONES.map(()=>new THREE.Quaternion()),
    legs:['hips',...LEG].map(()=>new THREE.Quaternion()),
@@ -79,6 +83,20 @@
    };
    sideBasis(clips.idle,basisIdle,inverseIdle);
    sideBasis(clips.run,basisRun,inverseRun);
+   const firstIdle=BONES.map(()=>new THREE.Quaternion());
+   const firstArms=ARMS.map(()=>new THREE.Quaternion());
+   clips.idle.sample(0,firstIdle,true);
+   clips.arms.sample(0,firstArms);
+   const walkBasis=rig.legacyAxes?yaw:unit,invW=walkBasis.clone().invert();
+   for(let j=0;j<ARMS.length;j++){
+    const idx=BONES.indexOf(ARMS[j]);
+    const idleStart=basisIdle.clone().multiply(firstIdle[idx])
+     .multiply(inverseIdle).normalize();
+    const sourceStart=walkBasis.clone().multiply(firstArms[j])
+     .multiply(invW).normalize();
+    st.armOffsets[j].copy(idleStart)
+     .multiply(sourceStart.invert()).normalize();
+   }
    st.rig=rig;st.fade=0;st.walkWeight=0;st.runWeight=0;
   }
   f.animate=function(dt){
@@ -135,6 +153,10 @@
      mapped.copy(basisIdle).multiply(idle).multiply(inverseIdle).normalize();
      if(li>=0||ai>=0){
       gaitDelta.copy(walkBasis).multiply(walk).multiply(inverseWalk).normalize();
+      // Arms are authored in a different Mixamo starting stance. Preserve
+      // their keyed swing by applying the fixed resting-frame correction
+      // BEFORE mixing against the approved idle world-rest delta.
+      if(ai>=0)gaitDelta.premultiply(st.armOffsets[ai]).normalize();
      }else gaitDelta.copy(mapped);
      tmp.copy(basisRun).multiply(run).multiply(inverseRun).normalize();
      // Every pose part is blended in SOURCE WORLD-REST space, before
