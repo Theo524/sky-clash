@@ -11,7 +11,10 @@ const root=path.join(__dirname,'..');
 const pack=JSON.parse(fs.readFileSync(path.join(root,'assets/animations/gameplay/studio-actions-v1.json'),'utf8'));
 assert.strictEqual(pack.schema,'sky-clash.studio-gamepack.v1');
 assert.strictEqual(pack.revision,1);
-assert.strictEqual(pack.motions.length,1,'Publish ONLY the selected idle; preserve installed walk/run/jump');
+assert.deepStrictEqual(pack.motions.map(x=>x.slot),['idle','run'],
+ 'Publish approved idle plus separate V80 analog run, no other unwanted actions');
+assert.strictEqual(pack.motions[1].sourceFile,'Movement/Male/standard run.fbx');
+assert.strictEqual(pack.motions[1].frames,23);
 const entry=pack.motions[0];
 assert.strictEqual(entry.character,'kairo');
 assert.strictEqual(entry.slot,'idle');
