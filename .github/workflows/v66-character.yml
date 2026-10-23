@@ -20,6 +20,7 @@ on:
       - 'tests/v77-*.js'
       - 'tests/v78-*.js'
       - 'tests/v79-*.js'
+      - 'tests/v80-*.js'
       - 'js/v79-*'
       - 'js/v78-*'
       - 'js/v76-*'
@@ -54,6 +55,7 @@ on:
       - 'tests/v77-*.js'
       - 'tests/v78-*.js'
       - 'tests/v79-*.js'
+      - 'tests/v80-*.js'
       - 'js/v79-*'
       - 'js/v78-*'
       - 'js/v76-*'
@@ -119,6 +121,7 @@ jobs:
       - run: node tests/v77-published-idle.js
       - run: node tests/v78-hip-bounce-and-idle-handoff.js
       - run: node tests/v79-catalog-and-actions.js
+      - run: node tests/v80-analog-locomotion.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
