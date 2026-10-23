@@ -99,7 +99,7 @@ const frame=()=>fighter.animate(1/60);
 for(let i=0;i<25;i++)frame();
 assert.strictEqual(adapter.slot,'idle');
 assert.strictEqual(lastStatus.active,'idle');
-assert(owner.handGrip<.05,'Approved standing idle keeps the user's native hands');
+assert(owner.handGrip<.05,"Approved standing idle keeps the user's native hands");
 fighter.blockHeld=true;
 for(let i=0;i<22;i++)frame();
 assert.strictEqual(adapter.slot,'guard','Guard must be a genuine Mixamo recording');
