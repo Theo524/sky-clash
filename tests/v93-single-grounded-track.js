@@ -65,8 +65,8 @@ function tick(mode,count,speed,radius){
   // world transforms can rotate more than locals due to accumulated
   // hierarchical movement. Record diagnostics, but don't hide a bad pose
   // behind stage assertions alone.
-  const now=snap(),max=Math.max(...prior.map((q,i)=>q.angleTo(now[i])));
-  if(max>worst){worst=max;worstAt=mode+' frame '+j+' angle '+(max*180/Math.PI).toFixed(1)+'deg';}
+  const now=snap(),angles=prior.map((q,i)=>q.angleTo(now[i])),max=Math.max(...angles);
+  if(max>worst){worst=max;worstAt=mode+' frame '+j+' bone '+V93.BONES[angles.indexOf(max)]+' angle '+(max*180/Math.PI).toFixed(1)+'deg';}
   frames++;
  }
 }
