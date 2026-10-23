@@ -36,7 +36,8 @@ function create(canvas){
   for(const [src,key] of map){
    const node=bone(vrm,key);if(!node)continue;
    const world=node.getWorldQuaternion(new T.Quaternion());
-   rest.set(src,{node,local:node.quaternion.clone(),world,position:node.getWorldPosition(new T.Vector3())});
+   rest.set(src,{node,local:node.quaternion.clone(),localPosition:node.position.clone(),
+    world,position:node.getWorldPosition(new T.Vector3())});
   }
   for(const required of ['hips','leftarm','rightarm','leftforearm','rightforearm','lefthand','righthand','leftupleg','rightupleg']){
    if(!rest.has(required))throw Error('The VRM is missing a normalized '+required+' bone. Try another valid humanoid model.');
@@ -76,6 +77,11 @@ function create(canvas){
   if(!current||!sourceRig)return {applied:0};
   const report=mapper.sample(sourceRig,current.rest,map,adjustYaw);
   if(report.applied<10)throw Error('Only '+report.applied+' VRM joints moved; check Mixamo humanoid track bindings');
+  // Restore vertical Mixamo hip travel AFTER world-rest joint rotations.
+  // This is exactly the jog bounce shown by Bone Diagnostic, without letting
+  // the character drift horizontally or accumulate per-frame offsets.
+  const bounce=root.SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest);
+  if(bounce?.applied)report.verticalHipBounce=bounce.vertical;
   // VRM copies normalized humanoid motion to the actual skinned mesh bones.
   current.vrm.update(0);
   current.lastReport=report;
