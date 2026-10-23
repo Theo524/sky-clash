@@ -23,7 +23,13 @@
   const w=smooth(amount);
   for(let i=0;i<nodes.length;i++){
    const n=nodes[i];
-   if(n&&source[i])n.quaternion.slerpQuaternions(source[i],n.quaternion,w);
+   if(n&&source[i]){
+    // Three.js slerpQuaternions writes to this before reading its
+    // destination. Passing the same quaternion as the output and target
+    // silently loses the target and freezes the blend on the source.
+    const live=n.quaternion.clone();
+    n.quaternion.slerpQuaternions(source[i],live,w);
+   }
   }
   return w;
  }
