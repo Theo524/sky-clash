@@ -17,7 +17,7 @@ function fighter(){return {
 const originalLocation=globalThis.location;
 const dt=1/60;
 try{
- globalThis.location={search:'?movementLab=step&stance=match'};
+ globalThis.location={search:'?movementLab=step&stance=legacy90'};
  const a=fighter();
  assert.equal(lib.plan(a,dt).mode,'idle');
  a.moveIntent.z=1;
@@ -69,7 +69,7 @@ assert.equal(assets.motions.find(m=>m.slot==='idle').sourceFile,'Movement/Advent
 assert.equal(assets.motions.find(m=>m.slot==='run').sourceFile,'Movement/Male/standard run.fbx');
 const boot=read('js/v66-game-boot.js');
 assert(boot.includes("if(stepLab)await script('js/v89-grounded-step.js?v=890')"));
-assert(boot.includes("get('stance')==='match'?'&fix=90':'&fix=89'"));
+assert(boot.includes("get('stance')==='legacy90'?'&fix=90':'&fix=89'"));
 assert(boot.includes("'&stance=90'"));
 const step=read('js/v89-grounded-step.js');
 assert(step.includes('st.launchPose=st.lastVisible'));
