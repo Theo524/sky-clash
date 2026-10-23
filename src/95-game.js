@@ -262,6 +262,14 @@ const Game = {
       Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
     }
     const raw = Input.move();
+    // V93 lab: recognize PHYSICAL joystick radius, not keyboard's 1.0
+    // digital magnitude. WASD keeps the controlled walk you approved.
+    // Full thumbstick radius alone selects the original Standard Run,
+    // with hysteresis so crossing the ring doesn't flicker every frame.
+    if(window.SkyClashMovementLab?.version===93){
+      p.v93StickRadius=Math.min(1,Math.hypot(Input._stick?.x||0,Input._stick?.y||0));
+      p.v93AnalogRun=p.v93StickRadius>(p.v93AnalogRun?.79:.91);
+    }
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
     sm.x += (raw.x - sm.x) * ks; sm.y += (raw.y - sm.y) * ks;

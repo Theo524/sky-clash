@@ -223,6 +223,13 @@
     // Idle remains the original published clip. No static T-pose bridge,
     // no permanent stance overrides, and no extra owners while fighting.
     rig.vrm.update(0);
+    // V93 is the sole locomotion owner, but V89 retains FINAL planted-foot
+    // IK authority. Feed the actual post-IK visible skeleton back into its
+    // frame-to-frame reference, or the next frame could reintroduce a
+    // contact snap by starting from the pre-IK ankle pose.
+    if(root.SkyClashMovementLab?.version===93&&this.v93SingleLocomotion)
+     this.v93SingleLocomotion.lastVisible=
+      this.v93SingleLocomotion.nodes.map(n=>n?.quaternion.clone()||null);
     if(matched)
      st.lastVisible=st.stanceNodes.map(node=>node?node.quaternion.clone():null);
     st.frame++;
