@@ -137,7 +137,7 @@
   if(speed>.75){
    // V88 walk lab: a full WASD press is a WALK, not an implicit
    // Standard Run. Keep the approved Standard Run asset untouched.
-   if(new URLSearchParams(root.location?.search||'').get('movementLab')==='walk'){
+   if(['walk','step'].includes(new URLSearchParams(root.location?.search||'').get('movementLab'))){
     fighter.v80AnalogRun=false;
     return actions.walk?'walk':null; // V71 owns recorded walking legs.
    }

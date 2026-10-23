@@ -7,7 +7,7 @@
  const store=window.SkyClashCharacterStore;
  function script(src){
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(new URLSearchParams(location.search).get('movementLab')==='walk'&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'');e.async=false;
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?'&fix=89':new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'');e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
  }
@@ -23,12 +23,17 @@
  window.HERO_VRM_URL=selected?.url||null;
  window.HERO_VRM_B64=null;
  try{
+  // V89 step planner must exist before the physics module is initialized.
+  const stepLab=new URLSearchParams(location.search).get('movementLab')==='step';
+  if(stepLab)await script('js/v89-grounded-step.js?v=890');
   await script('js/game.js?v=820');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
-  const walkLab=new URLSearchParams(location.search).get('movementLab')==='walk';
-  if(walkLab&&window.SkyClash?.TUNING)
-   window.SkyClashMovementLab={version:88,enabled:true,targetWalkSpeed:4.8};
+  const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
+  if(walkLab&&window.SkyClash?.TUNING){
+   if(stepLab)window.SkyClashMovementLab={version:89,enabled:true,targetWalkSpeed:4.8};
+   else window.SkyClashMovementLab={version:88,enabled:true,targetWalkSpeed:4.8};
+  }
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=820');
@@ -51,6 +56,9 @@
   // whole-body transitions smooth instead of exposing old procedural arms.
   await script('js/v81-pose-transitions.js?v=810');
   window.SkyClashV81Transitions.start(window);
+  // Apply authored stepping and brief support-foot corrections LAST, after
+  // the previously existing pose-transition owner. Ordinary game is intact.
+  if(stepLab)window.SkyClashWalkStep.start(window);
   if(walkLab){
    const label=document.createElement('div');
    label.id='walkLabStatus';
@@ -58,14 +66,19 @@
     background:'rgba(9,18,30,.92)',color:'#e2f7ff',border:'1px solid #7097a7',
     padding:'9px 12px',font:'12px/1.45 monospace',borderRadius:'9px',
     zIndex:'99999',pointerEvents:'none',whiteSpace:'pre-line'});
-   label.textContent='WALK TEST V88 — preparing fighter…';
+   label.textContent=stepLab?'FIRST-STEP LAB V89 — preparing fighter…':'WALK TEST V88 — preparing fighter…';
    document.body.appendChild(label);
    window.setInterval(()=>{
     const g=window.SkyClash?.Game,p=g?.player;
     const v=p?Math.hypot(p.vel?.x||0,p.vel?.z||0):0;
     const walk=window.SkyClashGameplayMotions?.weight||0;
     const mode=p?.sprinting?'BOOST':p?.v80AnalogRun?'RUN':'WALK / IDLE';
-    label.textContent='MOVEMENT LAB · V88\nWASD = WALK  |  Boost = original\n'+
+    const step=p?.v89Step?.mode||'idle';
+    label.textContent=stepLab?
+     'FIRST-STEP LAB · V89\nIdle > weight shift > first step > walk > settle\n'+
+     'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
+     'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0):
+     'MOVEMENT LAB · V88\nWASD = WALK  |  Boost = original\n'+
      'Speed: '+v.toFixed(1)+'  Motion: '+mode+'  Walk blend: '+Math.round(walk*100)+'%';
    },180);
   }
