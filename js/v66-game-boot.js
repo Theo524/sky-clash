@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V105';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:105,
+ const BUILD='V106';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:106,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -60,6 +60,10 @@
       (src.includes('js/game.js')||src.includes('v72-published-actions')||
        src.includes('v100-pose-authority')))
      e.src+='&landing=105';
+   if(new URLSearchParams(location.search).get('landingLab')==='contact'&&
+      new URLSearchParams(location.search).get('landingFeet')==='plant'&&
+      (src.includes('js/game.js')||src.includes('v100-pose-authority')))
+     e.src+='&soles=106';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -173,6 +177,7 @@
     const steadyLegs=flags.get('airLegs')==='steady';
     const movingJump=flags.get('movingJump')==='carry';
     const contactLanding=flags.get('landingLab')==='contact';
+    const finalSoles=contactLanding&&flags.get('landingFeet')==='plant';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -200,7 +205,11 @@
       'LAND: '+(airOwner?.ready?
         airOwner.landingStyle+' · '+(airOwner.landingPhase||'ready')+
         ' · impact '+(airOwner.impactSpeed||0).toFixed(1):
-        'V105 CONTACT PREPARING')+'\n':
+        'V105 CONTACT PREPARING')+'\n'+
+      (finalSoles?'SOLE: '+(airOwner?.soleContact||'not-tested')+
+        ' | lowest gap '+(airOwner?.soleGapCm??'?')+'cm'+
+        ' | other '+(airOwner?.otherSoleGapCm??'?')+'cm'+
+        ' | corrections '+(airOwner?.soleCorrections||0)+'\n':''):
       'LAND: V100 UNCHANGED · MOVING-JUMP TEST ONLY\n')+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+

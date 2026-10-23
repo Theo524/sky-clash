@@ -397,6 +397,53 @@ function contactLandingRegression(){
  assert(!contact.u.authority.error&&!legacy.u.authority.error);
  console.log('PASS V105: real Mixamo landing contact, knee absorption, return to approved guard, no second writer, combat priority and unchanged V102/V103 jumps');
 }
+function visibleLandingFootRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact';
+ const run=(plant)=>{
+  const u=setup(url+(plant?'&landingFeet=plant':''));
+  u.f.floor=0;
+  u.step(130);
+  u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;u.step(24);
+  const rise=u.pose();
+  u.f.vel.y=-10;u.step(17);
+  const fall=u.pose(),count=u.count();
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;
+  u.f.landingMotionT=.48;u.f.v105ImpactSpeed=14;
+  const gaps=[],poses=[];
+  for(let frame=0;frame<28;frame++){
+   u.step();
+   assert.equal(u.authority.active,'landing');
+   assert.deepEqual(u.count(),count,'contact solver cannot introduce an old animation writer');
+   poses.push(u.pose());
+   const floor=V100.soleGaps(THREE,u.f.vrmRig,u.f);
+   gaps.push(Math.min(...floor.map(x=>x.gap)));
+   if(plant){
+    assert(Math.abs(gaps.at(-1))<.021,
+     'visible final VRM ankle must contact floor after retarget at frame '+frame+
+     ': '+gaps.at(-1));
+    assert.equal(u.authority.soleContact,'PLANTED');
+   }
+  }
+  return {u,rise,fall,gaps,poses};
+ };
+ const old=run(false),planted=run(true);
+ for(let i=0;i<20;i++){
+  assert(old.rise[i].angleTo(planted.rise[i])<.0001,
+   'V106 must NOT modify approved takeoff: '+V100.BONES[i]);
+  assert(old.fall[i].angleTo(planted.fall[i])<.0001,
+   'V106 must NOT modify approved descent: '+V100.BONES[i]);
+  for(const frame of [0,5,11,21,27])
+   assert(old.poses[frame][i].angleTo(planted.poses[frame][i])<.001,
+    'V106 must not modify even rejected V105 landing source bones: '+V100.BONES[i]);
+ }
+ assert(old.gaps.some(g=>Math.abs(g)>.04),
+  'the previous source must reproduce the reported lack of visible contact');
+ assert(planted.gaps.every(g=>Math.abs(g)<.021),
+  'V106 must produce consistent contact for the entire authored landing');
+ assert(planted.u.authority.soleCorrections>=28);
+ assert(!planted.u.authority.error);
+ console.log('PASS V106 full motion stack: every recorded landing frame finishes with actual world-space foot-ground contact, no change to quaternion animations');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -461,6 +508,7 @@ try{
  steadyAirLegRegression();
  movingTakeoffRegression();
  contactLandingRegression();
+ visibleLandingFootRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
