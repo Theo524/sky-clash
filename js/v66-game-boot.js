@@ -125,7 +125,7 @@
      (handoffLab?' | Actual pose blend: '+Math.round(100*(window.SkyClashPoseTransitions?.transition||0))+'%':'')+
      (steadyArmLab?' | Random idle gestures: OFF':'')+
      (new URLSearchParams(location.search).get('airHands')==='stable'?
-       '\\nAir hands: '+(window.SkyClashPoseTransitions?.airHands||'loading')+
+       '\nAir hands: '+(window.SkyClashPoseTransitions?.airHands||'loading')+
        ' | wrist clamps: '+(window.SkyClashPoseTransitions?.airWristClamps||0):'')+
      (anchoredArmLab?' | Arm source: '+
       (window.SkyClashUpperBody?.idleSource||'loading')+
