@@ -50,7 +50,7 @@
   if(!inAir&&!wasAir&&!wasDescending){s.fallHeight=0;s.fallSpeed=0;}
   const hostile=f.hp<=0||f.punchT>0||f.blastT>0||f.superHitT>0||
    f.stun>0||f.downT>0||f.slamming||f.blocking||f.blockHeld||
-   f.charging||f.dashing||f.acro;
+   f.charging||f.dashing||(f.acro&&f.acro.type!=='landing');
   if(f.sprinting)s.runAge=0;else s.runAge+=dt;
   s.wasAir=inAir;s.wasDescending=descending;
   s.clock+=dt;
