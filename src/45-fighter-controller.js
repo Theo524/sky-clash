@@ -489,8 +489,11 @@ class Fighter {
       // branch; keep every other fighter and the normal game unchanged.
       const walkLab=window.SkyClashMovementLab?.enabled&&
        this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
-      const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
-      const stepLab=walkLab&&window.SkyClashMovementLab?.version===89&&
+      // Joystick at the outside ring is visibly RUN, but not Boost.
+      // Digital WASD does not become running just because its value is 1.
+      const normalSpeed=walkLab?(window.SkyClashMovementLab?.version===93&&
+        this.v93AnalogRun?6.9:4.8):TUNING.walkSpeed;
+      const stepLab=walkLab&&[89,93].includes(window.SkyClashMovementLab?.version)&&
        window.SkyClashWalkStep&&!this.flying;
       // One state machine owns movement takeoff: weight shift first,
       // then the first planted stride before reaching walking speed.
