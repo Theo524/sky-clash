@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V106';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:106,
+ const BUILD='V107';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:107,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -64,6 +64,10 @@
       new URLSearchParams(location.search).get('landingFeet')==='plant'&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&soles=106';
+   if(src.includes('v100-pose-authority')&&
+      (new URLSearchParams(location.search).get('jumpStyle')==='expressive'||
+       new URLSearchParams(location.search).get('landingMove')==='pin'))
+     e.src+='&performance=107';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -178,6 +182,8 @@
     const movingJump=flags.get('movingJump')==='carry';
     const contactLanding=flags.get('landingLab')==='contact';
     const finalSoles=contactLanding&&flags.get('landingFeet')==='plant';
+    const expressive=flags.get('jumpStyle')==='expressive';
+    const movingPin=finalSoles&&flags.get('landingMove')==='pin';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -201,6 +207,8 @@
        airOwner.movingJump||'V103 PREPARING':
        movingJump?'UNAVAILABLE':'V102 ORIGINAL')+
        ' | mix: '+Math.round((airOwner?.movingJumpWeight||0)*100)+'%\n'+
+     (expressive?'JUMP BODY: V107 expressive · energy '+
+       (airOwner?.jumpExpression||0)+'%\n':'')+
      (contactLanding?
       'LAND: '+(airOwner?.ready?
         airOwner.landingStyle+' · '+(airOwner.landingPhase||'ready')+
@@ -209,7 +217,10 @@
       (finalSoles?'SOLE: '+(airOwner?.soleContact||'not-tested')+
         ' | lowest gap '+(airOwner?.soleGapCm??'?')+'cm'+
         ' | other '+(airOwner?.otherSoleGapCm??'?')+'cm'+
-        ' | corrections '+(airOwner?.soleCorrections||0)+'\n':''):
+        ' | corrections '+(airOwner?.soleCorrections||0)+'\n':'')+
+      (movingPin?'MOVING PLANT: '+(airOwner?.movingFootPin||'waiting')+
+       ' | slip '+(airOwner?.movingFootSlipCm||0)+'cm'+
+       ' | pinned frames '+(airOwner?.movingFootPinFrames||0)+'\n':''):
       'LAND: V100 UNCHANGED · MOVING-JUMP TEST ONLY\n')+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
