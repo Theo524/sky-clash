@@ -28,10 +28,10 @@ const spec=(isUE)=>{
    'mixamorig:LeftUpLeg','mixamorig:LeftLeg','mixamorig:LeftFoot',
    'mixamorig:RightUpLeg','mixamorig:RightLeg','mixamorig:RightFoot'];
  const bones=new Map();
- for(const name of nm){const b=new THREE.Bone();b.name=name;bones.set(name,b);root.add(b);}
+ for(const name of nm){const b=new THREE.Bone();b.name=isUE?name:name.replace(':','');bones.set(name,b);root.add(b);}
  bones.get(nm[6]).position.x=1;
  bones.get(nm[10]).position.x=-1;
- const arm=nm[7];
+ const arm=isUE?nm[7]:nm[7].replace(':','');
  const track=new THREE.QuaternionKeyframeTrack(arm+'.quaternion',[0,.5],
   [0,0,0,1,0,0.258819,0,0.965926]);
  root.animations=[new THREE.AnimationClip('test',.5,[track])];
