@@ -158,6 +158,17 @@
     if(st.rig!==this.vrmRig)capture(this.vrmRig);
     const state=ownsAir(this)?stateOf(this):null;
     if(!state){
+     // A punch, guard, knockback, Boost or deliberate flight MUST take
+     // authority immediately: don't keep blending the old jump over it.
+     const interrupted=this.hp<=0||this.stun>0||this.downT>0||
+       this.launched||this.spiked||this.punchT>0||this.blastT>0||
+       this.superHitT>0||this.slamming||this.charging||
+       this.blockHeld||this.blocking||this.dashing||this.sprinting||
+       (this.acro&&this.acro.type!=='landing');
+     if(interrupted){
+      st.phase=null;st.wristAnchor=[];st.armAnchor=[];
+      status.active='yielded-to-combat-or-flight';return;
+     }
      if(st.phase){
       st.exitElapsed+=safe;
       const w=smooth(st.exitElapsed/.17);
