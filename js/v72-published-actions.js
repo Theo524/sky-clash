@@ -119,7 +119,7 @@
     // Cross-fade the published idle OUT over ~0.2s when starting to walk;
     // never keep an idle overlay during attack/air/block/stun.
     const safeAir=!!(this.jumping||this.flying)&&
-      !(this.launched||this.spiked||this.dashing||this.sprinting||
+      !(this.launched||this.spiked||this.dashing||
         this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
         this.superHitT>0||this.charging||this.blockHeld||this.blocking||
         this.slamming||this.acro);
