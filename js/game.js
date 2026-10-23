@@ -2423,7 +2423,13 @@ class Fighter {
       const walkLab=window.SkyClashMovementLab?.enabled&&
        this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
       const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
+      const stepLab=walkLab&&window.SkyClashMovementLab?.version===89&&
+       window.SkyClashWalkStep&&!this.flying;
+      // One state machine owns movement takeoff: weight shift first,
+      // then the first planted stride before reaching walking speed.
+      const step=stepLab?window.SkyClashWalkStep.plan(this,dt):null;
       const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : normalSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
@@ -2446,7 +2452,10 @@ class Fighter {
        // state uses true gravity and the falling idle animation.
        target.y=this.vel.y-TUNING.gravity*dt;
       }
-      this.vel.lerp(target, damp(rate, dt));
+      // Plant quickly on release so the old moving walk legs cannot
+      // coast visibly under an already stationary input.
+      const groundedStop=stepLab&&step?.mode==='settle';
+      this.vel.lerp(target, damp(groundedStop?16:rate, dt));
       if(this.dropping&&this.canFly)
        this.vel.y=Math.max(-TUNING.flySpeed,
         Math.min(-2.5,this.vel.y-TUNING.gravity*dt));
