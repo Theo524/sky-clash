@@ -17,6 +17,7 @@ on:
       - 'tests/v74-*.js'
       - 'tests/v75-*.js'
       - 'tests/v76-*.js'
+      - 'tests/v77-*.js'
       - 'js/v76-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
@@ -46,6 +47,7 @@ on:
       - 'tests/v74-*.js'
       - 'tests/v75-*.js'
       - 'tests/v76-*.js'
+      - 'tests/v77-*.js'
       - 'js/v76-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
@@ -102,6 +104,7 @@ jobs:
       - run: node tests/v74-grounded-walk.js
       - run: node tests/v75-lowered-walk-arms.js
       - run: node tests/v76-upper-body-ownership.js
+      - run: node tests/v77-published-idle.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
