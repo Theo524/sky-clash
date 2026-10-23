@@ -2256,7 +2256,13 @@ class Fighter {
     // sprint / fast flight: keep holding Dash after the dash to keep going fast
     if (this.sprinting && (!this.sprintHeld || this.stun > 0 || this.blockHeld || this.charging || this.punchT > 0 || this.blastT > 0 || this.windT > 0 || this.launched || this.energy <= 0 || this.exhausted || this.stamina < 0.1)) {
       this.sprinting = false; this.vel.multiplyScalar(0.88);
-      if (!this.flying && this.stun <= 0 && Math.hypot(this.vel.x, this.vel.z) > 9 && this.punchT <= 0) this.skidT = TUNING.skidTime;
+      if (!this.flying && this.stun <= 0 && Math.hypot(this.vel.x, this.vel.z) > 9 && this.punchT <= 0) {
+        this.skidT = TUNING.skidTime;
+        // V80: a burst of grounded grit/smoke when ending *Boost*, not
+        // ordinary joystick running. Native skid physics remain in charge.
+        Effects.dust(this.pos, 10);
+        Effects.sprintTrail(this);
+      }
     }
     // Restore held Boost once an attack's recovery ends (important for fast aerial combos).
     if (!this.sprinting && this.sprintHeld && this.dashT <= 0 && this.dashPrep <= 0 &&
@@ -2525,7 +2531,12 @@ class Fighter {
       pitchT = 0.15 + 0.13 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.10, 0.10);
       rollT = this.airBank;
     }
-    else if (this.sprinting) { pitchT = 0.08; rollT = bank * 0.75; }
+    else if (this.sprinting) {
+      // V80 grounded super-speed Boost: keep Kairo's chest upright enough
+      // to read as fighting-game sprinting rather than diving at the floor.
+      pitchT = this.characterId === 'rin_sable' ? 0.08 : 0.025;
+      rollT = bank * 0.60;
+    }
     else if (this.dashRecoverT > 0) { pitchT = 0.04 + 0.05 * smooth01(this.dashRecoverT / 0.28); rollT = bank * 0.35; }
     else if (this.downT > 0) { pitchT = -1.45; rollT = 0.1; }
     else if (this.spiked) { pitchT = -1.2; rollT = 0; }
@@ -2683,7 +2694,17 @@ class Fighter {
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
-      const r = run(); r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]); r.leg = r.leg.map(l => [l[0] * 1.24, l[1] * 1.16, l[2]]); r.headX = -0.035; r.spineX = this.characterId==='rin_sable' ? 0.025 : 0.070;
+      const r = run();
+      if (this.characterId === 'rin_sable') {
+        r.arm = r.arm.map((a,i) => [0.55 + 0.17 * Math.sin(this.runPh + i * Math.PI), 0.22, -0.65]);
+        r.spineX=0.025;r.headX=-0.035;
+      } else {
+        // Athletic Boost: upright head, compact bent elbows, strong opposite
+        // arm pumps. Distinct from the imported normal joystick-run clip.
+        r.arm=r.arm.map((a,i)=>[-0.69 + 0.31 * Math.sin(this.runPh + i * Math.PI),0.16,-1.15]);
+        r.spineX=0.028;r.headX=0.09;
+      }
+      r.leg=r.leg.map(l=>[l[0]*1.18,l[1]*1.13,l[2]]);
       P = r;
     } else if (this.dashing && !flying) {
       // ground dash: a burst of running, same upright form as the sprint
@@ -2746,11 +2767,23 @@ class Fighter {
           leg: [[0.45, 1.22, 0.22], [-0.83, 0.8, 0.15]],
           spineY: ac.direction * -0.24, spineX: 0.34, headX: -0.14 };
       } else if (ac.type === 'landing') {
-        A = { arm: [[-0.15, 0.72, -1.4], [-1.25, 0.25, -1.7]],
-          leg: [[1.05, 1.65, 0.3], [-0.6, 1.25, 0.2]],
-          spineY: -0.18 * ac.direction, spineX: 0.5, headX: -0.3 };
+        A = this.characterId === 'rin_sable'
+         ? { arm: [[-0.15, 0.72, -1.4], [-1.25, 0.25, -1.7]],
+             leg: [[1.05, 1.65, 0.3], [-0.6, 1.25, 0.2]],
+             spineY: -0.18 * ac.direction, spineX: 0.5, headX: -0.3 }
+         : { arm: [[-0.67, 0.21, -1.18], [-0.81, 0.18, -1.21]],
+             leg: [[0.34, 0.85, 0.16], [-0.28, 0.74, 0.13]],
+             spineY: -0.06 * ac.direction, spineX: 0.10, headX: 0.07 };
       }
       if (A) P = mix(P, A, smooth01(Math.min(1, acEnv * 1.6)));
+    }
+    // V80: ensure Kairo looks toward his opponent while WALKING instead
+    // of staring at the floor; keep separate attacks/boost/flying poses.
+    if (this.characterId === 'kairo_venn' && !flying && !this.sprinting &&
+        !this.dashing && hspeed > 0.8 && this.punchT <= 0 &&
+        this.blastT <= 0 && this.stun <= 0 && !this.charging) {
+      P.headX=0.075;
+      P.spineX=Math.min(P.spineX,0.07);
     }
     if (this.awakened && this.stun <= 0 && this.punchT <= 0 && !this.dashing && !this.charging && this.awakenChargeT <= 0) {
       const powerStance = { arm: [[-0.75, 0.36, -1.30],[-1.06, 0.32, -1.30]],
