@@ -97,7 +97,7 @@
     st.wristAnchor=[];st.armAnchor=[];
    }
   }
-  function retarget(clip,seconds,weight,next){
+  function retarget(clip,seconds,weight,next,dt){
    const rig=st.rig,scene=rig.vrm.scene;
    clip.sample(seconds,st.samples,false);
    // One matrix-world refresh per frame, not once for each humanoid bone.
@@ -115,8 +115,17 @@
    // Kairo's last *approved* guard as the arm baseline and take only a
    // gentle fraction of the recorded counter-swing; the knees, hips,
    // torso and recorded jump timing are unchanged.
-   const compactArms=new URLSearchParams(root.location?.search||'')
-      .get('jumpArms')==='compact'&&(next==='jump'||next==='fall');
+   const params=new URLSearchParams(root.location?.search||'');
+   const compactArms=params.get('jumpArms')==='compact'&&
+     (next==='jump'||next==='fall');
+   // V102 isolated fix: the jump-up and falling-idle source clips disagree
+   // about knee/ankle orientation at the apex. There is already exactly
+   // one final VRM pose owner, but the source DISCONTINUITY still produces
+   // a visible leg flick. Limit each visible bone's per-frame angular change
+   // against the actual last displayed V100 pose, never the procedural rig
+   // that gets rewritten beneath the final owner on every update.
+   const steadyLegs=params.get('airLegs')==='steady'&&
+     (next==='jump'||next==='fall');
    const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
      'V100 recorded landing':'V100 recorded jump/fall arms';
@@ -161,6 +170,22 @@
     if(weight<1){
      qRaw.copy(qTarget);
      qTarget.slerpQuaternions(st.from[i],qRaw,weight).normalize();
+    }
+    if(steadyLegs&&i>=14){
+     // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
+     // original clips still drive the targets, but cannot twitch across
+     // a large frame-to-frame source difference. No physics/IK changes.
+     const rate=i===15||i===18?4.19:3.14;
+     const maxStep=Math.max(0,dt)*rate;
+     const delta=st.prev[i].angleTo(qTarget);
+     if(delta>maxStep&&maxStep>0){
+      qTmp.copy(qTarget);
+      qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
+      status.legStepClamps=(status.legStepClamps||0)+1;
+     }
+     const finalAngle=st.prev[i].angleTo(qTarget);
+     status.maxLegStepDeg=Math.max(status.maxLegStepDeg||0,
+       finalAngle*180/Math.PI);
     }
     node.quaternion.copy(qTarget);
     node.updateMatrixWorld(true);
@@ -221,10 +246,14 @@
       // the physics' 0.48s contact window without holding a frozen pose.
       clip.seconds*smooth(st.elapsed/.48);
     const blend=state==='jump'?.12:state==='fall'?.14:.10;
-    retarget(clip,seconds,smooth(st.elapsed/blend),state);
+    retarget(clip,seconds,smooth(st.elapsed/blend),state,safe);
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
     status.active=state;status.frames=st.frames;
+    status.legStyle=new URLSearchParams(root.location?.search||'')
+      .get('airLegs')==='steady'&&(state==='jump'||state==='fall')?
+      'V102 frame-bounded knees and ankles':state==='landing'?
+      'V100 landing unchanged':'V100 recorded legs';
     status.owner='V100 single recorded '+slot+' pose';
     if(!st.clipsUsed.includes(slot))st.clipsUsed.push(slot);
     status.clipsUsed=st.clipsUsed.slice();
@@ -240,7 +269,7 @@
  }
  function start(context=root){
   const status={version:100,ready:false,active:'not-installed',
-    owner:'none',frames:0,wristClamps:0,error:null};
+    owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,error:null};
   context.SkyClashPoseAuthority=status;
   // Install only after V71/V76/V72/V79/V81/V89 have finished attaching.
   // Every lower recorded motion wrapper checks ownsAir() and yields.
