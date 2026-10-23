@@ -250,6 +250,9 @@ function movingTakeoffRegression(){
   u.step(mode==='run'?14:4);
   assert(mode!=='run'||u.primaryStatus.active==='run','V95 should select genuine approved run');
   const before=u.pose(),counts=u.count();
+  // Simulate the real V71 wrapper clearing this flag on the first jump
+  // frame: V103 must have remembered the LAST GROUNDED run mode.
+  if(mode==='run')u.f.v80AnalogRun=false;
   u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=14;
   u.step(16);
   const mid=u.pose();
