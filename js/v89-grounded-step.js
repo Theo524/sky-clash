@@ -7,6 +7,26 @@
  'use strict';
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
+ // V90 is opt-in so V89's already-approved takeoff remains available
+ // unmodified. No recorded idle, walk or run data is rewritten.
+ const stanceMatch=()=>new URLSearchParams(root.location?.search||'')
+  .get('stance')==='match';
+ const STANCE_BONES=[
+  'hips','spine','chest','upperChest','neck','head',
+  'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+  'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+  'leftUpperLeg','leftLowerLeg','leftFoot',
+  'rightUpperLeg','rightLowerLeg','rightFoot'
+ ];
+ function matchPose(nodes,source,amount){
+  if(!source||!nodes||nodes.length!==source.length)return 1;
+  const w=smooth(amount);
+  for(let i=0;i<nodes.length;i++){
+   const n=nodes[i];
+   if(n&&source[i])n.quaternion.slerpQuaternions(source[i],n.quaternion,w);
+  }
+  return w;
+ }
  const eligible=f=>!!(f&&f.hp>0&&!f.flying&&!f.jumping&&!f.dropping&&
   !f.launched&&!f.spiked&&!f.dashing&&!f.sprinting&&!(f.punchT>0)&&
   !(f.downT>0)&&!(f.stun>0)&&!f.blocking&&!f.blockHeld&&
@@ -33,7 +53,15 @@
    if(s.mode==='anticipate'||s.mode==='inactive')enter('idle');
    else if(s.mode==='first-step'||s.mode==='walk')enter('settle');
    s.elapsed+=delta;
-   if(s.mode==='settle'&&s.elapsed>=.22&&speed<.38)enter('idle');
+   // V90: keep the previous walk pose bridged to the EXACT approved
+   // idle pose after the character really slows down. Do not snap at the
+   // 220ms stop timeout while the gait owner is still fading.
+   if(stanceMatch()&&s.mode==='settle'){
+    s.slowElapsed=speed<.55?(s.slowElapsed||0)+delta:0;
+   }
+   const returned=(!stanceMatch()||(s.slowElapsed||0)>=.22);
+   if(s.mode==='settle'&&s.elapsed>=.22&&speed<.38&&returned)
+    enter('idle');
    s.scale=0;
   }
   s.frames++;
@@ -75,7 +103,8 @@
   const old=f.animate,axisX=new THREE.Vector3(1,0,0),axisZ=new THREE.Vector3(0,0,1),
    sway=new THREE.Quaternion(),bend=new THREE.Quaternion();
   const st={rig:null,serial:-1,lastMode:null,pins:0,frame:0,left:null,right:null,
-   support:null};
+   support:null,stanceNodes:[],lastVisible:null,launchPose:null,stopPose:null,
+   stopSerial:-1,stanceBlend:1};
   const joints=(hum,side)=>({
    hip:hum.getNormalizedBoneNode(side+'UpperLeg'),
    knee:hum.getNormalizedBoneNode(side+'LowerLeg'),
@@ -92,8 +121,37 @@
      st.hips=h.getNormalizedBoneNode('hips');
      st.spine=h.getNormalizedBoneNode('spine');
      st.support=null;st.serial=-1;
+     st.stanceNodes=STANCE_BONES.map(n=>h.getNormalizedBoneNode(n));
+     st.lastVisible=null;st.launchPose=null;st.stopPose=null;
+     st.stopSerial=-1;
     }
     const scene=rig.vrm.scene,mode=g.mode;
+    const matched=stanceMatch();
+    const entering=mode!==st.lastMode;
+    if(matched&&entering){
+     if(mode==='first-step'){
+      // Last visually displayed weight-shift pose, not Mixamo's first
+      // walking frame; preserves Kairo's actual elbow/head/ankle attitude.
+      st.launchPose=st.lastVisible?.map(q=>q?.clone())||null;
+     }else if(mode==='idle'||mode==='inactive'){
+      st.launchPose=null;st.stopPose=null;st.stopSerial=-1;
+     }else if(mode==='settle'){
+      st.stopPose=null;st.stopSerial=-1;
+     }
+    }
+    // Blend source poses before applying V89's additive weight shift / IK.
+    // The approved standing motion continues to animate underneath.
+    if(matched&&mode==='first-step'&&st.launchPose){
+     st.stanceBlend=matchPose(st.stanceNodes,st.launchPose,g.elapsed/.28);
+    }else if(matched&&mode==='settle'&&
+      (g.slowElapsed||0)>0){
+     if(st.stopSerial!==g.serial){
+      st.stopPose=st.lastVisible?.map(q=>q?.clone())||null;
+      st.stopSerial=g.serial;
+     }
+     st.stanceBlend=matchPose(st.stanceNodes,st.stopPose,
+      (g.slowElapsed||0)/.22);
+    }else st.stanceBlend=1;
     if(mode==='anticipate'&&st.lastMode!=='anticipate'){
      scene.updateMatrixWorld(true);
      // Alternate the leading leg each time a new walk begins.
@@ -148,12 +206,17 @@
      pinFoot(THREE,rig,st.left,st.leftAnchor,settle*.6,st);
      pinFoot(THREE,rig,st.right,st.rightAnchor,settle*.6,st);
     }
-    // Approved standing idle is NEVER touched by this module.
+    // Save the final player-visible pose for the *next* transition.
+    // Idle remains the original published clip. No static T-pose bridge,
+    // no permanent stance overrides, and no extra owners while fighting.
     rig.vrm.update(0);
+    if(matched)
+     st.lastVisible=st.stanceNodes.map(node=>node?node.quaternion.clone():null);
     st.frame++;
     if(root.SkyClashMovementLab){
      root.SkyClashMovementLab.motion=mode;
      root.SkyClashMovementLab.pinCorrections=st.pins;
+     if(matched)root.SkyClashMovementLab.stanceBlend=st.stanceBlend;
     }
    }catch(err){
     root.SkyClashMovementLab&&(root.SkyClashMovementLab.error=String(err));
@@ -172,7 +235,7 @@
   status.ready=status.characters>0;
   return status;
  }
- const api={version:89,smooth,eligible,plan,start,attach};
+ const api={version:90,smooth,eligible,plan,matchPose,start,attach};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashWalkStep=api;
 })(typeof window!=='undefined'?window:globalThis);
