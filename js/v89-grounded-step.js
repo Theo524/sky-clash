@@ -7,10 +7,12 @@
  'use strict';
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  const smooth=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
+ // Old V90 is explicit rollback only. Both the prior V90 URL and new V91
+ // route now use the continuous pose controller instead of the snap bridge.
  // V90 is opt-in so V89's already-approved takeoff remains available
  // unmodified. No recorded idle, walk or run data is rewritten.
  const stanceMatch=()=>new URLSearchParams(root.location?.search||'')
-  .get('stance')==='match';
+  .get('stance')==='legacy90';
  const STANCE_BONES=[
   'hips','spine','chest','upperChest','neck','head',
   'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
