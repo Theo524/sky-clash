@@ -262,6 +262,14 @@ const Game = {
       Input.reset(); p.moveIntent.set(0,0,0);p.vert=0;p.blockHeld=false;p.sprintHeld=false;p.chargeHeld=false;return;
     }
     const raw = Input.move();
+    // V95: digital WASD is magnitude 1, but it is NOT a thumbstick
+    // reaching its outer ring. Use only the physical stick coordinates.
+    if(window.SkyClashMovementLab?.joystickRun&&window.SkyClashV95Joystick){
+      const radius=window.SkyClashV95Joystick.physicalRadius(Input._stick);
+      p.v95StickRadius=radius;
+      p.v95JoystickRun=window.SkyClashV95Joystick.decide(
+        p.v95JoystickRun,radius,!p.sprinting&&!p.flying&&!p.jumping);
+    }
     // light smoothing on the stick so direction changes feel fluid rather than twitchy
     const sm = this._mv || (this._mv = { x: 0, y: 0 }); const ks = damp(20, dt);
     sm.x += (raw.x - sm.x) * ks; sm.y += (raw.y - sm.y) * ks;

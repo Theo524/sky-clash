@@ -80,7 +80,18 @@
     // V85: resolve full-radius analog run before applying walking legs.
     // The recorded full-body run layer used to set this flag too late.
     const walkLab=['walk','step'].includes(new URLSearchParams(root.location?.search||'').get('movementLab'));
-    if(walkLab)this.v80AnalogRun=false;
+    // Separate physical joystick selection from WASD magnitude. V95
+    // preserves the existing whole-body run's exclusive leg authority.
+    const radiusLab=walkLab&&!!root.SkyClashMovementLab?.joystickRun&&
+      this===root.SkyClash?.Game?.heroes?.kairo_venn;
+    if(radiusLab){
+      const grounded=this.hp>0&&!this.jumping&&!this.flying&&!this.launched&&
+       !this.spiked&&!this.dashing&&!this.sprinting&&
+       !(this.stun>0)&&!(this.downT>0)&&!(this.punchT>0)&&
+       !this.slamming&&!this.blocking&&!this.blockHeld;
+      this.v80AnalogRun=!!(grounded&&this.v95JoystickRun&&
+       this.v89Step?.mode==='walk'&&speed>3);
+    }else if(walkLab)this.v80AnalogRun=false;
     else if(root.SkyClashPublishedActions?.actions?.includes('run')&&
        new URLSearchParams(root.location?.search||'').get('animationV85')!=='legacy'){
       const stick=Math.hypot(this.moveIntent?.x||0,this.moveIntent?.z||0);

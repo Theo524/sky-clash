@@ -138,7 +138,15 @@
    // V88 walk lab: a full WASD press is a WALK, not an implicit
    // Standard Run. Keep the approved Standard Run asset untouched.
    if(['walk','step'].includes(new URLSearchParams(root.location?.search||'').get('movementLab'))){
-    fighter.v80AnalogRun=false;
+    // V95: outer radius is a true analog RUN, not Boost; keyboard keeps
+    // walking. Reuse the existing published Standard Run retargeter and
+    // preserve V94's exact idle-to-walk pose crossfade.
+    const radiusLab=!!root.SkyClashMovementLab?.joystickRun&&
+      fighter===root.SkyClash?.Game?.heroes?.kairo_venn;
+    const runReady=!!(radiusLab&&fighter.v95JoystickRun&&
+      fighter.v89Step?.mode==='walk'&&speed>3&&actions.run);
+    fighter.v80AnalogRun=runReady;
+    if(runReady)return 'run';
     return actions.walk?'walk':null; // V71 owns recorded walking legs.
    }
    const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
@@ -264,7 +272,13 @@
        // Match foot cycles to actual world speed. The previous 1.9x cap
        // leaves Kairo gliding at ~9 world units/sec on full joystick.
        const v87=new URLSearchParams(root.location?.search||'').get('gait')!=='legacy';
-       rate*=v87?Math.max(.65,Math.min(slot==='run'?3.35:3.0,
+       // V95: the approved Standard Run has a ~0.73s source loop.
+       // Do not accelerate it to 2.3x for this controlled joystick gait;
+       // this previously made Kairo's legs pedal unnaturally fast.
+       const analogRun=slot==='run'&&root.SkyClashMovementLab?.joystickRun&&
+         this===root.SkyClash?.Game?.heroes?.kairo_venn;
+       rate*=analogRun?Math.max(1.05,Math.min(1.55,travel/4.5)):
+         v87?Math.max(.65,Math.min(slot==='run'?3.35:3.0,
          travel/(slot==='run'?2.7:2.45))):
          Math.max(.55,Math.min(1.9,travel/3.4));
       }

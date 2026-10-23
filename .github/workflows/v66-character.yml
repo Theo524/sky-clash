@@ -29,6 +29,7 @@ on:
       - 'tests/v91-*.js'
       - 'tests/v92-*.js'
       - 'tests/v94-*.js'
+      - 'tests/v95-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -73,6 +74,7 @@ on:
       - 'tests/v91-*.js'
       - 'tests/v92-*.js'
       - 'tests/v94-*.js'
+      - 'tests/v95-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -120,6 +122,7 @@ jobs:
       - run: node --check js/v79-extra-actions.js
       - run: node --check js/v81-pose-transitions.js
       - run: node --check js/v89-grounded-step.js
+      - run: node --check js/v95-joystick-radius.js
       - run: node --check js/v91-stance-continuity.js
       - run: node --check js/v76-upper-body.js
       - run: node --check js/animation-studio.js
@@ -153,6 +156,7 @@ jobs:
       - run: node tests/v91-pose-frame-continuity.js
       - run: node tests/v92-unified-idle-arms.js
       - run: node tests/v94-pose-handoff-quaternion.js
+      - run: node tests/v95-joystick-walk-run.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
