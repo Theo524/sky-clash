@@ -45,6 +45,7 @@
    // two FBX clips have different starting limb orientations; raw blends
    // can cross a 180-degree quaternion hemisphere and flip the elbow.
    armOffsets:ARMS.map(()=>new THREE.Quaternion()),
+   legOffsets:LEG.map(()=>new THREE.Quaternion()),
    idle:BONES.map(()=>new THREE.Quaternion()),
    run:BONES.map(()=>new THREE.Quaternion()),
    legs:['hips',...LEG].map(()=>new THREE.Quaternion()),
@@ -85,8 +86,10 @@
    sideBasis(clips.run,basisRun,inverseRun);
    const firstIdle=BONES.map(()=>new THREE.Quaternion());
    const firstArms=ARMS.map(()=>new THREE.Quaternion());
+   const firstLegs=['hips',...LEG].map(()=>new THREE.Quaternion());
    clips.idle.sample(0,firstIdle,true);
    clips.arms.sample(0,firstArms);
+   clips.legs.sample(0,firstLegs);
    const walkBasis=rig.legacyAxes?yaw:unit,invW=walkBasis.clone().invert();
    for(let j=0;j<ARMS.length;j++){
     const idx=BONES.indexOf(ARMS[j]);
@@ -96,6 +99,17 @@
      .multiply(invW).normalize();
     st.armOffsets[j].copy(idleStart)
      .multiply(sourceStart.invert()).normalize();
+   }
+   // Same problem also affects idle feet versus the recorded walk's
+   // contact pose. Match the first leg frame without rewriting the
+   // 30fps knee/ankle/hip keyframes or adding a second gait controller.
+   for(let j=0;j<LEG.length;j++){
+    const idx=BONES.indexOf(LEG[j]);
+    const idleStart=basisIdle.clone().multiply(firstIdle[idx])
+      .multiply(inverseIdle).normalize();
+    const sourceStart=walkBasis.clone().multiply(firstLegs[j+1])
+      .multiply(invW).normalize();
+    st.legOffsets[j].copy(idleStart).multiply(sourceStart.invert()).normalize();
    }
    st.rig=rig;st.fade=0;st.walkWeight=0;st.runWeight=0;
   }
@@ -157,6 +171,7 @@
       // their keyed swing by applying the fixed resting-frame correction
       // BEFORE mixing against the approved idle world-rest delta.
       if(ai>=0)gaitDelta.premultiply(st.armOffsets[ai]).normalize();
+      if(li>=0)gaitDelta.premultiply(st.legOffsets[li]).normalize();
      }else gaitDelta.copy(mapped);
      tmp.copy(basisRun).multiply(run).multiply(inverseRun).normalize();
      // Every pose part is blended in SOURCE WORLD-REST space, before
