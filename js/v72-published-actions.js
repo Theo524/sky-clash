@@ -80,7 +80,7 @@
   if(!fighter||typeof fighter.animate!=='function'||fighter.v72StudioPack)return null;
   const old=fighter.animate;
   const state={rig:null,bones:null,bind:null,targetSide:null,slot:null,clock:0,weight:0,
-    samples:BONES.map(()=>new THREE.Quaternion()),frames:0};
+    releasingIdle:false,samples:BONES.map(()=>new THREE.Quaternion()),frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
         qBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
@@ -109,21 +109,50 @@
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
-    const slot=choose(this,actions),entry=slot?actions[slot]:null;
-    if(slot!==state.slot){state.slot=slot;state.clock=0;state.weight=0;}
+    const slot=choose(this,actions);
+    const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
+    // V78: this layer is drawn AFTER V76's idle->walk pose. Previously an
+    // idle-only pack was removed in ONE FRAME as soon as speed exceeded .75:
+    // the exposed V76 (different) idle made the arms briefly jump upwards.
+    // Cross-fade the published idle OUT over ~0.2s when starting to walk;
+    // never keep an idle overlay during attack/air/block/stun.
+    const safeWalk=slot===null&&speed>.75&&this.hp>0&&
+      !(this.flying||this.launched||this.spiked||this.dashing||this.sprinting||
+        this.punchT>0||this.blastT>0||this.stun>0||this.downT>0||
+        this.superHitT>0||this.charging||this.blockHeld||this.blocking||
+        this.slamming||this.acro);
+    if(slot!==state.slot){
+     if(slot==='idle'){
+      state.slot=slot;state.clock=0;state.weight=0;state.releasingIdle=false;
+     }else if(state.slot==='idle'&&safeWalk&&actions.idle){
+      state.slot=null;state.releasingIdle=true;
+      // Retain the LAST published idle keyframe and fade its influence.
+     }else{
+      state.slot=slot;state.clock=0;state.weight=0;state.releasingIdle=false;
+     }
+    }
+    if(state.releasingIdle&&!safeWalk){
+     state.releasingIdle=false;state.weight=0;
+    }
+    const entry=slot?actions[slot]:(state.releasingIdle?actions.idle:null);
     if(!entry){state.weight=0;return;}
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
-    state.weight+=(1-state.weight)*(1-Math.exp(-elapsed*11));
-    if((this.punchT||0)>0){
-     state.clock=Math.max(0,Math.min(entry.seconds,
-      (this.attackElapsed||0)/Math.max(.07,this.attackTotal||.4)*entry.seconds));
+    if(state.releasingIdle){
+     state.weight*=Math.exp(-elapsed*15);
+     if(state.weight<.005){state.weight=0;state.releasingIdle=false;return;}
     }else{
-     let rate=entry.speed;
-     if(slot==='walk'||slot==='run')rate*=Math.max(.55,Math.min(1.9,
-       Math.hypot(this.vel?.x||0,this.vel?.z||0)/3.4));
-     state.clock+=elapsed*rate;
+     state.weight+=(1-state.weight)*(1-Math.exp(-elapsed*11));
+     if((this.punchT||0)>0){
+      state.clock=Math.max(0,Math.min(entry.seconds,
+       (this.attackElapsed||0)/Math.max(.07,this.attackTotal||.4)*entry.seconds));
+     }else{
+      let rate=entry.speed;
+      if(slot==='walk'||slot==='run')rate*=Math.max(.55,Math.min(1.9,
+        Math.hypot(this.vel?.x||0,this.vel?.z||0)/3.4));
+      state.clock+=elapsed*rate;
+     }
+     entry.sample(state.clock,state.samples,LOOP.has(slot));
     }
-    entry.sample(state.clock,state.samples,LOOP.has(slot));
     const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
     const sideDst=state.targetSide;
     const cross=sideSrc.z*sideDst.x-sideSrc.x*sideDst.z;
@@ -144,7 +173,7 @@
      node.updateMatrixWorld(true);
     }
     state.rig.vrm.update(0);
-    state.frames++;status.active=slot;status.frames=state.frames;
+    state.frames++;status.active=state.releasingIdle?'idle-blend-to-walk':slot;status.frames=state.frames;
    }catch(err){
     status.error=String(err);console.error('Studio game pack disabled for fighter',err);
     fighter.animate=old;fighter.v72StudioPack=null;
