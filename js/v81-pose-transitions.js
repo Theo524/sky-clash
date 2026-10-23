@@ -29,6 +29,10 @@
   if(f.dashing)return 'dash';
   if(f.sprinting)return 'boost';
   if(f.landingMotionT>0)return 'landing';
+  // A grounded Boost stop is distinct from a new run/walk cycle.
+  if((f.t||0)<(f._v82BoostStopEnd||-1)&&
+     Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)<.8)
+   return 'boost-stop';
   const speed=Math.hypot(f.vel?.x||0,f.vel?.z||0);
   if(speed>.8)return f.v80AnalogRun?'run':'walk';
   return 'idle';
@@ -79,7 +83,7 @@
     st.elapsed+=safe;
     // Faster transitions into combat; no masking strike/contact frames.
     const seconds=next==='landing'?.23:
-      next==='guard'?.16:next==='fall'?.20:.18;
+      next==='guard'?.16:next==='boost-stop'?.14:next==='fall'?.20:.18;
     st.blend=combat(next)?1:clamp(st.elapsed/seconds,0,1);
     const w=st.blend*st.blend*(3-2*st.blend);
     if(w<1)for(let i=0;i<st.nodes.length;i++){
@@ -89,7 +93,7 @@
     // Neutral hands remain exactly as the user's approved idle.
     // Floating opens them only PARTIALLY, so they don't become robot palms;
     // recorded guard and Boost use compact natural-looking fists.
-    const grip=next==='guard'?.94:next==='boost'?.76:
+    const grip=next==='guard'?.94:next==='boost'?.76:next==='boost-stop'?.55:
       next==='flight'||next==='flight-boost'?.46:
       next==='jump'||next==='fall'?.52:next==='landing'?.40:0;
     st.handGrip+=(grip-st.handGrip)*(1-Math.exp(-safe*13));
@@ -106,12 +110,25 @@
        new URLSearchParams(root.location?.search||'').get('head')!=='original'){
       const head=st.nodes[5];
       if(head?.parent){
-       this.vrmRig.vrm.scene.updateMatrixWorld(true);
+       const scene=this.vrmRig.vrm.scene;
+       scene.updateMatrixWorld(true);
        head.getWorldQuaternion(headWorld);
+       // World-space Euler limits fail as Kairo turns. Limit the gaze
+       // relative to his own VRM root/facing (while keeping yaw intact).
+       const v85=new URLSearchParams(root.location?.search||'')
+          .get('animationV85')!=='legacy';
+       if(v85){
+        scene.getWorldQuaternion(parentWorld);
+        headWorld.premultiply(parentWorld.invert());
+       }
        euler.setFromQuaternion(headWorld,'YXZ');
        euler.x=clamp(euler.x,-.055,.075);
        euler.z=clamp(euler.z,-.08,.08);
        headWorld.setFromEuler(euler);
+       if(v85){
+        scene.getWorldQuaternion(parentWorld);
+        headWorld.premultiply(parentWorld);
+       }
        head.parent.getWorldQuaternion(parentWorld);
        head.quaternion.copy(parentWorld.invert().multiply(headWorld)).normalize();
       }

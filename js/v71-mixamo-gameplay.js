@@ -77,6 +77,17 @@
     const safe=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     const action=status.action;
+    // V85: resolve full-radius analog run before applying walking legs.
+    // The recorded full-body run layer used to set this flag too late.
+    if(root.SkyClashPublishedActions?.actions?.includes('run')&&
+       new URLSearchParams(root.location?.search||'').get('animationV85')!=='legacy'){
+      const stick=Math.hypot(this.moveIntent?.x||0,this.moveIntent?.z||0);
+      const canRun=this.hp>0&&!this.jumping&&!this.flying&&!this.launched&&
+        !this.spiked&&!this.dashing&&!this.sprinting&&
+        !(this.stun>0)&&!(this.downT>0)&&!(this.punchT>0)&&
+        !this.slamming&&!this.blocking&&!this.blockHeld&&speed>3;
+      this.v80AnalogRun=!!(canRun&&stick>(this.v80AnalogRun?.68:.86));
+    }
     // V82: the imported full-body RUN must have sole authority over leg
     // gait. Continuing to apply the V71 walk knees beneath run makes the
     // feet glide or pedal at a different cadence. Likewise no grounded
@@ -89,6 +100,12 @@
       (speed-action.minSpeed)/(action.fullSpeed-action.minSpeed))):0;
     const blendSeconds=desired>state.weight?action.blendInSeconds:action.blendOutSeconds;
     state.weight+=(desired-state.weight)*(1-Math.exp(-safe/Math.max(.025,blendSeconds)));
+    // A faded walking knee animation must not run underneath a full-body
+    // run, Boost, or airborne takeoff/flight.
+    if(root.SkyClashPublishedActions?.actions?.includes('run')&&
+       new URLSearchParams(root.location?.search||'').get('animationV85')!=='legacy'&&
+       (this.v80AnalogRun||this.jumping||this.flying||this.sprinting||this.dashing))
+      state.weight=0;
     if(state.weight<.008){state.last='idle';return;}
     if(canWalk)state.clock+=safe*Math.min(1.8,Math.max(.62,speed/action.speedReference));
     // V74: the old procedural fighter still rolls/pitches its hips and
