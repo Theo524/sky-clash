@@ -135,6 +135,7 @@ jobs:
       - run: node tests/v82-studio-jump-and-locomotion.js
       - run: node tests/v86-ue5-mixamo-export.js
       - run: node tests/v87-recorded-combat.js
+      - run: node tests/v88-walk-preview.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
