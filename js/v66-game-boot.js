@@ -32,6 +32,13 @@
    if(src.includes('v81-pose-transitions')&&
       new URLSearchParams(location.search).get('airHands')==='stable')
      e.src+='&hands=99';
+   // V100 needs the NEW cooperative versions of every former air-pose
+   // writer. A refreshed boot script alone is insufficient when the old
+   // V71/V76/V72/V81 URLs remain cached by GitHub Pages or the browser.
+   if(new URLSearchParams(location.search).get('animator')==='unified'&&
+      ['v71-mixamo-gameplay','v76-upper-body','v72-published-actions',
+       'v81-pose-transitions'].some(k=>src.includes(k)))
+     e.src+='&poseOwner=100';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });

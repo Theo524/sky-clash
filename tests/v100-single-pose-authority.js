@@ -170,7 +170,13 @@ try{
  for(const f of files)assert(read(f).includes('SkyClashV100Animator?.ownsAir(this)'),
   f+' must explicitly yield during unified air');
  const index=read('index.html');
- assert(index.includes('js/v66-game-boot.js?v=820&fix=100'));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9])/.test(index),
+  'entrypoint must advance so V100 cooperative versions actually load');
+ assert(boot.includes("e.src+='&poseOwner=100'"),
+  'all old airborne controller files must be cache-busted together');
+ for(const name of ['v71-mixamo-gameplay','v76-upper-body',
+  'v72-published-actions','v81-pose-transitions'])
+  assert(boot.includes("'"+name+"'"),name+' missing owner cache version');
  const refs=Object.fromEntries(base.motions.map(m=>[m.slot,m.sourceFile]));
  assert.equal(refs.idle,'Movement/Adventure/idle (2).fbx');
  assert.equal(refs.run,'Movement/Male/standard run.fbx');
