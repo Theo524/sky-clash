@@ -259,6 +259,20 @@
      }
 
     }
+    if(contactLanding&&st.elapsed<.15){
+     // Even a good contact recording can start far from the *actual*
+     // last visible falling pose. Never let retargeting teleport a knee,
+     // hip, ankle or shoulder on its first collision frame. Bound the
+     // final local quaternion against V100's prior visible pose, and only
+     // during the contact entry (not late recovery into approved idle).
+     const maxStep=12*Math.max(0,dt);
+     const delta=st.prev[i].angleTo(qTarget);
+     if(delta>maxStep&&maxStep>0){
+      qTmp.copy(qTarget);
+      qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
+      status.landingJointClamps=(status.landingJointClamps||0)+1;
+     }
+    }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
      // original clips still drive the targets, but cannot twitch across
@@ -401,7 +415,7 @@
   const status={version:100,ready:false,active:'not-installed',
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
-    impactSpeed:0,contactSerial:0,error:null};
+    impactSpeed:0,contactSerial:0,landingJointClamps:0,error:null};
   context.SkyClashPoseAuthority=status;
   // Install only after V71/V76/V72/V79/V81/V89 have finished attaching.
   // Every lower recorded motion wrapper checks ownsAir() and yields.
