@@ -199,6 +199,11 @@
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
+     // V80: the 0.9-second Mixamo run-to-stop file contains airborne
+     // root/foot shapes when played without FBX translation. Let the
+     // existing ground-contact/skid controller own the hips, knees and feet;
+     // this optional clip only supplies its braking upper-body gesture.
+     if(options.choose&&entry.slot==='runStop'&&(i===0||i>=14))continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
