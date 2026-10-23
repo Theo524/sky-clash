@@ -2475,6 +2475,10 @@ class Fighter {
        this.vel.y=Math.max(-TUNING.flySpeed,
         Math.min(-2.5,this.vel.y-TUNING.gravity*dt));
     }
+    // V105: retain the actual downward collision velocity BEFORE floor
+    // clamping / bounce handling zeroes it. Animation reads this contact
+    // event, never guesses impact severity from the later vel.y === 0.
+    const v105PreContactVy=this.vel.y;
     this.pos.addScaledVector(this.vel, dt);
     const r = Math.hypot(this.pos.x, this.pos.z);
     if (r > ARENA_RADIUS - 1) { const k = (ARENA_RADIUS - 1) / r; this.pos.x *= k; this.pos.z *= k; }
@@ -2505,6 +2509,11 @@ class Fighter {
     // landing dust / ground-dash dust
     const flying = this.flying;
     if (this.wasFlying && !flying) {
+      if(window.location?.search?.includes('landingLab=contact')&&
+         this.characterId==='kairo_venn'){
+        this.v105ContactSerial=(this.v105ContactSerial||0)+1;
+        this.v105ImpactSpeed=Math.max(0,-v105PreContactVy);
+      }
       Effects.dust(this.pos, 6);
       const speed = Math.hypot(this.vel.x, this.vel.z);
       if (!this.launched && !this.spiked && !this.slamming && this.stun <= 0 && this.hp > 0) {
