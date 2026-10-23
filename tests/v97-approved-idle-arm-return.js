@@ -91,8 +91,11 @@ try{
  const source=build({mode:'anchored',withV76:false,withV81:false});
  source.tick(130);
  const idleReference=source.pose();
+ const differences=resting.map((q,i)=>({
+  bone:armNames[i],degrees:(q.angleTo(idleReference[i])*180/Math.PI).toFixed(1)
+ }));
  assert(compare(resting,idleReference)<.30,
-  'V76 idle arms must match exactly the approved published idle family');
+  'V76 approved idle vs V72 actual: '+JSON.stringify(differences));
 
  // Actual stopped Kairo: test multiple run/walk/stop cycles with realistic
  // initial 4.8 walk, 6.2 outer-radius run, then no joystick.
