@@ -149,8 +149,15 @@
     state.transition=clamp(state.transition+safe*6.5,0,1);
     state.standClock+=safe;
     const walking=clamp(this.v71Walk?.weight||0,0,1);
-    const unified=new URLSearchParams(root.location?.search||'')
-      .get('stance')==='unified';
+    const params=new URLSearchParams(root.location?.search||'');
+    // V97: this explicit preview uses the EXACT approved idle (2) for
+    // Kairo's arms whenever run/walk falls back to standing. Previously
+    // the underlying "Fighting Idle" lifted his elbows ~171 degrees
+    // away from that pose, visible on run-to-walk or walk-to-idle.
+    // Enemy, combat, Boost and the V95 run/walk clips remain unchanged.
+    const matched=params.get('idleArms')==='matched'&&
+      this===root.SkyClash?.Game?.heroes?.kairo_venn;
+    const unified=params.get('stance')==='unified'||matched;
     const approved=unified?root.SkyClashPublishedActions?.approvedIdle:null;
     if(approved?.sample&&JSON.stringify(approved.bones)===JSON.stringify(APPROVED_BONES)){
      if(state.approvedClip!==approved){
@@ -202,7 +209,15 @@
      qLocal.copy(qParent).invert().multiply(qWantedWorld).normalize();
      // Respect natural anatomy and avoid sudden bad FBX spikes.
      const angle=node.quaternion.angleTo(qLocal);
-     if(angle>2.7)qLocal.copy(node.quaternion).slerp(qLocal,2.7/angle);
+     if(angle>2.7){
+      // Fix only in the matched-idle preview: the old code used qLocal
+      // as both target and receiver, which discards the target and can
+      // reveal it abruptly later. Keep an independent destination.
+      if(matched){
+       const trueTarget=qLocal.clone();
+       qLocal.copy(node.quaternion).slerp(trueTarget,2.7/angle);
+      }else qLocal.copy(node.quaternion).slerp(qLocal,2.7/angle);
+     }
      node.quaternion.slerp(qLocal,state.transition);
      node.updateMatrixWorld(true);
      // Snapshot the fully applied pose for the first jump/fly frames.
@@ -212,6 +227,7 @@
     state.samples++;state.mode=walking>.02?'walking':'fighting-idle';
     status.mode=state.mode;status.frames=state.samples;
     status.walkWeight=walking;status.transition=state.transition;
+    if(matched)status.sourceMatch=!!state.approvedClip;
    }catch(e){
     status.error=String(e);
     console.error('V76: recording disabled; returning to original fighter pose',e);
