@@ -489,17 +489,13 @@ class Fighter {
       // branch; keep every other fighter and the normal game unchanged.
       const walkLab=window.SkyClashMovementLab?.enabled&&
        this===Game.player&&this.characterId==='kairo_venn'&&!this.sprinting;
-      // Joystick at the outside ring is visibly RUN, but not Boost.
-      // Digital WASD does not become running just because its value is 1.
       const normalSpeed=walkLab?4.8:TUNING.walkSpeed;
-      const v93RunSpeed=walkLab&&window.SkyClashMovementLab?.version===93&&
-        this.v93AnalogRun?6.9:normalSpeed;
-      const stepLab=walkLab&&[89,93].includes(window.SkyClashMovementLab?.version)&&
+      const stepLab=walkLab&&window.SkyClashMovementLab?.version===89&&
        window.SkyClashWalkStep&&!this.flying;
       // One state machine owns movement takeoff: weight shift first,
       // then the first planted stride before reaching walking speed.
       const step=stepLab?window.SkyClashWalkStep.plan(this,dt):null;
-      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : v93RunSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
+      const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : normalSpeed) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
