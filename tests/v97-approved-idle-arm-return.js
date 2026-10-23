@@ -94,8 +94,20 @@ try{
  const differences=resting.map((q,i)=>({
   bone:armNames[i],degrees:(q.angleTo(idleReference[i])*180/Math.PI).toFixed(1)
  }));
+ const comparison={
+  differences,
+  modes:[stable.upperStatus.mode,stable.approvedStatus.active,stable.transitionStatus.active],
+  weights:[stable.upperStatus.walkWeight,stable.upperStatus.transition],
+  bindMismatch:armNames.map((n,i)=>({
+   bone:n,deg:(stable.f.v76UpperBody.bind[i].angleTo(
+      stable.f.v72StudioPack.bind[V72.BONES.indexOf(n)])*180/Math.PI).toFixed(1)
+  })),
+  localQuaternions:armNames.map((n,i)=>({bone:n,
+   stable:stable.bone[n].quaternion.toArray().map(x=>+x.toFixed(2)),
+   source:source.bone[n].quaternion.toArray().map(x=>+x.toFixed(2))}))
+ };
  assert(compare(resting,idleReference)<.30,
-  'V76 approved idle vs V72 actual: '+JSON.stringify(differences));
+  'V76 approved idle vs V72 actual: '+JSON.stringify(comparison));
 
  // Actual stopped Kairo: test multiple run/walk/stop cycles with realistic
  // initial 4.8 walk, 6.2 outer-radius run, then no joystick.
