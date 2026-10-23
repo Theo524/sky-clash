@@ -24,6 +24,12 @@ const four=packs.scan([
 assert.strictEqual(four.loaded,4,'Never count the same FBX twice');
 assert.deepStrictEqual(four.packs.map(p=>p.loaded),[1,1,1,1]);
 assert.strictEqual(four.complete,false);
+assert.strictEqual(packs.clipKey('Movement/Adventure/idle (3).fbx',123,42),
+ packs.clipKey('movement\\\\adventure\\\\idle (3).fbx',123,42),
+ 'Archive name/path separators must not create duplicate clips');
+assert.notStrictEqual(packs.clipKey('Movement/Adventure/idle (3).fbx',123,42),
+ packs.clipKey('Movement/Adventure/idle (3).fbx',123,43),
+ 'A changed FBX CRC must remain a distinct source');
 // When user publishes the separately generated 7-action compact pack,
 // CI also validates its source identity, keyframe sizes and the set of
 // allowable runtime slots. Until then, no missing asset should break play.
@@ -125,7 +131,8 @@ const idle=actor();
 for(let i=0;i<710;i++)assert.strictEqual(extras.choose(idle,motions,1/60),null);
 let first=null;
 for(let i=0;i<30;i++){first=extras.choose(idle,motions,1/60);if(first)break;}
-assert.strictEqual(first,'idle3','After about 12s first natural idle variation begins');
+assert(['idle3','idle4','idle5','idleAdventure'].includes(first),
+ 'After about 12s a randomly selected long-idle variation begins');
 idle.vel.x=3;
 assert.strictEqual(extras.choose(idle,motions,.1),null,'Joystick input cancels idle gesture');
 
@@ -151,8 +158,9 @@ assert.strictEqual(extras.choose(dead,motions,.1),null,'Dead fighter may not ges
 const studio=read('animation-studio.html'),game=read('js/v66-game-boot.js');
 const app=read('js/animation-studio.js'),adapter=read('js/v72-published-actions.js');
 assert(studio.includes('id="downloadPreviewGIF"')&&studio.includes('js/v79-gif-preview.js?v=790'));
-assert(studio.includes('id="packCoverage"')&&studio.includes('js/v79-pack-catalog.js?v=790'));
+assert(studio.includes('id="packCoverage"')&&studio.includes('js/v79-pack-catalog.js?v=791'));
 assert(app.includes('GIFPreview.fromDataUrls(item.frames)'),'GIF button must save real rendered motion');
+assert(app.includes('seenContent.has(contentKey)'),'Reimport must dedupe same FBX in renamed ZIPs');
 assert(game.includes("SkyClashV79ExtraActions.start(window)"),'Optional real-game state scheduler must load');
 assert(adapter.includes('options.choose?options.choose(this,actions,dt)'),'Extra motion layer has independent slots');
 assert(adapter.includes("fighter[marker]=state"),'Extra actions must never replace the published user idle');

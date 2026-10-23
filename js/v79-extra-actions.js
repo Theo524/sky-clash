@@ -22,8 +22,12 @@
  function choose(f,actions,dt){
   let s=STATE.get(f);
   if(!s){
-   s={clock:0,rest:0,nextIdle:12,variant:0,active:null,elapsed:0,
-    wasAir:false,wasDescending:false,speed:0,runAge:99};
+   // Small reproducible PRNG per fighter: idle gestures feel random,
+   // but tests/replays remain deterministic and rivals can differ.
+   let seed=0x1c3a59ef;
+   for(const c of String(f.name||'Kairo'))seed=(Math.imul(seed,31)+c.charCodeAt(0))>>>0;
+   s={clock:0,rest:0,nextIdle:12,variant:0,lastVariant:null,seed,
+    active:null,elapsed:0,wasAir:false,wasDescending:false,speed:0,runAge:99};
    STATE.set(f,s);
   }
   dt=clamp(Number.isFinite(dt)?dt:0,0,.08);
@@ -68,12 +72,16 @@
    if(s.rest>=s.nextIdle){
     const candidates=seq.filter(k=>!!actions[k]);
     if(candidates.length){
-     s.active=candidates[s.variant%candidates.length];
+     s.seed=(Math.imul(s.seed,1664525)+1013904223)>>>0;
+     let pick=(s.seed>>>8)%candidates.length;
+     if(candidates.length>1&&candidates[pick]===s.lastVariant)
+      pick=(pick+1)%candidates.length;
+     s.active=candidates[pick];s.lastVariant=s.active;
      s.variant++;s.elapsed=0;s.rest=0;
-     s.nextIdle=12+((s.variant*7)%15); // 12,19,26 seconds
+     s.nextIdle=12+((s.seed>>>16)%15); // varied 12–26 second intervals
     }
    }
-  }else{s.rest=0;s.nextIdle=12+((s.variant*7)%15);}
+  }else{s.rest=0;s.nextIdle=12+((s.seed>>>16)%15);}
   s.speed=speed;
   return s.active;
  }
