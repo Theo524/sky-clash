@@ -54,7 +54,7 @@ function build({mode='anchored',withV76=true,withV81=true}={}){
   blastT:0,superHitT:0,landingMotionT:0,acro:null,
   animate(){}
  };
- const upperStatus={ready:true,frames:0,originalWalkStyle:false},
+ const upperStatus={ready:withV76,frames:0,originalWalkStyle:false},
    approvedStatus={ready:true,approvedIdle:idle,frames:0,active:'none'},
    transitionStatus={active:'ready'};
  globalThis.SkyClash={Game:{player:f,heroes:{kairo_venn:f}}};
