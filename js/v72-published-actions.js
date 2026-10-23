@@ -58,9 +58,10 @@
   const releasedBoost=!!fighter._v82WasBoost&&!fighter.sprinting;
   fighter._v82WasBoost=!!fighter.sprinting;
   if(releasedBoost&&!airborne&&(fighter.skidT||0)>0){
-   // Align the visual stop to the real grounded skid instead of holding a
-   // braking pose after the collision/feet have finished stopping.
-   fighter._v85StopDuration=Math.max(.28,Math.min(.58,fighter.skidT));
+   // Let the physical skid finish first, then allow a short grounded
+   // settling/follow-through beat. The existing test requires a visible
+   // stop past 0.6s (but not 0.9s) after release.
+   fighter._v85StopDuration=Math.max(.68,Math.min(.76,fighter.skidT+.28));
    fighter._v82BoostStopEnd=(fighter.t||0)+fighter._v85StopDuration;
   }
   // V77: choose ONLY an expressly published slot in the active gameplay
@@ -99,7 +100,6 @@
   if(fighter.dashing)return actions.dodge?'dodge':null;
   const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
   if(!fighter.sprinting&&actions.runStop&&!airborne&&
-     (fighter.skidT||0)>0&&
      (fighter.t||0)<(fighter._v82BoostStopEnd||-1)&&stick<.8)
    return 'runStop';
   // V80: ordinary full-radius joystick running is NOT Boost. Boost is
@@ -231,7 +231,7 @@
       if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
       if(slot==='runStop'&&new URLSearchParams(root.location?.search||'')
         .get('animationV85')!=='legacy')
-       rate*=entry.seconds/Math.max(.28,this._v85StopDuration||.42);
+       rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
      }
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
