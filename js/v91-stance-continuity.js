@@ -26,7 +26,7 @@
   const desired=new THREE.Quaternion().slerpQuaternions(from,target,clamp(blend,0,1));
   const angle=last.angleTo(desired);
   const limited=angle>maxAngle;
-  if(limited)desired.copy(last).slerp(desired,maxAngle/angle);
+  if(limited){const targetCopy=desired.clone();desired.copy(last).slerp(targetCopy,maxAngle/angle);}
   return {quaternion:desired,rawAngle:angle,limited};
  }
  function attach(THREE,f){
