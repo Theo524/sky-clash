@@ -205,6 +205,9 @@
   }
   fighter.animate=function(dt){
    old.call(this,dt);
+   // Also applies to the V79 optional-action wrapper, which reuses
+   // this attach() function. One authoritative pose during air.
+   if(root.SkyClashV100Animator?.ownsAir(this))return;
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
