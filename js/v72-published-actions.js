@@ -57,7 +57,7 @@
   // a jump, kick, dash, block, knockdown or stun. Before this fix those
   // branches fell through to "idle" if no matching action was exported.
   if((fighter.stun||0)>0)return actions.hit?'hit':null;
-  if(fighter.downT>0||fighter.slamming||fighter.superHitT>0||fighter.acro)return null;
+  if(fighter.downT>0||fighter.slamming||fighter.superHitT>0)return null;
   // Native Mixamo blocking controls both forearms and wrists, rather
   // than a pair of procedural diagonal, straight-fingered robot arms.
   if(fighter.blockHeld||fighter.blocking)return actions.guard?'guard':null;
@@ -73,9 +73,28 @@
   }
   if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
   if(fighter.charging)return actions.charge?'charge':null;
-  if(airborne)return fighter.dropping?null:(actions.jump?'jump':null);
+  // V82: a jump is an actual TAKEOFF animation, not a loop playing
+  // throughout flight. Selecting acro before airborne used to suppress it.
+  // Controlled Fly Down stays flight; falling is owned by Falling Idle.
+  if(airborne){
+   if(fighter.dropping||fighter.flying||fighter.launched||fighter.spiked)return null;
+   if(fighter.jumping&&(fighter.vel?.y||0)>0&&
+      fighter.acro?.type!=='flip')return actions.jump?'jump':null;
+   return null;
+  }
+  // Recorded landing takes priority over the old procedural landing acro.
   if(fighter.landingMotionT>0&&!fighter.sprinting)return actions.landing?'landing':null;
+  if(fighter.acro&&fighter.acro.type!=='landing')return null;
   if(fighter.dashing)return actions.dodge?'dodge':null;
+  // Only the actual completed super-speed Boost arms its stopping gesture.
+  // It lasts long enough to see while physics still handles ground contact.
+  if(fighter._v82WasBoost&&!fighter.sprinting&&fighter.skidT>0)
+   fighter._v82BoostStopEnd=(fighter.t||0)+.72;
+  fighter._v82WasBoost=!!fighter.sprinting;
+  const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
+  if(!fighter.sprinting&&actions.runStop&&
+     (fighter.t||0)<(fighter._v82BoostStopEnd||-1)&&stick<.65)
+   return 'runStop';
   // V80: ordinary full-radius joystick running is NOT Boost. Boost is
   // exclusively the explicit sprint button and uses its own faster pose,
   // trail and skid FX. No normal-run clip during boost or midair.
@@ -215,7 +234,7 @@
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
      // this optional clip only supplies its braking upper-body gesture.
-     if((options.choose&&entry.slot==='runStop'&&(i===0||i>=14))||
+     if((entry.slot==='runStop'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='landing'&&i===0))continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
@@ -255,7 +274,7 @@
    const actions={};
    for(const entry of pack.motions){
     if(entry.character!=='kairo')continue; // Rin runtime mapping later.
-    if(!['idle','walk','run','jump','dodge','punch1','punch2','punch3',
+    if(!['idle','walk','run','jump','runStop','dodge','punch1','punch2','punch3',
           'uppercut','kick','meteor','charge','superblast','hit'].includes(entry.slot))continue;
     actions[entry.slot]=decode(context.THREE,entry);
    }

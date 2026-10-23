@@ -440,6 +440,16 @@ function bindClip(item,key){
  select(item).then(()=>switchView('character')).catch(e=>setActionHelp('Could not preview: '+e.message));
 }
 function refreshActionSlots(){
+ const quick=$('quickActionSlot');
+ if(quick){
+  quick.replaceChildren();
+  for(const [key,title,group] of Action.slots[actionFighter]){
+   const option=document.createElement('option');
+   option.value=key;option.textContent=group+' · '+title;
+   quick.appendChild(option);
+  }
+  quick.value=activeAction||Action.slots[actionFighter][0]?.[0]||'idle';
+ }
  const host=$('actionSlots');host.textContent='';let lastGroup='';
  for(const [key,name,group] of Action.slots[actionFighter]){
   if(group!==lastGroup){const h=document.createElement('div');h.className='slot-group-name';h.textContent=group;host.appendChild(h);lastGroup=group;}
@@ -544,6 +554,15 @@ $('viewOriginal').addEventListener('click',()=>switchView('original'));
 $('viewMaster').addEventListener('click',()=>switchView('master'));
 $('viewCharacter').addEventListener('click',()=>switchView('character'));
 $('actionFighter').addEventListener('change',e=>{actionFighter=e.target.value;activeAction='idle';refreshActionSlots();if(viewMode==='character')showCharacter();});
+$('quickActionSlot').addEventListener('change',e=>{
+ activeAction=e.target.value;refreshActionSlots();
+});
+$('quickAssign').addEventListener('click',()=>{
+ if(!current){setActionHelp('Select a motion thumbnail from the library first.');return;}
+ const slot=$('quickActionSlot').value;
+ if(!slot){setActionHelp('Choose a character action slot first.');return;}
+ bindClip(current,slot);
+});
 $('tuneSpeed').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.speed=Number(e.target.value);$('tuneSpeedValue').textContent=ref.speed.toFixed(2)+'×';saveActions();});
 $('tuneYaw').addEventListener('input',e=>{const ref=actionData[actionFighter][activeAction];if(!ref)return;ref.yaw=Number(e.target.value);$('tuneYawValue').textContent=ref.yaw+'°';saveActions();});
 $('removeAssigned').addEventListener('click',()=>{if(!activeAction)return;delete actionData[actionFighter][activeAction];saveActions();activeAction='';refreshActionSlots();applyFilter();});

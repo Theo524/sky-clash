@@ -7,7 +7,7 @@ const published=require('../js/v72-published-actions.js');
 const extra=require('../js/v79-extra-actions.js');
 const root=path.join(__dirname,'..'),read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const pack=JSON.parse(read('assets/animations/gameplay/studio-actions-v1.json'));
-assert.deepStrictEqual(pack.motions.map(m=>m.slot),['idle','run']);
+assert.deepStrictEqual(pack.motions.map(m=>m.slot),['idle','run','jump','runStop']);
 const idle=pack.motions[0],run=pack.motions[1];
 assert.strictEqual(idle.sourceFile,'Movement/Adventure/idle (2).fbx');
 assert.strictEqual(run.sourceFile,'Movement/Male/standard run.fbx');
@@ -85,13 +85,13 @@ assert(fighter.includes('spineX: 0.10, headX: 0.07'),
  'Kairo normal landing must not face-plant');
 const html=read('animation-studio.html'),studio=read('js/animation-studio.js');
 assert(html.includes('id="generateAllPreviews"'),'Render every imported clip on demand');
-assert(html.includes('animation-studio.js?v=800'),'Current cache-busted Studio module');
+assert(html.includes('animation-studio.js?v=820'),'Current cache-busted Studio module');
 assert(studio.includes('renderAllPreviews&&!visiblePage().includes(item)'),
  'Full-render queue must process nonvisible library pages');
 assert(studio.includes('previews ready')&&studio.includes('awaiting render'),
  'Explain loaded versus rendered count rather than saying clips are missing');
 const game=read('js/v66-game-boot.js');
-assert(game.includes('js/game.js?v=810'),'Rebuilt game bundle used');
-assert(game.includes('js/v72-published-actions.js?v=810'));
+assert(game.includes('js/game.js?v=820'),'Rebuilt game bundle used');
+assert(game.includes('js/v72-published-actions.js?v=820'));
 assert(game.includes('js/v79-extra-actions.js?v=810'));
 console.log('PASS V80: approved idle retained; 23-frame real run on full analog stick; Boost-only grounded stop and smoke; normal landings stay upright; 230-preview backlog actionable');

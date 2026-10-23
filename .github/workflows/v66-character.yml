@@ -22,6 +22,7 @@ on:
       - 'tests/v79-*.js'
       - 'tests/v80-*.js'
       - 'tests/v81-*.js'
+      - 'tests/v82-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -59,6 +60,7 @@ on:
       - 'tests/v79-*.js'
       - 'tests/v80-*.js'
       - 'tests/v81-*.js'
+      - 'tests/v82-*.js'
       - 'js/v81-*'
       - 'js/v79-*'
       - 'js/v78-*'
@@ -128,6 +130,7 @@ jobs:
       - run: node tests/v79-catalog-and-actions.js
       - run: node tests/v80-analog-locomotion.js
       - run: node tests/v81-state-ownership.js
+      - run: node tests/v82-studio-jump-and-locomotion.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |

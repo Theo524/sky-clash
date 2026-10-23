@@ -77,9 +77,14 @@
     const safe=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     const action=status.action;
-    const canWalk=this.hp>0&&!this.flying&&!this.launched&&!this.spiked&&
+    // V82: the imported full-body RUN must have sole authority over leg
+    // gait. Continuing to apply the V71 walk knees beneath run makes the
+    // feet glide or pedal at a different cadence. Likewise no grounded
+    // walk loop underneath the first airborne JUMP frame.
+    const canWalk=this.hp>0&&!this.jumping&&!this.flying&&!this.launched&&!this.spiked&&
      !(this.downT>0)&&!(this.punchT>0)&&!(this.stun>0)&&
-     !(this.dashing||this.sprinting||this.slamming)&&speed>action.minSpeed;
+     !(this.dashing||this.sprinting||this.slamming||this.v80AnalogRun)&&
+     speed>action.minSpeed;
     const desired=canWalk?Math.min(1,Math.max(0,
       (speed-action.minSpeed)/(action.fullSpeed-action.minSpeed))):0;
     const blendSeconds=desired>state.weight?action.blendInSeconds:action.blendOutSeconds;
