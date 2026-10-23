@@ -17,11 +17,12 @@ const sources=Object.fromEntries([...base.motions,...ue5.motions].map(m=>[m.slot
 const actions=Object.fromEntries(Object.entries(sources).map(([n,e])=>[n,V72.decode(THREE,e)]));
 const oldIdle=V76.decode(THREE,JSON.parse(read('assets/animations/gameplay/kairo-fighting-idle-v1.json')));
 const walk=V76.decode(THREE,JSON.parse(read('assets/animations/gameplay/kairo-walk-arms-v1.json')));
-const globals=['SkyClash','SkyClashMovementLab','SkyClashUpperBody','SkyClashPublishedActions',
+const globals=['THREE','SkyClash','SkyClashMovementLab','SkyClashUpperBody','SkyClashPublishedActions',
  'SkyClashPoseTransitions','SkyClashPoseAuthority','location'];
 const saved=Object.fromEntries(globals.map(n=>[n,globalThis[n]]));
 function setup(url){
  globalThis.location={search:url};
+ globalThis.THREE=THREE;
  const scene=new THREE.Group(),bones={};
  function bone(n,parent,x=0,y=0,z=0){
   const b=new THREE.Bone();b.name=n;b.position.set(x,y,z);
