@@ -1258,10 +1258,18 @@ class VRMRig {
         pivot.rotation.z+=(side*(.14+trail*.14)-pivot.rotation.z)*damp(9,dt);
       }
     }
-    // World-space ground constraint AFTER retargeted animation and charge crouch.
-    // Raises the VRM mesh if its ankle/sole or knee would intersect the real floor.
-    // Does not move the hitbox or fighter's gameplay position.
-    if (!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
+    // V106 is the only contact solver DURING the opt-in V105 landing.
+    // This procedural-rig check runs *before* the final recorded landing;
+    // using both would make the invisible guide rig pull the mesh back up
+    // each frame. Final visible ankle/toe contact is applied by V100 LAST.
+    const v106FinalSoles=this.f===Game.heroes?.kairo_venn&&
+      this.f.landingMotionT>0&&
+      window.location?.search?.includes('landingLab=contact')&&
+      window.location?.search?.includes('landingFeet=plant')&&
+      window.SkyClashPoseAuthority?.ready;
+    // World-space ground constraint for all unmodified grounded states.
+    // Does not move hitbox or simulation position.
+    if (!v106FinalSoles&&!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
       this.vrm.scene.updateMatrixWorld(true);
       const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
       // Measure against the current mesh offset, so the lift settles to a stable
@@ -1292,7 +1300,7 @@ class VRMRig {
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 40 : 17, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
-    } else if (this.footLift) {
+    } else if (!v106FinalSoles&&this.footLift) {
       const next = this.footLift * (1 - damp(17, dt));
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
