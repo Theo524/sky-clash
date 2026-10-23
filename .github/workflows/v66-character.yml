@@ -16,6 +16,8 @@ on:
       - 'tests/v73-*.js'
       - 'tests/v74-*.js'
       - 'tests/v75-*.js'
+      - 'tests/v76-*.js'
+      - 'js/v76-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -43,6 +45,8 @@ on:
       - 'tests/v73-*.js'
       - 'tests/v74-*.js'
       - 'tests/v75-*.js'
+      - 'tests/v76-*.js'
+      - 'js/v76-*'
       - 'js/character-motion-preview.js'
       - 'js/animation-studio.js'
       - 'js/v62-playable-master.js'
@@ -80,6 +84,7 @@ jobs:
       - run: node --check js/v72-walk-arms.js
       - run: node --check js/v72-studio-game-export.js
       - run: node --check js/v72-published-actions.js
+      - run: node --check js/v76-upper-body.js
       - run: node --check js/animation-studio.js
       - run: node --check js/character-motion-preview.js
       - run: node --check js/v62-playable-master.js
@@ -96,6 +101,7 @@ jobs:
       - run: node tests/v73-native-kairo-hands.js
       - run: node tests/v74-grounded-walk.js
       - run: node tests/v75-lowered-walk-arms.js
+      - run: node tests/v76-upper-body-ownership.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |

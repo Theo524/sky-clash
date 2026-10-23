@@ -76,7 +76,10 @@ assert(start[idx].angleTo(end[idx])>.5,'Actual left arm movement survived encode
 assert(published.choose({hp:100,vel:new THREE.Vector3(0,0,4),punchT:0}, {walk:runtime})==='walk');
 assert(published.choose({hp:100,vel:new THREE.Vector3(0,0,4),punchT:.4,attackKind:'kick'},{walk:runtime,kick:runtime})==='kick');
 const boot=read('js/v66-game-boot.js'),html=read('animation-studio.html');
-assert(boot.includes('SkyClashV72Arms.start(window)'));
+assert(boot.includes('SkyClashV76UpperBody.start(window)'),
+ 'Default game must use one recorded upper-body controller for idle and walk');
+assert(boot.includes("upperMode==='legacy'")&&boot.includes('SkyClashV72Arms.start(window)'),
+ 'Legacy walk-only arm path remains a manual rollback');
 assert(boot.includes('SkyClashPublishedGamePack.start(window)'));
 assert(html.includes('id="exportGamePack"'));
 assert(html.includes('js/v72-studio-game-export.js?v=720'));
