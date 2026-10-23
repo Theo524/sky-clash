@@ -66,8 +66,6 @@
    a.normalize();b.normalize();
    const cos=clamp(a.dot(b),-1,1),angle=Math.acos(cos);
    if(angle<.0002)continue;
-   dq.setFromUnitVectors(a,b);
-   dq.slerp(new THREE.Quaternion(),0); // no-op: keep shortest path
    const limit=(joint===hip?.105:.080)*clamp(strength,0,1);
    dq.identity().slerp(new THREE.Quaternion().setFromUnitVectors(a,b),
        Math.min(1,limit/angle));
