@@ -79,7 +79,9 @@
     const action=status.action;
     // V85: resolve full-radius analog run before applying walking legs.
     // The recorded full-body run layer used to set this flag too late.
-    if(root.SkyClashPublishedActions?.actions?.includes('run')&&
+    const walkLab=new URLSearchParams(root.location?.search||'').get('movementLab')==='walk';
+    if(walkLab)this.v80AnalogRun=false;
+    else if(root.SkyClashPublishedActions?.actions?.includes('run')&&
        new URLSearchParams(root.location?.search||'').get('animationV85')!=='legacy'){
       const stick=Math.hypot(this.moveIntent?.x||0,this.moveIntent?.z||0);
       const canRun=this.hp>0&&!this.jumping&&!this.flying&&!this.launched&&
