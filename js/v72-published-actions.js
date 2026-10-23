@@ -134,17 +134,6 @@
    // high-speed forward-sprint cycle on the ground.
    return actions.boost?'boost':null;
   }
-  // V93: the single locomotion track owns ALL grounded idle, walk and
-  // standard-run joints. Published actions still own Boost, attacks,
-  // takeoff, guard, landing and other non-locomotion states.
-  if(new URLSearchParams(root.location?.search||'').get('stance')==='single'&&
-     fighter===root.SkyClash?.Game?.heroes?.kairo_venn&&
-     !fighter.sprinting&&!airborne&&!fighter.dashing&&
-     !fighter.acro&&!(fighter.landingMotionT>0)&&
-     !(fighter.blockHeld||fighter.blocking)&&
-     !(fighter.punchT>0)&&!(fighter.blastT>0)&&
-     !fighter.charging&&!(fighter.downT>0)&&!(fighter.stun>0))
-    return null;
   if(speed>.75){
    // V88 walk lab: a full WASD press is a WALK, not an implicit
    // Standard Run. Keep the approved Standard Run asset untouched.
