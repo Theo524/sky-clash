@@ -336,6 +336,8 @@ const LoadScreen=(()=>{
  },12000);
  return{progress,finish,animationsFinished};
 })();
+// Explicit shared handle: a top-level const is not a window property.
+window.SkyClashLoadScreen=LoadScreen;
 </script>
 
 <script src="js/vendor/three.min.js"></script>
