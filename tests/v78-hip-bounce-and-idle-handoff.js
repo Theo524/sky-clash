@@ -74,7 +74,7 @@ const f={hp:100,vel:new THREE.Vector3(),punchT:0,blastT:0,superHitT:0,stun:0,
  }};
 const status={frames:0};
 const state=game.attach(THREE,f,actions,status);
-assert(state,'Actual game stack accepts the user's idle clip');
+assert(state,"Actual game stack accepts the user's idle clip");
 for(let i=0;i<25;i++)f.animate(1/60);
 assert(state.weight>.95&&state.slot==='idle','Standing idle fully owns the pose');
 const publishedArm=rigBone.leftUpperArm.quaternion.clone();
