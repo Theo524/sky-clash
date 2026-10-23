@@ -42,8 +42,9 @@
   if(!f||typeof f.animate!=='function'||f.v81PoseTransitions)return null;
   const old=f.animate;
   const st={rig:null,mode:null,elapsed:1,blend:1,nodes:[],
-   previous:[],fingerNodes:[],fingerRest:[],handGrip:0,frames:0};
-  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),
+   previous:[],fingerNodes:[],fingerRest:[],handGrip:0,frames:0,
+    airWristAnchor:null};
+  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
    headWorld=new THREE.Quaternion(),parentWorld=new THREE.Quaternion(),
    euler=new THREE.Euler();
   function capture(rig){
@@ -62,6 +63,7 @@
     }
    }
    st.rig=rig;st.mode=null;st.elapsed=1;st.blend=1;
+    st.airWristAnchor=null;
   }
   f.animate=function(dt){
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -72,6 +74,23 @@
    try{
     if(st.rig!==this.vrmRig)capture(this.vrmRig);
     const next=stateOf(this);
+    // V99 opt-in: V73's native Kairo fingers are already correct in the
+    // approved standing pose. V81's global Y-axis grip plus an independently
+    // retargeted UE5 jump wrist can form the pinched-hand gesture.
+    // During a real jump/fall, anchor both local wrist orientations to the
+    // LAST actually rendered grounded pose (not a T pose) and allow only
+    // a natural limited wrist excursion. Recorded shoulders, elbows, torso,
+    // legs, facial expressions and all physics remain owned as before.
+    const params=new URLSearchParams(root.location?.search||'');
+    const stabilize=params.get('airLab')==='jump'&&params.get('airHands')==='stable'&&
+      this===root.SkyClash?.Game?.heroes?.kairo_venn;
+    const naturalAir=next==='jump'||next==='fall';
+    if(stabilize&&naturalAir){
+      if(!st.airWristAnchor){
+        const source=before&&before.length===st.nodes.length?before:st.previous;
+        st.airWristAnchor=[9,13].map(i=>source[i].clone());
+      }
+    }else st.airWristAnchor=null;
     if(st.mode!==next){
      st.mode=next;st.elapsed=0;st.blend=0;
      // The outgoing pose is whatever the player actually SAW on the last
@@ -109,12 +128,29 @@
     const grip=next==='attack'?.9:next==='guard'?.94:next==='boost'?.76:next==='boost-stop'?.55:
       next==='flight'||next==='flight-boost'?.46:
       next==='jump'||next==='fall'?.52:next==='landing'?.40:0;
-    st.handGrip+=(grip-st.handGrip)*(1-Math.exp(-safe*13));
+    // Source-controlled jump/fall uses the V73 VRoid native fingers;
+    // never overlay V81's artificial pinching/curl on these two states.
+    const fingerTarget=stabilize&&naturalAir?0:grip;
+    st.handGrip+=(fingerTarget-st.handGrip)*(1-Math.exp(-safe*13));
     for(let i=0;i<st.fingerNodes.length;i++){
      const {node,sign,angle}=st.fingerNodes[i];
      extra.setFromAxisAngle(y,sign*angle*st.handGrip);
      node.quaternion.copy(st.fingerRest[i]).multiply(extra);
     }
+    if(stabilize&&naturalAir&&st.airWristAnchor){
+      const maxWristTurn=.48; // ~27.5 deg relative to last visible wrist
+      for(let j=0;j<2;j++){
+        const node=st.nodes[j?13:9],anchor=st.airWristAnchor[j];
+        if(!node||!anchor)continue;
+        const deviation=anchor.angleTo(node.quaternion);
+        if(deviation>maxWristTurn){
+          airTarget.copy(node.quaternion);
+          node.quaternion.copy(anchor).slerp(airTarget,maxWristTurn/deviation).normalize();
+          status.airWristClamps=(status.airWristClamps||0)+1;
+        }
+      }
+    }
+    status.airHands=stabilize&&naturalAir?'V99 native fingers + steady wrists':'normal';
     // Clip changes shouldn't tilt Kairo's gaze toward the floor while
     // locomoting. Constrain *world* head pitch, not its local pitch (which
     // inherits hips + spine tilt). Original Studio idle, attacks and guard
