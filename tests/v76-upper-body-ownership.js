@@ -80,6 +80,18 @@ assert(status.mode==='fighting-idle','Stopping must resume recorded fighting idl
 assert(f.v76UpperBody.transition>.99);
 const stopped=pose('leftUpperArm');
 assert(stopped.angleTo(walkingUpper)>.10,'Stop must not freeze the walk shoulder');
+// V79: jumping/controlled flight must not snap arms into the procedural
+// airborne guard on the very first frame.
+f.jumping=true;frame();
+assert.strictEqual(f.v76UpperBody.mode,'controlled-air');
+assert(f.v76UpperBody.airWeight>.8);
+const jumpPose=pose('leftUpperArm');
+assert(jumpPose.angleTo(stopped)<.3,'Starting a jump should keep most of the grounded stance');
+for(let i=0;i<9;i++)frame();
+assert(f.v76UpperBody.airWeight<.1,'In-air pose should gradually release to the flight controller');
+f.jumping=false;frame();
+assert(f.v76UpperBody.transition>0&&f.v76UpperBody.transition<.15,'Landing smoothly resumes the grounded pose');
+for(let i=0;i<20;i++)frame();
 const count=status.frames;
 // Attacks should always win immediately, including arm/hand and wrist bones.
 f.punchT=.3;frame();
