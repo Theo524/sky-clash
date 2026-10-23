@@ -83,8 +83,9 @@ try{
  assert(boot.includes("e.src+='&arm=97'"),'approved arm anchor must be preserved');
  assert(boot.includes("e.src+='&fix=94'"),'approved V94 handoff must be preserved');
  assert(boot.includes('js/v95-joystick-radius.js?v=950'),'approved V95 joystick stays installed');
- assert(read('index.html').includes('js/v66-game-boot.js?v=820&fix=98'),
-  'GitHub Pages needs a new boot cache revision');
+ const bootVersion=read('index.html').match(/js[/]v66-game-boot[.]js[?]v=820&fix=([0-9]+)/);
+ assert(bootVersion&&Number(bootVersion[1])>=98,
+  'GitHub Pages needs a refreshed boot cache revision');
  console.log('PASS V98: real height-trigger jump/fall routing and landing/flight/combat precedence; V94/V95/V97 intact');
 }finally{
  if(originalLocation===undefined)delete globalThis.location;
