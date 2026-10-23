@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>Sky Clash — Build V103</title>
-<link rel="stylesheet" href="css/game.css?v=570">
+<title>Sky Clash — Build V104</title>
+<link rel="stylesheet" href="css/game.css?v=1040">
 </head>
 <body>
 <div id="game"></div>
@@ -106,7 +106,7 @@
 <div id="titleScreen" class="overlay" role="dialog" aria-modal="true" aria-labelledby="titleH" aria-hidden="true">
   <div class="home-shell">
     <div class="home-identity"><span class="home-eyebrow">CHARACTER SELECT · KAIRO / RIN</span><h1 id="titleH">SKY<br><em>CLASH</em></h1><p>TRAIN. TRANSFORM. TRANSCEND.</p></div>
-    <div class="home-menu"><div class="home-version">SKY CLASH · BUILD V103 <small>GAME VERSION</small></div>
+    <div class="home-menu"><div class="home-version">SKY CLASH · BUILD V104 <small>GAME VERSION</small></div>
       <div class="character-select" role="group" aria-label="Choose your fighter">
         <button type="button" class="char-choice selected" data-hero="kairo_venn" aria-pressed="true"><b>KAIRO VENN</b><small>Martial artist · Flight · Energy</small></button>
         <button type="button" class="char-choice" data-hero="rin_sable" aria-pressed="false"><b>RIN SABLE</b><small>Ninja · Double Jump · Shurikens</small></button>
@@ -118,7 +118,7 @@
       <button class="home-action" id="titleSettingsBtn"><span class="action-number">05</span><span><b>Settings</b><small>Camera, graphics and controls</small></span><span class="action-arrow">↗</span></button>
       <div class="home-tip" id="heroTip">KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.</div>
     </div>
-    <div class="home-footer">2 PLAYABLE FIGHTERS · BUILD V103 <span>SKY CLASH / TRAINING GROUNDS</span></div>
+    <div class="home-footer">2 PLAYABLE FIGHTERS · BUILD V104 <span>SKY CLASH / TRAINING GROUNDS</span></div>
   </div>
 </div>
 
@@ -288,12 +288,54 @@
 <div id="toast" class="toast"></div>
 <script>
 // Boot UI runs before large 3D scripts; fallback never holds the player hostage.
-const LoadScreen=(()=>{let finished=false;const start=Date.now();function progress(n,msg){if(finished)return;const b=document.getElementById("bootFill"),st=document.getElementById("bootStatus");if(b)b.style.width=n+"%";if(st)st.textContent=msg;}function finish(msg){if(finished)return;progress(100,msg||"Ready");finished=true;const boot=document.getElementById("bootScreen"),menu=document.getElementById("titleScreen");if(boot)boot.classList.add("finished");if(menu){menu.classList.add("show");menu.setAttribute("aria-hidden","false");}window.setTimeout(()=>{if(boot)boot.classList.add("hidden");},550);}
-window.setTimeout(()=>{
-  if(window.SkyClash?.Game)finish("Ready — detailed characters can continue loading");
-  else{const s=document.getElementById("bootStatus");if(s)s.textContent="3D engine could not start. Try Chrome or reload this page.";}
-},12000);
-return{progress,finish};})();
+// V104: model decoding and the full recorded-action/controller pipeline are
+// independent asynchronous operations. Do not expose a bind/procedural pose
+// merely because one of them finished first. The engine keeps rendering
+// beneath the boot cover so the approved idle actually reaches its pose.
+const LoadScreen=(()=>{
+ let finished=false,modelsReady=false,animationsReady=false,watchdog=false;
+ let settling=false,modelMessage='Ready';
+ function progress(n,msg){
+  if(finished)return;
+  const bar=document.getElementById('bootFill'),st=document.getElementById('bootStatus');
+  if(bar)bar.style.width=n+'%';
+  if(st)st.textContent=msg;
+ }
+ function reveal(){
+  if(finished)return;
+  finished=true;progress(100,modelMessage);
+  const boot=document.getElementById('bootScreen'),menu=document.getElementById('titleScreen');
+  if(boot)boot.classList.add('finished');
+  if(menu){menu.classList.add('show');menu.setAttribute('aria-hidden','false');}
+  window.setTimeout(()=>{if(boot)boot.classList.add('hidden');},550);
+ }
+ function maybeReveal(){
+  if(finished||settling||!animationsReady||(!modelsReady&&!watchdog))return;
+  settling=true;progress(98,'Settling the fighting stance…');
+  let frames=0;
+  function settledFrame(){
+   if(finished)return;
+   // 18 actual render frames lets V76's approved arms, V72's recorded
+   // idle and V81's handoff finish BEFORE the title becomes visible.
+   if(++frames<18){requestAnimationFrame(settledFrame);return;}
+   reveal();
+  }
+  requestAnimationFrame(settledFrame);
+ }
+ function finish(msg){modelsReady=true;modelMessage=msg||'Ready';maybeReveal();}
+ function animationsFinished(){animationsReady=true;maybeReveal();}
+ window.setTimeout(()=>{
+  if(window.SkyClash?.Game){
+   // Preserve the old safe fallback if heavy mobile VRMs cannot finish.
+   // A late VRM remains invisible until its OWN final-pose warmup completes.
+   watchdog=true;maybeReveal();
+  }else{
+   const st=document.getElementById('bootStatus');
+   if(st)st.textContent='3D engine could not start. Try Chrome or reload this page.';
+  }
+ },12000);
+ return{progress,finish,animationsFinished};
+})();
 </script>
 
 <script src="js/vendor/three.min.js"></script>
@@ -302,6 +344,6 @@ return{progress,finish};})();
 <script src="assets/characters/master/anime-kairo.js?v=650"></script>
 <script src="js/v66-character-source.js?v=680"></script>
 <script src="js/v67-vrm0-hands.js?v=670"></script>
-<script src="js/v66-game-boot.js?v=820&fix=104"></script>
+<script src="js/v66-game-boot.js?v=820&fix=105"></script>
 </body>
 </html>
