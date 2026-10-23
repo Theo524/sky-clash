@@ -17,9 +17,11 @@
       new URLSearchParams(location.search).get('stance')==='handoff'&&
       (src.includes('js/game.js')||src.includes('v71-mixamo-gameplay')||
        src.includes('v72-published-actions')))e.src+='&jrun=95';
-   if(src.includes('v79-extra-actions')&&
-      new URLSearchParams(location.search).get('idleArms')==='steady')
-     e.src+='&idle=96';
+   const armsParam=new URLSearchParams(location.search).get('idleArms');
+   if(src.includes('v79-extra-actions')&&['steady','matched'].includes(armsParam))
+     e.src+=armsParam==='matched'?'&idle=97':'&idle=96';
+   if(src.includes('v76-upper-body')&&armsParam==='matched')
+     e.src+='&arms=97';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -45,6 +47,8 @@
    .get('joystickRun')==='on';
   const steadyArmLab=joystickLab&&new URLSearchParams(location.search)
    .get('idleArms')==='steady';
+  const matchedArmLab=joystickLab&&new URLSearchParams(location.search)
+   .get('idleArms')==='matched';
   const continuousLab=stepLab&&['match','continuous','unified'].includes(new URLSearchParams(location.search).get('stance'));
   if(stepLab)await script('js/v89-grounded-step.js?v=890');
   if(joystickLab)await script('js/v95-joystick-radius.js?v=950');
@@ -104,12 +108,14 @@
     const mode=p?.sprinting?'BOOST':p?.v80AnalogRun?'RUN':'WALK / IDLE';
     const step=p?.v89Step?.mode||'idle';
     label.textContent=stepLab?
-     (steadyArmLab?'STEADY ARMS · V96\n':joystickLab?'JOYSTICK WALK / RUN · V95\n':handoffLab?'POSE BLEND REPAIR · V94\n':unifiedLab?'UNIFIED IDLE ARMS · V92\n':continuousLab?'IDLE / WALK CONTINUITY · V91\n':stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
+     (matchedArmLab?'MATCHED IDLE ARMS · V97\n':steadyArmLab?'STEADY ARMS · V96\n':joystickLab?'JOYSTICK WALK / RUN · V95\n':handoffLab?'POSE BLEND REPAIR · V94\n':unifiedLab?'UNIFIED IDLE ARMS · V92\n':continuousLab?'IDLE / WALK CONTINUITY · V91\n':stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
      (handoffLab?' | Actual pose blend: '+Math.round(100*(window.SkyClashPoseTransitions?.transition||0))+'%':'')+
      (steadyArmLab?' | Random idle gestures: OFF':'')+
+     (matchedArmLab?' | Arm source: '+(window.SkyClashUpperBody?.idleSource||'loading')+
+       ' | Matched: '+(window.SkyClashUpperBody?.sourceMatch?'YES':'no'):'')+
      (joystickLab?'\nStick: '+Math.round((p?.v95StickRadius||0)*100)+'% | Run: '+
        (p?.v80AnalogRun?'YES':'no')+' | Boost: '+(p?.sprinting?'YES':'no'):'')+
      (stanceLab?' | Stance match: '+Math.round((window.SkyClashMovementLab?.stanceBlend??1)*100)+'%':'')+
