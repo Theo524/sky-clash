@@ -10,7 +10,10 @@
    const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v76-upper-body')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(new URLSearchParams(location.search).get('stance')==='unified'?'&fix=92':['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&fix=91':new URLSearchParams(location.search).get('stance')==='legacy90'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
     (src.includes('v89-grounded-step')?
    (new URLSearchParams(location.search).get('stance')==='unified'?'&stance=92':['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&stance=91':
-    new URLSearchParams(location.search).get('stance')==='legacy90'?'&stance=90':''):'');e.async=false;
+    new URLSearchParams(location.search).get('stance')==='legacy90'?'&stance=90':''):'');if(src.includes('v81-pose-transitions')&&
+      new URLSearchParams(location.search).get('stance')==='handoff')
+     e.src+='&fix=94';
+   e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
  }
@@ -30,6 +33,7 @@
   const stepLab=new URLSearchParams(location.search).get('movementLab')==='step';
   const stanceLab=stepLab&&new URLSearchParams(location.search).get('stance')==='legacy90';
   const unifiedLab=stepLab&&new URLSearchParams(location.search).get('stance')==='unified';
+  const handoffLab=stepLab&&new URLSearchParams(location.search).get('stance')==='handoff';
   const continuousLab=stepLab&&['match','continuous','unified'].includes(new URLSearchParams(location.search).get('stance'));
   if(stepLab)await script('js/v89-grounded-step.js?v=890');
   await script('js/game.js?v=820');
@@ -88,10 +92,11 @@
     const mode=p?.sprinting?'BOOST':p?.v80AnalogRun?'RUN':'WALK / IDLE';
     const step=p?.v89Step?.mode||'idle';
     label.textContent=stepLab?
-     (unifiedLab?'UNIFIED IDLE ARMS · V92\n':continuousLab?'IDLE / WALK CONTINUITY · V91\n':stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
+     (handoffLab?'POSE BLEND REPAIR · V94\n':unifiedLab?'UNIFIED IDLE ARMS · V92\n':continuousLab?'IDLE / WALK CONTINUITY · V91\n':stanceLab?'IDLE STANCE MATCH · V90\n':'FIRST-STEP LAB · V89\n')+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
      'Support corrections: '+(window.SkyClashMovementLab?.pinCorrections||0)+
+     (handoffLab?' | Actual pose blend: '+Math.round(100*(window.SkyClashPoseTransitions?.transition||0))+'%':'')+
      (stanceLab?' | Stance match: '+Math.round((window.SkyClashMovementLab?.stanceBlend??1)*100)+'%':'')+
      (unifiedLab?' | Arm source: '+(window.SkyClashUpperBody?.idleSource||'loading'):'')+
      (continuousLab?' | Max joint/frame: '+((window.SkyClashMovementLab?.maxAngularStep||0)*180/Math.PI).toFixed(1)+'°'+

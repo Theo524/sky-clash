@@ -90,7 +90,18 @@
     const w=st.blend*st.blend*(3-2*st.blend);
     if(w<1)for(let i=0;i<st.nodes.length;i++){
      const node=st.nodes[i];
-     if(node)node.quaternion.slerpQuaternions(st.previous[i],node.quaternion,w);
+     if(!node)continue;
+     // V94 handoff lab: Three.js slerpQuaternions() writes into its
+     // receiver before reading the target. Passing node.quaternion as
+     // BOTH receiver and target makes the new clip pose disappear until
+     // the last frame, then snap into view. Hold the target separately.
+     if(new URLSearchParams(root.location?.search||'')
+        .get('stance')==='handoff'){
+      const incoming=node.quaternion.clone();
+      node.quaternion.slerpQuaternions(st.previous[i],incoming,w).normalize();
+     }else{
+      node.quaternion.slerpQuaternions(st.previous[i],node.quaternion,w);
+     }
     }
     // Neutral hands remain exactly as the user's approved idle.
     // Floating opens them only PARTIALLY, so they don't become robot palms;
