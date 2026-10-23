@@ -334,7 +334,9 @@ class Fighter {
     if (this.sprinting && (!this.sprintHeld || this.stun > 0 || this.blockHeld || this.charging || this.punchT > 0 || this.blastT > 0 || this.windT > 0 || this.launched || this.energy <= 0 || this.exhausted || this.stamina < 0.1)) {
       this.sprinting = false; this.vel.multiplyScalar(0.88);
       if (!this.flying && this.stun <= 0 && Math.hypot(this.vel.x, this.vel.z) > 9 && this.punchT <= 0) {
-        this.skidT = TUNING.skidTime;
+        // V81: a readable ~0.42s physical skid for ending super-fast
+        // Boost; unlike the old Run to Stop clip this NEVER pauses midair.
+        this.skidT = Math.max(TUNING.skidTime,0.42);
         // V80: a burst of grounded grit/smoke when ending *Boost*, not
         // ordinary joystick running. Native skid physics remain in charge.
         Effects.dust(this.pos, 10);
