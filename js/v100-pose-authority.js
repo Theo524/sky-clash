@@ -47,7 +47,8 @@
     exitElapsed:0,frames:0,prev:[],from:[],samples:[],
     wristAnchor:[],armAnchor:[],fingerNodes:[],fingerRest:[],
     maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
-    jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false};
+    jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
+    restPose:[],landingRest:[],impactSpeed:0,contactSerial:0};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -79,6 +80,7 @@
    st.phase=null;st.elapsed=0;st.exitElapsed=0;
    st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
    st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
+   st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -107,6 +109,14 @@
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+    // Snapshot the last approved grounded stance, never an uncalibrated
+    // local T-pose. The source landing clip cannot be trusted as an idle.
+    st.landingRest=(st.restPose.length===BONES.length?
+      st.restPose:visible).map(q=>q.clone());
+    st.impactSpeed=Math.max(0,Number(fighter.v105ImpactSpeed)||0);
+    st.contactSerial=fighter.v105ContactSerial||0;
+    status.contactSerial=st.contactSerial;
+    status.impactSpeed=st.impactSpeed;
    }
    for(let i=0;i<BONES.length;i++)st.from[i].copy(visible[i]);
    // Keep the first grounded wrist/arm stance for the whole airborne arc.
@@ -149,11 +159,14 @@
    // that gets rewritten beneath the final owner on every update.
    const steadyLegs=params.get('airLegs')==='steady'&&
      (next==='jump'||next==='fall');
+   const contactLanding=params.get('landingLab')==='contact'&&next==='landing'&&
+      st.landingRest.length===BONES.length;
    const carryJump=params.get('movingJump')==='carry'&&
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
    const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
+     contactLanding?'V105 recovery to approved guard':
      'V100 recorded landing':'V100 recorded jump/fall arms';
    for(let i=0;i<BONES.length;i++){
     const node=st.nodes[i];
@@ -208,6 +221,32 @@
      qTmp.copy(qTarget);
      qTarget.slerpQuaternions(qTmp,st.launchLegs[i-14],carry).normalize();
      status.movingJumpWeight=carry;
+    }
+    if(contactLanding){
+     const t=st.elapsed;
+     // The existing falling-to-landing recording has planted-looking
+     // ankles near 0.30s, then weight absorption at 0.55-0.66s.
+     // Hold that contact trajectory briefly, then return to the user's
+     // real V97 fighting pose, not the clip's mismatched ending pose.
+     const recover=smooth((t-.20)/.255);
+     if(i>=6&&i<=13){
+      // Do not reintroduce the old landing clip's wide, crossing arms.
+      // Return from the visible airborne V101 guard into the V97 guard.
+      const armRecover=smooth(t/.30);
+      qTmp.copy(st.landingRest[i]);
+      qTarget.slerp(qTmp,armRecover);
+     }else{
+      const foot=i===16||i===19;
+      // At foot contact, ankles should be approximately planted; source
+      // ankle flailing is attenuated while knees absorb the collision.
+      const soleStability=foot?.70:0;
+      const blendToRest=soleStability+(1-soleStability)*recover;
+      qTmp.copy(st.landingRest[i]);
+      qTarget.slerp(qTmp,blendToRest);
+     }
+     status.landingPhase=t<.085?'contact':t<.22?'absorb':
+       t<.47?'recover':'settled';
+     status.landingRecovery=Math.round(recover*100);
     }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
@@ -281,6 +320,14 @@
       // from the very first frame, causing a large leg snap at takeoff.
       for(let i=0;i<BONES.length;i++)
        st.prev[i].copy(st.nodes[i].quaternion);
+      // Capture only a settled *approved* grounded stance. Never replace
+      // it with a running stride, procedural airborne pose or impact.
+      if(Math.hypot(this.vel?.x||0,this.vel?.z||0)<.35&&
+         !(this.landingMotionT>0)&&!(this.jumping||this.flying)&&
+         !(this.punchT>0||this.blockHeld||this.blocking||this.charging)&&
+         this.hp>0){
+        st.restPose=st.nodes.map(n=>n.quaternion.clone());
+      }
       st.groundWasRun=!!this.v80AnalogRun&&!this.jumping&&!this.flying;
       status.movingJumpWeight=0;
      }
@@ -291,16 +338,26 @@
     st.elapsed+=safe;
     if(state==='jump'||state==='fall')st.jumpAge+=safe;
     const clips=root.SkyClashPublishedActions.motionClips;
-    const slot=clipFor(state),clip=clips[slot];
+    const contactLanding=new URLSearchParams(root.location?.search||'')
+      .get('landingLab')==='contact'&&state==='landing'&&
+      !!clips.fallingToLanding;
+    const slot=contactLanding?'fallingToLanding':clipFor(state),clip=clips[slot];
     if(!clip)throw Error('V100 missing recorded pose '+slot);
-    const seconds=state==='jump'?
+    const seconds=contactLanding?
+      // Collision contact is time=0. Use the authored planted-ankle and
+      // knee-absorption section at its native 30 Hz sampling rate, without
+      // compressing a 1.1s standing sequence into a 0.48s collision.
+      .30+(.28+.07*clamp((st.impactSpeed-4)/12,0,1))*
+        smooth(st.elapsed/.195):
+      state==='jump'?
       Math.min(clip.seconds*.96,st.elapsed*1.18):
       state==='fall'?
       Math.min(clip.seconds*.86,.05+st.elapsed*.91):
       // Source landing contains a proper knee fold and recovery; map to
       // the physics' 0.48s contact window without holding a frozen pose.
       clip.seconds*smooth(st.elapsed/.48);
-    const blend=state==='jump'?.12:state==='fall'?.14:.10;
+    const blend=state==='jump'?.12:state==='fall'?.14:
+      contactLanding?.085:.10;
     retarget(clip,seconds,smooth(st.elapsed/blend),state,safe);
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
@@ -310,6 +367,9 @@
       (state==='jump'||state==='fall')?
       'V103 '+st.launchGait+' takeoff '+st.launchSpeed.toFixed(1):
       'V102 standing baseline';
+    status.landingStyle=state==='landing'?
+       contactLanding?'V105 contact / absorb / recover':'V100 recorded':
+       'not-landing';
     status.legStyle=new URLSearchParams(root.location?.search||'')
       .get('airLegs')==='steady'&&(state==='jump'||state==='fall')?
       'V102 frame-bounded knees and ankles':state==='landing'?
@@ -329,7 +389,9 @@
  }
  function start(context=root){
   const status={version:100,ready:false,active:'not-installed',
-    owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,error:null};
+    owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
+    landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
+    impactSpeed:0,contactSerial:0,error:null};
   context.SkyClashPoseAuthority=status;
   // Install only after V71/V76/V72/V79/V81/V89 have finished attaching.
   // Every lower recorded motion wrapper checks ownsAir() and yields.
