@@ -30,8 +30,10 @@
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
-  if(walkLab&&window.SkyClash?.TUNING)
-   window.SkyClashMovementLab={version:stepLab?89:88,enabled:true,targetWalkSpeed:4.8};
+  if(walkLab&&window.SkyClash?.TUNING){
+   if(stepLab)window.SkyClashMovementLab={version:89,enabled:true,targetWalkSpeed:4.8};
+   else window.SkyClashMovementLab={version:88,enabled:true,targetWalkSpeed:4.8};
+  }
   await script('js/v62-playable-master.js?v=660');
   await script('js/v63-recorded-motion.js?v=640');
   await script('js/v71-mixamo-gameplay.js?v=820');
