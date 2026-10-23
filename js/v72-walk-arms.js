@@ -108,7 +108,9 @@
       const gain=(i%4===0||i%4===1)?(style?.shoulderSwing??.55):
        i%4===2?(style?.elbowSwing??.80):(style?.wristSwing??.74);
       centered.copy(basis).multiply(motion.center[i]).multiply(basisInv).normalize();
-      transformed.copy(centered).slerp(transformed,Math.max(0,Math.min(1,gain)));
+      // Keep the sampled rotation as the slerp SOURCE. Copying centered
+      // over transformed first aliases the target and freezes the joints.
+      transformed.slerp(centered,1-Math.max(0,Math.min(1,gain)));
      }
      worldTarget.copy(qScene).multiply(transformed).multiply(state.bind[i]).normalize();
      node.parent.getWorldQuaternion(parentQ);
