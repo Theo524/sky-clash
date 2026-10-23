@@ -27,7 +27,7 @@ const seen=new Set();
 const seenContent=new Set();
 let current=null, page=0, filtering=[], cancelled=false, indexing=false;
 let isPlaying=true, rate=1, currentT=0, mainRig=null, selectedLoadToken=0;
-const workQueue=[];let busy=false;
+const workQueue=[];let busy=false,renderAllPreviews=false;
 let activeHovered=null, activeFrames=[];
 const fps=7;
 let lastSwap=0;
@@ -284,13 +284,21 @@ function hideOverlay(){$('viewerOverlay').hidden=true;}
 
 function visiblePage(){return filtering.slice(page*PAGE_SIZE,(page+1)*PAGE_SIZE);}
 function enqueueThumbnail(item){if(item.prepared||item.error||workQueue.includes(item)||cancelled)return;workQueue.push(item);processQueue();}
+function generateRemainingPreviews(){
+ // Optional full-catalog thumbnail render. Originals stay in IndexedDB;
+ // full previews are generated from FBXs on demand, not remote fake GIFs.
+ cancelled=false;renderAllPreviews=true;
+ for(const item of imported)if(!item.prepared&&!item.error&&!workQueue.includes(item))
+  workQueue.push(item);
+ updateStats();processQueue();
+}
 async function processQueue(){
  if(busy)return;busy=true;
  while(workQueue.length){
   const item=workQueue.shift();
   if(cancelled){workQueue.length=0;break;}
   if(!item||item.prepared||item.error)continue;
-  if(!visiblePage().includes(item))continue;
+  if(!renderAllPreviews&&!visiblePage().includes(item))continue;
   try{
    await delay();
    const input=await bufferFor(item);
@@ -313,7 +321,8 @@ async function processQueue(){
   updateCard(item);updateStats();
   await delay();
  }
- busy=false;
+ busy=false;renderAllPreviews=false;
+ updateStats();
 }
 const observer=new IntersectionObserver(entries=>{
  for(const x of entries)if(x.isIntersecting){const item=x.target.__item;if(item)enqueueThumbnail(item);}
@@ -325,7 +334,12 @@ function updateCard(item){const card=item.card;if(!card||!card.isConnected)retur
  const meta=card.querySelector('.clip-meta');if(meta)meta.lastElementChild.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';
 }
 function updateStats(){const done=imported.filter(x=>x.prepared).length,errors=imported.filter(x=>x.error).length;
- $('processedCount').textContent=imported.length?`${done} GIF-ready · ${errors} need attention`:'';
+ const pending=Math.max(0,imported.length-done-errors);
+ $('processedCount').textContent=imported.length?
+  `${done}/${imported.length} previews ready · ${pending} awaiting render · ${errors} errors`:'';
+ const all=$('generateAllPreviews');
+ if(all){all.hidden=!pending;all.disabled=renderAllPreviews;
+  all.textContent=renderAllPreviews?`Rendering ${pending} remaining…`:`Render remaining ${pending} previews`;}
  const coverage=PackCatalog?.scan(imported);
  const badge=$('packCoverage'),choose=$('importMissingPacks');
  if(badge&&coverage){
@@ -335,7 +349,6 @@ function updateStats(){const done=imported.filter(x=>x.prepared).length,errors=i
  if(choose&&coverage)choose.hidden=coverage.complete;
  // Thumbnail previews are generated lazily, only as cards become visible;
  // a pending image is not missing from the user's ZIP collection.
- const pending=imported.length-done-errors;
  progress(pending&&imported.length?100*(done+errors)/imported.length:null);
 }
 function refreshGrid(){
@@ -555,6 +568,7 @@ zone.addEventListener('drop',e=>importFiles([...e.dataTransfer.files]));
 // File drops work over the entire page, except the action slots.
 document.addEventListener('drop',e=>{if(e.dataTransfer?.files.length&&!e.target.closest('.action-slot')){e.preventDefault();if(!zone.contains(e.target))importFiles([...e.dataTransfer.files]);}});
 $('cancelLoad').addEventListener('click',()=>{cancelled=true;workQueue.length=0;setStatus('Stopped thumbnail processing. Imported files remain available.');$('cancelLoad').hidden=true;progress(null);});
+$('generateAllPreviews').addEventListener('click',generateRemainingPreviews);
 for(const id of ['search','category','tagFilter'])$(id).addEventListener(id==='search'?'input':'change',()=>{page=0;applyFilter();});
 $('prevPage').addEventListener('click',()=>{page=Math.max(0,page-1);refreshGrid();});$('nextPage').addEventListener('click',()=>{page++;refreshGrid();});
 $('importMissingPacks').addEventListener('click',()=>{

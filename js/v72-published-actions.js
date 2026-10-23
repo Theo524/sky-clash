@@ -72,8 +72,18 @@
   if(fighter.charging)return actions.charge?'charge':null;
   if(airborne)return actions.jump?'jump':null;
   if(fighter.dashing)return actions.dodge?'dodge':null;
-  if(fighter.sprinting)return actions.run?'run':null;
-  if(speed>.75)return actions.walk?'walk':null;
+  // V80: ordinary full-radius joystick running is NOT Boost. Boost is
+  // exclusively the explicit sprint button and uses its own faster pose,
+  // trail and skid FX. No normal-run clip during boost or midair.
+  if(fighter.sprinting){fighter.v80AnalogRun=false;return null;}
+  if(speed>.75){
+   const stick=Math.hypot(fighter.moveIntent?.x||0,fighter.moveIntent?.z||0);
+   const full=stick>(fighter.v80AnalogRun?.68:.86);
+   fighter.v80AnalogRun=!!(actions.run&&full&&speed>3);
+   if(fighter.v80AnalogRun)return 'run';
+   return actions.walk?'walk':null;
+  }
+  fighter.v80AnalogRun=false;
   return actions.idle?'idle':null;
  }
  function attach(THREE,fighter,actions,status,options={}){
@@ -189,6 +199,11 @@
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
+     // V80: the 0.9-second Mixamo run-to-stop file contains airborne
+     // root/foot shapes when played without FBX translation. Let the
+     // existing ground-contact/skid controller own the hips, knees and feet;
+     // this optional clip only supplies its braking upper-body gesture.
+     if(options.choose&&entry.slot==='runStop'&&(i===0||i>=14))continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
