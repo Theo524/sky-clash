@@ -104,6 +104,16 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'No V120 powered flight changes');
 
+// V121 carries only standing takeoff yaw: same approved V115 ground,
+ // V118 true leg forward, V119 toe spring, V120 arms and no flight.
+run=simulate('?jumpPreview=v121');
+assert.equal(run.flags.get('jumpPreview'),'v121');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V121 short link must keep approved baseline '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V121 must not enable flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');

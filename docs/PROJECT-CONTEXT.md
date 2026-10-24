@@ -67,6 +67,53 @@ arms remain separately unapproved for visual polish. If improved moving
 arms or stance is desired, create an independently reversible opt-in
 preview, compare full-motion videos and obtain user approval.
 
+## V121 loaded whole-leg takeoff direction (2026-10-24, opt-in)
+
+User explicitly likes V119–V120's grounded athletic stance, body, knees,
+toes and arms, BUT reports: as soon as the jump is triggered, the **whole
+leg (not just the toes)** turns too far straight forward; the feet become
+parallel and the stance looks narrow and robotically front-aligned.
+This is a crouch → first takeoff-frame *heading* problem, not a need
+to redesign the jumping animation. Avoid undoing V118 actual VRM0
+forward-axis correction.
+
+Root cause in code: V119 `v119Spring` eased foot turnout to ZERO just
+before the buffered jump triggers, and the V100 recorded jump/leg
+handoff gradually returns thighs/knees/ankles to a different source
+alignment. Existing V115–V120 `guidedLaunchLegs` keeps the local
+quaternions only briefly; it can't retain a foot angle that's ALREADY
+gone by the last grounded frame.
+
+V121 **short opt-in**: `?jumpPreview=v121` inherits the approved V118
+real-world Kairo anatomical +Z, V119 toe and body spring, V120 fluid
+arms, and untouched V97 gait. Only while **standing** buffered push-prep
+(speed <1.3), sample a small outward (~3.9deg) left/right world-up
+FEMUR yaw after the correct world knee bend, and a matched outward
+(~3.4deg) shoe heading that holds through the last PREP frame instead
+of relaxing to zero. Toe-tip curl still safely unflexes at launch.
+The final V100 owner then blends the six true LAST-VISIBLE local
+thigh/knee/ankle quaternions into the recorded airborne legs over
+~70–275ms, preserving direction through the physical push-off while
+allowing normal knee/ankle extension and matching normal midair pose.
+No added animation controller, physics, rigs, input or clips.
+
+Moving walking/running takeoffs DO NOT use this stationary fix; the
+separate approved V103 stride inheritance remains unchanged pending a
+separate moving-jump review. Falling, V109 moving landing, Boost,
+flight, combat and Rin unchanged. Public game remains V115; V120
+remains the instant rollback and visual comparison.
+
+CI: real VRM0-yawed Three.js femur geometry at four yaw directions
+and 30/60/120fps, full V100 + historical wrappers asserting both feet
+and thighs retain heading on first ascent frame, gradual release, no
+change to V120 arms/torso, and bit-for-bit same MOVING jumper bones.
+Real WebGL front/side full-motion V120–V121 captures must be visually
+reviewed; green synthetic tests are not phone visual approval.
+
+Links (after green CI and GitHub Pages deployment):
+V121: https://theo524.github.io/sky-clash/?jumpPreview=v121
+Rollback: https://theo524.github.io/sky-clash/?jumpPreview=v120
+
 ## Root game URL: important default jump correction (October 24, 2026)
 
 After PR #62 promoted ONLY the V97-approved ground flags on the root URL,

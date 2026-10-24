@@ -502,6 +502,40 @@
   }
   scene.updateMatrixWorld(true);
  }
+ // V121: real foot AND upper-leg orientation should come from the
+ // same athletic crouch through the FIRST takeoff frames. V119's toe-out
+ // spring relaxed to zero before the physics trigger, so the visible
+ // feet/thighs suddenly pointed ahead even though the crouch was good.
+ // Keep a very small outward whole-leg/foot heading through push-off.
+ // Do NOT hold toe curl: toes straighten naturally while extending.
+ function v121LaunchStance(age,duration){
+  const u=clamp(age/Math.max(.001,duration),0,1);
+  const w=smooth(u/.69);
+  return Object.freeze({thighYaw:.068*w,footYaw:.060*w,
+   ready:w,heelSpring:smooth((u-.72)/.28)});
+ }
+ function v121OutwardThighs(THREE,rig,amount,status){
+  if(!rig?.vrm?.scene||amount<=0)return;
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  const up=new THREE.Vector3(0,1,0),axis=new THREE.Vector3(),
+   qWorld=new THREE.Quaternion(),dq=new THREE.Quaternion();
+  let n=0;
+  for(const side of ['left','right']){
+   const thigh=hum.getNormalizedBoneNode(side+'UpperLeg');
+   if(!thigh)continue;
+   scene.updateMatrixWorld(true);
+   thigh.getWorldQuaternion(qWorld);
+   axis.copy(up).applyQuaternion(qWorld.invert()).normalize();
+   thigh.quaternion.multiply(dq.setFromAxisAngle(axis,
+    (side==='left'?-1:1)*amount)).normalize();
+   n++;
+  }
+  if(status){
+   status.takeoffThighOutDeg=+(amount*180/Math.PI).toFixed(1);
+   status.takeoffThighJoints=n;
+  }
+  scene.updateMatrixWorld(true);
+ }
  // V120: measured, small athletic arm counter-swing during standing
  // jump preparation and rise. V101 compact guard is still the baseline;
  // these are final V100 pose adjustments, not a second bone controller.
@@ -897,8 +931,11 @@
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
    const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
+   // Preserve V120's independently testable standing-only arm gate.
    const v120Ascent=compactArms&&next==='jump'&&
      params.get('jumpPreview')==='v120'&&st.launchSpeed<1.3;
+   const v121Ascent=compactArms&&next==='jump'&&
+     params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
      contactLanding?'V105 recovery to approved guard':
      'V100 recorded landing':'V100 recorded jump/fall arms';
@@ -1029,9 +1066,16 @@
      // Do not snap or reverse a shin immediately after standing push.
      // Gradually transfer from the last grounded knee/ankle orientations
      // to V102's original clip only after the feet have lifted.
+     // V121: blend the **captured** leg heading from the loaded crouch.
+     // The last PREP frame includes the V121 outward thigh and foot
+     // turnout; release slowly into recorded midair legs as Kairo rises.
+     // Older previews keep V115-V120's historical 60–230ms transfer.
+     const v121Takeoff=params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
      const fade=smooth((st.elapsed-.060)/.170);
+     const v121Fade=v121Takeoff?smooth((st.elapsed-.070)/.205):fade;
+     if(v121Takeoff)status.takeoffStanceHold=Math.round((1-v121Fade)*100);
      qRaw.copy(qTarget);
-     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,fade).normalize();
+     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,v121Fade).normalize();
      status.guidedLaunchBlend=Math.round(fade*100);
     }
     if(steadyLegs&&i>=14){
@@ -1069,7 +1113,7 @@
    }
    // V120 applied only after recorded V101 guard retarget. Keep the
    // final-arm pose and its wrist safety cap in this ONE V100 owner.
-   if(v120Ascent){
+   if(v120Ascent||v121Ascent){
     worldJumpArms(THREE,rig,realKairoForward(THREE,rig,status),
      v120ArmTiming('jump',st.jumpAge),status);
     status.armStyle='V120 fluid compact ascent';
@@ -1152,7 +1196,8 @@
       // never overwrite the newly-owned combat/Boost FOOT rotations.
       if(st.phase==='prep'&&new URLSearchParams(root.location?.search||'')
          .get('jumpPreview')==='v119'||new URLSearchParams(root.location?.search||'')
-         .get('jumpPreview')==='v120'){
+         .get('jumpPreview')==='v120'||new URLSearchParams(root.location?.search||'')
+         .get('jumpPreview')==='v121'){
        for(const anchor of st.prepFeet){
         const toe=st.rig.vrm.humanoid.getNormalizedBoneNode(anchor.side+'Toes');
         if(toe&&anchor.toeRotation)toe.quaternion.copy(anchor.toeRotation);
@@ -1231,7 +1276,10 @@
        .get('jumpPreview')==='v119';
       const v120=v116&&new URLSearchParams(root.location?.search||'')
        .get('jumpPreview')==='v120';
-      const v119Springed=v119||v120;
+      const v121=v116&&new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview')==='v121';
+      const v120Arms=v120||v121;
+      const v119Springed=v119||v120Arms;
       const v118=v118Original||v119Springed;
       const v117Torso=v117||v118;
      // Keep V109's historic A/B profile selection unchanged. V116
@@ -1240,6 +1288,7 @@
      const readable=v116?'loaded':originalReadable;
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const spring=v119Springed?v119Spring(elapsed,p.duration):null;
+     const stance=v121?v121LaunchStance(elapsed,p.duration):null;
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      const axes=profile==='push'&&
       ['forward','anatomic'].includes(kneeProfile)?
@@ -1281,6 +1330,9 @@
       worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
        Math.abs(p.kneeX),st.prepFeet,status,actualForward);
      }
+     // Rotate the REAL thigh about world-up only after its correct V118
+     // world-forward knee fold. This changes heading, NOT knee flexion.
+     if(v121)v121OutwardThighs(THREE,this.vrmRig,stance.thighYaw,status);
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
        .get('jumpFeet')==='hold'&&st.prepHipsXZ){
       st.nodes[0].position.x=st.prepHipsXZ.x;
@@ -1313,7 +1365,8 @@
       }
       else if(kneeMode==='anatomic'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=v120?'V120 fluid V119 crouch':
+       status.prepKneeDirections=v121?'V121 heading-preserved crouch':
+         v120?'V120 fluid V119 crouch':
         v119?'V119 soft V118 crouch':
         v118?'V118 true VRM0 front':
         v117?'V117 forward torso + knees':
@@ -1369,10 +1422,11 @@
      // old support correction, but BEFORE final sole-floor calibration.
      // Only the opt-in standing-jump path ever touches normalized toe bones.
      if(v119Springed){
-      softPrepToes(THREE,this.vrmRig,st.prepFeet,actualForward,spring,status);
+      softPrepToes(THREE,this.vrmRig,st.prepFeet,actualForward,
+       v121?{...spring,turnout:stance.footYaw}:spring,status);
       this.vrmRig.vrm.update(0);
      }
-     if(v120){
+     if(v120Arms){
       worldJumpArms(THREE,this.vrmRig,actualForward,
        v120ArmTiming('prep',elapsed,p.duration),status);
       this.vrmRig.vrm.update(0);
@@ -1478,7 +1532,8 @@
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
     prepFootSlipCm:0,prepHingeSlipCm:0,prepWorldKneeCm:0,
     prepTorsoForwardCm:0,prepToeFlexDeg:0,prepFootTurnDeg:0,
-    prepToeJoints:0,jumpArmMotion:'original compact',
+    prepToeJoints:0,takeoffThighOutDeg:0,takeoffThighJoints:0,
+    takeoffStanceHold:0,jumpArmMotion:'original compact',
     jumpArmDrive:0,jumpArmWorldJoints:0,prepForwardSource:'unverified',
     prepSceneVsBodyDot:null,prepToeVsBodyDot:null,
     prepKneeDirections:'uncalibrated',
@@ -1510,7 +1565,8 @@
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
-    v119Spring,softPrepToes,v120ArmTiming,worldJumpArms,
+    v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,
+    v120ArmTiming,worldJumpArms,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};

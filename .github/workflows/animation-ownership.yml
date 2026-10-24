@@ -95,5 +95,7 @@ jobs:
         run: node tests/v119-natural-jump-spring.js
       - name: Verify V120 world-space compact arm recoil and ascent at 30/60/120 fps
         run: node tests/v120-jump-arm-geometry.js
+      - name: Verify V121 real-world thigh and shoe direction survives first push-off
+        run: node tests/v121-takeoff-leg-direction.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js
