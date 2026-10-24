@@ -25,6 +25,36 @@
  function flightStep(current,target,dt){
   return current+(target-current)*(1-Math.exp(-clamp(dt,0,.065)*7));
  }
+ // V113 flight poses come from the approved ground guard rather than
+ // another recorded full-body source. Directional effort is a small,
+ // continuous layer on top of a consistent neutral fighting silhouette.
+ // Only the 'controlled' profile uses this: V111 recorded is still A/B.
+ function controlledFlightPose(mix,vertical=0,lateral=0){
+  const forward=smooth(clamp(mix,0,1));
+  const ascend=smooth(clamp(vertical/7,0,1));
+  const descend=smooth(clamp(-vertical/7,0,1));
+  const side=clamp(lateral/6.2,-1,1);
+  return {
+   mix:forward,ascend,descend,
+   hipsX:.045*forward-.025*ascend+.025*descend,
+   spineX:.115*forward-.045*ascend+.035*descend,
+   chestX:.055*forward-.035*ascend,
+   neckX:-.065*forward+.018*ascend,
+   spineZ:-.045*side*(.2+.8*forward),
+   leftShoulderX:-.030-.035*forward,
+   rightShoulderX:-.030-.035*forward,
+   leftUpperArmX:.045+.075*forward,
+   rightUpperArmX:.045+.075*forward,
+   leftLowerArmX:-.055-.03*forward,
+   rightLowerArmX:-.055-.03*forward,
+   leftThighX:-.13*forward+.10*descend-.04*ascend,
+   rightThighX:-.13*forward+.10*descend-.04*ascend,
+   leftKneeX:.17+.08*forward+.10*descend-.08*ascend,
+   rightKneeX:.17+.08*forward+.10*descend-.08*ascend,
+   leftAnkleX:-.045*forward,
+   rightAnkleX:-.045*forward
+  };
+ }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
  // hips/spine/chest chain, making a straight jump appear sideways.
@@ -244,7 +274,7 @@
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
     movingFlow:false,landingDuration:.48,airFacingPose:[],
     flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null,
-    prepFeet:[]};
+    prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -281,6 +311,7 @@
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
    st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
+   st.prepHipsXZ=null;st.prepLastHipXZ=null;st.pushReleaseHipXZ=null;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -309,6 +340,9 @@
     st.pushReleaseHipY=previous==='prep'&&
       new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'?
       st.prepLastHipY:null;
+    st.pushReleaseHipXZ=previous==='prep'&&
+      new URLSearchParams(root.location?.search||'').get('jumpFeet')==='hold'?
+      st.prepLastHipXZ:null;
     // The facing baseline is the last actually displayed PREP/ground
     // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
@@ -321,6 +355,7 @@
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
     st.prepHipsY=st.nodes[0].position.y;
+    st.prepHipsXZ=st.nodes[0].position.clone();
     st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.prepLastHipY=null;
     st.prepFeet=[];
@@ -409,6 +444,11 @@
     status.landingPhase=contactPlan.phase;
     status.landingRecovery=Math.round(contactPlan.recover*100);
    }
+   const controlled=next==='flight'&&
+     params.get('flightLab')==='blend'&&
+     params.get('flightStyle')==='controlled';
+   const flightControl=controlled?controlledFlightPose(
+     st.flightMix,f.vel?.y||0,f.moveIntent?.x||0):null;
    const expressive=params.get('jumpStyle')==='expressive'&&
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
@@ -436,6 +476,26 @@
     qWanted.copy(qScene).multiply(qMapped).multiply(st.bind[i]).normalize();
     node.parent.getWorldQuaternion(qParent);
     qTarget.copy(qParent).invert().multiply(qWanted).normalize();
+    if(flightControl){
+     // Use a fresh, authored controlled-flight pose based on the approved
+     // recorded IDLE, not the disparate floating/flying clip rotations.
+     // Retarget already computed all twenty nodes, but only this single
+     // final pose pass is visible. No V72/V81 competing final writers.
+     const p=flightControl;
+     const angles={
+      0:p.hipsX,1:p.spineX,2:p.chestX,4:p.neckX,
+      6:p.leftShoulderX,7:p.leftUpperArmX,8:p.leftLowerArmX,
+      10:p.rightShoulderX,11:p.rightUpperArmX,12:p.rightLowerArmX,
+      14:p.leftThighX,15:p.leftKneeX,16:p.leftAnkleX,
+      17:p.rightThighX,18:p.rightKneeX,19:p.rightAnkleX
+     };
+     const source=st.restPose.length===BONES.length?
+       st.restPose:st.from;
+     qTarget.copy(source[i]);
+     const x=angles[i]||0,z=i===1?p.spineZ:0;
+     if(x||z)qTarget.multiply(qTmp.setFromEuler(
+       new THREE.Euler(x,0,z,'XYZ'))).normalize();
+    }
     // One physically readable airborne stance: elbows stay separated near
     // the ribs, wrists stay aligned with Kairo's existing fighting guard.
     // A ~18% recorded counter-swing prevents a frozen upper body without
@@ -709,6 +769,11 @@
       if(angle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,angle)).normalize();
       n.updateMatrixWorld(true);
      }
+     if(profile==='push'&&new URLSearchParams(root.location?.search||'')
+       .get('jumpFeet')==='hold'&&st.prepHipsXZ){
+      st.nodes[0].position.x=st.prepHipsXZ.x;
+      st.nodes[0].position.z=st.prepHipsXZ.z;
+     }
      st.nodes[0].position.y=st.prepHipsY+p.hipsY/(this.vrmRig.scale||1);
      st.prepLastHipY=st.nodes[0].position.y;
      this.vrmRig.vrm.update(0);
@@ -723,7 +788,46 @@
        const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
        if(Number.isFinite(slip))largest=Math.max(largest,slip);
       }
-      status.prepFootSlipCm=+(largest*100).toFixed(1);
+      if(new URLSearchParams(root.location?.search||'')
+        .get('jumpFeet')==='hold'&&st.prepFeet.length){
+       // World-space dual-foot correction: the approved leg fold
+       // may move both ankles together despite two-joint IK.
+       // Translate only the VISUAL pelvis within 10cm so the average
+       // shoe position remains anchored; gameplay/root never moves.
+       const shift=new THREE.Vector3(),pos=new THREE.Vector3(),
+         inverse=new THREE.Quaternion();
+       let hits=0;
+       this.vrmRig.vrm.scene.updateMatrixWorld(true);
+       for(const anchor of st.prepFeet){
+        const shoe=this.vrmRig.vrm.humanoid.getNormalizedBoneNode(
+          anchor.side+'Foot');
+        if(!shoe)continue;
+        shoe.getWorldPosition(pos);
+        shift.x+=anchor.point.x-pos.x;
+        shift.z+=anchor.point.z-pos.z;
+        hits++;
+       }
+       if(hits){
+        shift.multiplyScalar(1/hits);
+        shift.clampLength(0,.11);
+        st.nodes[0].parent.getWorldQuaternion(inverse);
+        shift.applyQuaternion(inverse.invert());
+        st.nodes[0].position.x+=shift.x;
+        st.nodes[0].position.z+=shift.z;
+       }
+       this.vrmRig.vrm.scene.updateMatrixWorld(true);
+       let worst=0;
+       for(const anchor of st.prepFeet){
+        const shoe=this.vrmRig.vrm.humanoid.getNormalizedBoneNode(
+          anchor.side+'Foot');
+        if(!shoe)continue;
+        shoe.getWorldPosition(pos);
+        worst=Math.max(worst,
+          Math.hypot(anchor.point.x-pos.x,anchor.point.z-pos.z));
+       }
+       status.prepFootSlipCm=+(worst*100).toFixed(1);
+       st.prepLastHipXZ=st.nodes[0].position.clone();
+      }else status.prepFootSlipCm=+(largest*100).toFixed(1);
       this.vrmRig.vrm.update(0);
      }
      // The normal pre-recording floor solver is bypassed in this 95ms
@@ -742,7 +846,9 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     status.flightStyle='V111 continuous hover / travel';
+     status.flightStyle=new URLSearchParams(root.location?.search||'')
+       .get('flightStyle')==='controlled'?
+       'V113 authored controlled':'V111 continuous hover / travel';
      status.flightSpeed=+speed.toFixed(2);
      status.flightBlend=Math.round(st.flightMix*100);
     }
@@ -776,9 +882,15 @@
      const hips=st.nodes[0],neutral=hips.position.y;
      const w=smooth(st.elapsed/.12);
      hips.position.y=st.pushReleaseHipY+(neutral-st.pushReleaseHipY)*w;
+     if(st.pushReleaseHipXZ){
+      hips.position.x=st.pushReleaseHipXZ.x+
+        (hips.position.x-st.pushReleaseHipXZ.x)*w;
+      hips.position.z=st.pushReleaseHipXZ.z+
+        (hips.position.z-st.pushReleaseHipXZ.z)*w;
+     }
      hips.updateMatrixWorld(true);
      status.pushRelease=Math.round(w*100);
-     if(st.elapsed>=.12)st.pushReleaseHipY=null;
+     if(st.elapsed>=.12){st.pushReleaseHipY=null;st.pushReleaseHipXZ=null;}
     }
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
@@ -840,7 +952,7 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,flightWeight,flightStep,
+ const api={version:100,BONES,clipFor,flightWeight,flightStep,controlledFlightPose,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
