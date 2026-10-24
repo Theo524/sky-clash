@@ -276,12 +276,15 @@
     hToA,projection)).dot(f);
    results[side]={kneeForwardCm:+(clearance*100).toFixed(2),
     kneeHipForwardCm:+(kneeP.clone().sub(
-      thigh.getWorldPosition(new THREE.Vector3())).dot(f)*100).toFixed(2)};
+      thigh.getWorldPosition(new THREE.Vector3())).dot(f)*100).toFixed(2),
+    shinBackCm:+(kneeP.clone().sub(ankleP).dot(f)*100).toFixed(2)};
   }
   if(status){
    status.flightKneeWorld=results;
    status.flightKneeFacing=(results.left?.kneeForwardCm||0)>0&&
-    (results.right?.kneeForwardCm||0)>0?'FORWARD':'NEEDS REVIEW';
+    (results.right?.kneeForwardCm||0)>0&&
+    (results.left?.shinBackCm||0)>0&&
+    (results.right?.shinBackCm||0)>0?'FORWARD':'NEEDS REVIEW';
   }
   return results;
  }
