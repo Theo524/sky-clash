@@ -1052,10 +1052,12 @@
      const v116=profile==='push'&&kneeProfile==='anatomic'&&
        st.prepSpeed<1.3;
       // V115/V116 A/Bs keep their exact former authored pose paths.
-      const jumpPreview=new URLSearchParams(root.location?.search||'')
-       .get('jumpPreview');
-      const v117=v116&&(jumpPreview==='v117'||jumpPreview==='v118');
-      const v118=v117&&jumpPreview==='v118';
+      // Preserve the V117 opt-in expression for independent A/B rollback.
+      const v117=v116&&new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview')==='v117';
+      const v118=v116&&new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview')==='v118';
+      const v117Torso=v117||v118;
      // Keep V109's historic A/B profile selection unchanged. V116
      // overrides the sampled PREP POSE only inside its opt-in branch.
      const originalReadable=profile==='push'?'push':profile==='readable';
@@ -1078,7 +1080,7 @@
       // The original V112 assumed identical local X signs for both VRM
       // thighs/knees. Use measured world-forward bend for each joint.
       let bendAngle=(v116&&i>=14&&i<=19)||
-       (v117&&(i===0||i===1||i===2||i===4))?0:angle;
+       (v117Torso&&(i===0||i===1||i===2||i===4))?0:angle;
       if(!v116&&axes&&i>=14&&i<=19){
        const side=i<=16?'left':'right';
        const knee=axes[side];
@@ -1092,7 +1094,7 @@
       n.updateMatrixWorld(true);
      }
      const actualForward=v118?realKairoForward(THREE,this.vrmRig,status):null;
-     if(v117){
+     if(v117Torso){
       worldStandingPrepTorso(THREE,this.vrmRig,
        Math.abs(p.spineX),Math.abs(p.chestX),status,actualForward);
      }
