@@ -74,6 +74,16 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V117 never enables experimental flight');
 
+// V118 inherits the exact approved ground and V115 jump/landing
+// presets. ONLY knee/world-front opt-in is different. Flight stays off.
+run=simulate('?jumpPreview=v118');
+assert.equal(run.flags.get('jumpPreview'),'v118');
+for(const [key,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(key),key==='jumpKnees'?'anatomic':value,
+  'V118 must retain existing gameplay default '+key);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V118 must not enable flight experiments');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');
