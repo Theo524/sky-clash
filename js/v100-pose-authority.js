@@ -463,16 +463,6 @@
      }
 
     }
-    // One pose writer owns every airborne torso joint. Each individual
-    // axial yaw is constrained against the APPROVED visible takeoff body,
-    // including hips, spine, chest and head. Forward folding, side lean,
-    // recorded knee lift and the V107 expressive pitch all remain intact.
-    if(facingLock&&i<=5){
-     const correction=stabilizeFacing(THREE,qTarget,
-       st.airFacingPose[i],airFacingCaps[i]);
-     status.airFacingSourceYawDeg+=correction.source*180/Math.PI;
-     status.airFacingDriftDeg+=correction.residual*180/Math.PI;
-    }
     if(contactLanding&&st.elapsed<.15){
      // Even a good contact recording can start far from the *actual*
      // last visible falling pose. Never let retargeting teleport a knee,
@@ -511,6 +501,22 @@
     qTmp.setFromAxisAngle(new THREE.Vector3(1,0,0),performance.hipsX);
     hips.quaternion.multiply(qTmp).normalize();
     hips.updateMatrixWorld(true);
+   }
+   if(facingLock){
+    // Finish retargeting ALL 20 bones *before* correcting imported torso
+    // yaw. Computing downstream joints under an already altered parent
+    // would rewrite their original compact-guard and approved leg locals.
+    // Instead, leave their source quaternions completely intact and
+    // rotate only the six upper-body ancestors once at the final stage.
+    // Legitimate player turns still come from the gameplay root transform.
+    for(let i=0;i<6;i++){
+     const bone=st.nodes[i];
+     const correction=stabilizeFacing(THREE,bone.quaternion,
+       st.airFacingPose[i],airFacingCaps[i]);
+     bone.updateMatrixWorld(true);
+     status.airFacingSourceYawDeg+=correction.source*180/Math.PI;
+     status.airFacingDriftDeg+=correction.residual*180/Math.PI;
+    }
    }
    // V73 natural VRoid hands are the only finger source in this state.
    // No V81 artificial Y-axis curl and no independent extra-action writer.
