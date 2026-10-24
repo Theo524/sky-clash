@@ -149,6 +149,49 @@ V122 candidate: https://theo524.github.io/sky-clash/?jumpPreview=v122
 V121 rollback: https://theo524.github.io/sky-clash/?jumpPreview=v121
 Public no-preview root remains V115 baseline and is unchanged.
 
+## V123 cohesive expressive jump launch and rise (2026-10-24)
+
+The user explicitly reports that the descent and landing are expressive
+enough but the START through UPWARD part is stiff: wants character and
+timing through anticipation, takeoff, and ascending rather than "small
+crouch → float up → good fall → good land." Treat this as opt-in V123
+standing-jump work, preserve V122 visually corrected native VRM0 foot
+toe heading (~11.5deg outward), V118 anatomical knees, V120 compact
+guard, and the accepted V105–V115 fall/landing/ground.
+
+Opt-in `?jumpPreview=v123`:
+- Same ~215ms buffered V122 loaded crouch, but ~9% clearer V118
+  anatomically correct knee compression, ~15mm extra pelvis drop,
+  ~14–17% stronger cascaded REAL world-space upper-back/chest coil,
+  and a staggered larger-but-STILL COMPACT V120 forearm recoil.
+- Same real VRM0 toe-vector outward heading from V122, planted soles,
+  and V122 80–290ms initial leg yaw handoff.
+- Once rising, a bounded `v123Expression('jump',t)` cascade adds
+  **measured world-space** spring/chest lift immediately after launch,
+  real upper/lower-arm counter-swing and a small delayed two-leg
+  airborne knee gather. They release to ZERO before ~0.6sec,
+  so original fall and V109/105 contact remain the published approved
+  source poses. No fake local-X thigh axis or extra animation wrapper.
+- This is a PREP and standing JUMP only experiment. Moving (speed>1.3)
+  V103 stride, Boost, flight, combat, Rin, and post-apex fall/landing
+  must stay unchanged.
+
+Animated inside the EXISTING V100 final pose owner only. Exports
+pure `v123Expression` and `v123WorldRise` for measured Three.js
+VRM0/yaw tests at 30/60/120fps. The full historical V100 controller
+stack A/B checks V122 vs V123: stronger anticipation and ascent,
+identical visible toe-out and aligned first foot frames, and
+identical recorded FALL, landing and moving-jump local bones.
+Browser review workflow now records V122 vs V123 synced 24fps
+real-Kairo front+side MP4s; green tests are not final on-device
+aesthetic approval.
+
+V123 candidate (only after deployment):
+https://theo524.github.io/sky-clash/?jumpPreview=v123
+V122 rollback: https://theo524.github.io/sky-clash/?jumpPreview=v122
+Public root V115 is still unchanged. V123 is NOT default unless user
+explicitly approves promotion.
+
 ## Root game URL: important default jump correction (October 24, 2026)
 
 After PR #62 promoted ONLY the V97-approved ground flags on the root URL,
