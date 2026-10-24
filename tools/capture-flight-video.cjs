@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v130,v131').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v131,v132').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -207,6 +207,9 @@ async function capture(browser,preview){
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
      flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
      flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
+     flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
+     leftBuoyant:owner.flightBuoyantWorld?.left||null,
+     rightBuoyant:owner.flightBuoyantWorld?.right||null,
      leftOrganic:owner.flightOrganicWorld?.left||null,
      rightOrganic:owner.flightOrganicWorld?.right||null,
      leftRelaxed:owner.flightRelaxedWorld?.left||null,
@@ -290,6 +293,12 @@ async function capture(browser,preview){
    if(settled.length<15||settled.some(t=>t.flightOrganicSilhouette!=='ORGANIC'||
     !t.leftOrganic||!t.rightOrganic))
     throw Error('V131 real Kairo organic flight geometry failed');
+  }
+  if(preview==='v132'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>t.flightBuoyantSilhouette!=='BUOYANT'||
+     !t.leftBuoyant||!t.rightBuoyant))
+    throw Error('V132 Kairo buoyant flight silhouette failed video geometry');
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){

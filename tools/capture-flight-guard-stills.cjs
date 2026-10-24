@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v130,v131').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v131,v132').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -201,6 +201,9 @@ async function capture(browser,preview){
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
      flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
      flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
+     flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
+     leftBuoyant:owner.flightBuoyantWorld?.left||null,
+     rightBuoyant:owner.flightBuoyantWorld?.right||null,
      leftOrganic:owner.flightOrganicWorld?.left||null,
      rightOrganic:owner.flightOrganicWorld?.right||null,
      leftRelaxed:owner.flightRelaxedWorld?.left||null,
@@ -272,6 +275,20 @@ async function capture(browser,preview){
        !(t.rightKneeDropCm-t.leftKneeDropCm>8))
      throw Error('V131 actual Kairo lacks balanced floating silhouette in '+
       t.stage+': '+JSON.stringify(t));
+   }
+  }
+  if(preview==='v132'){
+   for(const t of timeline){
+    const left=t.leftBuoyant,right=t.rightBuoyant;
+    if(t.flightBuoyantSilhouette!=='BUOYANT'||!left||!right||
+       [left,right].some(g=>g.elbowAheadCm<=-3||
+         g.handAheadCm<=8||g.handAheadCm>=18||
+         g.handAboveElbowCm>=-18||g.handAboveElbowCm<=-29||
+         g.elbowOutCm<=4||g.handBelowChestCm<=18)||
+       t.leftKneeDropCm===null||t.rightKneeDropCm===null||
+       !(t.rightKneeDropCm-t.leftKneeDropCm>6))
+      throw Error('V132 actual Kairo buoyant hover is not well formed in '+
+       t.stage+': '+JSON.stringify(t));
    }
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
