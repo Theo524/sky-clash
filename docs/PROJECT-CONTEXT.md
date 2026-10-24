@@ -35,6 +35,42 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## V130: integrated public build, organic relaxed hovering (2026-10-24)
+
+**Current user direction:** No version picker or special query string should be
+necessary. The plain `https://theo524.github.io/sky-clash/` must load the
+LATEST coherent game, not the V115 jump. The normal airborne animation should
+read like Goku casually hovering, NOT rigidly guarding/blocking; fists only
+come up for real combat. Avoid Superman prone travel in this small arena.
+
+**Research/reference:** Bandai Namco's DBZ Kakarot gameplay showcase
+https://en.bandainamcoent.eu/dragon-ball/news/dragon-ball-z-kakarot-gameplay-showcase-1
+distinguishes ordinary flying/exploration from battle; Goku free-flight
+reference screenshot https://steamcommunity.com/sharedfiles/filedetails/?id=1975965532
+shows relaxed arms low rather than a boxer guard. Game animator Jonathan Cooper
+https://www.gamedeveloper.com/production/the-12-principles-of-animation-in-video-games
+supports readable silhouettes, staggered timing and overlapping action; a
+reference to principles, not a claim that this code reproduces Goku animation.
+
+**Implementation:** Default boot chooses grounded V97 + standing V125 jump
+(including V123 expressive rise and V124/V125 continuous natural feet) + V130
+relaxed upright powered hover. Normal URL is canonical; `?jumpPreview=` and
+`?flightPreview=` are *debug rollback only*, with historical A/B intact.
+V130 inherits the V128 world-space calibrated left/right suspended knees,
+subtle V127 torso pulse, heading and root physics. Replace the V129 raised-hand
+combat guard with measured loose downward-hanging arms at natural belt level,
+elbows slightly away from ribs and slightly forward, wrists ahead of elbows
+but BELOW elbows; two out-of-phase low-amplitude sways plus very light staggered
+knee relaxation. No independent pose writer or scene bob, no movement controls,
+Boost, attacks, jump, landing or VRM asset changes. Keep V129 as opt-in rollback.
+
+**QA:** Run `tests/approved-ground-default.js`,
+`tests/v130-relaxed-integrated-flight.js`, full V100 and ownership suites;
+actual real-Kairo VRM WebGL front/side/back 8-pose and full 24fps V128/V130
+video workflows test independently, including downward relaxed wrists,
+non-backward elbows and knee direction. These numerical checks alone cannot
+prove phone aesthetics. Ask the player to review the *plain URL* when deployed.
+
 ## V129: real-video-led upper-body levitation guard (2026-10-24)
 
 **Latest player feedback after playing V128:** "much better, but not
