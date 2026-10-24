@@ -190,7 +190,7 @@ assert.equal(run.flags.has('joystickRun'),false,
  'Old movement rollback must not turn on V95');
 assert.equal(run.flags.has('stance'),false);
 
-assert(index.includes('js/v66-game-boot.js?v=820&fix=130&groundDefault=97&jumpDefault=125'),
+assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
 assert(boot.includes("const BUILD='V130'"));
 assert(boot.includes("&relaxedFlight=130"));
