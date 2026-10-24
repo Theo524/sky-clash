@@ -58,7 +58,8 @@ assert(owner.includes("const v121=v116&&new URLSearchParams"));
 assert(owner.includes("if(v121)v121OutwardThighs("));
 assert(owner.includes("v121?{...spring,turnout:stance.footYaw}:spring"));
 assert(owner.includes("const v121Takeoff=params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3"));
-assert(owner.includes("smooth((st.elapsed-.070)/.205):smooth((st.elapsed-.060)/.170)"),
+assert(owner.includes("const fade=smooth((st.elapsed-.060)/.170)")&&
+ owner.includes("const v121Fade=v121Takeoff?smooth((st.elapsed-.070)/.205):fade"),
  'old V115-V120 transfer timing must stay untouched');
 assert(owner.includes("['v120','v121'].includes(params.get('jumpPreview'))"),
  'V121 must retain existing athletic arm motion');
