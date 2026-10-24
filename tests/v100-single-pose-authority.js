@@ -1040,6 +1040,62 @@ function guidedKneesAirborneStyleRegression(){
   'flight ascent and descent need distinct knee response');
  console.log('PASS V114 full VRM stack: both knee bends safe at release, four no-snap jump frames, planted soles, truly airborne hover/cruise, immediate gravity/combat handoff');
 }
+function worldCorrectStandingKneesRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=forward&jumpFacing=locked&flightLab=blend&flightStyle=airborne';
+ const u=setup(base),rig=u.f.vrmRig;
+ u.f.floor=0;u.step(130);
+ V100.plantVisibleSoles(THREE,rig,u.f,{});
+ rig.vrm.scene.updateMatrixWorld(true);
+ const world=n=>u.bones[n].getWorldPosition(new THREE.Vector3());
+ const fwd=new THREE.Vector3(0,0,1)
+  .applyQuaternion(rig.vrm.scene.getWorldQuaternion(new THREE.Quaternion()));
+ fwd.y=0;fwd.normalize();
+ const kneeRel=side=>world(side+'LowerLeg').sub(world(side+'UpperLeg')).dot(fwd);
+ const shinRel=side=>world(side+'Foot').sub(world(side+'LowerLeg')).dot(fwd);
+ const kneeStart=['left','right'].map(kneeRel),
+       shinStart=['left','right'].map(shinRel);
+ const armsStart=u.pose(),owners=u.count();
+ u.f.v108JumpPrepT=.215;u.f.v108JumpPrepDuration=.215;
+ const bendTimeline=[];
+ for(let frame=1;frame<=12;frame++){
+  u.f.v108JumpPrepT=Math.max(.0001,.215-frame/60);
+  u.step();
+  assert.equal(u.authority.active,'prep');
+  assert.deepEqual(u.count(),owners,'forward knee prep has only one final writer');
+  for(const s of ['left','right']){
+   assert(kneeRel(s)>kneeStart[s==='left'?0:1]-.006,
+    'kneecap cannot travel backward in actual VRM forward during preparation: '+s);
+  }
+  bendTimeline.push(['left','right'].map(kneeRel));
+  assert(Math.abs(Math.min(...V100.soleGaps(THREE,rig,u.f).map(v=>v.gap)))<.022,
+    'both legs may fold, soles remain planted on the floor');
+ }
+ const end=u.pose();
+ for(const [i,s] of ['left','right'].entries()){
+  assert(kneeRel(s)-kneeStart[i]>.065,
+   'standing '+s+' knee must visibly bend FORWARD relative to thigh');
+  assert(shinRel(s)-shinStart[i]<-.035,
+   'standing '+s+' shin must fold back, not knee-hyperextend');
+ }
+ assert(u.authority.prepKneeDirections.includes('L:T')&&
+  u.authority.prepKneeDirections.includes('R:T'),
+  'real run must report measured signs for both hips and knees');
+ for(const idx of [6,7,8,9,10,11,12,13])
+  assert(end[idx].angleTo(armsStart[idx])<.17,
+   'preserve approved compact guard while bending correct knees');
+ u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+ const takeoff=[];
+ for(let i=0;i<6;i++){u.step();takeoff.push(u.pose());}
+ assert.equal(u.authority.active,'jump');
+ for(const leg of [15,18]){
+  assert(takeoff[0][leg].angleTo(end[leg])<.085,
+    'first airborne shin must retain the forward bent prep pose');
+  for(let i=1;i<5;i++)assert(takeoff[i][leg].angleTo(takeoff[i-1][leg])<.085,
+   'shin cannot reverse suddenly through first 5 airborne frames');
+ }
+ assert(!u.authority.error);
+ console.log('PASS V115 full VRM rig: both actual kneecaps travel FORWARD, shins fold back, soles planted, safe launch and unchanged fighting guard');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1114,6 +1170,7 @@ try{
  visibleStandingPushOffRegression();
  controlledFlightFootHoldRegression();
  guidedKneesAirborneStyleRegression();
+ worldCorrectStandingKneesRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
