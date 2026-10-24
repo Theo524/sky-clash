@@ -1614,12 +1614,18 @@ function realVisibleFootHeadingRegression(){
   return {u,ground,crouch,prepHeading,firstHeading,first,later};
  }
  const old=simulate('v121'),fixed=simulate('v122');
+ console.log('V122 measured visible toe-out °: old',
+  old.prepHeading,'new',fixed.prepHeading,
+  'first takeoff',fixed.firstHeading);
  for(let k=0;k<2;k++){
   assert(fixed.prepHeading[k]>9.5&&fixed.prepHeading[k]<13.2,
    'both V122 shoes must visibly face OUT from gameplay forward: '+
     fixed.prepHeading[k]);
-  assert(fixed.prepHeading[k]>old.prepHeading[k]+5,
-   'V122 toe angle must be visibly stronger than nearly-straight V121');
+  assert(Math.abs(fixed.prepHeading[k]-11.459)<1.7,
+   'V122 must meet an ABSOLUTE visible 11.5° toe-out target, not a local delta');
+  assert(Math.abs(fixed.prepHeading[k]-11.459)+1<
+    Math.abs(old.prepHeading[k]-11.459),
+   'V122 must measure and correct real toe vector errors left by V121');
   assert(fixed.firstHeading[k]>7.5,
    'actual first airborne toe vector must not snap back to forward: '+
    fixed.firstHeading[k]);
