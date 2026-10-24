@@ -515,8 +515,12 @@
    const yaw=f.facing||0;
    const localSide=(f.vel?.x||0)*Math.cos(yaw)-
       (f.vel?.z||0)*Math.sin(yaw);
-   const flightControl=controlled?controlledFlightPose(
-     st.flightMix,f.vel?.y||0,localSide):null;
+   const airborne=next==='flight'&&
+     params.get('flightLab')==='blend'&&
+     params.get('flightStyle')==='airborne';
+   const flightControl=airborne?airborneFlightPose(
+     st.flightMix,f.vel?.y||0,localSide):
+     controlled?controlledFlightPose(st.flightMix,f.vel?.y||0,localSide):null;
    const expressive=params.get('jumpStyle')==='expressive'&&
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
@@ -658,6 +662,15 @@
       qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
       status.landingJointClamps=(status.landingJointClamps||0)+1;
      }
+    }
+    if(st.guidedLaunchLegs.length===6&&next==='jump'&&i>=14){
+     // Do not snap or reverse a shin immediately after standing push.
+     // Gradually transfer from the last grounded knee/ankle orientations
+     // to V102's original clip only after the feet have lifted.
+     const fade=smooth((st.elapsed-.060)/.170);
+     qRaw.copy(qTarget);
+     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,fade).normalize();
+     status.guidedLaunchBlend=Math.round(fade*100);
     }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
@@ -852,7 +865,10 @@
       // Very small post-pose two-joint IK brings them back without
       // touching horizontal gameplay motion, as during moving landing.
       let largest=0;
-      for(const anchor of st.prepFeet){
+      if(new URLSearchParams(root.location?.search||'')
+        .get('jumpKnees')==='guided')
+       largest=guidedPrepFeet(THREE,this.vrmRig,st.prepFeet,status);
+      else for(const anchor of st.prepFeet){
        const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
        if(Number.isFinite(slip))largest=Math.max(largest,slip);
       }
@@ -914,9 +930,11 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     status.flightStyle=new URLSearchParams(root.location?.search||'')
-       .get('flightStyle')==='controlled'?
-       'V113 authored controlled':'V111 continuous hover / travel';
+     const choice=new URLSearchParams(root.location?.search||'')
+       .get('flightStyle');
+     status.flightStyle=choice==='airborne'?'V114 true hover / cruise':
+       choice==='controlled'?'V113 authored controlled':
+       'V111 continuous hover / travel';
      status.flightSpeed=+speed.toFixed(2);
      status.flightBlend=Math.round(st.flightMix*100);
     }
@@ -995,7 +1013,7 @@
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
-    prepFootSlipCm:0,
+    prepFootSlipCm:0,prepHingeSlipCm:0,guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
