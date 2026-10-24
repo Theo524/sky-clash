@@ -97,5 +97,7 @@ jobs:
         run: node tests/v120-jump-arm-geometry.js
       - name: Verify V121 real-world thigh and shoe direction survives first push-off
         run: node tests/v121-takeoff-leg-direction.js
+      - name: Verify V122 actually visible toe angle across real VRM0 headings
+        run: node tests/v122-visible-foot-heading.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js
