@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "status": "DRAFT_INCOMPLETE_DO_NOT_USE_AS_VALIDATED_BIND_POSE",
+  "fighter": "kairo_venn",
+  "sourceAsset": "assets/characters/kairo.vrm",
+  "sourceFormat": "VRM 0.x",
+  "targetHumanoidAPI": "vrm.humanoid.getNormalizedBoneNode",
+  "spaces": {
+    "gameplayForward": "+Z",
+    "nativeVRM0Forward": "-Z, corrected by runtime root yaw",
+    "up": "+Y",
+    "sourceClipAxes": "not all uniform; offline normalize and verify",
+    "kneeRotation": "per-limb world-space calibration required; no assumed local +X sign"
+  },
+  "targetBoneNames": [
+    "hips",
+    "spine",
+    "chest",
+    "upperChest",
+    "neck",
+    "head",
+    "leftShoulder",
+    "leftUpperArm",
+    "leftLowerArm",
+    "leftHand",
+    "rightShoulder",
+    "rightUpperArm",
+    "rightLowerArm",
+    "rightHand",
+    "leftUpperLeg",
+    "leftLowerLeg",
+    "leftFoot",
+    "rightUpperLeg",
+    "rightLowerLeg",
+    "rightFoot"
+  ],
+  "nativeFingers": [
+    "Index",
+    "Middle",
+    "Ring",
+    "Little"
+  ],
+  "nativeFingerSegments": [
+    "Proximal",
+    "Intermediate",
+    "Distal"
+  ],
+  "unverifiedRequiredForCanonicalRig": {
+    "assetSha256": null,
+    "sdkNormalizedRestQuaternions": null,
+    "sdkNormalizedParentMap": null,
+    "sdkNormalizedSkeletonSignature": null,
+    "nativeFingerRestQuaternions": null,
+    "inspectionRuntimeVersion": null
+  },
+  "disclaimer": "20 normalized joint names and VRM0-facing basis are derived from source. Local rest frames, finger rotations and rig fingerprint must be measured from the actual VRM and SDK before this metadata becomes an authoritative retarget contract."
+}

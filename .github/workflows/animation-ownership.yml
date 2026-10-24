@@ -1,0 +1,87 @@
+name: Animation Ownership Contract
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'docs/PROJECT-CONTEXT.md'
+      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
+      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
+      - 'js/**'
+      - 'assets/characters/**'
+      - 'assets/rin.vrm'
+      - 'assets/animations/gameplay/**'
+      - 'tests/**'
+      - 'tools/build.py'
+      - 'index.html'
+      - 'animation-studio.html'
+      - 'src/**'
+      - 'tests/animation-ownership-contract.js'
+      - 'tests/v100-single-pose-authority.js'
+      - 'tests/v115-forward-knee-calibration.js'
+      - '.github/workflows/animation-ownership.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'docs/PROJECT-CONTEXT.md'
+      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
+      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
+      - 'js/**'
+      - 'assets/characters/**'
+      - 'assets/rin.vrm'
+      - 'assets/animations/gameplay/**'
+      - 'tests/**'
+      - 'tools/build.py'
+      - 'index.html'
+      - 'animation-studio.html'
+      - 'src/**'
+      - 'tests/animation-ownership-contract.js'
+      - 'tests/v100-single-pose-authority.js'
+      - 'tests/v115-forward-knee-calibration.js'
+      - '.github/workflows/animation-ownership.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ownership-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify generated game bundle matches editable source
+        run: |
+          python tools/build.py
+          git diff --exit-code -- js/game.js
+      - name: Re-run all 70 existing V66 source and animation checks
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const {execFileSync} = require('node:child_process');
+          const workflow = fs.readFileSync('.github/workflows/v66-character.yml','utf8');
+          const commands = [...workflow.matchAll(/^\s+- run: (node [^\r\n]+)$/gm)]
+            .map(m => m[1].trim());
+          if(commands.length < 70)
+            throw new Error('Legacy regression suite unexpectedly lost commands: '+commands.length);
+          for (const command of commands) {
+            const parts = command.split(/\s+/);
+            if (parts[0] !== 'node' ||
+                parts.slice(1).some(a => !/^[a-zA-Z0-9_.\/-]+$/.test(a)))
+              throw new Error('Unexpected legacy regression command: '+command);
+            console.log('> '+command);
+            execFileSync('node', parts.slice(1), {stdio:'inherit'});
+          }
+          console.log('PASS: '+commands.length+' legacy Node syntax + gameplay tests');
+          NODE
+      - name: Block unreviewed animation wrapper registrations
+        run: node tests/animation-ownership-contract.js
+      - name: Preserve V100 multi-controller airborne ownership
+        run: node tests/v100-single-pose-authority.js
+      - name: Preserve V115 knee geometry and model axis behavior
+        run: node tests/v115-forward-knee-calibration.js
