@@ -1087,10 +1087,12 @@
      params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
    const v122Ascent=compactArms&&next==='jump'&&
      params.get('jumpPreview')==='v122'&&st.launchSpeed<1.3;
-   const v123Ascent=next==='jump'&&
-     ['v123','v124'].includes(params.get('jumpPreview'))&&
+   const v123Ascent=next==='jump'&&params.get('jumpPreview')==='v123'&&
      st.launchSpeed<1.3;
-   const v123Arc=v123Ascent?v123Expression('jump',st.jumpAge):null;
+   const v124Ascent=next==='jump'&&params.get('jumpPreview')==='v124'&&
+     st.launchSpeed<1.3;
+   const v123Arc=v123Ascent||v124Ascent?
+     v123Expression('jump',st.jumpAge):null;
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
      contactLanding?'V105 recovery to approved guard':
      'V100 recorded landing':'V100 recorded jump/fall arms';
@@ -1274,9 +1276,9 @@
    }
    // V120 applied only after recorded V101 guard retarget. Keep the
    // final-arm pose and its wrist safety cap in this ONE V100 owner.
-   if(v120Ascent||v121Ascent||v122Ascent||v123Ascent){
+   if(v120Ascent||v121Ascent||v122Ascent||v123Ascent||v124Ascent){
     const forward=realKairoForward(THREE,rig,status);
-    if(v123Ascent){
+    if(v123Ascent||v124Ascent){
      v123WorldRise(THREE,rig,forward,v123Arc,status);
      if(compactArms)worldJumpArms(THREE,rig,forward,{
       upper:v123Arc.armUpper,lower:v123Arc.armLower,
