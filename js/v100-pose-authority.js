@@ -279,7 +279,7 @@
     natural?(side==='left'?1.92+.045*sway:.38+.025*sway):
     (side==='left'?.86:.38)+.042*sway;
    const foldBack=softTrailingKnee?
-    (side==='left'?.10:.19)+.038*sway:
+    (side==='left'?.10+.034*sway:.19+.038*sway):
     naturalHover?
     (side==='left'?.10:.11)+.034*sway:
     weightless?
