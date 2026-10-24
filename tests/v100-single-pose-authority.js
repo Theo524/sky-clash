@@ -1856,13 +1856,41 @@ function idleToCrouchFootContinuityRegression(){
  for(let i=0;i<20;i++)
   assert(old.land[0][i].angleTo(good.land[0][i])<.01,
    'keep the approved V123 landing '+V100.BONES[i]);
- const moveOld=run('v123',3.2),moveNew=run('v124',3.2);
+ // V125: real idle toe headings can be far more oblique than a normal
+ // forward-driving squat. Preserve first frame and gradually moderate
+ // each direction while maintaining old V123 rise and landing character.
+ const balanced=run('v125');
+ for(const side of ['left','right']){
+  const initial=balanced.normal[side],first=balanced.first[side],
+   finish=balanced.last[side];
+  assert(first.dir.angleTo(initial.dir)<.035,
+   'V125 must inherit actual idle toe heading on first crouch frame');
+  assert(first.point.distanceTo(initial.point)<.09,
+   'V125 first crouch must not teleport planted ankles');
+  assert(finish.point.distanceTo(initial.point)<.13,
+   'V125 must keep the same grounded shoe footprint');
+  assert(Math.abs(finish.heading)<=Math.abs(initial.heading)+.6,
+   'V125 may not exaggerate each native toe yaw');
+ }
+ assert.equal(balanced.stat.idleFootAnchorsCaptured,2);
+ for(const i of [9,13])
+  assert(good.ascent[1][i].angleTo(balanced.ascent[1][i])<.01,
+   'V125 preserves V123/V124 upward compact guard');
+ for(let i=0;i<20;i++)
+  assert(good.land[0][i].angleTo(balanced.land[0][i])<.03,
+   'V125 must preserve approved landing '+V100.BONES[i]);
+ const moveOld=run('v123',3.2),moveNew=run('v124',3.2),
+  moveBalanced=run('v125',3.2);
  for(let i=0;i<20;i++){
   assert(moveOld.peak[i].angleTo(moveNew.peak[i])<.0001,
    'never change moving V103 jump preparation '+V100.BONES[i]);
+  assert(moveNew.peak[i].angleTo(moveBalanced.peak[i])<.0001,
+   'V125 may not change moving V103 prep '+V100.BONES[i]);
   for(let k=0;k<3;k++)
    assert(moveOld.ascent[k][i].angleTo(moveNew.ascent[k][i])<.0001,
     'never alter moving V103 airborne pose '+V100.BONES[i]);
+   assert(moveNew.ascent[k][i].angleTo(moveBalanced.ascent[k][i])<.0001,
+    'V125 may not change moving V103 air '+V100.BONES[i]);
  }
  console.log('PASS V124 whole V100 stack: no idle->PREP foot position/heading teleport, both native feet retained; V123 ascent, landing and moving path protected');
 }
