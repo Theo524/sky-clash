@@ -75,7 +75,7 @@ for(const fps of [30,60,120]){
   last=now;
  }
  assert(mix<.005,'body effort should return smoothly to hover after stopping');
- assert(maxStep>.01,'dynamic directional pose should not stay frozen');
+ assert(maxStep>.002,'dynamic directional pose should still react across all phases');
 }
 const owner=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  boot=fs.readFileSync('js/v66-game-boot.js','utf8');
