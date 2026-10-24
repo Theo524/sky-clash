@@ -222,7 +222,7 @@ function steadyAirLegRegression(){
  assert(boot.includes("e.src+='&legs=102'"));
  assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
  assert(/SKY CLASH · BUILD V(10[2-9]|11[0-5])/.test(html));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-6])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-6]|130)/.test(html));
  assert(/BUILD V(10[2-9]|11[0-5])/.test(read('animation-studio.html')));
  console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
   steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
@@ -312,7 +312,7 @@ function movingTakeoffRegression(){
  assert(boot.includes("e.src+='&moving=103'"));
  assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
  assert(/SKY CLASH · BUILD V(10[3-9]|11[0-5])/.test(read('index.html')));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-6])/.test(read('index.html')));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-6]|130)/.test(read('index.html')));
  assert(/BUILD V(10[3-9]|11[0-5])/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
@@ -2219,7 +2219,7 @@ try{
  for(const f of files)assert(read(f).includes('SkyClashV100Animator?.ownsAir(this)'),
   f+' must explicitly yield during unified air');
  const index=read('index.html');
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9])/.test(index),
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9]|130)/.test(index),
   'entrypoint must advance so V100 cooperative versions actually load');
  assert(boot.includes("e.src+='&poseOwner=100'"),
   'all old airborne controller files must be cache-busted together');
