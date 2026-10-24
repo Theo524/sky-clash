@@ -86,6 +86,14 @@ for(const yaw of [0,.7,Math.PI,5.15]){
      if(lastQ)maxToeStep=Math.max(maxToeStep,now.angleTo(lastQ));
      lastQ=now;
     }
+    if(spring.turnout>.038){
+     const right=new THREE.Vector3(1,0,0).applyQuaternion(
+      root.getWorldQuaternion(new THREE.Quaternion())).normalize();
+     const currentDir=world(toe).sub(world(foot)).setY(0).normalize();
+     const lateral=currentDir.dot(right)-base.dir.dot(right);
+     assert(side==='left'?lateral<-.02:lateral>.02,
+      'feet must turn OUTWARD, not inward, from actual VRM0 facing: '+side);
+    }
     maxRise=Math.max(maxRise,rise);
     maxTurn=Math.max(maxTurn,footDiff);
    }
@@ -117,6 +125,9 @@ assert(owner.includes("softPrepToes(THREE,this.vrmRig,st.prepFeet"));
 assert(owner.includes("st.prepSpeed<1.3"),'only standing jump');
 assert(owner.includes("if(previous==='prep'&&next!=='prep'&&st.prepFeet.length)"),
  'toe curl must be restored at airborne handoff');
+assert(owner.includes("if(st.phase==='prep'&&new URLSearchParams")&&
+ owner.includes("get('jumpPreview')==='v119'"),
+ 'combat/Boost interruption must reset V119 toe flex without affecting foot owner');
 assert(boot.includes("e.src+='&toeSpring=119'"),
  'separate V119 cache needed on phones');
 console.log('PASS V119: '+cases+' real Three.js VRM0-facing foot/toe springs at 30/60/120Hz, small outward foot angle, gentle toe-up flex, zero drift and neutral takeoff, same V100 writer');
