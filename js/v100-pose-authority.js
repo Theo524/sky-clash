@@ -246,11 +246,12 @@
    const index=side==='left'?14:17;
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
+   const naturalHover=pose?.profile==='V134 natural weightless hover';
    const weightless=pose?.profile==='V133 weightless flight';
    const buoyant=pose?.profile==='V132 buoyant natural flight';
    const natural=pose?.profile==='V131 organic suspended flight';
    const relaxed=pose?.profile==='V130 relaxed suspended flight';
-   const sway=(weightless||buoyant||natural||relaxed)?Math.sin(Math.max(0,pose.age)*1.30+
+   const sway=(naturalHover||weightless||buoyant||natural||relaxed)?Math.sin(Math.max(0,pose.age)*1.30+
     (side==='left'?.30:2.05)):0;
    // V131 must not look like a ground crouch: lead thigh travels
    // clearly FORWARD toward horizontal, while the other leg hangs
@@ -258,13 +259,20 @@
    // V133 uses phase-offset counter-drift across BOTH legs. This is
    // actual bone-space change of silhouette, not an invisible root bob.
    const flow=clamp(pose?.mix||0,0,1);
-   const forwardKnee=weightless?
+   // V134 filmed feedback: V133's leg still draws a seated pedal stroke.
+   // Keep a softer forward lift but let the shoe dangle BELOW the hip.
+   const forwardKnee=naturalHover?
+    (side==='left'?.91+.23*sway+.07*flow:
+     .24+.16*sway-.035*flow):
+    weightless?
     (side==='left'?1.35+.38*sway+.18*flow:
      .46+.26*sway-.12*flow):
     buoyant?(side==='left'?1.31+.070*sway:.29+.040*sway):
     natural?(side==='left'?1.92+.045*sway:.38+.025*sway):
     (side==='left'?.86:.38)+.042*sway;
-   const foldBack=weightless?
+   const foldBack=naturalHover?
+    (side==='left'?.10:.11)+.034*sway:
+    weightless?
     (side==='left'?.16:.21)+.075*sway:
     buoyant?(side==='left'?.29:.16)+.030*sway:
     natural?(side==='left'?.44:.20)+.015*sway:
@@ -274,13 +282,16 @@
    // FRONT of the hip-to-ankle support line on either mirrored leg.
    target.copy(down).addScaledVector(f,
       forwardKnee+.06*rise-.03*drop)
-    .addScaledVector(right,sign*(weightless?
+    .addScaledVector(right,sign*(naturalHover?
+      .075+.035*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
+      weightless?
       .10+.055*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
       (buoyant||natural)?.035:.075)).normalize();
    aim(thigh,shin,target,.85,index);
    target.copy(down).addScaledVector(f,
       -foldBack+.025*rise-.04*drop)
-    .addScaledVector(right,-sign*(weightless?.045:
+    .addScaledVector(right,-sign*(naturalHover?.025:
+      weightless?.045:
       (buoyant||natural)?.015:.018)).normalize();
    aim(shin,ankle,target,1.13,index+1);
    // Toe-down relative to its EXISTING world horizontal heading:
@@ -388,6 +399,7 @@
   const organic=style==='organic';
   const buoyant=style==='buoyant';
   const weightless=style==='weightless';
+  const naturalHover=style==='natural-hover';
   const time=Math.max(0,pose?.age||0);
   for(const side of ['left','right']){
    const left=side==='left',out=across.clone().multiplyScalar(left?1:-1);
@@ -409,7 +421,16 @@
    // have enough reach to produce a visible silhouette change on video.
    const levitate=Math.sin(time*1.24+(left?.2:2.05));
    const lag=Math.sin(time*1.24+(left?-.75:1.1));
-   const elbowGoal=weightless?
+   // V134 real footage: opening the upper arms 16cm away from the
+   // torso produced airplane wings. Keep loose elbows near Kairo's
+   // waist with gentle unsynchronized buoyant follow-through instead.
+   const slow=Math.sin(time*1.18+(left?.1:1.95));
+   const offset=Math.sin(time*1.18+(left?-.65:1.05));
+   const elbowGoal=naturalHover?
+    f.clone().multiplyScalar((left?.11:.055)+.055*slow+.06*drift)
+     .addScaledVector(out,(left?.37:.34)+.055*slow)
+     .addScaledVector(up,-.86+.035*slow).normalize():
+    weightless?
     f.clone().multiplyScalar((left?.13:.06)+.05*levitate+.08*drift)
      .addScaledVector(out,(left?.55:.46)+.115*levitate)
      .addScaledVector(up,-.75+.065*levitate).normalize():
@@ -432,7 +453,11 @@
    // pose. Allow enough geometric reach to face forward, but respect
    // the exact same per-frame visible 5rad/s joint limiter.
    aim(upper,lower,elbowGoal,Math.PI,left?7:11);
-   const handGoal=weightless?
+   const handGoal=naturalHover?
+    f.clone().multiplyScalar((left?.22:.15)+.075*offset+.03*drift)
+     .addScaledVector(out,(left?.14:.12)+.055*offset)
+     .addScaledVector(up,-.68+.047*offset).normalize():
+    weightless?
     f.clone().multiplyScalar((left?.21:.16)+.09*lag+.05*drift)
      .addScaledVector(out,(left?.31:.28)+.10*lag)
      .addScaledVector(up,-.61+.060*lag).normalize():
@@ -462,11 +487,21 @@
     handAheadCm:+(ha.clone().sub(el).dot(f)*100).toFixed(1),
     handAboveElbowCm:+((ha.y-el.y)*100).toFixed(1),
     elbowOutCm:+(el.clone().sub(sh).dot(out)*100).toFixed(1),
-    handBelowChestCm:+((chestPoint.y-ha.y)*100).toFixed(1)
+    handBelowChestCm:+((chestPoint.y-ha.y)*100).toFixed(1),
+    handOutCm:+(ha.clone().sub(sh).dot(out)*100).toFixed(1)
    };
   }
   if(status){
-   if(weightless){
+   if(naturalHover){
+    status.flightNaturalWorld=result;
+    status.flightNaturalSilhouette=['left','right'].every(side=>
+     result[side]?.elbowOutCm>5&&result[side]?.elbowOutCm<14&&
+     result[side]?.handOutCm>5&&result[side]?.handOutCm<24&&
+     result[side]?.handAboveElbowCm<0&&
+     result[side]?.handAboveElbowCm>-30&&
+     result[side]?.handBelowChestCm>13)?
+     'NATURAL':'NEEDS REVIEW';
+   }else if(weightless){
     status.flightWeightlessWorld=result;
     status.flightWeightlessSilhouette=['left','right'].every(side=>
      result[side]?.elbowOutCm>8&&
@@ -578,6 +613,27 @@
    spineZ:-.040*bank+.028*delayed,
    chestZ:-.017*bank-.014*delayed,
    neckX:.028-.080*travel+.016*rise-.010*delayed};
+ }
+ // V134: visual, not only geometry, review of the V133 recordings
+ // showed near-winged arms and a cycling knee. Retain the useful
+ // directional pelvis/chest lag from V133 with a softer breathing
+ // amplitude, and let anatomically measured legs descend more naturally.
+ function v134FlightPose(mix,vertical=0,lateral=0,age=0){
+  const p=v133FlightPose(mix,vertical,lateral,age);
+  const travel=p.mix||0,rise=p.rise||0,drop=p.descend||0;
+  const bank=clamp(lateral/6.2,-1,1);
+  const time=Math.max(0,age);
+  return {...p,profile:'V134 natural weightless hover',
+   hipsX:.012+.025*travel-.016*rise+.013*drop+
+    .009*Math.sin(time*1.18+.2),
+   spineX:-.049+.087*travel-.021*rise+.014*drop+
+    .025*Math.sin(time*1.18-.55),
+   chestX:-.025+.034*travel-.012*rise+.009*drop+
+    .017*Math.sin(time*1.18-1.1),
+   hipsZ:.012+.014*Math.sin(time*1.18+.45)+.012*bank,
+   spineZ:-.037*bank+.019*Math.sin(time*1.18-.5),
+   chestZ:-.016*bank-.012*Math.sin(time*1.18-.5),
+   neckX:.020-.070*travel+.013*rise};
  }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
@@ -1605,6 +1661,7 @@
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='airborne';
    const flightVersion=params.get('flightPreview');
+   const v134=airborne&&flightVersion==='v134';
    const v133=airborne&&flightVersion==='v133';
    const v132=airborne&&flightVersion==='v132';
    const v131=airborne&&flightVersion==='v131';
@@ -1613,7 +1670,9 @@
    const v128=airborne&&flightVersion==='v128';
    const v127=airborne&&flightVersion==='v127';
    const v126=airborne&&flightVersion==='v126';
-   const flightControl=v133?v133FlightPose(st.flightMix,
+   const flightControl=v134?v134FlightPose(st.flightMix,
+     st.flightVelocityY,st.flightSide,st.elapsed):
+     v133?v133FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
      v132?v132FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
@@ -1837,7 +1896,7 @@
      // arm quaternion here, letting only the final real-world solver
      // advance those four joints with the original 5rad/s budget.
      // All other flight joints retain the historical V111 limiter.
-     if((v129||v130||v131||v132||v133)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     if((v129||v130||v131||v132||v133||v134)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
      else{
       const maxStep=5.0*Math.max(0,dt);
       const delta=st.prev[i].angleTo(qTarget);
@@ -1894,15 +1953,15 @@
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
    }
-   if(v128||v129||v130||v131||v132||v133){
+   if(v128||v129||v130||v131||v132||v133||v134){
     // Stabilized from the REAL game-model facing, including VRM0's native
     // -Z parity; no extra Fighter.animate layer or invisible guide rig.
     const forward=realKairoForward(THREE,rig,null);
     v128CorrectFlightLegs(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.26),st.prev,dt,status);
-    if(v129||v130||v131||v132||v133)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
+    if(v129||v130||v131||v132||v133||v134)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
       smooth(st.elapsed/.32),st.prev,dt,status,
-      v133?'weightless':v132?'buoyant':v131?'organic':
+      v134?'natural-hover':v133?'weightless':v132?'buoyant':v131?'organic':
       v130?'relaxed':'guard');
    }
    // V73 natural VRoid hands are the only finger source in this state.
@@ -2257,7 +2316,7 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     if(['v126','v127','v128','v129','v130','v131','v132','v133'].includes(new URLSearchParams(root.location?.search||'')
+     if(['v126','v127','v128','v129','v130','v131','v132','v133','v134'].includes(new URLSearchParams(root.location?.search||'')
        .get('flightPreview'))){
       const yaw=this.facing||0;
       const side=(this.vel?.x||0)*Math.cos(yaw)-
@@ -2271,6 +2330,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v134'?'V134 naturally suspended flight':
+        new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v133'?'V133 weightless animated flight':
         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v132'?'V132 buoyant float':
@@ -2380,7 +2441,8 @@
     guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightSmoothedVertical:0,
-    flightSmoothedLateral:0,flightWeightlessWorld:null,
+    flightSmoothedLateral:0,flightNaturalWorld:null,
+   flightNaturalSilhouette:'not-tested',flightWeightlessWorld:null,
    flightWeightlessSilhouette:'not-tested',flightBuoyantWorld:null,
    flightBuoyantSilhouette:'not-tested',flightOrganicWorld:null,
    flightOrganicSilhouette:'not-tested',flightRelaxedWorld:null,
@@ -2413,6 +2475,7 @@
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
+    v134FlightPose,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,

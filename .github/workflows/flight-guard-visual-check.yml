@@ -39,10 +39,10 @@ jobs:
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-guard-server.log 2>&1 &
           sleep 2
           curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
-      - name: Capture real Kairo hover, travel and vertical changes V132 vs V133
+      - name: Capture real Kairo hover, travel and vertical changes V133 vs V134
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v132,v133'
+          VISUAL_PREVIEWS: 'v133,v134'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -63,15 +63,15 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v133':
-                  assert all(t['flightWeightlessSilhouette']=='FLOATING'
+              if capture['preview']=='v134':
+                  assert all(t['flightNaturalSilhouette']=='NATURAL'
                    for t in capture['timeline'])
-          print('PASS actual Kairo V132 vs V133 natural levitation gallery')
+          print('PASS actual Kairo V133 vs V134 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v133-weightless-flight-review
+          name: real-kairo-v134-natural-flight-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn

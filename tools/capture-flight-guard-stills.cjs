@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v132,v133').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v133,v134').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -203,6 +203,9 @@ async function capture(browser,preview){
      flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
      flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
      flightWeightlessSilhouette:owner.flightWeightlessSilhouette||'not-tested',
+     flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
+     leftNatural:owner.flightNaturalWorld?.left||null,
+     rightNatural:owner.flightNaturalWorld?.right||null,
      leftWeightless:owner.flightWeightlessWorld?.left||null,
      rightWeightless:owner.flightWeightlessWorld?.right||null,
      leftBuoyant:owner.flightBuoyantWorld?.left||null,
@@ -313,6 +316,24 @@ async function capture(browser,preview){
       JSON.stringify({armMotion,kneeMotion,handMotion}));
    console.log('REAL KAiro V133 visible motion CM',
     JSON.stringify({armMotion,kneeMotion,handMotion}));
+  }
+  if(preview==='v134'){
+   const range=xs=>Math.max(...xs)-Math.min(...xs);
+   for(const t of timeline){
+    const gs=[t.leftNatural,t.rightNatural];
+    if(t.flightNaturalSilhouette!=='NATURAL'||
+       gs.some(g=>!g||g.elbowOutCm<=5||g.elbowOutCm>=14||
+        g.handOutCm>=24||g.handBelowChestCm<=13))
+      throw Error('V134 actual VRM frame has airplane-arm or stiff guard: '+
+       JSON.stringify(t));
+   }
+   const elbowMotion=range(timeline.map(t=>t.leftNatural.elbowOutCm));
+   const kneeMotion=range(timeline.map(t=>t.leftKneeDropCm));
+   if(!(elbowMotion>1.0&&kneeMotion>1.5))
+    throw Error('V134 has regressed to a static hover: '+
+     JSON.stringify({elbowMotion,kneeMotion}));
+   console.log('V134 VERIFIED REAL-VRM MOTION CM',
+    JSON.stringify({elbowMotion,kneeMotion}));
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
