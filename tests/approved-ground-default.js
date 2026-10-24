@@ -114,6 +114,15 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V121 must not enable flight');
 
+// V122 restores a visible foot heading during *standing* loaded jump.
+run=simulate('?jumpPreview=v122');
+assert.equal(run.flags.get('jumpPreview'),'v122');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V122 must inherit all approved ground/jump defaults: '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V122 may not enable powered flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');

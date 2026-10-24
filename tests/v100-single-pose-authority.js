@@ -1563,6 +1563,83 @@ function stanceHeadingAcrossTakeoffRegression(){
  }
  console.log('PASS V121 full V100/Mixamo: outward thigh+shoe through grounded handoff, smooth first 275ms, unchanged upper body and moving jump rollback');
 }
+// V122: V121 rotated the shoe 3.4 degrees but it still LOOKED straight.
+ // Test REAL world-space toe direction on the final visible full-stack
+ // grounded crouch, first airborne frame, and after release. Compare
+ // V121 and V122 at the exact SAME buffered jump time.
+function realVisibleFootHeadingRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=';
+ function simulate(v){
+  const u=setup(base+v),rig=u.f.vrmRig;
+  const root=new THREE.Group();root.rotation.y=.72;
+  root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+  u.f.model={root};rig.f=u.f;rig.legacyAxes=true;
+  for(const side of ['left','right']){
+   const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+   u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  }
+  root.updateMatrixWorld(true);
+  const forward=V100.realKairoForward(THREE,rig,{});
+  const sideAxis=new THREE.Vector3(1,0,0).applyQuaternion(
+   root.getWorldQuaternion(new THREE.Quaternion())).normalize();
+  const direction=side=>{
+   rig.vrm.scene.updateMatrixWorld(true);
+   const f=u.bones[side+'Foot'].getWorldPosition(new THREE.Vector3());
+   const t=u.bones[side+'Toes'].getWorldPosition(new THREE.Vector3());
+   const vec=t.sub(f).setY(0).normalize();
+   const angle=Math.atan2(vec.dot(sideAxis),vec.dot(forward));
+   return (side==='left'?-angle:angle)*180/Math.PI;
+  };
+  u.f.floor=0;u.step(130);V100.plantVisibleSoles(THREE,rig,u.f,{});
+  const ground=u.pose(),writers=u.count();
+  u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+  for(let k=1;k<=12;k++){
+   u.f.v108JumpPrepT=Math.max(.0001,.215-k/60);
+   u.step();
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers);
+  }
+  const crouch=u.pose(),prepHeading=['left','right'].map(direction);
+  const sole=V100.soleGaps(THREE,rig,u.f);
+  assert(Math.abs(Math.min(...sole.map(x=>x.gap)))<.04,
+   'visible shoes still grounded');
+  u.f.v108JumpPrepT=0;u.f.jumping=true;
+  u.f.pos.y=1.2;u.f.vel.y=14;
+  u.step();const first=u.pose(),firstHeading=['left','right'].map(direction);
+  const later=[];
+  for(let k=1;k<=19;k++){u.step();if([6,12,19].includes(k))later.push(u.pose())}
+  assert.equal(u.authority.active,'jump');
+  assert.deepEqual(u.count(),writers);
+  assert(!u.authority.error);
+  return {u,ground,crouch,prepHeading,firstHeading,first,later};
+ }
+ const old=simulate('v121'),fixed=simulate('v122');
+ console.log('V122 measured visible toe-out °: old',
+  old.prepHeading,'new',fixed.prepHeading,
+  'first takeoff',fixed.firstHeading);
+ for(let k=0;k<2;k++){
+  assert(fixed.prepHeading[k]>9.5&&fixed.prepHeading[k]<13.2,
+   'both V122 shoes must visibly face OUT from gameplay forward: '+
+    fixed.prepHeading[k]);
+  assert(Math.abs(fixed.prepHeading[k]-11.459)<1.7,
+   'V122 must meet an ABSOLUTE visible 11.5° toe-out target, not a local delta');
+  assert(Math.abs(fixed.prepHeading[k]-11.459)+1<
+    Math.abs(old.prepHeading[k]-11.459),
+   'V122 must measure and correct real toe vector errors left by V121');
+  assert(fixed.firstHeading[k]>7.5,
+   'actual first airborne toe vector must not snap back to forward: '+
+   fixed.firstHeading[k]);
+ }
+ assert(fixed.u.authority.visibleToeHeadingDeg>9.5,
+  'diagnostic must report actual V122 toe vectors');
+ for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13]){
+  assert(old.crouch[i].angleTo(fixed.crouch[i])<.0001,
+   'do not change approved torso, pelvis or arms during crouch');
+  assert(old.first[i].angleTo(fixed.first[i])<.0001,
+   'do not change approved torso, pelvis or arms during launch');
+ }
+ console.log('PASS V122 full historical VRM0 stack: actual visible bilateral toe-out '+fixed.prepHeading.map(n=>n.toFixed(1)).join('/')+'deg on crouch, retained at airborne trigger, no changes to upper body');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1645,6 +1722,7 @@ try{
  v119CombatToeInterruptRegression();
  fluidStandingJumpArmsRegression();
  stanceHeadingAcrossTakeoffRegression();
+ realVisibleFootHeadingRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

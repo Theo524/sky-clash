@@ -6,7 +6,7 @@ on:
       previews:
         description: "Comma-separated, version-specific jump previews"
         required: false
-        default: "v120,v121"
+        default: "v121,v122"
   pull_request:
     paths:
       - 'tools/capture-jump-frames.cjs'
@@ -43,7 +43,7 @@ jobs:
       - name: Capture ACTUAL VRM from front and side during idle, crouch and ascent
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v120,v121' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v121,v122' }}
         run: node tools/capture-jump-frames.cjs
       - name: Install and strictly verify offline MP4 encoder
         run: |
@@ -61,7 +61,7 @@ jobs:
       - name: Record deterministic full-motion Kairo front/side MP4 comparisons
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v120,v121' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v121,v122' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-jump-video.cjs
       - uses: actions/upload-artifact@v4
