@@ -511,10 +511,11 @@
     st.pushReleaseHipXZ=previous==='prep'&&
       new URLSearchParams(root.location?.search||'').get('jumpFeet')==='hold'?
       st.prepLastHipXZ:null;
+    const kneeChoice=new URLSearchParams(root.location?.search||'')
+      .get('jumpKnees');
     const guided=previous==='prep'&&
-      ['guided','forward','anatomic'].includes(
-        new URLSearchParams(root.location?.search||'').get('jumpKnees'))&&
-      st.launchSpeed<1.3;
+      (['guided','forward'].includes(kneeChoice)||
+       kneeChoice==='anatomic')&&st.launchSpeed<1.3;
     st.guidedLaunchLegs=guided?visible.slice(14,20).map(q=>q.clone()):[];
     // The facing baseline is the last actually displayed PREP/ground
     // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
