@@ -70,6 +70,8 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
    assert(result[side],side+' must have a world solver output');
    assert(result[side].kneeForwardCm>2,
     side+' backward knee at yaw '+yaw+' mirror '+mirror+' '+JSON.stringify(result));
+   assert(result[side].shinBackCm>1,
+    side+' ankle must BEHIND knee in gameplay world forward: '+JSON.stringify(result));
    assert(view[side].clearance>.02,
     side+' knee still bends toward rear, yaw '+yaw+' mirror '+mirror);
    assert(view[side].hipToKnee>.08,
