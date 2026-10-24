@@ -2014,6 +2014,62 @@ function v127SuspendedWholeStackRegression(){
   'visible suspended stance should survive normal forward motion');
  console.log('PASS V127 full historical stack: raised real knees/ankles, V125 untouched, 30/60/120 pure tests, V126 A/B and immediate combat/Boost yield');
 }
+// V129 must improve the ACTUAL historical full V100 20-bone pose
+// stack, not just an isolated floating guard helper. This is still
+// synthetic THREE skinning; the real Kairo WebGL video is a separate gate.
+function v129WholeStackHoverGuardRegression(){
+ const flags='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(flags+version);u.step(90);
+  const ground=u.pose(),counters=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  const first=u.pose(),frames=[];
+  for(let i=0;i<66;i++){
+   const previous=u.pose();u.step();
+   const current=u.pose();frames.push(current);
+   if(version==='v129')for(let j=0;j<20;j++)
+    assert(previous[j].angleTo(current[j])<.17,
+      'V129 guard jumps at flight entry '+V100.BONES[j]);
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counters,
+    'No historical motion writer may overwrite floating arms');
+  }
+  const hover=u.pose();
+  const telemetry=JSON.parse(JSON.stringify(u.authority.flightGuardWorld));
+  const label=u.authority.flightGuardFacing;
+  u.f.vel.z=5.5;u.step(35);
+  const cruise=u.pose();
+  u.f.sprinting=true;u.step(1);
+  assert.equal(V100.ownsAir(u.f),false,'Boost must interrupt V129');
+  u.f.sprinting=false;u.step(16);
+  u.f.blockHeld=true;u.step(1);
+  assert.equal(V100.ownsAir(u.f),false,'Guard combat must interrupt V129');
+  assert(!u.authority.error);
+  return {ground,hover,cruise,telemetry,label};
+ }
+ const old=run('v128'),fixed=run('v129');
+ for(let i=0;i<20;i++)if(i<6||i>=14){
+  assert(old.ground[i].angleTo(fixed.ground[i])<1e-6,
+   'V129 cannot alter approved ground or V125 pose '+V100.BONES[i]);
+  assert(old.hover[i].angleTo(fixed.hover[i])<1e-4,
+   'V129 may not change existing flight body/leg pose '+V100.BONES[i]);
+ }
+ assert(fixed.label==='READY'&&fixed.telemetry,
+  'Full real writer must produce a forward-facing hover guard');
+ for(const side of ['left','right']){
+  const g=fixed.telemetry[side];
+  assert(g&&g.elbowAheadCm>2&&g.handAheadCm>2&&
+   g.handAboveElbowCm>0&&g.elbowOutCm>0,
+   'Two hands must be raised FORWARD in full animation stack '+side+': '+JSON.stringify(g));
+ }
+ assert(old.hover[7].angleTo(fixed.hover[7])>.10||
+  old.hover[8].angleTo(fixed.hover[8])>.10,
+  'Visible guard must change, not just status counters');
+ console.log('PASS V129 full V100 owner: both hands forward/up, earlier legs/torso untouched, smooth entry and instant Boost/combat handoff');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2101,6 +2157,7 @@ try{
  idleToCrouchFootContinuityRegression();
  v126WholeStackRegression();
  v127SuspendedWholeStackRegression();
+ v129WholeStackHoverGuardRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
