@@ -560,7 +560,11 @@
    desired.copy(fwd).applyAxisAngle(up,(side==='left'?-1:1)*angle);
    const yaw=Math.atan2(cross.crossVectors(dir,desired).dot(up),
     clamp(dir.dot(desired),-1,1));
-   const bounded=clamp(yaw,-.44,.44);
+   // Ease the correction in with crouch loading. The native VRM0
+   // foot can start far from game-facing; a 25deg clamp left real
+   // shoes at >22deg in the full V100 rig despite an 11deg target.
+   // Interpolate over the approved 215ms prep, not on the first frame.
+   const bounded=clamp(yaw,-.95,.95)*smooth(angle/.20);
    foot.parent.getWorldQuaternion(qParent);
    foot.getWorldQuaternion(qFoot);
    qTurn.setFromAxisAngle(up,bounded).multiply(qFoot);
