@@ -196,6 +196,50 @@ V122 rollback: https://theo524.github.io/sky-clash/?jumpPreview=v122
 Public root V115 is still unchanged. V123 is NOT default unless user
 explicitly approves promotion.
 
+## V124 actual idle-stance shoe continuity (October 24, 2026)
+
+User approves V123's expressive crouch, upward movement, descent and
+landing, but points out a DIFFERENT foot issue: standing idle uses a
+natural asymmetric foot POSITION and YAW, whereas the instant jump
+button is pressed, the crouch teleports both planted shoes into new
+locations and faces them unnaturally straight ahead. The problem is
+**idle -> PREP onset**, not V122's takeoff-foot turning.
+
+Findings in source:
+- V100 PREP entry saved `st.prepFeet` anchors *after*
+  `old.call(this,dt)` had already reposed Kairo for the current frame.
+  That was NOT the same as the last visible idle shoe positions.
+- V122 and V123 deliberately aimed both feet at a symmetric
+  ~11.5° outward angle during prep, ignoring individually approved
+  normal standing foot heading. Even if "11.5° out" was technically
+  correct, changing Kairo's visible idle-to-load shoe arrangement
+  looked like a jump-button teleport.
+
+V124 isolated `?jumpPreview=v124`: capture both shoe world locations,
+world foot quaternions and actual foot->toe horizontal directions
+BEFORE the first older animator tick at the start of buffered PREP,
+only when stationary. Transfer these real anchors into V100's existing
+PREP support-foot system; use their measured individual toe vectors
+instead of V122's fixed equal-angle target. Keep the correct V118
+anatomical knee bend and V123 upper-body anticipation/rise, preserve
+normal shoe position via existing V106 planted-foot/hip solver.
+Do not widen/narrow feet or overwrite approved grounded stance with a
+preset; no new animator, IK wrapper, physics or VRM modifications.
+V122/V123 and all prior URLs are byte-for-byte rollback options.
+Moving jumps V103/109, fall/contact, combat, Boost, flight and Rin
+untouched.
+
+QA: strict VRM0 mirrored yaw + different left/right toe orientation
+tests, full historical V100 owner integration checking LAST IDLE ->
+FIRST crouch world toe angles and ankle coordinates, whole crouch,
+same approved compact arms, unchanged moving and landing, then
+real WebGL full-motion V123 vs V124 at 24fps plus phase stills.
+Do not claim mobile visual approval from automated captures alone.
+
+Candidate: https://theo524.github.io/sky-clash/?jumpPreview=v124
+Rollback: https://theo524.github.io/sky-clash/?jumpPreview=v123
+Public root remains V115.
+
 ## Root game URL: important default jump correction (October 24, 2026)
 
 After PR #62 promoted ONLY the V97-approved ground flags on the root URL,
