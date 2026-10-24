@@ -25,16 +25,22 @@ const EXPECTED = Object.freeze({
 });
 
 function registrations(source) {
-  // Detect the existing "fighter.animate = function" pattern AND new
-  // arrow-form wrappers; we explicitly do not count restoring "animate=old".
-  const classic = /\b(?:[A-Za-z_$][\w$]*|this)\.animate\s*=\s*(?:async\s+)?function\s*\(/g;
-  const arrow = /\b(?:[A-Za-z_$][\w$]*|this)\.animate\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>/g;
-  return [...source.matchAll(classic), ...source.matchAll(arrow)].length;
+  // Count ANY direct animation property assignment, not merely anonymous
+  // function or arrow syntax. A later PR could otherwise install a new
+  // controller with "fighter.animate = someFunction" and bypass this gate.
+  // The only existing non-controller assignments are old-wrapper restores.
+  const assignments = /\b(?:[A-Za-z_$][\w$]*|this)\.animate\s*=\s*(?![=])([^\r\n;]+)/g;
+  return [...source.matchAll(assignments)].filter(([, rhs]) =>
+    !/^(?:old|previous|original|before)\b/.test(rhs.trim())
+  ).length;
 }
 assert.equal(registrations('fighter.animate = function(dt){}'), 1);
 assert.equal(registrations('f.animate = (dt) => {}'), 1);
 assert.equal(registrations('this.animate = async (dt) => {}'), 1);
+assert.equal(registrations('fighter.animate = composePose;'), 1);
+assert.equal(registrations('fighter.animate = wrapController(fighter.animate);'), 1);
 assert.equal(registrations('fighter.animate = original;'), 0);
+assert.equal(registrations('this.animate = previous;'), 0);
 
 function recursiveScripts(dir) {
   if (!fs.existsSync(dir)) return [];
