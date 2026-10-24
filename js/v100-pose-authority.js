@@ -330,7 +330,9 @@
    joint.getWorldPosition(a);end.getWorldPosition(b);
    dir.subVectors(b,a);if(dir.lengthSq()<1e-8)return;
    dir.normalize();goal.copy(target).normalize();
-   const angle=Math.acos(clamp(dir.dot(goal),-1,1));
+   const beforeDot=dir.dot(goal);
+   const angle=Math.acos(clamp(beforeDot,-1,1));
+   const oldQ=joint.quaternion.clone();
    axis.crossVectors(dir,goal);if(axis.lengthSq()<1e-9||angle<.00001)return;
    axis.normalize();
    joint.getWorldQuaternion(qWorld);
@@ -343,6 +345,15 @@
     if(change>maxStep&&maxStep>0)
      joint.quaternion.copy(previous[index]).slerp(
       joint.quaternion,maxStep/change).normalize();
+   }
+   if(status){
+    scene.updateMatrixWorld(true);
+    joint.getWorldPosition(a);end.getWorldPosition(b);
+    const after=b.sub(a).normalize().dot(goal);
+    (status.flightGuardAimDebug ||= {})[index]={
+     before:+beforeDot.toFixed(3),after:+after.toFixed(3),
+     radians:+oldQ.angleTo(joint.quaternion).toFixed(3),
+     goal:goal.toArray().map(v=>+v.toFixed(2))};
    }
   }
   const result={};
