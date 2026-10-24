@@ -213,6 +213,8 @@ jobs:
       - run: node tests/v113-controlled-flight-feet.js
       - run: node tests/v114-knee-airborne-stances.js
       - run: node tests/v115-forward-knee-calibration.js
+      - run: node tests/v124-idle-foot-continuity.js
+      - run: node tests/v125-natural-jump.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
