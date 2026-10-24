@@ -48,7 +48,7 @@ for(const yaw of [0,.7,Math.PI,5.15]){
   const rig={f:{model:{root}},legacyAxes:true,vrm:{
    scene,humanoid:{getNormalizedBoneNode:name=>{
     const side=name.startsWith('left')?'left':'right';
-    return bones[side]?.[name.slice(side.length).toLowerCase()]||null;
+    const part=name.slice(side.length);return part==='Foot'?bones[side].foot:part==='Toes'?bones[side].toe:null;
    }}}};
   scene.updateMatrixWorld(true);
   const forward=V100.realKairoForward(THREE,rig,{});
