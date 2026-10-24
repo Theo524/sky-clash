@@ -42,7 +42,7 @@ async function run(){
    await page.waitForFunction(()=>!!(window.SKY_V104_ANIMATIONS_READY&&
     window.SkyClashPoseAuthority?.ready&&
     window.SkyClash?.Game?.player?.vrmRig?.vrm?.scene),
-    {timeout:180000});
+    null,{timeout:180000});
    // The REAL decoded 16MB Kairo is essential. Never substitute the
    // procedural avatar and call it a successful screenshot.
    const meta=await page.evaluate(()=>{
@@ -76,7 +76,7 @@ async function run(){
     await page.evaluate(({t,name})=>{
      const g=window.SkyClash.Game,p=g.player;
      p.facing=0;p.model.root.rotation.y=0;
-     p.vel.x=p.vel.z=0;p.sprinting=false;p.dashing=false;
+     p.vel.x=p.vel.z=0;p.sprinting=false;
      p.v108JumpPrepDuration=.215;
      if(name==='idle'){
       p.v108JumpPrepT=0;p.jumping=false;p.vel.y=0;
