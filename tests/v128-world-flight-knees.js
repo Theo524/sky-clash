@@ -117,7 +117,8 @@ for(const fps of [30,60,120]){
     prev[side+part]=n.quaternion.clone();
    }
   }
-  assert(result);
+  if(frame>0)assert(result,
+   "positive flight age must produce calibrated knee diagnostics");
  }
  assert(maxAngle>.005,'V128 rig never reaches its corrected knee pose');
 }
