@@ -129,6 +129,7 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(owner.includes("flightVersion==='v128'"));
 assert(owner.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
 assert(owner.includes("next==='flight'"));
-assert(boot.includes("['v114','v126','v127','v128']"));
+assert(boot.includes("['v114','v126','v127','v128'"),
+ 'V128 rollback still independently selectable with later flights');
 assert(boot.includes("e.src+='&worldKneeFlight=128'"));
 console.log('PASS V128: BOTH knees forward under mirrored VRM local X, all four yaw angles, feet hanging and bounded 30/60/120fps flight transitions');
