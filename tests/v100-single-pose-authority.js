@@ -1768,6 +1768,104 @@ function fullArcExpressivenessRegression(){
  }
  console.log('PASS V123 full historic VRM0: deeper load, upward torso/guard + knee gather, V122 actual toe-out, exact approved fall/contact and moving jump');
 }
+// V124 user-visible problem: the original idle feet teleport and become
+// too parallel on the very FIRST crouch frame. Verify both ground-space
+// positions AND native toe vectors against the exact previous idle pose.
+function idleToCrouchFootContinuityRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=';
+ function run(preview,speed=0){
+  const u=setup(url+preview),rig=u.f.vrmRig;
+  const root=new THREE.Group();root.rotation.y=.68;
+  root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+  rig.f=u.f;u.f.model={root};
+  for(const side of ['left','right']){
+   const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+   u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  }
+  root.updateMatrixWorld(true);
+  u.f.floor=0;u.step(130);V100.plantVisibleSoles(THREE,rig,u.f,{});
+  // Normal idle shoes aren't a prescribed symmetrical target: introduce
+  // distinct local toe yaw to simulate the actual custom V97 native stance.
+  const normal={};
+  if(speed===0){
+   const localY=new THREE.Vector3(0,1,0);
+   u.bones.leftFoot.quaternion.multiply(
+    new THREE.Quaternion().setFromAxisAngle(localY,.16));
+   u.bones.rightFoot.quaternion.multiply(
+    new THREE.Quaternion().setFromAxisAngle(localY,-.11));
+  }
+  rig.vrm.scene.updateMatrixWorld(true);
+  const fwd=V100.realKairoForward(THREE,rig,{});
+  const projected=side=>{
+   rig.vrm.scene.updateMatrixWorld(true);
+   const foot=u.bones[side+'Foot'].getWorldPosition(new THREE.Vector3());
+   const toe=u.bones[side+'Toes'].getWorldPosition(new THREE.Vector3());
+   const dir=toe.sub(foot).setY(0).normalize();
+   return {point:foot,dir,
+    heading:Math.atan2(dir.clone().cross(fwd).y,dir.dot(fwd))*180/Math.PI};
+  };
+  for(const side of ['left','right'])normal[side]=projected(side);
+  const writers=u.count();
+  u.f.vel.z=speed;
+  u.f.v108JumpPrepSpeed=speed;
+  const duration=.215-.10*Math.min(1,speed/6.2);
+  u.f.v108JumpPrepDuration=duration;
+  u.f.v108JumpPrepT=duration;
+  let first=null,last=null,peak=null;
+  for(let k=1;k<=12;k++){
+   u.f.v108JumpPrepT=Math.max(.0001,duration*(1-k/12));
+   u.step();
+   if(k===1)first=Object.fromEntries(['left','right'].map(side=>[side,projected(side)]));
+   if(k===6)peak=u.pose();
+   if(k===12)last=Object.fromEntries(['left','right'].map(side=>[side,projected(side)]));
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers);
+  }
+  const stat={...u.authority};
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  const ascent=[];
+  for(let k=1;k<=18;k++){u.step();if([1,8,18].includes(k))ascent.push(u.pose());}
+  u.f.vel.y=-5;const fall=[];
+  for(let k=1;k<=15;k++){u.step();if(k===15)fall.push(u.pose());}
+  u.f.jumping=false;u.f.pos.y=0;u.f.landingMotionT=.48;
+  const land=[];
+  for(let k=1;k<=12;k++){u.f.landingMotionT=.48-k/60;u.step();if(k===12)land.push(u.pose());}
+  assert(!u.authority.error);
+  return {u,normal,first,last,stat,peak,ascent,fall,land};
+ }
+ const good=run('v124'),old=run('v123');
+ for(const side of ['left','right']){
+  const initial=good.normal[side],first=good.first[side],
+   finish=good.last[side];
+  assert(first.dir.angleTo(initial.dir)<.035,
+   side+' toe heading must not snap on first prep frame');
+  assert(finish.dir.angleTo(initial.dir)<.035,
+   side+' toes must keep NORMAL idle heading through crouch');
+  assert(first.point.distanceTo(initial.point)<.09,
+   side+' shoe must not teleport horizontally on jump button');
+  assert(finish.point.distanceTo(initial.point)<.13,
+   side+' shoe must remain grounded near its starting footprint');
+ }
+ assert.equal(good.stat.idleFootAnchorsCaptured,2,
+  'must capture before the first legacy PREP re-pose');
+ const approvedUp=good.ascent;
+ assert.equal(approvedUp.length,3);
+ for(const i of [9,13])
+  assert(old.ascent[1][i].angleTo(good.ascent[1][i])<.01,
+   'keep V123 compact wrists/guard');
+ for(let i=0;i<20;i++)
+  assert(old.land[0][i].angleTo(good.land[0][i])<.01,
+   'keep the approved V123 landing '+V100.BONES[i]);
+ const moveOld=run('v123',3.2),moveNew=run('v124',3.2);
+ for(let i=0;i<20;i++){
+  assert(moveOld.peak[i].angleTo(moveNew.peak[i])<.0001,
+   'never change moving V103 jump preparation '+V100.BONES[i]);
+  for(let k=0;k<3;k++)
+   assert(moveOld.ascent[k][i].angleTo(moveNew.ascent[k][i])<.0001,
+    'never alter moving V103 airborne pose '+V100.BONES[i]);
+ }
+ console.log('PASS V124 whole V100 stack: no idle->PREP foot position/heading teleport, both native feet retained; V123 ascent, landing and moving path protected');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1852,6 +1950,7 @@ try{
  stanceHeadingAcrossTakeoffRegression();
  realVisibleFootHeadingRegression();
  fullArcExpressivenessRegression();
+ idleToCrouchFootContinuityRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

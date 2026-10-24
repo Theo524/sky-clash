@@ -101,5 +101,7 @@ jobs:
         run: node tests/v122-visible-foot-heading.js
       - name: Verify V123 expressive prep, push-off, chest/arms/leg rise and protected fall
         run: node tests/v123-expressive-full-jump.js
+      - name: Verify V124 real idle foot anchors survive first crouch frame
+        run: node tests/v124-idle-foot-continuity.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js

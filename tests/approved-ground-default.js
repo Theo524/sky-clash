@@ -132,6 +132,15 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V123 must not enable flight');
 
+// V124 is an opt-in idle->jump shoe-stance continuity correction.
+run=simulate('?jumpPreview=v124');
+assert.equal(run.flags.get('jumpPreview'),'v124');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V124 must preserve approved baseline '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V124 may not enable flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');
