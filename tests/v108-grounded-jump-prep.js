@@ -46,7 +46,7 @@ assert(physics.includes("this.characterId==='kairo_venn'&&this.canFly"),
 assert(physics.includes("this.pos.y<=this.floor+.025&&!this.sprinting"),
  'only ordinary grounded jump gets preparation');
 assert(owner.includes("state==='prep'"));
-assert(owner.includes("['subtle','readable'].includes("));
+assert(owner.includes("['subtle','readable','push'].includes("));
 assert(owner.includes('plantVisibleSoles(THREE,this.vrmRig,this,status);'),
  'visible shoes must stay planted after the single final pose write');
 assert(owner.includes("st.prepBase=visible.map(q=>q.clone());"));
