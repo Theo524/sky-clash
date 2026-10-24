@@ -14,7 +14,7 @@ const {chromium}=require('playwright');
 const output=path.resolve('visual-review-output','flight-videos');
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'sky-clash-flight-'));
 const port=process.env.VISUAL_PORT||'8765';
-const fps=Number(process.env.VISUAL_FLIGHT VIDEO_FPS||'24');
+const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
 const versions=(process.env.VISUAL_PREVIEWS||'v114,v126').split(',')
