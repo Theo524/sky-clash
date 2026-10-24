@@ -61,6 +61,21 @@ async function run(){
    await page.evaluate(()=>{
     const s=window.SkyClash,g=s.Game;
     g.enterDojo();
+    // Game.enterDojo() transitions gameplay state, but title screen UI
+    // is normally hidden by its CLICK handler, not enterDojo itself.
+    // Programmatic visual QA must hide it explicitly or capture the
+    // opaque title menu rather than the actual VRM animation.
+    const title=document.getElementById('titleScreen');
+    if(title){
+     title.classList.remove('show');
+     title.setAttribute('aria-hidden','true');
+     title.style.setProperty('display','none','important');
+    }
+    for(const element of document.querySelectorAll(
+      '.title-screen,.menu-overlay,.loading-overlay,[data-screen="title"]')){
+     element.style.setProperty('display','none','important');
+    }
+    g.showPlayUI(true);
     g.introT=0;
     g.player.blockHeld=false;g.player.blocking=false;
     g.player.facing=0;g.player.model.root.rotation.y=0;
@@ -72,6 +87,15 @@ async function run(){
     document.querySelectorAll('.sky-lab-panel').forEach(n=>n.style.display='none');
    });
    await sleep(1200);
+   const viewCheck=await page.evaluate(()=>{
+    const n=document.getElementById('titleScreen');
+    return {game:window.SkyClash.Game.state,
+     titleDisplay:n?getComputedStyle(n).display:null,
+     hidden:n?!n.getBoundingClientRect().width:true};
+   });
+   console.log('VISUAL UNOBSTRUCTED',preview,JSON.stringify(viewCheck));
+   if(viewCheck.game!=='playing'||viewCheck.titleDisplay!=='none'||!viewCheck.hidden)
+    throw new Error('Capture view is still blocked by the title menu!');
    for(const [name,t,settle] of phases){
     await page.evaluate(({t,name})=>{
      const g=window.SkyClash.Game,p=g.player;
