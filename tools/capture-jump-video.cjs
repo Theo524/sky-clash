@@ -169,7 +169,12 @@ async function capture(browser,preview){
     p.vel.x=0;p.vel.z=horizontalSpeed;
     p.moveIntent.set(0,0,horizontalSpeed?1:0);
     p.v95JoystickRun=motion==='running';
+    // The V89 step planner initializes lazily when gameplay input runs.
+    // Deterministic capture bypasses that game input loop, so seed
+    // its normal ground-state record before sampling the SAME V71 gait.
+    p.v89Step=p.v89Step||{mode:'idle',scale:0};
     p.v89Step.mode=horizontalSpeed?'walk':'idle';
+    p.v89Step.scale=horizontalSpeed?1:0;
     p.sprinting=false;p.blockHeld=false;
     p.v108JumpPrepDuration=horizontalSpeed?
      .215-.10*Math.min(1,horizontalSpeed/6.2):.215;
