@@ -27,7 +27,9 @@ for(const yaw of [0,.7,Math.PI,5.11]){
   const rig={f:{model:{root}},vrm:{scene,humanoid:{
    getNormalizedBoneNode(n){
     const side=n.startsWith('left')?'left':'right';
-    return bones[side]?.[n.slice(side.length).toLowerCase()]||null;
+    const part=n.slice(side.length);
+    return part==='Foot'?bones[side]?.foot:
+     part==='Toes'?bones[side]?.toe:null;
    }
   }}};
   const forward=V100.realKairoForward(THREE,rig,{});
