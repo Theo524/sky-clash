@@ -235,6 +235,50 @@
   status.prepHingeSlipCm=+(worst*100).toFixed(1);
   return worst;
  }
+ // V115: calibrate EACH LEG from actual normalized VRM world geometry.
+ // Retargeted bones are not guaranteed to share an X rotation sign.
+ // A positive thigh load MUST bring the knee forward (+Z for VRM1);
+ // a positive shin fold MUST draw the foot backward relative to the knee.
+ // The signs are measured on the actual skeleton, never guessed from
+ // a screenshot or from the left/right bone names.
+ function forwardKneeAxes(THREE,rig){
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  const forward=new THREE.Vector3(0,0,1),
+    worldQ=new THREE.Quaternion(),pos=new THREE.Vector3(),
+    moved=new THREE.Vector3(),axis=new THREE.Vector3(1,0,0),
+    deltaQ=new THREE.Quaternion().setFromAxisAngle(axis,.075);
+  scene.updateMatrixWorld(true);
+  scene.getWorldQuaternion(worldQ);
+  forward.applyQuaternion(worldQ);forward.y=0;
+  if(forward.lengthSq()<1e-5)forward.set(0,0,1);
+  forward.normalize();
+  const signs={};
+  for(const side of ['left','right']){
+   const upper=hum.getNormalizedBoneNode(side+'UpperLeg');
+   const lower=hum.getNormalizedBoneNode(side+'LowerLeg');
+   const foot=hum.getNormalizedBoneNode(side+'Foot');
+   if(!upper||!lower||!foot){signs[side]={thigh:-1,knee:1};continue;}
+   function response(joint,end){
+    scene.updateMatrixWorld(true);
+    end.getWorldPosition(pos);
+    const saved=joint.quaternion.clone();
+    joint.quaternion.multiply(deltaQ).normalize();
+    scene.updateMatrixWorld(true);
+    end.getWorldPosition(moved);
+    joint.quaternion.copy(saved);
+    scene.updateMatrixWorld(true);
+    return moved.sub(pos).dot(forward);
+   }
+   const kneeForward=response(upper,lower);
+   const footForward=response(lower,foot);
+   signs[side]={
+    thigh:kneeForward>=0?1:-1,
+    knee:footForward<=0?1:-1,
+    kneeResponse:kneeForward,footResponse:footForward
+   };
+  }
+  return signs;
+ }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
  // final joint orientations. Floor contact must be evaluated last.
@@ -333,7 +377,7 @@
     movingFlow:false,landingDuration:.48,airFacingPose:[],
     flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null,
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
-    guidedLaunchLegs:[]};
+    guidedLaunchLegs:[],prepForwardAxes:null};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -371,7 +415,7 @@
    st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
    st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
    st.prepHipsXZ=null;st.prepLastHipXZ=null;st.pushReleaseHipXZ=null;
-   st.guidedLaunchLegs=[];
+   st.guidedLaunchLegs=[];st.prepForwardAxes=null;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -404,7 +448,8 @@
       new URLSearchParams(root.location?.search||'').get('jumpFeet')==='hold'?
       st.prepLastHipXZ:null;
     const guided=previous==='prep'&&
-      new URLSearchParams(root.location?.search||'').get('jumpKnees')==='guided'&&
+      ['guided','forward'].includes(
+        new URLSearchParams(root.location?.search||'').get('jumpKnees'))&&
       st.launchSpeed<1.3;
     st.guidedLaunchLegs=guided?visible.slice(14,20).map(q=>q.clone()):[];
     // The facing baseline is the last actually displayed PREP/ground
@@ -422,6 +467,9 @@
     st.prepHipsXZ=st.nodes[0].position.clone();
     st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.prepLastHipY=null;
+    st.prepForwardAxes=null;
+    if(new URLSearchParams(root.location?.search||'').get('jumpKnees')==='forward')
+     st.prepForwardAxes=forwardKneeAxes(THREE,st.rig);
     st.prepFeet=[];
     if(new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'){
      st.rig.vrm.scene.updateMatrixWorld(true);
@@ -837,6 +885,9 @@
      const readable=profile==='push'?'push':profile==='readable';
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
+     const axes=profile==='push'&&
+      new URLSearchParams(root.location?.search||'').get('jumpKnees')==='forward'?
+      st.prepForwardAxes:null;
      for(let i=0;i<BONES.length;i++){
       const n=st.nodes[i];
       n.quaternion.copy(st.prepBase[i]);
@@ -847,7 +898,19 @@
        i===16||i===19?p.ankleX:
        i===6||i===10?p.shoulderX:
        i===7||i===11?p.upperArmX:0;
-      if(angle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,angle)).normalize();
+      // The original V112 assumed identical local X signs for both VRM
+      // thighs/knees. Use measured world-forward bend for each joint.
+      let bendAngle=angle;
+      if(axes&&i>=14&&i<=19){
+       const side=i<=16?'left':'right';
+       const knee=axes[side];
+       if(knee){
+        if(i===14||i===17)bendAngle=Math.abs(p.thighX)*knee.thigh;
+        else if(i===15||i===18)bendAngle=Math.abs(p.kneeX)*knee.knee;
+        else bendAngle=p.ankleX*knee.knee; // same axis as shin, small boot release
+       }
+      }
+      if(bendAngle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,bendAngle)).normalize();
       n.updateMatrixWorld(true);
      }
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
@@ -865,9 +928,20 @@
       // Very small post-pose two-joint IK brings them back without
       // touching horizontal gameplay motion, as during moving landing.
       let largest=0;
-      if(new URLSearchParams(root.location?.search||'')
-        .get('jumpKnees')==='guided')
+      const kneeMode=new URLSearchParams(root.location?.search||'')
+        .get('jumpKnees');
+      if(kneeMode==='guided')
        largest=guidedPrepFeet(THREE,this.vrmRig,st.prepFeet,status);
+      // V115 forward: no knee-solving IK at all. The dual-foot visual
+      // pelvis anchor below handles any shared horizontal foot shift.
+      // This ensures no hidden IK rotation can undo the measured bend.
+      else if(kneeMode==='forward'){
+       status.prepHingeSlipCm=0;
+       status.prepKneeDirections=st.prepForwardAxes?
+        ['left','right'].map(s=>s[0].toUpperCase()+
+        ':T'+(st.prepForwardAxes[s].thigh>0?'+':'-')+
+        ' K'+(st.prepForwardAxes[s].knee>0?'+':'-')).join(' '):'not-calibrated';
+      }
       else for(const anchor of st.prepFeet){
        const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
        if(Number.isFinite(slip))largest=Math.max(largest,slip);
@@ -1013,7 +1087,8 @@
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
-    prepFootSlipCm:0,prepHingeSlipCm:0,guidedLaunchBlend:0,
+    prepFootSlipCm:0,prepHingeSlipCm:0,prepKneeDirections:'uncalibrated',
+    guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
@@ -1039,7 +1114,7 @@
   return status;
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
-    controlledFlightPose,airborneFlightPose,guidedPrepFeet,
+    controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
