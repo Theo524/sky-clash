@@ -675,14 +675,18 @@
   }
   if(phase==='jump'){
    const launch=smooth(t/.11)*(1-smooth((t-.17)/.20));
-   const tuck=smooth((t-.095)/.13)*(1-smooth((t-.39)/.18));
+   const follow=smooth((t-.095)/.13)*(1-smooth((t-.38)/.16));
    const reach=smooth(t/.12)*(1-smooth((t-.30)/.30));
-   return {launch,tuck,reach,
-    spine:.19*launch+.085*tuck,chest:.145*launch+.06*tuck,
-    thigh:.105*tuck,shin:.12*tuck,
+   return {launch,follow,reach,
+    spine:.19*launch+.085*follow,chest:.145*launch+.06*follow,
+    // Retain recorded V122 legs through the whole air sequence. A
+    // first V123 prototype moved both shin world frames directly,
+    // and V102's safe angular limiter carried the offset into FALL.
+    // Stronger V123 grounded knee load supplies leg extension.
+    thigh:0,shin:0,
     armUpper:.295*reach,armLower:.165*reach,
     armShoulder:.082*reach,
-    energy:Math.max(launch,tuck,reach),phase:'ascent'};
+    energy:Math.max(launch,follow,reach),phase:'ascent'};
   }
   return {launch:0,tuck:0,reach:0,spine:0,chest:0,
    thigh:0,shin:0,armUpper:0,armLower:0,armShoulder:0,
@@ -714,14 +718,11 @@
    joint.quaternion.multiply(delta.setFromAxisAngle(axis,amount)).normalize();
    count++;
   }
-  // WORLD-space measured VRM0-facing torso expansion and gentle midrise
-  // knee-gather, not a local-X thigh bend or a new controller.
+  // Authored chest expansion only. Do not alter normalized leg
+  // directions while V102 steadily advances V122's recorded takeoff:
+  // any world shin overlay would carry angular lag into approved fall.
   aim('spine','upperChest',up.clone().addScaledVector(f,-.25),arc.spine);
   aim('chest','neck',up.clone().addScaledVector(f,-.32),arc.chest);
-  for(const side of ['left','right']){
-   aim(side+'UpperLeg',side+'LowerLeg',f.clone().addScaledVector(up,-.48),arc.thigh);
-   aim(side+'LowerLeg',side+'Foot',f.clone().negate().addScaledVector(up,-.65),arc.shin);
-  }
   if(status){status.v123RiseJoints=count;
    status.v123RiseEnergy=Math.round(arc.energy*100);}
   scene.updateMatrixWorld(true);
