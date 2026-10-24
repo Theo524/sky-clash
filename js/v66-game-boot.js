@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V114';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:114,
+ const BUILD='V115';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:115,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -94,6 +94,9 @@
       (new URLSearchParams(location.search).get('jumpKnees')==='guided'||
        new URLSearchParams(location.search).get('flightStyle')==='airborne'))
      e.src+='&airborne=114';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpKnees')==='forward')
+     e.src+='&forward=115';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -217,7 +220,8 @@
     const facingLocked=flags.get('jumpFacing')==='locked';
     const flightBlendLab=flags.get('flightLab')==='blend';
     const controlledFlight=['controlled','airborne'].includes(flags.get('flightStyle'));
-    const guidedKnees=flags.get('jumpKnees')==='guided';
+    const guidedKnees=['guided','forward'].includes(flags.get('jumpKnees'));
+    const forwardKnees=flags.get('jumpKnees')==='forward';
     const stationaryFeet=flags.get('jumpFeet')==='hold';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
@@ -252,7 +256,9 @@
          ' | release '+(airOwner?.pushRelease||0)+'%'+
          (stationaryFeet?' | shoe shift '+
          (airOwner?.prepFootSlipCm||0)+'cm'+
-         (guidedKnees?' | hinge-guided':''):''):'')+'\n':'')+
+         (guidedKnees?' | '+
+          (forwardKnees?(airOwner?.prepKneeDirections||'forward bend'):
+           'hinge-guided'):''):''):'')+'\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+
      (flightBlendLab?'FLIGHT: '+(airOwner?.flightStyle||
