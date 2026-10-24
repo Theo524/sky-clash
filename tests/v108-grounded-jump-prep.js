@@ -50,7 +50,7 @@ assert(owner.includes("['subtle','readable'].includes("));
 assert(owner.includes('plantVisibleSoles(THREE,this.vrmRig,this,status);'),
  'visible shoes must stay planted after the single final pose write');
 assert(owner.includes("st.prepBase=visible.map(q=>q.clone());"));
-assert(owner.includes("const p=prepPose(elapsed,st.prepSpeed);"));
+assert(owner.includes("const p=prepPose(elapsed,st.prepSpeed,readable);"));
 assert(rig.includes('const v108FinalPrep='));
 assert(rig.includes('!v106FinalSoles&&!v108FinalPrep&&!this.f.flying'),
  'old procedural foot solver must yield only during new preview');
