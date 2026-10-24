@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V109';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:109,
+ const BUILD='V110';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:110,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -77,6 +77,9 @@
        new URLSearchParams(location.search).get('landingMove')==='flow')&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&groundflow=109';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpFacing')==='locked')
+     e.src+='&facing=110';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -196,6 +199,7 @@
     const subtlePrep=['subtle','readable'].includes(flags.get('jumpPrep'));
     const readablePrep=flags.get('jumpPrep')==='readable';
     const movingFlow=finalSoles&&flags.get('landingMove')==='flow';
+    const facingLocked=flags.get('jumpFacing')==='locked';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -225,6 +229,9 @@
        Math.round((p?.v108JumpPrepT||0)*1000)+'ms\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+
+     (facingLocked?'AIR FACING: V110 aligned | before '+
+       Math.round(airOwner?.airFacingSourceYawDeg||0)+'°'+
+       ' | after '+Math.round(airOwner?.airFacingDriftDeg||0)+'°\n':'')+
      (contactLanding?
       'LAND: '+(airOwner?.ready?
         airOwner.landingStyle+' · '+(airOwner.landingPhase||'ready')+

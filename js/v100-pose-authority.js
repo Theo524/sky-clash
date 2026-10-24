@@ -18,6 +18,29 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
  const clipFor=(state)=>state==='fall'?'fallingIdle':state==='prep'?'jump':state;
+ // V110: source jump/fall clips have a different built-in yaw baseline
+ // from the approved grounded pose. Their yaw accumulates along the
+ // hips/spine/chest chain, making a straight jump appear sideways.
+ // Decompose each joint into local-Y twist and its independent bend/lean.
+ // Only restrict EXTRA axial twist relative to the actual takeoff pose;
+ // fighter/model root yaw remains entirely controlled by gameplay.
+ const airFacingCaps=[.035,.035,.035,.025,.035,.035];
+ function axialTwist(THREE,q){
+  const twist=new THREE.Quaternion(0,q.y,0,q.w);
+  return twist.lengthSq()>1e-8?twist.normalize():new THREE.Quaternion();
+ }
+ function stabilizeFacing(THREE,target,grounded,maxYaw){
+  const sourceTwist=axialTwist(THREE,target);
+  const referenceTwist=axialTwist(THREE,grounded);
+  const raw=referenceTwist.angleTo(sourceTwist);
+  if(raw<=maxYaw)return {source:raw,residual:raw};
+  // q = swing * twist. Preserve recorded flexion/extension (swing)
+  // and retain the takeoff-facing yaw with at most a tiny natural turn.
+  const swing=target.clone().multiply(sourceTwist.clone().invert());
+  const restrained=referenceTwist.clone().slerp(sourceTwist,maxYaw/raw);
+  target.copy(swing).multiply(restrained).normalize();
+  return {source:raw,residual:referenceTwist.angleTo(restrained)};
+ }
  // A deliberately modest pre-jump action. At 30–120 FPS the knee fold,
  // hip sink and forward weight shift are continuous, with no arm flourish.
  // Moving takeoffs use a shallower compression than stationary ones.
@@ -196,7 +219,7 @@
     jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
-    movingFlow:false,landingDuration:.48};
+    movingFlow:false,landingDuration:.48,airFacingPose:[]};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -230,7 +253,7 @@
    st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
-   st.movingFlow=false;st.landingDuration=.48;
+   st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -256,6 +279,9 @@
     st.launchLegs=st.launchCarry>0?
       visible.slice(14,20).map(q=>q.clone()):[];
     st.jumpAge=0;
+    // The facing baseline is the last actually displayed PREP/ground
+    // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
+    st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -264,6 +290,7 @@
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+    st.airFacingPose=[];
     st.landingSupport=null;
     // Use the REAL measured horizontal collision speed, not the takeoff
     // gait flag that may have cleared during the fall.
@@ -336,6 +363,10 @@
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
    status.jumpExpression=expressive?+(performance.energy*100).toFixed(0):0;
+   const facingLock=params.get('jumpFacing')==='locked'&&
+     (next==='jump'||next==='fall')&&st.airFacingPose.length===6;
+   status.airFacingStyle=facingLock?'V110 takeoff-facing torso':'original recorded yaw';
+   status.airFacingSourceYawDeg=0;status.airFacingDriftDeg=0;
    const carryJump=params.get('movingJump')==='carry'&&
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
@@ -471,6 +502,22 @@
     hips.quaternion.multiply(qTmp).normalize();
     hips.updateMatrixWorld(true);
    }
+   if(facingLock){
+    // Finish retargeting ALL 20 bones *before* correcting imported torso
+    // yaw. Computing downstream joints under an already altered parent
+    // would rewrite their original compact-guard and approved leg locals.
+    // Instead, leave their source quaternions completely intact and
+    // rotate only the six upper-body ancestors once at the final stage.
+    // Legitimate player turns still come from the gameplay root transform.
+    for(let i=0;i<6;i++){
+     const bone=st.nodes[i];
+     const correction=stabilizeFacing(THREE,bone.quaternion,
+       st.airFacingPose[i],airFacingCaps[i]);
+     bone.updateMatrixWorld(true);
+     status.airFacingSourceYawDeg+=correction.source*180/Math.PI;
+     status.airFacingDriftDeg+=correction.residual*180/Math.PI;
+    }
+   }
    // V73 natural VRoid hands are the only finger source in this state.
    // No V81 artificial Y-axis curl and no independent extra-action writer.
    for(let i=0;i<st.fingerNodes.length;i++)
@@ -523,6 +570,7 @@
      if(interrupted){
       st.phase=null;st.wristAnchor=[];st.armAnchor=[];
       st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
+      st.airFacingPose=[];
       // The previous visible pose is now the interrupting combat/fly
       // controller, not the last V100 jumping frame.
       for(let i=0;i<BONES.length;i++)
@@ -657,7 +705,8 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
-    jumpExpression:0,jumpPrep:0,landingDuration:.48,
+    jumpExpression:0,jumpPrep:0,airFacingStyle:'original recorded yaw',
+    airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
     soleGapCm:null,otherSoleGapCm:null,soleLastShiftCm:0,
@@ -678,7 +727,8 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,prepPose,landingPlan,jumpExpression,steadyLandingSupport,
+ const api={version:100,BONES,clipFor,prepPose,landingPlan,jumpExpression,
+    axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;
