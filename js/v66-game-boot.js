@@ -27,7 +27,10 @@
     airLab:'jump',animator:'unified',jumpArms:'compact',
     airLegs:'steady',movingJump:'carry',landingLab:'contact',
     landingFeet:'plant',landingMove:'flow',jumpStyle:'expressive',
-    jumpPrep:'push',jumpFeet:'hold',jumpKnees:'forward',
+    jumpPrep:'push',jumpFeet:'hold',
+    // Compact V116 preview link uses the SAME approved V115 startup
+    // except standing knee bending. Public root remains V115.
+    jumpKnees:flags.get('jumpPreview')==='v116'?'anatomic':'forward',
     jumpFacing:'locked'
    };
    for(const [name,value] of Object.entries(jumpDefaults))
