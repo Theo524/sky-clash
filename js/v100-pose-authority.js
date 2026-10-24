@@ -519,6 +519,20 @@
      status.maxLegStepDeg=Math.max(status.maxLegStepDeg||0,
        finalAngle*180/Math.PI);
     }
+    if(next==='flight'){
+     // Two different recorded loops may have different phases and lengths.
+     // Cap the *visible* local joint travel on 30/60/120fps devices
+     // without freezing the pose or delaying combat/Boost takeover.
+     const maxStep=5.0*Math.max(0,dt);
+     const delta=st.prev[i].angleTo(qTarget);
+     if(delta>maxStep&&maxStep>0){
+      qTmp.copy(qTarget);
+      qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
+      status.flightJointClamps=(status.flightJointClamps||0)+1;
+     }
+     status.flightMaxStepDeg=Math.max(status.flightMaxStepDeg||0,
+       st.prev[i].angleTo(qTarget)*180/Math.PI);
+    }
     node.quaternion.copy(qTarget);
     node.updateMatrixWorld(true);
    }
@@ -743,7 +757,8 @@
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,flightStyle:'legacy switch',
-    flightSpeed:0,flightBlend:0,airFacingStyle:'original recorded yaw',
+    flightSpeed:0,flightBlend:0,flightJointClamps:0,
+    flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
