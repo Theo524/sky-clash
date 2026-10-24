@@ -1,4 +1,4 @@
-/* V129 expedited ACTUAL Kairo VRM0/WebGL A/B guard still capture.
+/* V130 expedited ACTUAL Kairo VRM0/WebGL relaxed hover pose capture.
  * Produces repeatable 24fps front/side/back MP4s AND same-clock A/B composites.
  * Virtual animation time advances at fixed 1/fps while browser render
  * time is irrelevant; screenshots are source frames, ffmpeg encodes video.
@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v128,v129').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v128,v130').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -199,6 +199,9 @@ async function capture(browser,preview){
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
      flightKneeFacing:owner.flightKneeFacing||'not-tested',
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
+     flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
+     leftRelaxed:owner.flightRelaxedWorld?.left||null,
+     rightRelaxed:owner.flightRelaxedWorld?.right||null,
      leftGuard:owner.flightGuardWorld?.left||null,
      rightGuard:owner.flightGuardWorld?.right||null,
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
@@ -237,6 +240,18 @@ async function capture(browser,preview){
          g.handAheadCm<=2||g.handAboveElbowCm<=0||
          g.elbowOutCm<=0||g.handBelowChestCm>=42))
      throw Error('V129 actual Kairo dangling hand in stage '+
+      t.stage+': '+JSON.stringify([left,right]));
+   }
+  }
+  if(preview==='v130'){
+   for(const t of timeline){
+    const left=t.leftRelaxed,right=t.rightRelaxed;
+    if(t.flightRelaxedSilhouette!=='RELAXED'||!left||!right||
+       [left,right].some(g=>g.elbowAheadCm<=-5||
+        g.handAheadCm<=0||g.handAboveElbowCm>=0||
+        g.elbowOutCm<=3||g.handBelowChestCm<=15||
+        g.handBelowChestCm>=75))
+     throw Error('V130 actual Kairo floating arms are not relaxed in '+
       t.stage+': '+JSON.stringify([left,right]));
    }
   }
