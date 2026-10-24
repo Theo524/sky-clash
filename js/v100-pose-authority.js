@@ -564,7 +564,12 @@
    // foot can start far from game-facing; a 25deg clamp left real
    // shoes at >22deg in the full V100 rig despite an 11deg target.
    // Interpolate over the approved 215ms prep, not on the first frame.
-   const bounded=clamp(yaw,-.95,.95)*smooth(angle/.20);
+   // Mirrored VRM0 normalized feet may start with very different
+   // source-clip yaw (the real V100 harness measured +48°/-68°).
+   // The heading goal is a world toe vector, not a 54° maximum
+   // quaternion delta. Ease any large correction over the 215ms
+   // preload, and never rotate more than 95° in one whole load.
+   const bounded=clamp(yaw,-1.66,1.66)*smooth(angle/.20);
    foot.parent.getWorldQuaternion(qParent);
    foot.getWorldQuaternion(qFoot);
    qTurn.setFromAxisAngle(up,bounded).multiply(qFoot);
