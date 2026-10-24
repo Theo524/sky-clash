@@ -2219,7 +2219,7 @@ try{
  for(const f of files)assert(read(f).includes('SkyClashV100Animator?.ownsAir(this)'),
   f+' must explicitly yield during unified air');
  const index=read('index.html');
- assert(/js[/]v66-game-boot[.]js[?]v=830&fix=(10[1-9]|1[1-9][0-9])/.test(index),
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9])/.test(index),
   'entrypoint must advance so V100 cooperative versions actually load');
  assert(boot.includes("e.src+='&poseOwner=100'"),
   'all old airborne controller files must be cache-busted together');
