@@ -48,7 +48,7 @@ assert(physics.includes("this.pos.y<=this.floor+.025&&!this.sprinting"),
 assert(owner.includes("state==='prep'"));
 assert(owner.includes("get('jumpPrep')==='subtle'"));
 assert(owner.includes('plantVisibleSoles(THREE,this.vrmRig,this,status);'),
- 'prep's visible shoes must stay planted after the single final pose write');
+ 'visible shoes must stay planted after the single final pose write');
 assert(owner.includes("st.prepBase=visible.map(q=>q.clone());"));
 assert(owner.includes("const p=prepPose(elapsed,st.prepSpeed);"));
 assert(rig.includes('const v108FinalPrep='));
