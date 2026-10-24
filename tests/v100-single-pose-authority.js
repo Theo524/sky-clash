@@ -1295,6 +1295,121 @@ function correctedActualVRM0ForwardJumpRegression(){
  assert(!u.authority.error);
  console.log('PASS V118 REAL VRM0 corrected scene full controller stack: BOTH toes and body advance in gameplay forward, one owner, planted soles, unchanged guard and jump handoff');
 }
+// V119 integrates native VRM0 toes into the ONE V100 final-pose owner.
+ // Real game has +Z fighter model and PI-rotated VRM0 -Z native toes.
+ // Track world toe tip, heel contact, knees and stable approved hands.
+function softerNaturalVRM0JumpRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=v119';
+ const u=setup(url),rig=u.f.vrmRig;
+ const root=new THREE.Group();root.rotation.y=.7;
+ root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+ u.f.model={root};rig.f=u.f;rig.legacyAxes=true;
+ const toes={};
+ for(const side of ['left','right']){
+  const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+  toe.name=side+'Toes';u.bones[side+'Foot'].add(toe);
+  const tip=new THREE.Object3D();tip.position.set(0,0,-.08);toe.add(tip);
+  u.bones[toe.name]=toe;toes[side]={toe,tip};
+ }
+ root.updateMatrixWorld(true);
+ u.f.floor=0;u.step(130);
+ V100.plantVisibleSoles(THREE,rig,u.f,{});
+ const wp=n=>n.getWorldPosition(new THREE.Vector3());
+ const originalToes={};
+ for(const side of ['left','right']){
+  const x=toes[side];
+  originalToes[side]={height:wp(x.tip).y,
+   toeQ:x.toe.quaternion.clone()};
+ }
+ const approvedPose=u.pose(),owners=u.count();
+ const originalYaw=['left','right'].map(s=>
+  u.bones[s+'Foot'].getWorldQuaternion(new THREE.Quaternion()));
+ const forward=V100.realKairoForward(THREE,rig,{});
+ const torsoOffset=()=>wp(u.bones.head).sub(wp(u.bones.hips)).dot(forward);
+ const originalTorso=torsoOffset();
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ let maxToeRise=0,maxYaw=0,maxLean=0,maxKnee=0;
+ for(let frame=1;frame<=12;frame++){
+  u.f.v108JumpPrepT=Math.max(.0001,.215-frame/60);
+  u.step();
+  assert.equal(u.authority.active,'prep');
+  assert.deepEqual(u.count(),owners,'V119 cannot add a new animator');
+  const gaps=V100.soleGaps(THREE,rig,u.f);
+  assert(Math.abs(Math.min(...gaps.map(x=>x.gap)))<.03,
+   'shoe/toe floor contact must remain stable');
+  maxLean=Math.max(maxLean,torsoOffset()-originalTorso);
+  for(const [i,side] of ['left','right'].entries()){
+   const {toe,tip}=toes[side],saved=originalToes[side];
+   maxToeRise=Math.max(maxToeRise,wp(tip).y-saved.height);
+   const footQ=u.bones[side+'Foot'].getWorldQuaternion(new THREE.Quaternion());
+   maxYaw=Math.max(maxYaw,footQ.angleTo(originalYaw[i]));
+   assert(toe.quaternion.angleTo(saved.toeQ)<.15,
+    'native toe curl must not overrotate');
+   const hip=wp(u.bones[side+'UpperLeg']),
+    knee=wp(u.bones[side+'LowerLeg']),
+    ankle=wp(u.bones[side+'Foot']),line=ankle.clone().sub(hip);
+   const t=Math.max(0,Math.min(1,knee.clone().sub(hip).dot(line)/
+    Math.max(1e-8,line.lengthSq())));
+   const bent=knee.sub(hip.addScaledVector(line,t)).dot(forward);
+   maxKnee=Math.max(maxKnee,bent);
+  }
+ }
+ assert(u.authority.prepToeJoints===2,'both actual VRM0 toe bones flex');
+ assert(maxYaw>.022&&maxYaw<.14,'outward toe/foot turnout is small and visible');
+ assert(maxToeRise>.001,'toe tips flex upwards during foot load');
+ assert(maxLean>.05,'staggered spine/chest still move toward physical front');
+ assert(maxKnee>.06,'V118 correct knee direction must be retained');
+ assert.equal(u.authority.prepKneeDirections,'V119 soft V118 crouch');
+ const finalPose=u.pose();
+ assert(finalPose[0].angleTo(approvedPose[0])<.024,
+  'V119 never rotates the whole pelvis backwards');
+ for(let i=6;i<=13;i++)assert(finalPose[i].angleTo(approvedPose[i])<.22,
+  'V101 compact guard must remain unchanged');
+ // At release prep-only toe curl is restored; ground movement and
+ // incoming airborne should not inherit a permanent toe correction.
+ u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+ u.step();
+ const airborne=u.pose();
+ for(const side of ['left','right']){
+  assert(toes[side].toe.quaternion.angleTo(originalToes[side].toeQ)<1e-5,
+   'native toes must return to their prep-entry orientation on jump');
+ }
+ for(const i of [14,15,16,17,18,19])
+  assert(airborne[i].angleTo(finalPose[i])<.12,
+   'V119 must not snap at leg takeoff');
+ assert(!u.authority.error);
+ console.log('PASS V119 full Kairo VRM0 + historical mixamo stack: springy native toes, outward feet, forward knees/torso, grounded soles, approved guard and smooth takeoff');
+}
+// V119 toe curls are PREP-only. If guard/Boost interrupts before
+// begin(next='jump'), they must not persist on the combat skeleton.
+function v119CombatToeInterruptRegression(){
+ const u=setup('?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=v119');
+ const rig=u.f.vrmRig,root=new THREE.Group();
+ root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+ u.f.model={root};rig.f=u.f;
+ const saved={};
+ for(const side of ['left','right']){
+  const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+  u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  saved[side]=toe.quaternion.clone();
+ }
+ u.step(130);u.f.floor=0;
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ for(let i=1;i<=8;i++){
+  u.f.v108JumpPrepT=.215-i/60;u.step();
+  assert.equal(u.authority.active,'prep');
+ }
+ for(const side of ['left','right'])
+  assert(u.bones[side+'Toes'].quaternion.angleTo(saved[side])>.025,
+   'V119 forefoot must be active just before interrupt');
+ u.f.blockHeld=true;u.step();
+ assert.equal(u.authority.active,'yielded-to-combat-or-flight',
+  'combat must immediately preempt the jump writer');
+ for(const side of ['left','right'])
+  assert(u.bones[side+'Toes'].quaternion.angleTo(saved[side])<1e-6,
+   'V119 toe bend must be restored before combat owns the rig');
+ console.log('PASS V119 combat interrupt: dynamic native toes cleaned up immediately without another bone writer');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1373,6 +1488,8 @@ try{
  readableWorldStandingJumpRegression();
  forwardWholeBodyJumpRegression();
  correctedActualVRM0ForwardJumpRegression();
+ softerNaturalVRM0JumpRegression();
+ v119CombatToeInterruptRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

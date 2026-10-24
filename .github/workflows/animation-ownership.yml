@@ -91,5 +91,7 @@ jobs:
         run: node tests/v117-forward-torso-geometry.js
       - name: Inspect ACTUAL Kairo GLB humanoid facing, not a synthetic rig
         run: node tests/v118-real-kairo-orientation.js
+      - name: Check V119 native toe and outward foot articulation under true VRM0 facing
+        run: node tests/v119-natural-jump-spring.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js

@@ -84,6 +84,16 @@ for(const [key,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V118 must not enable flight experiments');
 
+// V119 retains V118's corrected VRM0 anatomical axis; only standing
+// prep toe/ankle/body softness changes, not ground, flight or moving jump.
+run=simulate('?jumpPreview=v119');
+assert.equal(run.flags.get('jumpPreview'),'v119');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V119 must inherit approved V115 ground/jump setting '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V119 must not enable flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');
