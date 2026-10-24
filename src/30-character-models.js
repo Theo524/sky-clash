@@ -595,9 +595,17 @@ class VRMRig {
       window.location?.search?.includes('landingLab=contact')&&
       window.location?.search?.includes('landingFeet=plant')&&
       window.SkyClashPoseAuthority?.ready;
+    // V108 prep is posed AFTER VRMRig.update by the unified owner,
+    // exactly like landing. Let that final owner handle sole contact so
+    // this older preliminary check cannot undo the subtle knee bend.
+    const v108FinalPrep=this.f===Game.heroes?.kairo_venn&&
+      this.f.v108JumpPrepT>0&&
+      window.location?.search?.includes('jumpPrep=subtle')&&
+      window.SkyClashPoseAuthority?.ready;
     // World-space ground constraint for all unmodified grounded states.
     // Does not move hitbox or simulation position.
-    if (!v106FinalSoles&&!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
+    if (!v106FinalSoles&&!v108FinalPrep&&!this.f.flying &&
+        !this.f.launched&&!this.f.spiked&&this.f.downT<=0) {
       this.vrm.scene.updateMatrixWorld(true);
       const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
       // Measure against the current mesh offset, so the lift settles to a stable
@@ -628,7 +636,7 @@ class VRMRig {
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 40 : 17, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
-    } else if (!v106FinalSoles&&this.footLift) {
+    } else if (!v106FinalSoles&&!v108FinalPrep&&this.footLift) {
       const next = this.footLift * (1 - damp(17, dt));
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
