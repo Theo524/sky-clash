@@ -221,9 +221,9 @@ function steadyAirLegRegression(){
  const boot=read('js/v66-game-boot.js'),html=read('index.html');
  assert(boot.includes("e.src+='&legs=102'"));
  assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(/SKY CLASH · BUILD V(10[2-9]|11[01])/.test(html));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-2])/.test(html));
- assert(/BUILD V(10[2-9]|11[01])/.test(read('animation-studio.html')));
+ assert(/SKY CLASH · BUILD V(10[2-9]|11[0-2])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-3])/.test(html));
+ assert(/BUILD V(10[2-9]|11[0-2])/.test(read('animation-studio.html')));
  console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
   steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
   ' degrees/frame), V101 arms and V100 landing unchanged');
@@ -311,9 +311,9 @@ function movingTakeoffRegression(){
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes("e.src+='&moving=103'"));
  assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(/SKY CLASH · BUILD V(10[3-9]|11[01])/.test(read('index.html')));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-2])/.test(read('index.html')));
- assert(/BUILD V(10[3-9]|11[01])/.test(read('animation-studio.html')));
+ assert(/SKY CLASH · BUILD V(10[3-9]|11[0-2])/.test(read('index.html')));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-3])/.test(read('index.html')));
+ assert(/BUILD V(10[3-9]|11[0-2])/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
 function contactLandingRegression(){
@@ -796,6 +796,64 @@ function continuousFlightRegression(){
  assert(!original.authority.error);
  console.log('PASS V111 full stack: smooth true hover-to-travel, no hard 3m/s cut, one owner, jump/drop/combat priority, original flight rollback');
 }
+function visibleStandingPushOffRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpFacing=locked&flightLab=blend';
+ function exercise(speed,profile){
+  const u=setup(base+'&jumpPrep='+profile);
+  u.f.floor=0;u.step(130);
+  u.f.vel.z=speed;u.f.moveIntent.z=speed>0?1:0;u.step(6);
+  // Match the real ground-contact baseline before comparing world heights:
+  // V106 keeps the *shoe sole* (not ankle skeleton joint) on the floor.
+  V100.plantVisibleSoles(THREE,u.f.vrmRig,u.f,{});
+  u.f.vrmRig.vrm.scene.updateMatrixWorld(true);
+  const origin=u.bones.hips.getWorldPosition(new THREE.Vector3()).y;
+  const rest=u.pose(),writers=u.count(),foot0=u.bones.leftFoot.getWorldPosition(new THREE.Vector3());
+  const duration=profile==='push'?.215-.10*Math.min(1,speed/6.2):
+      .14-.04*Math.min(1,speed/6.2);
+  u.f.v108JumpPrepT=duration;u.f.v108JumpPrepDuration=duration;
+  let deepest=0,footTravel=0;
+  const n=Math.ceil(duration*60)-1;
+  for(let j=1;j<=n;j++){
+   u.f.v108JumpPrepT=Math.max(.0001,duration-j/60);
+   u.step(1);
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers,'push must be drawn by the same sole pose authority');
+   u.f.vrmRig.vrm.scene.updateMatrixWorld(true);
+   const h=u.bones.hips.getWorldPosition(new THREE.Vector3()).y;
+   deepest=Math.max(deepest,origin-h);
+   const foot=u.bones.leftFoot.getWorldPosition(new THREE.Vector3());
+   footTravel=Math.max(footTravel,Math.hypot(foot.x-foot0.x,foot.z-foot0.z));
+   const gaps=V100.soleGaps(THREE,u.f.vrmRig,u.f);
+   assert(Math.abs(Math.min(...gaps.map(g=>g.gap)))<.021,
+     'the actual visible footwear must remain on floor during push preparation');
+   for(const k of [8,9,12,13])assert(u.pose()[k].angleTo(rest[k])<.0001,
+     'wrist and elbow guard remain approved, not windmilling');
+  }
+  assert(!u.authority.error);
+  const prep=u.pose();
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  u.step(1);
+  assert.equal(u.authority.active,'jump');
+  assert.deepEqual(u.count(),writers,'one final pose writer continues on takeoff');
+  assert(!u.authority.error);
+  return {u,deepest,footTravel,prep,duration};
+ }
+ const before=exercise(0,'readable'),after=exercise(0,'push'),
+  moving=exercise(6.2,'push');
+ assert(after.deepest>.035,
+   'standing real mesh hips must visibly move DOWN at least 3.5cm even with sole correction');
+ assert(after.deepest>before.deepest+.017,
+   'push profile must physically lower the visible body noticeably more than V109');
+ assert(after.footTravel<.08,'standing shoes cannot drift far horizontally to fake knee compression');
+ assert(after.duration>.20,'stationary standing load stays visibly present for ~210ms');
+ assert(moving.duration<.12,'moving jump responds rapidly and does not stop for a static squat');
+ assert(moving.deepest<after.deepest*.65,
+   'walking/running takeoff must remain noticeably shallower than static');
+ assert(after.u.authority.pushRelease>0,'physical jump begins with smooth release of loaded hip');
+ assert(after.prep[15].angleTo(before.prep[15])>.15,
+   'actual last visible knee quaternion should differ meaningfully from V109');
+ console.log('PASS V112 full recorded rig: planted feet with real stationary hip dip, restrained moving prep, unchanged guard and smooth one-owner jump handoff');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -845,10 +903,10 @@ function compactGuardRegression(){
   assert(fixed.land[i].angleTo(original.land[i])<.001,
    'landing source must be unchanged: '+V100.BONES[i]);
  const html=read('index.html'),studio=read('animation-studio.html'),boot=read('js/v66-game-boot.js');
- assert(/SKY CLASH · BUILD V(10[1-9]|11[01])/.test(html));
+ assert(/SKY CLASH · BUILD V(10[1-9]|11[0-2])/.test(html));
  assert(!html.includes('V58'));
  assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-2])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-3])/.test(html));
  assert(boot.includes('SkyClashBuild=Object.freeze'));
  assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
  assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
@@ -867,6 +925,7 @@ try{
  readablePrepAndMovingFlowRegression();
  airFacingAlignmentRegression();
  continuousFlightRegression();
+ visibleStandingPushOffRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

@@ -46,7 +46,7 @@ assert(physics.includes("this.characterId==='kairo_venn'&&this.canFly"),
 assert(physics.includes("this.pos.y<=this.floor+.025&&!this.sprinting"),
  'only ordinary grounded jump gets preparation');
 assert(owner.includes("state==='prep'"));
-assert(owner.includes("['subtle','readable'].includes("));
+assert(owner.includes("['subtle','readable','push'].includes("));
 assert(owner.includes('plantVisibleSoles(THREE,this.vrmRig,this,status);'),
  'visible shoes must stay planted after the single final pose write');
 assert(owner.includes("st.prepBase=visible.map(q=>q.clone());"));
@@ -58,7 +58,7 @@ assert(boot.includes("e.src+='&anticipation=108'"),
  'physics and pose owner must refresh together in real game');
 assert(boot.includes("V108 subtle")&&boot.includes("V109 readable"));
 assert(boot.includes("'PREP'"));
-assert(/SKY CLASH · BUILD V(10[8-9]|11[01])/.test(html));
-assert(/js\/v66-game-boot\.js\?v=820&fix=(?:109|11[0-2])/.test(html));
-assert(/BUILD V(10[8-9]|11[01])/.test(read('animation-studio.html')));
+assert(/SKY CLASH · BUILD V(10[8-9]|11[0-2])/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=(?:109|11[0-3])/.test(html));
+assert(/BUILD V(10[8-9]|11[0-2])/.test(read('animation-studio.html')));
 console.log('PASS V108: 30/60/120fps shallow 95ms grounded preparation, no other-character/flight effects, exact buffered original impulse and sole-grounded pose owner');

@@ -53,22 +53,33 @@
  // Moving takeoffs use a shallower compression than stationary ones.
  function prepPose(age,speed,readable=false){
   const moving=clamp(speed/6.2,0,1);
-  // V108 subtle remains available for A/B and rollback.
-  const duration=readable?.140-.040*moving:.095;
+  const push=readable==='push',expressive=!!readable;
+  // V112: static jump gets a visible two-part load/release, but moving
+  // takeoff stays quick. Original subtle/readable curves are untouched.
+  const duration=push?.215-.10*moving:expressive?.140-.040*moving:.095;
   const t=clamp(age,0,duration);
-  const bend=smooth(t/(readable?duration*.83:.080))*
-    (1-(readable?.23:.36)*moving);
+  const extend=push?smooth((t-duration*.82)/(duration*.18)):0;
+  const bend=smooth(t/(push?duration*.66:expressive?duration*.83:.080))*
+    (1-(push?.22:expressive?.23:.36)*moving)*
+    (1-.14*extend);
+  // Real leg shortening matters more than an animated hip offset:
+  // V106 keeps the shoes on the floor and cancels much of hipsY. Nearly
+  // opposite thigh/shin pitches compress the leg vertically (~6cm) with
+  // little horizontal ankle drift, producing a VISIBLE grounded load.
+  const legBend=push?bend*(1-.42*moving):bend;
   return {
    bend,
-   hipsY:-(readable?.055:.036)*bend,
-   hipsX:(readable?.052:.036)*bend,
-   thighX:-(readable?.165:.105)*bend,
-   kneeX:(readable?.285:.155)*bend,
-   ankleX:-(readable?.066:.038)*bend,
-   spineX:(readable?.108:.074)*bend,
-   chestX:(readable?.068:.048)*bend,
-   neckX:-(readable?.028:.018)*bend,
-   duration
+   hipsY:-(push?.080:expressive?.055:.036)*bend,
+   hipsX:(push?.070:expressive?.052:.036)*bend,
+   thighX:push?-.43*legBend:-(expressive?.165:.105)*bend,
+   kneeX:push?.82*legBend:(expressive?.285:.155)*bend,
+   ankleX:push?-.085*legBend:-(expressive?.066:.038)*bend,
+   spineX:(push?.162:expressive?.108:.074)*bend,
+   chestX:(push?.100:expressive?.068:.048)*bend,
+   neckX:-(push?.039:expressive?.028:.018)*bend,
+   shoulderX:push?-.055*bend:0,
+   upperArmX:push?.085*bend:0,
+   extend,duration
   };
  }
  // V107 is a *small authored body-performance overlay*, not another clip.
@@ -91,7 +102,7 @@
  }
  // Small IK support-foot correction for *moving* natural landings only.
  // Works after V106 vertical sole contact, without moving physics/root.
- function steadyLandingSupport(THREE,rig,anchor,strength,status){
+ function steadyLandingSupport(THREE,rig,anchor,strength,status,telemetry=true){
   if(!anchor||strength<=0)return;
   const hum=rig.vrm.humanoid,scene=rig.vrm.scene;
   const hip=hum.getNormalizedBoneNode(anchor.side+'UpperLeg');
@@ -129,9 +140,12 @@
   scene.updateMatrixWorld(true);
   foot.getWorldPosition(curr);
   const slip=Math.hypot(curr.x-anchor.point.x,curr.z-anchor.point.z);
-  status.movingFootSlipCm=+(slip*100).toFixed(1);
-  status.movingFootPinFrames=(status.movingFootPinFrames||0)+1;
-  status.movingFootPin=anchor.side+' support';
+  if(telemetry){
+   status.movingFootSlipCm=+(slip*100).toFixed(1);
+   status.movingFootPinFrames=(status.movingFootPinFrames||0)+1;
+   status.movingFootPin=anchor.side+' support';
+  }
+  return slip;
  }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
@@ -197,7 +211,7 @@
      f.dashing||f.sprinting||(f.acro&&f.acro.type!=='landing'))
    return null;
   if(f.v108JumpPrepT>0&&
-     ['subtle','readable'].includes(
+     ['subtle','readable','push'].includes(
       new URLSearchParams(root.location?.search||'').get('jumpPrep'))&&
      !f.flying)return 'prep';
   if(f.landingMotionT>0&&!f.flying)return 'landing';
@@ -229,7 +243,8 @@
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
     movingFlow:false,landingDuration:.48,airFacingPose:[],
-    flightMix:0,flightSamples:[]};
+    flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null,
+    prepFeet:[]};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -265,6 +280,7 @@
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
+   st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -290,6 +306,9 @@
     st.launchLegs=st.launchCarry>0?
       visible.slice(14,20).map(q=>q.clone()):[];
     st.jumpAge=0;
+    st.pushReleaseHipY=previous==='prep'&&
+      new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'?
+      st.prepLastHipY:null;
     // The facing baseline is the last actually displayed PREP/ground
     // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
@@ -303,6 +322,15 @@
     st.prepBase=visible.map(q=>q.clone());
     st.prepHipsY=st.nodes[0].position.y;
     st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
+    st.prepLastHipY=null;
+    st.prepFeet=[];
+    if(new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'){
+     st.rig.vrm.scene.updateMatrixWorld(true);
+     for(const side of ['left','right']){
+      const shoe=st.rig.vrm.humanoid.getNormalizedBoneNode(side+'Foot');
+      if(shoe)st.prepFeet.push({side,point:shoe.getWorldPosition(new THREE.Vector3())});
+     }
+    }
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
@@ -663,8 +691,9 @@
     if(state==='prep'){
      const duration=this.v108JumpPrepDuration||.095;
      const elapsed=clamp(duration-(this.v108JumpPrepT||0),0,duration);
-     const readable=new URLSearchParams(root.location?.search||'')
-       .get('jumpPrep')==='readable';
+     const profile=new URLSearchParams(root.location?.search||'')
+       .get('jumpPrep');
+     const readable=profile==='push'?'push':profile==='readable';
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      for(let i=0;i<BONES.length;i++){
@@ -674,18 +703,37 @@
        i===1?p.spineX:i===2?p.chestX:i===4?p.neckX:
        i===14||i===17?p.thighX:
        i===15||i===18?p.kneeX:
-       i===16||i===19?p.ankleX:0;
+       i===16||i===19?p.ankleX:
+       i===6||i===10?p.shoulderX:
+       i===7||i===11?p.upperArmX:0;
       if(angle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,angle)).normalize();
       n.updateMatrixWorld(true);
      }
      st.nodes[0].position.y=st.prepHipsY+p.hipsY/(this.vrmRig.scale||1);
+     st.prepLastHipY=st.nodes[0].position.y;
      this.vrmRig.vrm.update(0);
+     if(profile==='push'){
+      // Both shoes should stay exactly where they were when the boxer
+      // loaded weight. Knee flex alone can drift the VRM ankles sideways
+      // because the original approved pose is not a perfect neutral bind.
+      // Very small post-pose two-joint IK brings them back without
+      // touching horizontal gameplay motion, as during moving landing.
+      let largest=0;
+      for(const anchor of st.prepFeet){
+       const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
+       if(Number.isFinite(slip))largest=Math.max(largest,slip);
+      }
+      status.prepFootSlipCm=+(largest*100).toFixed(1);
+      this.vrmRig.vrm.update(0);
+     }
      // The normal pre-recording floor solver is bypassed in this 95ms
      // interval; correct visible shoes AFTER the final crouched pose.
      plantVisibleSoles(THREE,this.vrmRig,this,status);
      for(let i=0;i<BONES.length;i++)
       st.prev[i].copy(st.nodes[i].quaternion);
      status.active='prep';status.jumpPrep=Math.round(p.bend*100);
+     status.pushExtension=Math.round(p.extend*100);
+     status.pushDurationMs=Math.round(p.duration*1000);
      status.frames=++st.frames;
      return;
     }
@@ -722,6 +770,16 @@
       contactLanding?(st.movingFlow?.055:.085):.10;
     retarget(clip,seconds,smooth(st.elapsed/blend),state,safe,
       state==='flight'?clips.flying:null);
+    if(state==='jump'&&st.pushReleaseHipY!==null){
+     // Release the actual planted crouch into vertical takeoff, instead
+     // of popping back to procedural idle hip height on frame one.
+     const hips=st.nodes[0],neutral=hips.position.y;
+     const w=smooth(st.elapsed/.12);
+     hips.position.y=st.pushReleaseHipY+(neutral-st.pushReleaseHipY)*w;
+     hips.updateMatrixWorld(true);
+     status.pushRelease=Math.round(w*100);
+     if(st.elapsed>=.12)st.pushReleaseHipY=null;
+    }
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
     status.active=state;status.frames=st.frames;
@@ -756,7 +814,9 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
-    jumpExpression:0,jumpPrep:0,flightStyle:'legacy switch',
+    jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
+    prepFootSlipCm:0,
+    pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
