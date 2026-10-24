@@ -677,6 +677,68 @@ function readablePrepAndMovingFlowRegression(){
  }
  console.log('PASS V109 full V100 stack: visibly stronger standing knee load, planted prep feet and guard, stationary landing unchanged, walking/running landing hands off to gait sooner');
 }
+function airFacingAlignmentRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=readable';
+ function simulate(speed,locked){
+  const u=setup(base+(locked?'&jumpFacing=locked':''));
+  u.step(130);
+  u.f.vel.z=speed;u.f.moveIntent.z=speed?1:0;u.step(7);
+  const stance=u.pose(),writers=u.count();
+  u.f.v108JumpPrepT=.105;u.f.v108JumpPrepDuration=.105;
+  for(let n=0;n<5;n++){
+   u.f.v108JumpPrepT=.105-(n+1)/60;
+   u.step();
+  }
+  const prep=u.pose();
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  u.step(15);
+  assert.equal(u.authority.active,'jump');
+  assert.deepEqual(u.count(),writers,'facing calibration cannot add another animation writer');
+  const rise=u.pose(),riseStyle=u.authority.airFacingStyle,
+   riseRaw=u.authority.airFacingSourceYawDeg,
+   riseDrift=u.authority.airFacingDriftDeg;
+  u.f.vel.y=-8;u.step(24);
+  assert.equal(u.authority.active,'fall');
+  const fall=u.pose(),fallStyle=u.authority.airFacingStyle,
+   fallRaw=u.authority.airFacingSourceYawDeg,
+   fallDrift=u.authority.airFacingDriftDeg;
+  u.f.pos.y=0;u.f.jumping=false;u.f.vel.y=0;
+  u.f.landingMotionT=.48;u.f.v105ImpactSpeed=12;
+  u.step(28);
+  assert.equal(u.authority.active,'landing');
+  return {u,stance,prep,rise,fall,land:u.pose(),
+   riseStyle,fallStyle,riseRaw,riseDrift,fallRaw,fallDrift};
+ }
+ for(const speed of [0,4.8,6.2]){
+  const old=simulate(speed,false),fresh=simulate(speed,true);
+  assert.equal(old.riseStyle,'original recorded yaw');
+  assert.equal(fresh.riseStyle,'V110 takeoff-facing torso');
+  assert.equal(fresh.fallStyle,'V110 takeoff-facing torso');
+  assert(fresh.riseRaw>fresh.riseDrift+.08,
+   'raw sampled jump torso must have an unrequested yaw that is measurably removed');
+  assert(fresh.riseDrift<12,
+   'total local torso yaw drift across hips/head must stay under twelve degrees');
+  assert(fresh.fallDrift<12,'fall source must not reintroduce lateral torso rotation');
+  for(let k=0;k<20;k++){
+   assert(old.prep[k].angleTo(fresh.prep[k])<.0001,
+    'approved V109 pre-jump knee load may not change: '+V100.BONES[k]);
+   assert(old.land[k].angleTo(fresh.land[k])<.002,
+    'approved standing landing end pose may not change: '+V100.BONES[k]);
+  }
+  for(const k of [6,7,8,9,10,11,12,13,14,15,16,17,18,19]){
+   assert(old.rise[k].angleTo(fresh.rise[k])<.0001,
+    'V110 leaves compact guard and six leg source angles unchanged: '+V100.BONES[k]);
+   assert(old.fall[k].angleTo(fresh.fall[k])<.0001,
+    'V110 leaves falling guard and leg source angles unchanged: '+V100.BONES[k]);
+  }
+  let altered=0;
+  for(const k of [0,1,2,3,4,5])
+   altered=Math.max(altered,old.rise[k].angleTo(fresh.rise[k]));
+  assert(altered>.07,'V110 must visibly correct source body yaw, not merely label the HUD');
+  assert(!fresh.u.authority.error);
+ }
+ console.log('PASS V110 full competing animation stack: grounded prep, compact guard and leg angles unchanged; yaw aligned during real jump/fall; approved final landing preserved');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -746,6 +808,7 @@ try{
  movingLandingSupportRegression();
  subtleGroundedPrepRegression();
  readablePrepAndMovingFlowRegression();
+ airFacingAlignmentRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
