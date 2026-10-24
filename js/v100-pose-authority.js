@@ -62,13 +62,18 @@
   const bend=smooth(t/(push?duration*.66:expressive?duration*.83:.080))*
     (1-(push?.22:expressive?.23:.36)*moving)*
     (1-.14*extend);
+  // Real leg shortening matters more than an animated hip offset:
+  // V106 keeps the shoes on the floor and cancels much of hipsY. Nearly
+  // opposite thigh/shin pitches compress the leg vertically (~6cm) with
+  // little horizontal ankle drift, producing a VISIBLE grounded load.
+  const legBend=push?bend*(1-.42*moving):bend;
   return {
    bend,
    hipsY:-(push?.080:expressive?.055:.036)*bend,
    hipsX:(push?.070:expressive?.052:.036)*bend,
-   thighX:-(push?.235:expressive?.165:.105)*bend,
-   kneeX:(push?.390:expressive?.285:.155)*bend,
-   ankleX:-(push?.105:expressive?.066:.038)*bend,
+   thighX:push?-.43*legBend:-(expressive?.165:.105)*bend,
+   kneeX:push?.82*legBend:(expressive?.285:.155)*bend,
+   ankleX:push?-.085*legBend:-(expressive?.066:.038)*bend,
    spineX:(push?.162:expressive?.108:.074)*bend,
    chestX:(push?.100:expressive?.068:.048)*bend,
    neckX:-(push?.039:expressive?.028:.018)*bend,
