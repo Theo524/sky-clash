@@ -739,6 +739,63 @@ function airFacingAlignmentRegression(){
  }
  console.log('PASS V110 full competing animation stack: grounded prep, compact guard and leg angles unchanged; yaw aligned during real jump/fall; approved final landing preserved');
 }
+function continuousFlightRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=readable&jumpFacing=locked';
+ const u=setup(base+'&flightLab=blend');
+ u.step(130);
+ const approved=u.pose(),writers=u.count();
+ // Jump stays in original V110 single owner's real jump/fall path.
+ u.f.pos.y=1.2;u.f.jumping=true;u.f.vel.y=12;
+ u.step(14);assert.equal(u.authority.active,'jump');
+ const jumping=u.pose();
+ u.f.jumping=false;u.f.vel.y=0;u.f.vel.z=0;u.f.pos.y=5;
+ u.step(20);
+ assert.equal(u.authority.active,'flight');
+ assert.equal(u.authority.flightStyle,'V111 continuous hover / travel');
+ assert(u.authority.flightBlend<=3,'hover should stay on true floating recording');
+ assert.deepEqual(u.count(),writers,'all earlier recorded owners yield while V111 powers hover');
+ const hover=u.pose();
+ const motion=[];
+ for(const speed of [1,2.8,3.2,4.5,6.2]){
+  u.f.vel.z=speed;
+  const prior=u.pose();
+  u.step(1);
+  motion.push({speed,mix:u.authority.flightBlend,pose:u.pose()});
+  const now=u.pose();
+  for(let i=0;i<20;i++)assert(prior[i].angleTo(now[i])<.091,
+   'hover to flight must not snap a joint: '+V100.BONES[i]);
+ }
+ assert(motion[1].mix<motion[2].mix,
+  '3 m/s speed threshold must be a SMOOTH, not hard, blend');
+ assert(motion[0].mix<motion[4].mix,'increasing flight speed should increase forward flight weight');
+ u.step(60);
+ assert(u.authority.flightBlend>90,'normal moving flight must reach real flying pose');
+ const fly=u.pose();
+ let distance=0;
+ for(let i=0;i<20;i++)distance=Math.max(distance,hover[i].angleTo(fly[i]));
+ assert(distance>.05,'forward flight must visibly differ from standing hover');
+ // Not hovering merely because the fighter is above terrain.
+ u.f.dropping=true;u.f.jumping=false;u.f.vel.y=-5;
+ u.step(3);
+ assert.equal(u.authority.active,'fall',
+  'deliberate drop must play gravity falling, not powered flight');
+ assert.deepEqual(u.count(),writers,'fall returns to same owner');
+ u.f.dropping=false;u.f.punchT=.25;
+ u.step(1);
+ assert.equal(u.authority.active,'yielded-to-combat-or-flight',
+  'air combat overrides flight immediately');
+ assert(!u.authority.error);
+ // Without the experimental flag the original V72/V81 hover recorder
+ // must remain responsible and V100 must not take over flight.
+ const original=setup(base);
+ original.step(130);
+ original.f.pos.y=5;original.f.jumping=false;
+ original.step(20);
+ assert.equal(original.authority.active,'grounded-owners-preserved');
+ assert.equal(original.primaryStatus.active,'floating');
+ assert(!original.authority.error);
+ console.log('PASS V111 full stack: smooth true hover-to-travel, no hard 3m/s cut, one owner, jump/drop/combat priority, original flight rollback');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -809,6 +866,7 @@ try{
  subtleGroundedPrepRegression();
  readablePrepAndMovingFlowRegression();
  airFacingAlignmentRegression();
+ continuousFlightRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
