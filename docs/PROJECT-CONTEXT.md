@@ -35,6 +35,34 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## Root game URL: important default jump correction (October 24, 2026)
+
+After PR #62 promoted ONLY the V97-approved ground flags on the root URL,
+the user reported that the jump looked bad again. The default root URL
+was still missing the V100–V115 jump/landing flags from the previously
+working *full V115 preview*. This was a launch-configuration regression,
+**not** a removed animation asset or a new VRM controller.
+
+The fix in PR #63 (verify number/live status) adds only the already
+existing jump/landing preview flags automatically when `movementLab`
+is absent AND no explicit air/jump A/B flags are present:
+`airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=forward&jumpFacing=locked`.
+These enable the existing V100 final owner and V101–V115 refinements;
+they do not add new controllers, clips, physics or VRM assets.
+
+**Rollback:** `?jumpMode=legacy` retains the improved V97 ground
+movement but suppresses the automatic jump settings. The existing
+`?movementLab=legacy` bypasses *all* automatic ground/jump settings.
+An explicit A/B mode such as `?jumpPrep=subtle`, `?animator=legacy`,
+`?airLab=jump`, or `?flightLab=blend` is preserved without an
+unexpected full default jump preset.
+
+**Powered flight remains opt-in:** `flightLab` and `flightStyle` are
+not added to the public URL by default; V114 airborne flight still
+requires user visual evaluation. Build label remains V115.
+Check the latest PR, CI and phone-browser visuals before treating
+any default animation as fully approved.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
