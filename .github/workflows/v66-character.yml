@@ -216,6 +216,7 @@ jobs:
       - run: node tests/v124-idle-foot-continuity.js
       - run: node tests/v125-natural-jump.js
       - run: node tests/v126-expressive-flight.js
+      - run: node tests/v127-suspended-flight.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
