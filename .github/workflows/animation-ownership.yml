@@ -87,5 +87,7 @@ jobs:
         run: node tests/v100-single-pose-authority.js
       - name: Check V116 forward whole-leg geometry across mirrored VRM rigs
         run: node tests/v116-standing-jump-geometry.js
+      - name: Check V117 forward upper-body geometry across mirrored VRM rigs
+        run: node tests/v117-forward-torso-geometry.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js
