@@ -1,30 +1,49 @@
-# Sky Clash V53 — Rin Reborn
+# Sky Clash — browser-based 3D fighting game
 
-This patch replaces V52 Rin's recoloured Kairo avatar with the **user-exported VRoid AvatarSample_C** (VRM 0.x, author metadata `Theo`), customised into Rin Sable.
+Sky Clash is a playable fighting game with a dojo, battles, character selection, VRM avatars, movement, combos, energy powers, and powered flight. **Current main game build: V115.** The game is deployed as a static website through GitHub Pages.
 
-## In this update
+- **Play:** https://theo524.github.io/sky-clash/
+- **Visual animation review:** [qa.html](qa.html) (also at https://theo524.github.io/sky-clash/qa.html once this page is published)
+- **Animation Studio:** [animation-studio.html](animation-studio.html)
+- **Recent development:** [pull requests](https://github.com/Theo524/sky-clash/pulls?q=is%3Apr)
 
-- Detailed, distinct VRoid face, dark hair, user's red eyes and eye mark **preserved**.
-- Recoloured indigo-black ninja jacket, trousers and boots; excessive high jacket collar lowered in the model mesh.
-- Animated curved **fabric nose/mouth mask** and subtle cloth wrist wraps. No metallic headband, no high-neck accessory.
-- Same rig/animation system as Kairo, with mandatory VRM0-to-VRM1 facing correction and a portrait that does not reset model rotation.
-- Both fighter models are very slightly larger relative to the arena, with retuned ankle/floor constraint.
-- Rin's everyday walk uses the smoother motion-clip blend; her much-liked **ninja sprint remains unchanged**.
-- Second jump now uses a soft airborne-tuck pose instead of the instant generic flip.
-- Rin's **separate four-beat melee:** palm → elbow → turning heel kick → rising ninja kick. Third beat doesn't auto-launch; fourth can lead into aerial pursuit. Kairo's combo is unchanged.
-- Compatible with the V51 dojo, Falling Fist, character selection, energy, stamina and shuriken volley.
+## Gameplay controls
 
-## Publish
+The game includes touch controls. On desktop, WASD moves, mouse drag/arrows rotate the camera, **R** jumps or flies up, **F** flies down, **Space** boosts, **J** attacks, **K** fires or charges energy, **Shift/B** guards, and **Esc** pauses. The complete controls are available in the game's Controls menu.
 
-Extract the ZIP, then drag the **contents** (not the ZIP file) into the corresponding locations in the `Theo524/sky-clash` GitHub repository. In particular, **replace** `assets/rin.vrm`, `js/game.js` and the root `index.html`. Commit and wait for GitHub Pages to deploy.
+## Current animation review — V115
 
-## Model permissions — important
+Recent patches V100–V115 progressively refined pose ownership, walk/run transitions, jumping, foot contact, landings, and powered flight.
 
-AvatarSample_C itself is a **non-CC0** VRoid Studio sample. Its official terms allow using, editing and freely redistributing it (but not selling the sample asset itself for a fee):
-https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z
+**V115** calibrates the actual skeleton's forward knee-bending direction separately on each leg, including mirrored VRM bone axes. It is an opt-in comparison profile (jumpKnees=forward), **not yet visually approved** on the target device. The previous V114 guided hinge, V112 push-off, V113 controlled flight and V111 recorded flight remain available for A/B comparison.
 
-The **published `assets/rin.vrm` metadata** has now been updated with your authorization for public fighting-game use: avatar users `Everyone`, violence `Allow`, and the VRM 0.x license set to `Other` with the official Sample C terms URL attached. This is **not a CC0 license**. We kept commercial and adult-content permissions `Disallow` as in the original export. The model geometry, rig, materials, and textures are identical to the V53 update.
+Use [the visual review page](qa.html) to select knee and flight profiles, open the game with consistent flags, test the same actions, and copy structured feedback. The reviewer should check stationary and moving jumps, planted shoes, launch frames, hover versus cruise, and ordinary combat. This page changes **no** gameplay, physics, skeleton assets, or animation controller code; it only generates URLs and a local text report.
 
-## Tests
+## Development
 
-Static JavaScript/regression tests plus geometry/VRM integrity and gameplay-state tests. Browser WebGL visuals **not verified** in this build; inspect the mask alignment, model scale, grounded stance and animations on your device.
+The repository is a static HTML/JavaScript game. The editable game engine is split into sequential src/*.js modules, and the deployable js/game.js is generated from them.
+
+To rebuild the engine bundle after editing a source module:
+
+    python tools/build.py
+
+To check the current V115 knee calibration and visual review helpers:
+
+    node tests/v115-forward-knee-calibration.js
+    node tests/v115-visual-qa.js
+
+The GitHub Actions workflow .github/workflows/v66-character.yml runs the broader JavaScript regression suite on relevant changes and refreshes the generated game bundle on pushes to main when necessary. **Passing unit/geometry tests does not prove the final pose looks correct in a real WebGL browser**; device testing and explicit visual approval remain necessary.
+
+Key paths:
+
+- index.html, css/game.css — playable interface and styling
+- src/ — editable engine source
+- js/v100-pose-authority.js — current unified fighter animation/pose authority
+- js/v66-game-boot.js — asset loading, preview flags and boot diagnostics
+- assets/characters/, assets/rin.vrm — fighter VRM models
+- tests/ — regression and gameplay/geometry validation
+- qa.html, js/v115-visual-qa.js — opt-in animation preview comparisons and feedback helper
+
+## Rin's avatar permissions
+
+Rin Sable is based on the **VRoid Studio AvatarSample_C** (VRM 0.x, author metadata Theo). Its published asset metadata permits public fighting-game use and violence but retains commercial/adult-content restrictions from the source export. The sample is **not CC0**. See the [official VRoid sample asset terms](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z). Do not assume all assets in this repository have a permissive commercial license.

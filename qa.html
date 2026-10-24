@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Sky Clash — V115 Visual Review</title>
+<style>
+  :root { color-scheme: dark; font-family: system-ui, -apple-system, Segoe UI, sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 50% -20%, #24405c, #0b1020 58%); color: #eef5ff; }
+  main { max-width: 760px; margin: 0 auto; padding: 28px 18px 64px; }
+  .eyebrow { font-size: .76rem; letter-spacing: .19em; color: #89c9f5; font-weight: 750; }
+  h1 { margin: 8px 0; font-size: clamp(1.9rem, 6vw, 3rem); line-height: 1.1; }
+  h2 { font-size: 1.14rem; margin: 0 0 14px; }
+  p { color: #b9cadb; line-height: 1.55; }
+  .panel { padding: 22px; border: 1px solid #37506a; border-radius: 18px; background: #121d2edb; margin-top: 20px; }
+  .fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  label { display: block; color: #d6e9f8; font-weight: 650; margin-bottom: 8px; }
+  select, input, textarea { width: 100%; background: #0a1422; color: #fff; border: 1px solid #56718f; border-radius: 9px; padding: 12px; font: inherit; }
+  textarea { min-height: 100px; resize: vertical; }
+  select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible, button:focus-visible { outline: 3px solid #78d3f7; outline-offset: 3px; }
+  .action { display: inline-flex; align-items: center; justify-content: center; text-align: center; gap: 7px; min-height: 48px; border-radius: 10px; padding: 12px 18px; background: #65c7ed; color: #061625; text-decoration: none; font: inherit; font-weight: 800; border: 0; cursor: pointer; }
+  .action.secondary { border: 1px solid #7898b6; background: #263d56; color: #fff; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; align-items: center; }
+  .note { font-size: .89rem; color: #aec1d6; }
+  .check { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,185px); gap: 14px; align-items: center; padding: 12px 0; border-top: 1px solid #30445c; }
+  .check label { margin: 0; font-weight: 550; line-height: 1.4; }
+  .check select { padding: 9px; font-size: .94rem; }
+  #status { min-height: 1.6em; color: #a8e5b6; }
+  footer { margin-top: 22px; color: #a4b7c8; font-size: .86rem; line-height: 1.5; }
+  footer a { color: #8edaff; }
+  @media(max-width: 540px) { .fields { grid-template-columns: 1fr; } .panel { padding: 17px; } .check { grid-template-columns: 1fr; gap: 7px; } .check select { max-width: 100%; } .action { width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">SKY CLASH · ANIMATION LAB</div>
+  <h1>V115 visual review</h1>
+  <p>Check the latest standing jump and airborne poses on your actual device. Switch one profile at a time to compare earlier versions. This page only builds preview links; it does not alter the game or treat automated tests as visual approval.</p>
+
+  <section class="panel" aria-labelledby="compare-title">
+    <h2 id="compare-title">1. Choose animation profiles</h2>
+    <div class="fields">
+      <div>
+        <label for="knees">Standing jump knee bending</label>
+        <select id="knees">
+          <option value="forward">V115 · measured forward bend</option>
+          <option value="guided">V114 · guided hinge</option>
+          <option value="original">V112 · original push</option>
+        </select>
+      </div>
+      <div>
+        <label for="flight">Powered flight silhouette</label>
+        <select id="flight">
+          <option value="airborne">V114 · airborne hover / cruise</option>
+          <option value="controlled">V113 · controlled flight</option>
+          <option value="recorded">V111 · recorded flight loops</option>
+        </select>
+      </div>
+    </div>
+    <div class="row"><a class="action" id="launch" href="./index.html" target="_blank" rel="noopener noreferrer">Open selected game preview ↗</a></div>
+    <p class="note">A new tab opens so you can come back here, switch profiles, and repeat the same move. On mobile, use the game's touch controls; on desktop, WASD moves, R jumps / flies up, F flies down and Space boosts.</p>
+  </section>
+
+  <section class="panel" aria-labelledby="check-title">
+    <h2 id="check-title">2. Test the actual animation</h2>
+    <p class="note">Start in the dojo or battle. First jump while standing still, then while moving. Test hover and moving flight with Kairo. Mark what you can see, not what the diagnostic counters claim.</p>
+    <div id="checks">
+      <div class="check">
+        <label for="check-knees">Both knees bend forward naturally during a stationary jump</label>
+        <select id="check-knees" data-check="Both knees fold forward"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+      <div class="check">
+        <label for="check-feet">Both shoes stay planted during the preparation</label>
+        <select id="check-feet" data-check="Shoes remain planted"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+      <div class="check">
+        <label for="check-takeoff">No knee flip or leg snap at the instant of takeoff</label>
+        <select id="check-takeoff" data-check="Takeoff avoids leg snap"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+      <div class="check">
+        <label for="check-motion">Moving jump and landing still feel fluid</label>
+        <select id="check-motion" data-check="Moving jump and landing"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+      <div class="check">
+        <label for="check-flight">Hover and forward flight look clearly airborne and different</label>
+        <select id="check-flight" data-check="Hover vs forward-flight silhouettes"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+      <div class="check">
+        <label for="check-combat">Idle guard, attacks and Boost still look correct</label>
+        <select id="check-combat" data-check="Idle, combat and Boost unaffected"><option>Not tested</option><option>Looks good</option><option>Needs fix</option></select>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="report-title">
+    <h2 id="report-title">3. Copy your feedback</h2>
+    <label for="device">Device and browser (optional)</label>
+    <input id="device" placeholder="e.g. iPhone Safari, PC Chrome">
+    <label for="notes" style="margin-top:14px">What looked wrong or right?</label>
+    <textarea id="notes" placeholder="For example: left knee flips backwards after the feet leave the floor…"></textarea>
+    <div class="row">
+      <button class="action" id="copy" type="button">Copy review for ChatGPT / GitHub</button>
+      <button class="action secondary" id="show" type="button">Show report</button>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <textarea id="report" aria-label="Generated visual review report" readonly hidden></textarea>
+  </section>
+  <footer>Compare the same action under each profile; the two selections are independent. <a href="./index.html">Open normal game</a> · <a href="https://github.com/Theo524/sky-clash">Source on GitHub</a>. No notes are uploaded or stored by this page.</footer>
+</main>
+<script src="./js/v115-visual-qa.js"></script>
+<script>
+(function () {
+  'use strict';
+  const qa = window.SkyClashVisualQA;
+  const $ = id => document.getElementById(id);
+  const knees = $('knees'), flight = $('flight'), launch = $('launch');
+  const report = $('report'), status = $('status');
+  if (!qa) {
+    status.textContent = 'Preview helper failed to load. Refresh the page.';
+    launch.setAttribute('aria-disabled', 'true');
+    return;
+  }
+  const gamePage = new URL('./index.html', location.href);
+  function selected() { return { knees: knees.value, flight: flight.value }; }
+  function preview() { return qa.buildPreviewUrl(gamePage.href, selected()); }
+  function updateLink() {
+    launch.href = preview();
+    status.textContent = '';
+  }
+  function makeReport() {
+    return qa.formatReport({
+      ...selected(),
+      previewUrl: preview(),
+      device: $('device').value.trim(),
+      notes: $('notes').value.trim(),
+      observations: Array.from(document.querySelectorAll('[data-check]')).map(el => ({
+        label: el.dataset.check, result: el.value
+      }))
+    });
+  }
+  function showReport() {
+    report.value = makeReport();
+    report.hidden = false;
+    report.style.display = 'block';
+    return report.value;
+  }
+  knees.addEventListener('change', updateLink);
+  flight.addEventListener('change', updateLink);
+  $('show').addEventListener('click', () => {
+    showReport();
+    status.textContent = 'Review report generated below.';
+  });
+  $('copy').addEventListener('click', async () => {
+    const text = showReport();
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(text);
+      status.textContent = 'Copied! Paste this report into our chat or a GitHub issue.';
+    } catch (_) {
+      report.focus();
+      report.select();
+      status.textContent = 'Automatic copy unavailable. Select and copy the report below.';
+    }
+  });
+  updateLink();
+})();
+</script>
+</body>
+</html>

@@ -48,6 +48,8 @@ on:
       - 'tests/v113-*.js'
       - 'tests/v114-*.js'
       - 'tests/v115-*.js'
+      - 'js/v115-*.js'
+      - 'qa.html'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -112,6 +114,8 @@ on:
       - 'tests/v113-*.js'
       - 'tests/v114-*.js'
       - 'tests/v115-*.js'
+      - 'js/v115-*.js'
+      - 'qa.html'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -213,6 +217,8 @@ jobs:
       - run: node tests/v113-controlled-flight-feet.js
       - run: node tests/v114-knee-airborne-stances.js
       - run: node tests/v115-forward-knee-calibration.js
+      - run: node --check js/v115-visual-qa.js
+      - run: node tests/v115-visual-qa.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
