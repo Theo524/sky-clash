@@ -60,7 +60,7 @@ assert(owner.includes('landingPlan(st.elapsed,st.impactSpeed,st.landingDuration)
 assert(owner.includes("const readable=new URLSearchParams(root.location?.search||'')"));
 assert(boot.includes("e.src+='&groundflow=109'"));
 assert(boot.includes("V109 readable")&&boot.includes('movingFlow'));
-assert(/SKY CLASH · BUILD V(109|11[01])/.test(html));
-assert(/js\/v66-game-boot\.js\?v=820&fix=11[0-2]/.test(html));
-assert(/BUILD V(109|11[01])/.test(read('animation-studio.html')));
+assert(/SKY CLASH · BUILD V(109|11[0-2])/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=11[0-3]/.test(html));
+assert(/BUILD V(109|11[0-2])/.test(read('animation-studio.html')));
 console.log('PASS V109: restrained but visible 30/60/120fps standing preload, source-equivalent shorter moving contact, isolated physics damping and immutable V106 standing landing');
