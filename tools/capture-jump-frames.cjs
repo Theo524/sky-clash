@@ -83,6 +83,20 @@ async function run(){
     // frozen, so screenshots show a repeatable deterministic silhouette.
     g.update=()=>{}; // freeze BOTH physics and animation between captures
     g.__visualJumpFrames=0;
+    // Own the QA camera ONLY within this disposable headless browser.
+    // The game source and production camera behaviour are NOT changed.
+    s.CameraRig.update=()=>{};
+    g.__visualCamera=(yaw)=>{
+     const target=g.player.model.root.getWorldPosition(
+      new window.THREE.Vector3());
+     target.y+=1.12;
+     s.camera.position.set(
+      target.x+Math.sin(yaw)*3.35,target.y+.85,
+      target.z+Math.cos(yaw)*3.35);
+     s.camera.lookAt(target);
+     s.camera.updateMatrixWorld(true);
+    };
+    g.__visualCamera(0);
     s.CameraRig.rig.pitch=.17;
     s.CameraRig.rig.yaw=0;
     document.querySelectorAll('.sky-lab-panel').forEach(n=>n.style.display='none');
@@ -126,8 +140,8 @@ async function run(){
     },{t,name});
     await sleep(85);
     for(const [view,yaw] of [['front',0],['side',Math.PI/2]]){
-     await page.evaluate(yaw=>{const c=window.SkyClash.CameraRig;
-      c.rig.yaw=yaw;c.rig.pitch=.17;c.update(0,true);},yaw);
+     await page.evaluate(yaw=>{
+      window.SkyClash.Game.__visualCamera(yaw);},yaw);
      await sleep(80);
      const filename=preview+'-'+name+'-'+view+'.png';
      await page.screenshot({path:path.join(out,filename),
