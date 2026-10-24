@@ -255,6 +255,43 @@ assistant to continuously watch the user's phone. A one-tap recorded
 clip or live screen share would materially improve visual review;
 never claim to have seen on-device animations without such a capture.
 
+## Automated real-Kairo browser visual inspection (merged PR #69)
+
+**This replaces asking the user to take screenshots for many iterations.**
+GitHub Actions includes `.github/workflows/jump-visual-review.yml`
+named **Real Kairo Jump Visual Captures** and the source script
+`tools/capture-jump-frames.cjs`. The workflow runs Chromium with WebGL
+against the actual full Kairo VRM0 (not a mock, generated mannequin, or
+old procedural guide), opens the real dojo and saves front+side images
+during idle, grounded loading, compressed prep, takeoff, rising and apex.
+It also saves a measured elbow/hand/shoulder report. By default it
+compares `v119,v120`, but `workflow_dispatch` supports other pairs
+as comma-separated `previews` input.
+
+A coding assistant can locate a successful run in GitHub Actions, use
+`fetch_workflow_run_artifacts` then `download_workflow_artifact` via
+the GitHub connection to obtain **real-kairo-jump-frames** ZIP. If the
+artifact is materialized in the current container, extract it to view
+the PNG files and measured `measurements.json`. No user screenshot,
+screen recording, phone screenshot tool or manual upload is necessary.
+
+**Last validated:** PR #69's final workflow passed on October 24,
+2026. The tool was debugged through title-screen overlay removal,
+fixed deterministic pose sampling (so slow screenshots do not distort
+jump timing), camera zoom and simulated physical lift for ascent.
+I inspected actual front/side V119 vs V120 screenshots and measured
+real elbow/hand changes. V120's difference is visible but remains
+a *subtle* athletic arm counter-swing, not yet user visually approved.
+The user should review `?jumpPreview=v120` before any default promotion.
+
+**Limits:** Chromium software WebGL captures the real game model but
+cannot perfectly replicate the user's phone GPU, controls, texture
+shader settings or subjective appearance. Do not claim to watch the
+user's live phone without a separate screen share. No renderer/gameplay
+code is modified by the workflow; screenshots are GitHub Actions
+artifacts, not silently transmitted from user devices. Future branches
+can rerun it for each new opt-in animation comparison.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
