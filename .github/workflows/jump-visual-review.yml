@@ -43,9 +43,17 @@ jobs:
           VISUAL_PORT: '8765'
           VISUAL_PREVIEWS: ${{ inputs.previews || 'v119,v120' }}
         run: node tools/capture-jump-frames.cjs
-      - name: Verify offline MP4 encoding support
+      - name: Install and strictly verify offline MP4 encoder
         run: |
-          ffmpeg -version | head -n 1
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          command -v ffmpeg
+          ffmpeg -version > /tmp/sky-clash-ffmpeg-version.txt
+          sed -n '1p' /tmp/sky-clash-ffmpeg-version.txt
+          ffmpeg -hide_banner -encoders | grep -q 'libx264'
           node --check tools/capture-jump-video.cjs
       - name: Record deterministic full-motion Kairo front/side MP4 comparisons
         env:
