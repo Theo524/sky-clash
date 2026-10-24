@@ -1769,9 +1769,10 @@
      }
      const choice=new URLSearchParams(root.location?.search||'')
        .get('flightStyle');
-     status.flightStyle=choice==='airborne'&&new URLSearchParams(root.location?.search||'')
-       .get('flightPreview')==='v126'?'V126 expressive hover / cruise':
-       choice==='airborne'?'V114 true hover / cruise':
+     status.flightStyle=choice==='airborne'?
+       (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v126'?'V126 expressive hover / cruise':
+         'V114 true hover / cruise'):
        choice==='controlled'?'V113 authored controlled':
        'V111 continuous hover / travel';
      status.flightSpeed=+speed.toFixed(2);
