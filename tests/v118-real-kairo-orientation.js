@@ -73,4 +73,37 @@ if(sample.length===2){
   console.log('PASS Kairo actual model forward: BOTH toe bones extend along native VRM '+(v0?'-Z':'+Z'));
  }else console.log('KAIRO_RIG WARNING Toe translation does not prove forward for both feet: '+JSON.stringify(projection));
 }
+// Reproduce the ACTUAL runtime hierarchy from src/30-character-models.js:
+// model.root (+Z gameplay) -> rotateVRM0(vrm.scene) (180-degree yaw)
+// -> imported VRM0 (-Z native mesh and toes). V116/V117 erroneously
+// used the inner corrected scene's +Z, which is backwards here.
+const V100=require('../js/v100-pose-authority.js');
+assert(v0,'real published Kairo is VRM0; revise calibration if asset changes');
+assert(nativeFoot.length===2&&nativeFoot.every(d=>d&&d.dot(nativeFacing)>.1),
+ 'Real Kairo toes must establish a reliable anatomical -Z direction');
+for(const yaw of [0,Math.PI*.5,Math.PI,Math.PI*1.75]){
+ const gameRoot=new THREE.Group();
+ gameRoot.rotation.y=yaw;
+ base.rotation.y=Math.PI; // VRMUtils.rotateVRM0 corrective scene yaw
+ gameRoot.add(base);
+ gameRoot.updateMatrixWorld(true);
+ const actor={f:{model:{root:gameRoot}},legacyAxes:true,
+  vrm:{scene:base,humanoid:{getNormalizedBoneNode:bone=>{
+   const idx=boneMap[bone];return Number.isInteger(idx)?nodes[idx]:null;
+  }}}};
+ const status={},corrected=V100.realKairoForward(THREE,actor,status);
+ const physical=world('leftToes').sub(world('leftFoot')).setY(0).normalize();
+ const game=new THREE.Vector3(0,0,1).applyQuaternion(
+  gameRoot.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ const wrong=new THREE.Vector3(0,0,1).applyQuaternion(
+  base.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ assert(corrected.dot(physical)>.995,'V118 must follow Kairo REAL toe direction');
+ assert(corrected.dot(game)>.995,'V118 must follow fighter gameplay +Z');
+ assert(wrong.dot(game)<-.995,'prove earlier V116/V117 front was exactly backwards');
+ assert.equal(status.prepForwardSource,'real-vrm-toes');
+ assert(status.prepSceneVsBodyDot<-.995,
+  'Kairo corrected VRM scene +Z must be opposite the visible/model front');
+ gameRoot.remove(base);
+ base.rotation.y=0;
+}
 console.log('PASS inspected actual published Kairo VRM humanoid metadata and two 3D leg rest chains');
