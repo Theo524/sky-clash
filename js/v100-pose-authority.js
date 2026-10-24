@@ -78,48 +78,53 @@
   };
  }
 
- // V126: improve the existing V114 flight instead of replacing it with a
- // raw recording or second pose owner. Hover carries a relaxed asymmetrical
- // fighter silhouette; travel changes the entire body heading smoothly.
- // Directional speed is filtered in the same clock as forward flight, not
- // instantly projected into a new shoulder/knee pose each input frame.
- // Secondary overlap is sub-degree: actual game root and physics stay fixed.
+ // V126 design revision: close-combat levitation, NOT Superman travel.
+ // Small arena movement at ~0–6.2u/s is not a high-speed flight dash:
+ // Kairo should stay upright and face the opponent throughout normal
+ // hovering, strafing, ascending, and cruising. A strong horizontal
+ // profile belongs to the separately owned Boost/fast-dash state.
+ // All offsets remain in the EXISTING V100 final pose composition.
+ // Use only a muted suspended-knee/guard silhouette from V114, NOT its
+ // excessive accumulated hips+spine+chest travel pitch.
  function v126FlightPose(mix,vertical=0,lateral=0,age=0){
-  const base=airborneFlightPose(mix,vertical,lateral);
   const travel=smooth(clamp(mix,0,1));
   const rise=smooth(clamp(vertical/7,0,1));
   const drop=smooth(clamp(-vertical/7,0,1));
   const bank=clamp(lateral/6.2,-1,1);
-  const hover=1-travel;
-  const wave=Math.sin(Math.max(0,age)*2.6);
-  const follow=Math.sin(Math.max(0,age)*2.6-.65);
-  // Hover is subtly buoyant while forearms stay in Kairo's guard.
-  // Cruising should read as purposeful motion, not standing in midair:
-  // the spine and chest lead the trailing legs, the head counterposes.
+  const hover=1-.75*travel;
+  const wave=Math.sin(Math.max(0,age)*2.1);
+  const follow=Math.sin(Math.max(0,age)*2.1-.60);
   return {
-   ...base,profile:'V126 dynamic airborne',
-   hipsX:base.hipsX+.032*travel-.014*rise+.018*drop,
-   spineX:base.spineX+.075*travel-.013*rise+.022*drop+
-    .011*hover*wave,
-   chestX:base.chestX+.041*travel-.009*rise+.011*drop+
-    .006*hover*follow,
-   neckX:base.neckX-.031*travel+.007*rise,
-   spineZ:-.082*bank*(.34+.66*travel),
-   chestZ:-.032*bank*(.30+.70*travel),
-   leftShoulderX:base.leftShoulderX+.009*hover*follow-.012*bank,
-   rightShoulderX:base.rightShoulderX-.009*hover*follow+.012*bank,
-   leftUpperArmX:base.leftUpperArmX-.023*rise+.016*drop-
-    .021*bank+.012*hover*follow,
-   rightUpperArmX:base.rightUpperArmX-.023*rise+.016*drop+
-    .021*bank-.012*hover*follow,
-   leftLowerArmX:base.leftLowerArmX+.014*travel,
-   rightLowerArmX:base.rightLowerArmX+.014*travel,
-   leftThighX:base.leftThighX-.025*travel+.020*drop,
-   rightThighX:base.rightThighX-.025*travel+.020*drop,
-   leftKneeX:base.leftKneeX-.020*travel-.016*rise+.019*drop,
-   rightKneeX:base.rightKneeX-.020*travel-.016*rise+.019*drop,
-   leftAnkleX:base.leftAnkleX-.014*travel,
-   rightAnkleX:base.rightAnkleX-.014*travel
+   profile:'V126 upright combat levitation',mix:travel,rise,descend:drop,
+   // Hips+spine+chest total ≈ 0.15 rad at full cruise, not the
+   // ≈0.48 rad from the V114 cascade. Head remains facing opponent.
+   hipsX:.042+.040*travel-.014*rise+.017*drop,
+   spineX:-.015+.070*travel-.018*rise+.014*drop+
+    .006*hover*wave,
+   chestX:-.022+.035*travel-.009*rise+.009*drop+
+    .004*hover*follow,
+   neckX:.025-.040*travel+.008*rise,
+   // Bank gently when strafing; Kairo needn't roll across the arena.
+   spineZ:-.052*bank*(.33+.67*travel),
+   chestZ:-.020*bank*(.33+.67*travel),
+   // Relaxed, offset fighting guard: no airplane wings, frozen T-pose,
+   // or both fists thrust ahead. Small delayed shoulder/arm response.
+   leftShoulderX:-.155+.020*travel+.007*hover*follow-.010*bank,
+   rightShoulderX:-.135+.020*travel-.007*hover*follow+.010*bank,
+   leftUpperArmX:.235+.045*travel-.019*rise+.014*drop-
+    .018*bank+.008*hover*follow,
+   rightUpperArmX:.205+.045*travel-.019*rise+.014*drop+
+    .018*bank-.008*hover*follow,
+   leftLowerArmX:-.220+.018*travel,
+   rightLowerArmX:-.200+.018*travel,
+   // Floating boots: one knee gently higher, ankles pointing naturally
+   // downward. Don't kick both legs far behind like fast traversal.
+   leftThighX:-.205-.040*travel-.020*rise+.018*drop,
+   rightThighX:-.100-.035*travel-.020*rise+.018*drop,
+   leftKneeX:.485-.065*travel-.045*rise+.070*drop,
+   rightKneeX:.340-.035*travel-.045*rise+.070*drop,
+   leftAnkleX:-.100-.012*travel,
+   rightAnkleX:-.065-.010*travel
   };
  }
  // V110: source jump/fall clips have a different built-in yaw baseline
