@@ -1746,6 +1746,12 @@ function fullArcExpressivenessRegression(){
  // source-retarget LOCAL shoe quats need not be bit-identical to V122.
  // True physical test is what the shoe/toe vector displays in WORLD space.
 
+ console.log('V123 A/B phase diagnostics',JSON.stringify({
+  fall:old.fall.map((v,k)=>v.map((q,i)=>[V100.BONES[i],
+   +q.angleTo(newer.fall[k][i]).toFixed(5)]).filter(x=>x[1]>.003)),
+  landing:old.landing.map((v,k)=>v.map((q,i)=>[V100.BONES[i],
+   +q.angleTo(newer.landing[k][i]).toFixed(5)]).filter(x=>x[1]>.003))
+ }));
  for(let k=0;k<old.fall.length;k++)for(let i=0;i<20;i++)
   assert(old.fall[k][i].angleTo(newer.fall[k][i])<.003,
    'V123 must not modify the already-good descent '+V100.BONES[i]);
