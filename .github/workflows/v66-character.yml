@@ -45,6 +45,7 @@ on:
       - 'tests/v110-*.js'
       - 'tests/v111-*.js'
       - 'tests/v112-*.js'
+      - 'tests/v113-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -106,6 +107,7 @@ on:
       - 'tests/v110-*.js'
       - 'tests/v111-*.js'
       - 'tests/v112-*.js'
+      - 'tests/v113-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -204,6 +206,7 @@ jobs:
       - run: node tests/v110-air-facing.js
       - run: node tests/v111-powered-flight-blend.js
       - run: node tests/v112-standing-push-off.js
+      - run: node tests/v113-controlled-flight-feet.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
