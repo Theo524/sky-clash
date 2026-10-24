@@ -669,7 +669,7 @@
    const u=clamp(t/Math.max(.001,duration),0,1);
    const load=smooth(u/.74),recoil=load*(1-smooth((u-.77)/.23));
    return {energy:load,spineGain:1+.17*load,chestGain:1+.14*load,
-    legGain:1+.09*load,hipDip:.015*load,
+    legGain:1,hipDip:.015*load,
     armUpper:.095*recoil,armLower:.065*recoil,
     armShoulder:.026*recoil,phase:'recoil'};
   }
@@ -1210,17 +1210,7 @@
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
      // original clips still drive the targets, but cannot twitch across
      // a large frame-to-frame source difference. No physics/IK changes.
-     // V123's 9% stronger *grounded* knee load needs a little extra
-     // ankle catch-up during early rise. Otherwise V102's original
-     // 180°/sec cap retains ~3° of residual foot pose into the
-     // approved FALL despite no V123 fall overlay. Blend the maximum
-     // restoration RATE (not the desired pose) after push-off.
-     const v123ShoeRestore=next==='jump'&&
-      params.get('jumpPreview')==='v123'&&st.launchSpeed<1.3&&
-      (i===16||i===19);
-     const extra=v123ShoeRestore?
-      1.86*smooth((st.elapsed-.26)/.13):0;
-     const rate=i===15||i===18?4.19:3.14+extra;
+     const rate=i===15||i===18?4.19:3.14;
      const maxStep=Math.max(0,dt)*rate;
      const delta=st.prev[i].angleTo(qTarget);
      if(delta>maxStep&&maxStep>0){
@@ -1485,10 +1475,12 @@
        status,actualForward);
      }
      if(v116){
-      worldStandingPrepLegs(THREE,this.vrmRig,
-       Math.abs(p.thighX)*(v123Load?.legGain??1),
-       Math.abs(p.kneeX)*(v123Load?.legGain??1),
-       st.prepFeet,status,actualForward);
+      // The user's V122 planted stance and foot directions are GOOD.
+      // Expressive V123 pushes by deepening torso/pelvis coil and
+      // releasing the unchanged accepted knees; avoid accumulating
+      // a new V102-leg angular clamp lag into the approved FALL.
+      worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
+       Math.abs(p.kneeX),st.prepFeet,status,actualForward);
      }
      // Rotate the REAL thigh about world-up only after its correct V118
      // world-forward knee fold. This changes heading, NOT knee flexion.
