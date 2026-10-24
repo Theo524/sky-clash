@@ -64,7 +64,7 @@ assert(owner.includes("joint.quaternion.multiply(q.setFromAxisAngle(axis,change)
 assert(owner.includes("largest=guidedPrepFeet(THREE,this.vrmRig,st.prepFeet,status)"));
 assert(boot.includes("e.src+='&airborne=114'"));
 assert(boot.includes("V114 airborne loading"));
-assert(html.includes('SKY CLASH · BUILD V114'));
-assert(html.includes('js/v66-game-boot.js?v=820&fix=115'));
-assert(read('animation-studio.html').includes('BUILD V114'));
+assert(/SKY CLASH · BUILD V11[45]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=11[56]/.test(html));
+assert(/BUILD V11[45]/.test(read('animation-studio.html')));
 console.log('PASS V114: clearly airborne hover and cruise, directional rise/descent, 30/60/120 FPS fluidity, hinge-only knee guidance and protected launch transition');
