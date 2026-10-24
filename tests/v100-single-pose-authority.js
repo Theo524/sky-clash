@@ -1886,11 +1886,12 @@ function idleToCrouchFootContinuityRegression(){
    'never change moving V103 jump preparation '+V100.BONES[i]);
   assert(moveNew.peak[i].angleTo(moveBalanced.peak[i])<.0001,
    'V125 may not change moving V103 prep '+V100.BONES[i]);
-  for(let k=0;k<3;k++)
+  for(let k=0;k<3;k++){
    assert(moveOld.ascent[k][i].angleTo(moveNew.ascent[k][i])<.0001,
     'never alter moving V103 airborne pose '+V100.BONES[i]);
    assert(moveNew.ascent[k][i].angleTo(moveBalanced.ascent[k][i])<.0001,
     'V125 may not change moving V103 air '+V100.BONES[i]);
+  }
  }
  console.log('PASS V124 whole V100 stack: no idle->PREP foot position/heading teleport, both native feet retained; V123 ascent, landing and moving path protected');
 }
