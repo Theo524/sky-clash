@@ -102,7 +102,7 @@
  }
  // Small IK support-foot correction for *moving* natural landings only.
  // Works after V106 vertical sole contact, without moving physics/root.
- function steadyLandingSupport(THREE,rig,anchor,strength,status){
+ function steadyLandingSupport(THREE,rig,anchor,strength,status,telemetry=true){
   if(!anchor||strength<=0)return;
   const hum=rig.vrm.humanoid,scene=rig.vrm.scene;
   const hip=hum.getNormalizedBoneNode(anchor.side+'UpperLeg');
@@ -140,9 +140,12 @@
   scene.updateMatrixWorld(true);
   foot.getWorldPosition(curr);
   const slip=Math.hypot(curr.x-anchor.point.x,curr.z-anchor.point.z);
-  status.movingFootSlipCm=+(slip*100).toFixed(1);
-  status.movingFootPinFrames=(status.movingFootPinFrames||0)+1;
-  status.movingFootPin=anchor.side+' support';
+  if(telemetry){
+   status.movingFootSlipCm=+(slip*100).toFixed(1);
+   status.movingFootPinFrames=(status.movingFootPinFrames||0)+1;
+   status.movingFootPin=anchor.side+' support';
+  }
+  return slip;
  }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
@@ -240,7 +243,8 @@
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
     movingFlow:false,landingDuration:.48,airFacingPose:[],
-    flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null};
+    flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null,
+    prepFeet:[]};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -276,7 +280,7 @@
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
-   st.prepLastHipY=null;st.pushReleaseHipY=null;
+   st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -319,6 +323,14 @@
     st.prepHipsY=st.nodes[0].position.y;
     st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.prepLastHipY=null;
+    st.prepFeet=[];
+    if(new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'){
+     st.rig.vrm.scene.updateMatrixWorld(true);
+     for(const side of ['left','right']){
+      const shoe=st.rig.vrm.humanoid.getNormalizedBoneNode(side+'Foot');
+      if(shoe)st.prepFeet.push({side,point:shoe.getWorldPosition(new THREE.Vector3())});
+     }
+    }
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
@@ -700,6 +712,20 @@
      st.nodes[0].position.y=st.prepHipsY+p.hipsY/(this.vrmRig.scale||1);
      st.prepLastHipY=st.nodes[0].position.y;
      this.vrmRig.vrm.update(0);
+     if(profile==='push'){
+      // Both shoes should stay exactly where they were when the boxer
+      // loaded weight. Knee flex alone can drift the VRM ankles sideways
+      // because the original approved pose is not a perfect neutral bind.
+      // Very small post-pose two-joint IK brings them back without
+      // touching horizontal gameplay motion, as during moving landing.
+      let largest=0;
+      for(const anchor of st.prepFeet){
+       const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
+       if(Number.isFinite(slip))largest=Math.max(largest,slip);
+      }
+      status.prepFootSlipCm=+(largest*100).toFixed(1);
+      this.vrmRig.vrm.update(0);
+     }
      // The normal pre-recording floor solver is bypassed in this 95ms
      // interval; correct visible shoes AFTER the final crouched pose.
      plantVisibleSoles(THREE,this.vrmRig,this,status);
@@ -789,6 +815,7 @@
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
+    prepFootSlipCm:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
