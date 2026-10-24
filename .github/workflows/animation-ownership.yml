@@ -89,5 +89,7 @@ jobs:
         run: node tests/v116-standing-jump-geometry.js
       - name: Check V117 forward upper-body geometry across mirrored VRM rigs
         run: node tests/v117-forward-torso-geometry.js
+      - name: Inspect ACTUAL Kairo GLB humanoid facing, not a synthetic rig
+        run: node tests/v118-real-kairo-orientation.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js
