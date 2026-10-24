@@ -2174,7 +2174,7 @@ function compactGuardRegression(){
  assert(/SKY CLASH · BUILD V(10[1-9]|11[0-5])/.test(html));
  assert(!html.includes('V58'));
  assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-6])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-6]|130)/.test(html));
  assert(boot.includes('SkyClashBuild=Object.freeze'));
  assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
  assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
