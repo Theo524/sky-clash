@@ -1,0 +1,46 @@
+name: Animation Ownership Contract
+
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'docs/PROJECT-CONTEXT.md'
+      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
+      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
+      - 'js/**'
+      - 'src/**'
+      - 'tests/animation-ownership-contract.js'
+      - 'tests/v100-single-pose-authority.js'
+      - 'tests/v115-forward-knee-calibration.js'
+      - '.github/workflows/animation-ownership.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'docs/PROJECT-CONTEXT.md'
+      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
+      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
+      - 'js/**'
+      - 'src/**'
+      - 'tests/animation-ownership-contract.js'
+      - 'tests/v100-single-pose-authority.js'
+      - 'tests/v115-forward-knee-calibration.js'
+      - '.github/workflows/animation-ownership.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ownership-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Block unreviewed animation wrapper registrations
+        run: node tests/animation-ownership-contract.js
+      - name: Preserve V100 multi-controller airborne ownership
+        run: node tests/v100-single-pose-authority.js
+      - name: Preserve V115 knee geometry and model axis behavior
+        run: node tests/v115-forward-knee-calibration.js
