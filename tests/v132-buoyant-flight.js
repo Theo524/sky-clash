@@ -102,5 +102,5 @@ assert(file.includes("flightVersion==='v132'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
 assert(boot.includes("['v114','v126','v127','v128','v129','v130','v132','v132']"));
-assert(boot.includes("e.src+='&buoyantFlight=131'"));
+assert(boot.includes("e.src+='&buoyantFlight=132'"));
 console.log('PASS V132: buoyant bent lower arms and floating sway at four facing angles and mirrored bones, V128 body continuity, 30/60/120fps joint caps');
