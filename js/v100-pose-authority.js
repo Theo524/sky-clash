@@ -1080,7 +1080,8 @@
       // The original V112 assumed identical local X signs for both VRM
       // thighs/knees. Use measured world-forward bend for each joint.
       let bendAngle=(v116&&i>=14&&i<=19)||
-       (v117Torso&&(i===0||i===1||i===2||i===4))?0:angle;
+       (v117&&(i===0||i===1||i===2||i===4))||
+       (v118&&(i===0||i===1||i===2||i===4))?0:angle;
       if(!v116&&axes&&i>=14&&i<=19){
        const side=i<=16?'left':'right';
        const knee=axes[side];
