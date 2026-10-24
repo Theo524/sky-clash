@@ -220,6 +220,7 @@ jobs:
       - run: node tests/v128-world-flight-knees.js
       - run: node tests/v129-real-flight-guard.js
       - run: node tests/v130-relaxed-integrated-flight.js
+      - run: node tests/v131-organic-hover.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
