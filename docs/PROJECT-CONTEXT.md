@@ -132,6 +132,43 @@ measure the actual normalized Kairo VRM rest axes and stop iterating
 heuristic plus-Z assumptions. V117 must not become the default without
 the user's explicit visual acceptance.
 
+## V118 real-VRM facing correction (2026-10-24, opt-in)
+
+User tested V117 on the actual mobile WebGL game and again reported
+"nope still bend backwards". The V115/V116/V117 synthetic VRM tests had
+mistakenly used the corrected `vrm.scene`'s +Z for anatomical forward.
+
+**Confirmed with the actual `assets/characters/kairo.vrm` (16.6 MB):**
+It is **VRM0**, named *Boy TBB*, with both native foot-to-toe vectors
+pointing **-Z** (around 16 cm forward). The game calls
+`VRMUtils.rotateVRM0(vrm)` before parenting the VRM scene under the
+fighter model root (`src/30-character-models.js`). That turns visible
+toes into gameplay **+Z**, but the corrected `vrm.scene`'s +Z now points
+**backwards** relative to `fighter.model.root` and the mesh toes.
+V116/V117 used that reversed child-scene vector for both knees and torso.
+Source-code heuristics and their fake unrotated skeletons overlooked this.
+
+**V118 preview:** `?jumpPreview=v118`, after merge/deployment.
+Within the existing V100 single-air-pose owner ONLY, observe both real
+normalized toe vectors, compare them to fighter root world +Z, and use
+that actual physical forward for the standing-prep thigh, shin, torso
+constraints. Fall back to fighter model root +Z if toe vectors are not
+reliable. No VRM, physics, extra animator, flight, approved ground/arm or
+moving-jump changes. Default remains V115, prior previews are preserved.
+
+**Evidence:** `tests/v118-real-kairo-orientation.js` parses the actual
+binary VRM0 glTF and confirms toe direction, then recreates the corrective
+scene yaw at four facing angles and asserts the old scene +Z is inverted.
+Full V100 pipeline test adds corrected-scene/real-toe hierarchy and
+checks forward knees/torso, guard, one writer, planted soles and
+jump-to-air continuity. Automated tests still cannot certify the actual
+skinned character's visual appearance; ask user to test V118 before any
+promotion to default. If this doesn't solve it, do not repeat the same
+axis-guessing pattern: inspect the actual VRM pose and render screenshots.
+
+Rollback: https://theo524.github.io/sky-clash/
+Old comparisons: `?jumpPreview=v116`, `?jumpPreview=v117`.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
