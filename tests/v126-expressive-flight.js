@@ -79,7 +79,9 @@ for(const fps of [30,60,120]){
 }
 const owner=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  boot=fs.readFileSync('js/v66-game-boot.js','utf8');
-assert(owner.includes("params.get('flightPreview')==='v126'"));
+assert(owner.includes("params.get('flightPreview')==='v126'")||
+ owner.includes("flightVersion==='v126'"),
+ 'V126 remains independently selectable after V127 adds its own preview');
 assert(owner.includes('st.flightVelocityY=flightStep('));
 assert(owner.includes('st.flightSide=flightStep('));
 assert(owner.includes('v126?v126FlightPose('));
