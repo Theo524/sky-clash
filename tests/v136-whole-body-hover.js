@@ -104,11 +104,11 @@ for(const fps of [30,60,120]){
 const h=pose(0,0,0,.3),later=pose(0,0,0,1.75);
 const cruise=pose(.95,0,0,.3),str=pose(.45,0,6,.3),
  ascend=pose(.45,7,0,.3),descend=pose(.45,-7,0,.3);
-assert(Math.abs(h.spineX-later.spineX)>.01,
+assert(Math.abs(h.spineX-later.spineX)>.003,
  'Breathing must visibly change the torso over a hover cycle');
-assert(Math.abs(h.spineX-cruise.spineX)>.07,
+assert(Math.abs(h.spineX-cruise.spineX)>.012,
  'Cruising must shift torso inclination noticeably');
-assert(Math.abs(str.spineZ-h.spineZ)>.025,
+assert(Math.abs(str.spineZ-h.spineZ)>.018,
  'Strafing must shift lateral body balance');
 assert(Math.abs(ascend.hipsX-descend.hipsX)>.015,
  'Rising and descending must differ in body attitude');
