@@ -2030,6 +2030,9 @@ function v129WholeStackHoverGuardRegression(){
   for(let i=0;i<66;i++){
    const previous=u.pose();u.step();
    const current=u.pose();frames.push(current);
+   if(version==='v129'&&[1,10,25,45,65].includes(i))
+    console.log('V129 FRAME TELEMETRY',i,
+      JSON.stringify(u.authority.flightGuardWorld));
    if(version==='v129')for(let j=0;j<20;j++)
     assert(previous[j].angleTo(current[j])<.17,
       'V129 guard jumps at flight entry '+V100.BONES[j]);
