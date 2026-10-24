@@ -1273,7 +1273,8 @@ class VRMRig {
     const v108FinalPrep=this.f===Game.heroes?.kairo_venn&&
       this.f.v108JumpPrepT>0&&
       (window.location?.search?.includes('jumpPrep=subtle')||
-       window.location?.search?.includes('jumpPrep=readable'))&&
+       window.location?.search?.includes('jumpPrep=readable')||
+       window.location?.search?.includes('jumpPrep=push'))&&
       window.SkyClashPoseAuthority?.ready;
     // World-space ground constraint for all unmodified grounded states.
     // Does not move hitbox or simulation position.
@@ -2149,14 +2150,20 @@ class Fighter {
       !this.punchT&&!this.blastT&&!this.blockHeld&&!this.charging&&
       !(this.landingMotionT>0)&&
       (window.location?.search?.includes('jumpPrep=subtle')||
-       window.location?.search?.includes('jumpPrep=readable'))&&
+       window.location?.search?.includes('jumpPrep=readable')||
+       window.location?.search?.includes('jumpPrep=push'))&&
       window.location?.search?.includes('animator=unified')&&
       window.SkyClashPoseAuthority?.ready;
     if(subtlePrep){
       // Keep the V108 95ms experiment; the new readable profile loads
       // more deeply and for longer when Kairo is starting from rest.
       const readable=window.location.search.includes('jumpPrep=readable');
-      const duration=readable?.140-.040*Math.min(1,speed/6.2):.095;
+      // V112: standing jump deserves a visible grounded LOAD, followed
+      // by a real release. Run-up jumps remain fast and mostly unchanged.
+      // This opt-in profile does not alter the jump impulse itself.
+      const push=window.location.search.includes('jumpPrep=push');
+      const duration=push?.215-.10*Math.min(1,speed/6.2):
+        readable?.140-.040*Math.min(1,speed/6.2):.095;
       this.v108JumpPrepDuration=duration;this.v108JumpPrepT=duration;
       this.v108JumpPrepLaunchVy=this.vel.y;
       this.v108JumpPrepSpeed=speed;
