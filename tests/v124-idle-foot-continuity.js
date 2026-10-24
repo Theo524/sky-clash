@@ -68,7 +68,9 @@ assert(code.includes("const entryFeet=v124Entry?v124IdleFootAnchors(THREE,this.v
  'must sample before legacy old.call, not after it');
 assert(code.indexOf("const entryFeet=v124Entry?")<code.indexOf("old.call(this,dt);"));
 assert(code.includes("if(entryFeet?.length===2)"));
-assert(code.includes(".20*stance.ready,status,v124?st.prepFeet:null"));
+assert(code.includes("v125?.20:.20*stance.ready,status")&&
+ code.includes("(v124||v125)?st.prepFeet:null"),
+ 'v124 must retain its measured original toe target behind its gate');
 assert(code.includes("['v123','v124'].includes(params.get('jumpPreview'))"),
  'preserve expressive ascent from v123');
 assert(boot.includes("e.src+='&idleFeet=124'"));
