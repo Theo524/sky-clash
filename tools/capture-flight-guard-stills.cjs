@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v133,v134').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v134,v135').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -218,6 +218,8 @@ async function capture(browser,preview){
      rightGuard:owner.flightGuardWorld?.right||null,
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
      leftKneeDropCm:owner.flightKneeWorld?.left?.hipToKneeDropCm??null,
+     leftKneeBendDeg:owner.flightKneeWorld?.left?.kneeBendDeg??null,
+     rightKneeBendDeg:owner.flightKneeWorld?.right?.kneeBendDeg??null,
      rightKneeDropCm:owner.flightKneeWorld?.right?.hipToKneeDropCm??null,
      rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
      leftShinBackCm:owner.flightKneeWorld?.left?.shinBackCm??null,
@@ -335,6 +337,16 @@ async function capture(browser,preview){
    console.log('V134 VERIFIED REAL-VRM MOTION CM',
     JSON.stringify({elbowMotion,kneeMotion}));
   }
+  if(preview==='v135'){
+   for(const frame of timeline){
+    if(frame.flightNaturalSilhouette!=='NATURAL'||
+       frame.leftKneeBendDeg===null||frame.rightKneeBendDeg===null||
+       frame.rightKneeBendDeg<25||frame.rightKneeBendDeg>60||
+       !frame.leftNatural||!frame.rightNatural)
+      throw Error('V135 real-Kairo trailing knee or approved arms failed: '+
+       JSON.stringify(frame));
+   }
+  }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
@@ -360,6 +372,24 @@ async function capture(browser,preview){
   for(const preview of versions)
    reports.push(await capture(browser,preview));
  }finally{await browser.close();}
+ if(versions.includes('v134')&&versions.includes('v135')){
+  const a=reports.find(x=>x.preview==='v134').timeline;
+  const b=reports.find(x=>x.preview==='v135').timeline;
+  let softened=0;
+  for(let i=0;i<b.length;i++){
+   const bendImprovement=b[i].rightKneeBendDeg-a[i].rightKneeBendDeg;
+   if(bendImprovement>4)softened++;
+   if(Math.abs(b[i].leftKneeBendDeg-a[i].leftKneeBendDeg)>1.0)
+    throw Error('V135 must not alter approved V134 lead knee: '+
+     JSON.stringify({before:a[i],after:b[i]}));
+   for(const side of ['leftNatural','rightNatural']){
+    if(Math.abs(b[i][side].handOutCm-a[i][side].handOutCm)>1.0)
+     throw Error('V135 cannot change approved V134 arms: '+side);
+   }
+  }
+  if(softened<6)throw Error('V135 trailing leg not visibly softer in >=6/8 frames: '+softened);
+  console.log('PASS actual Kairo V135 softer right knee across '+softened+'/8 flight views with V134 arms and lead knee preserved');
+ }
  if(versions.length===2){
   for(const view of Object.keys(views)){
    compose(path.join(output,versions[0]+'-'+view+'.mp4'),

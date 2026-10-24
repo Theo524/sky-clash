@@ -246,12 +246,13 @@
    const index=side==='left'?14:17;
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
+   const softTrailingKnee=pose?.profile==='V135 soft trailing knee';
    const naturalHover=pose?.profile==='V134 natural weightless hover';
    const weightless=pose?.profile==='V133 weightless flight';
    const buoyant=pose?.profile==='V132 buoyant natural flight';
    const natural=pose?.profile==='V131 organic suspended flight';
    const relaxed=pose?.profile==='V130 relaxed suspended flight';
-   const sway=(naturalHover||weightless||buoyant||natural||relaxed)?Math.sin(Math.max(0,pose.age)*1.30+
+   const sway=(softTrailingKnee||naturalHover||weightless||buoyant||natural||relaxed)?Math.sin(Math.max(0,pose.age)*1.30+
     (side==='left'?.30:2.05)):0;
    // V131 must not look like a ground crouch: lead thigh travels
    // clearly FORWARD toward horizontal, while the other leg hangs
@@ -261,7 +262,14 @@
    const flow=clamp(pose?.mix||0,0,1);
    // V134 filmed feedback: V133's leg still draws a seated pedal stroke.
    // Keep a softer forward lift but let the shoe dangle BELOW the hip.
-   const forwardKnee=naturalHover?
+   // V135: actual V134 3-view footage and knee measurements show
+   // right leg nearly fully extended while left stays buoyantly folded.
+   // Bend ONLY the trailing right leg with an offset delayed pulse.
+   // The admired V134 lead leg, arms and torso stay untouched.
+   const forwardKnee=softTrailingKnee?
+    (side==='left'?.91+.23*sway+.07*flow:
+     .54+.105*sway-.025*flow):
+    naturalHover?
     (side==='left'?.91+.23*sway+.07*flow:
      .24+.16*sway-.035*flow):
     weightless?
@@ -270,7 +278,9 @@
     buoyant?(side==='left'?1.31+.070*sway:.29+.040*sway):
     natural?(side==='left'?1.92+.045*sway:.38+.025*sway):
     (side==='left'?.86:.38)+.042*sway;
-   const foldBack=naturalHover?
+   const foldBack=softTrailingKnee?
+    (side==='left'?.10+.034*sway:.19+.038*sway):
+    naturalHover?
     (side==='left'?.10:.11)+.034*sway:
     weightless?
     (side==='left'?.16:.21)+.075*sway:
@@ -282,7 +292,7 @@
    // FRONT of the hip-to-ankle support line on either mirrored leg.
    target.copy(down).addScaledVector(f,
       forwardKnee+.06*rise-.03*drop)
-    .addScaledVector(right,sign*(naturalHover?
+    .addScaledVector(right,sign*((softTrailingKnee||naturalHover)?
       .075+.035*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
       weightless?
       .10+.055*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
@@ -290,7 +300,7 @@
    aim(thigh,shin,target,.85,index);
    target.copy(down).addScaledVector(f,
       -foldBack+.025*rise-.04*drop)
-    .addScaledVector(right,-sign*(naturalHover?.025:
+    .addScaledVector(right,-sign*((softTrailingKnee||naturalHover)?.025:
       weightless?.045:
       (buoyant||natural)?.015:.018)).normalize();
    aim(shin,ankle,target,1.13,index+1);
@@ -321,7 +331,11 @@
     shinBackCm:+(kneeP.clone().sub(ankleP).dot(f)*100).toFixed(2),
     hipToKneeDropCm:+((thigh.getWorldPosition(new THREE.Vector3()).y-
      kneeP.y)*100).toFixed(1),
-    kneeAboveAnkleCm:+((kneeP.y-ankleP.y)*100).toFixed(1)};
+    kneeAboveAnkleCm:+((kneeP.y-ankleP.y)*100).toFixed(1),
+    kneeBendDeg:+(Math.acos(clamp(
+     kneeP.clone().sub(thigh.getWorldPosition(new THREE.Vector3()))
+      .normalize().dot(ankleP.clone().sub(kneeP).normalize()),-1,1))
+      *180/Math.PI).toFixed(1)};
   }
   if(status){
    status.flightKneeWorld=results;
@@ -634,6 +648,13 @@
    spineZ:-.037*bank+.019*Math.sin(time*1.18-.5),
    chestZ:-.016*bank-.012*Math.sin(time*1.18-.5),
    neckX:.020-.070*travel+.013*rise};
+ }
+ // V135: small evidence-based correction to ONLY the trailing knee
+ // in V134's acclaimed weightless hover. Keep V134's torso, arms,
+ // directional float, jump and combat intact.
+ function v135FlightPose(mix,vertical=0,lateral=0,age=0){
+  return {...v134FlightPose(mix,vertical,lateral,age),
+   profile:'V135 soft trailing knee'};
  }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
@@ -1661,6 +1682,7 @@
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='airborne';
    const flightVersion=params.get('flightPreview');
+   const v135=airborne&&flightVersion==='v135';
    const v134=airborne&&flightVersion==='v134';
    const v133=airborne&&flightVersion==='v133';
    const v132=airborne&&flightVersion==='v132';
@@ -1670,7 +1692,9 @@
    const v128=airborne&&flightVersion==='v128';
    const v127=airborne&&flightVersion==='v127';
    const v126=airborne&&flightVersion==='v126';
-   const flightControl=v134?v134FlightPose(st.flightMix,
+   const flightControl=v135?v135FlightPose(st.flightMix,
+     st.flightVelocityY,st.flightSide,st.elapsed):
+     v134?v134FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
      v133?v133FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
@@ -1896,7 +1920,7 @@
      // arm quaternion here, letting only the final real-world solver
      // advance those four joints with the original 5rad/s budget.
      // All other flight joints retain the historical V111 limiter.
-     if((v129||v130||v131||v132||v133||v134)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     if((v129||v130||v131||v132||v133||v134||v135)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
      else{
       const maxStep=5.0*Math.max(0,dt);
       const delta=st.prev[i].angleTo(qTarget);
@@ -1953,15 +1977,15 @@
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
    }
-   if(v128||v129||v130||v131||v132||v133||v134){
+   if(v128||v129||v130||v131||v132||v133||v134||v135){
     // Stabilized from the REAL game-model facing, including VRM0's native
     // -Z parity; no extra Fighter.animate layer or invisible guide rig.
     const forward=realKairoForward(THREE,rig,null);
     v128CorrectFlightLegs(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.26),st.prev,dt,status);
-    if(v129||v130||v131||v132||v133||v134)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
+    if(v129||v130||v131||v132||v133||v134||v135)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
       smooth(st.elapsed/.32),st.prev,dt,status,
-      v134?'natural-hover':v133?'weightless':v132?'buoyant':v131?'organic':
+      (v135||v134)?'natural-hover':v133?'weightless':v132?'buoyant':v131?'organic':
       v130?'relaxed':'guard');
    }
    // V73 natural VRoid hands are the only finger source in this state.
@@ -2316,7 +2340,7 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     if(['v126','v127','v128','v129','v130','v131','v132','v133','v134'].includes(new URLSearchParams(root.location?.search||'')
+     if(['v126','v127','v128','v129','v130','v131','v132','v133','v134','v135'].includes(new URLSearchParams(root.location?.search||'')
        .get('flightPreview'))){
       const yaw=this.facing||0;
       const side=(this.vel?.x||0)*Math.cos(yaw)-
@@ -2330,6 +2354,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v135'?'V135 soft trailing knee':
+        new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v134'?'V134 naturally suspended flight':
         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v133'?'V133 weightless animated flight':
@@ -2475,7 +2501,7 @@
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
-    v134FlightPose,
+    v134FlightPose,v135FlightPose,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,
