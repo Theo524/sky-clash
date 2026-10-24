@@ -15,6 +15,18 @@ GitHub Actions passed. **Automated success is NOT visual approval.**
 PR #60 (feature/v115-visual-review-lab) was open and had passed CI;
 it adds an A/B animation testing page without modifying the game.
 Verify the PR status instead of assuming it remains open.
+- PR #61 (architecture/animation-ownership-contract) is the separate
+  documentation/CI safeguard for Kairo's animation architecture. As of
+  October 24, 2026 it is **open, not merged**. Deep pre-merge audit
+  confirmed no gameplay, physics, VRM asset or live animation changes;
+  the compiled game bundle is identical to its source rebuild, and the
+  70 existing Node syntax/regression commands plus V100, V115 and ownership
+  checks passed on commit 504c5f6f5c1f6d3dbbb725849fbfb0ef32ad77a4.
+  This is not a guarantee of visual quality or complete per-bone write
+  exclusivity. Recheck current head and CI before merging.
+- PRs #60 and #61 have distinct modified-file sets after the CI workflow
+  separation, so the architecture branch no longer edits PR #60's
+  existing V66 workflow. Verify this again if either PR changes.
 
 ## The longstanding issue
 
