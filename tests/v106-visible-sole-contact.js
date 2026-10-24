@@ -93,7 +93,7 @@ assert(visual.includes('} else if (!v106FinalSoles&&!v108FinalPrep&&this.footLif
 assert(boot.includes("e.src+='&soles=106'"));
 assert(boot.includes("SOLE: ")&&boot.includes('lowest gap'));
 const html=read('index.html');
-assert(/SKY CLASH · BUILD V(10[6-9]|11[0-4])/.test(html));
-assert(/js\/v66-game-boot\.js\?v=820&fix=(?:10[7-9]|11[0-5])/.test(html));
-assert(/BUILD V(10[6-9]|11[0-4])/.test(read('animation-studio.html')));
+assert(/SKY CLASH · BUILD V(10[6-9]|11[0-5])/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=(?:10[7-9]|11[0-6])/.test(html));
+assert(/BUILD V(10[6-9]|11[0-5])/.test(read('animation-studio.html')));
 console.log('PASS V106: visible retargeted soles touch real world floor (including toes), no penetration, 60-frame drift-free contact, no airborne changes or competing procedural ground solver');
