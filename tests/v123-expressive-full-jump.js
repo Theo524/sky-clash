@@ -17,7 +17,8 @@ for(const fps of [30,60,120]){
  const rise=[...Array(Math.ceil(.72*fps)+1)].map((_,i)=>p('jump',Math.min(.72,i/fps)));
  assert(rise[0].energy===0);
  assert(rise.some(x=>x.spine>.13&&x.chest>.1),'strong open chest at takeoff');
- assert(rise.some(x=>x.thigh>.08&&x.shin>.09),'expressive midrise knee gather');
+ assert(rise.every(x=>x.thigh===0&&x.shin===0),
+  'V123 may not replace the V122 recorded airborne knee/ankle path');
  assert(rise.some(x=>x.armUpper>.27&&x.armLower>.15),
   'new V123 arm reach must be plainly visible');
  assert(rise.at(-1).energy===0&&rise.at(-1).thigh===0,
@@ -49,11 +50,15 @@ for(const yaw of [0,.65,Math.PI,5.1]){
  const start=Object.fromEntries(Object.entries(bones).map(([k,n])=>[k,n.quaternion.clone()]));
  const m=p('jump',.2),status={};
  V100.v123WorldRise(THREE,rig,forward,m,status);
- assert(status.v123RiseJoints===6,'2 spine + 2 thigh + 2 shin world joints');
- for(const k of ['spine','chest','leftUpperLeg','rightUpperLeg','leftLowerLeg','rightLowerLeg']){
+ assert(status.v123RiseJoints===2,'only real spine and chest joints: V122 limbs stay recorded');
+ for(const k of ['spine','chest']){
   const d=bones[k].quaternion.angleTo(start[k]);
   assert(d>.025&&d<.3,'natural visible, bounded '+k+' angular change: '+d);
  }
+ for(const k of ['leftUpperLeg','rightUpperLeg','leftLowerLeg','rightLowerLeg',
+  'leftFoot','rightFoot'])
+  assert(bones[k].quaternion.angleTo(start[k])<1e-8,
+   'do not rewrite approved V122 leg '+k);
  // No root, toe or wrist changes. World rig facing only.
  assert(root.rotation.y===yaw);
  const stable=Object.fromEntries(Object.entries(bones).map(([k,n])=>[k,n.quaternion.clone()]));
