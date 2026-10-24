@@ -955,8 +955,10 @@
      // takeoff uses the untouched V115 forward-calibrated pose.
      const v116=profile==='push'&&kneeProfile==='anatomic'&&
        st.prepSpeed<1.3;
-     const readable=v116?'loaded':profile==='push'?'push':
-       profile==='readable';
+     // Keep V109's historic A/B profile selection unchanged. V116
+     // overrides the sampled PREP POSE only inside its opt-in branch.
+     const originalReadable=profile==='push'?'push':profile==='readable';
+     const readable=v116?'loaded':originalReadable;
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      const axes=profile==='push'&&
