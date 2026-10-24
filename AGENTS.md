@@ -33,6 +33,13 @@ only a previous conversation may not have the full project context.
   approved movement as collateral damage.
 - Do not conflate a green test run with WebGL animation quality. Review
   real Kairo geometry, front/side/back video and explicit user feedback.
+- For screenshot-free visual QA, use the existing GitHub Actions workflow
+  `.github/workflows/jump-visual-review.yml` (`Real Kairo Jump Visual
+  Captures`), download `real-kairo-jump-frames` from a successful run
+  and inspect its *actual WebGL VRM0* PNGs and `measurements.json`.
+  Capture pairs with the workflow_dispatch `previews` input. This allows
+  future chats to see browser-rendered animations without making the user
+  take screenshots, but still requires visual approval for phone behavior.
 - Run prior tests AND new tests at 30/60/120 FPS where relevant.
 - Never merge, change the visual default, or remove the rollback before
   explicit user approval.
