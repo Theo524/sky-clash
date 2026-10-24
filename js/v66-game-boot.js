@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V111';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:111,
+ const BUILD='V112';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:112,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -83,6 +83,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('flightLab')==='blend')
      e.src+='&flight=111';
+   if(new URLSearchParams(location.search).get('jumpPrep')==='push'&&
+      (src.includes('js/game.js')||src.includes('v100-pose-authority')))
+     e.src+='&push=112';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -199,7 +202,8 @@
     const finalSoles=contactLanding&&flags.get('landingFeet')==='plant';
     const expressive=flags.get('jumpStyle')==='expressive';
     const movingPin=finalSoles&&flags.get('landingMove')==='pin';
-    const subtlePrep=['subtle','readable'].includes(flags.get('jumpPrep'));
+    const subtlePrep=['subtle','readable','push'].includes(flags.get('jumpPrep'));
+    const pushPrep=flags.get('jumpPrep')==='push';
     const readablePrep=flags.get('jumpPrep')==='readable';
     const movingFlow=finalSoles&&flags.get('landingMove')==='flow';
     const facingLocked=flags.get('jumpFacing')==='locked';
@@ -228,10 +232,13 @@
        airOwner.movingJump||'V103 PREPARING':
        movingJump?'UNAVAILABLE':'V102 ORIGINAL')+
        ' | mix: '+Math.round((airOwner?.movingJumpWeight||0)*100)+'%\n'+
-     (subtlePrep?'ANTICIPATION: '+(readablePrep?'V109 readable':'V108 subtle')+
+     (subtlePrep?'ANTICIPATION: '+(pushPrep?'V112 load & push':
+       readablePrep?'V109 readable':'V108 subtle')+
        ' · knee load '+
        (airOwner?.jumpPrep||0)+'% · remaining '+
-       Math.round((p?.v108JumpPrepT||0)*1000)+'ms\n':'')+
+       Math.round((p?.v108JumpPrepT||0)*1000)+'ms'+
+       (pushPrep?' | load '+(airOwner?.pushDurationMs||0)+'ms'+
+         ' | release '+(airOwner?.pushRelease||0)+'%':'')+'\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+
      (flightBlendLab?'FLIGHT: '+(airOwner?.flightStyle||'loading')+
