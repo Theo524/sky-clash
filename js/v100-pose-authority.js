@@ -1068,11 +1068,11 @@
      // turnout; release slowly into recorded midair legs as Kairo rises.
      // Older previews keep V115-V120's historical 60–230ms transfer.
      const v121Takeoff=params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
-     const fade=v121Takeoff?
-      smooth((st.elapsed-.070)/.205):smooth((st.elapsed-.060)/.170);
-     if(v121Takeoff)status.takeoffStanceHold=Math.round((1-fade)*100);
+     const fade=smooth((st.elapsed-.060)/.170);
+     const v121Fade=v121Takeoff?smooth((st.elapsed-.070)/.205):fade;
+     if(v121Takeoff)status.takeoffStanceHold=Math.round((1-v121Fade)*100);
      qRaw.copy(qTarget);
-     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,fade).normalize();
+     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,v121Fade).normalize();
      status.guidedLaunchBlend=Math.round(fade*100);
     }
     if(steadyLegs&&i>=14){
