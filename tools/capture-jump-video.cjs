@@ -126,8 +126,16 @@ async function capture(browser,preview){
    g.player.facing=0;g.player.model.root.rotation.y=0;
    g.update=()=>{};s.CameraRig.update=()=>{};
    g.__videoGroundY=g.player.model.root.position.y;
-   g.__videoStartZ=g.player.model.root.position.z;
-   g.__videoPosZ=g.player.pos.z;
+   // The dojo spawns Kairo near its +Z outer wall. A real V95
+   // running jump travels >11m in two seconds, so footage would be
+   // occluded by arena walls even though the pose itself was correct.
+   // Move only the disposable QA fighter to center court FIRST; then
+   // continue physically translating and following the real root.
+   const qaOffset=mode==='standing'?0:-20;
+   g.__videoStartZ=g.player.model.root.position.z+qaOffset;
+   g.__videoPosZ=g.player.pos.z+qaOffset;
+   g.player.model.root.position.z=g.__videoStartZ;
+   g.player.pos.z=g.__videoPosZ;
    g.__videoMode=mode;
    g.__videoFrame=0;
    g.__videoCam=yaw=>{
