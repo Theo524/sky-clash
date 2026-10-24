@@ -53,7 +53,8 @@ jobs:
           command -v ffmpeg
           ffmpeg -version > /tmp/sky-clash-ffmpeg-version.txt
           sed -n '1p' /tmp/sky-clash-ffmpeg-version.txt
-          ffmpeg -hide_banner -encoders | grep -q 'libx264'
+          ffmpeg -hide_banner -encoders > /tmp/sky-clash-video-encoders.txt
+          grep 'libx264' /tmp/sky-clash-video-encoders.txt
           node --check tools/capture-jump-video.cjs
       - name: Record deterministic full-motion Kairo front/side MP4 comparisons
         env:
