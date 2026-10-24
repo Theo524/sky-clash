@@ -1251,7 +1251,9 @@
       phase:'ascent'},status);
      status.armStyle='V123 expressive ascent';
     }else{
-     worldJumpArms(THREE,rig,forward,
+     // Preserve the exact independently tested V120 world-forward
+     // call path, rather than replacing its original guard baseline.
+     worldJumpArms(THREE,rig,realKairoForward(THREE,rig,status),
       v120ArmTiming('jump',st.jumpAge),status);
      status.armStyle='V120 fluid compact ascent';
     }
