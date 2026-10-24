@@ -2222,6 +2222,55 @@ function v132BuoyantFlightRegression(){
   'V132 visible arms must differ from stale V128 loose guard');
  console.log('PASS V132 full 20-bone animator: buoyant hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
 }
+function v133WeightlessFlightRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counters=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  for(let k=0;k<78;k++){
+   const prev=u.pose();u.step();
+   if(version==='v133')for(let j=0;j<20;j++)
+    assert(prev[j].angleTo(u.pose()[j])<.18,
+      'Relaxed floating joint snap '+V100.BONES[j]);
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counters,
+    'Single final V100 owner required in V133 floating state');
+  }
+  const hover=u.pose(),geometry=u.authority.flightWeightlessWorld,
+   label=u.authority.flightWeightlessSilhouette;
+  u.f.vel.z=5;u.step(30);
+  assert.equal(u.authority.active,'flight');
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost interrupts weightless flight');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat guard interrupts weightless flight');
+  assert(!u.authority.error);
+  return {ground,hover,geometry,label};
+ }
+ const baseline=run('v132'),weightless=run('v133');
+ for(let i=0;i<20;i++){
+  assert(baseline.ground[i].angleTo(weightless.ground[i])<1e-6,
+   'V133 cannot alter approved grounded Kairo '+V100.BONES[i]);
+  if(i===5)assert(baseline.hover[i].angleTo(weightless.hover[i])<1e-4,
+   'V133 must preserve head and native neck orientation '+V100.BONES[i]);
+ }
+ assert.equal(weightless.label,'FLOATING',
+  'V133 full rig must settle into low weightless hands: '+JSON.stringify(weightless.geometry));
+ for(const side of ['left','right']){
+  const g=weightless.geometry?.[side];
+  assert(g&&g.handAboveElbowCm<0&&g.handAboveElbowCm>-29&&
+   g.handAheadCm>-6&&g.elbowOutCm>8&&g.handBelowChestCm>10,
+   'No combat guard or backward walking arm in V133 '+side+': '+JSON.stringify(g));
+ }
+ assert(baseline.hover[7].angleTo(weightless.hover[7])>.08||
+  baseline.hover[8].angleTo(weightless.hover[8])>.08,
+  'V133 visible arms must differ from stale V128 loose guard');
+ console.log('PASS V133 full 20-bone animator: weightless hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2313,6 +2362,7 @@ try{
  v130UnifiedRelaxedFlightRegression();
  v131OrganicFlightRegression();
  v132BuoyantFlightRegression();
+ v133WeightlessFlightRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

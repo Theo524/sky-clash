@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v131,v132').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v132,v133').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -202,6 +202,9 @@ async function capture(browser,preview){
      flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
      flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
      flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
+     flightWeightlessSilhouette:owner.flightWeightlessSilhouette||'not-tested',
+     leftWeightless:owner.flightWeightlessWorld?.left||null,
+     rightWeightless:owner.flightWeightlessWorld?.right||null,
      leftBuoyant:owner.flightBuoyantWorld?.left||null,
      rightBuoyant:owner.flightBuoyantWorld?.right||null,
      leftOrganic:owner.flightOrganicWorld?.left||null,
@@ -290,6 +293,26 @@ async function capture(browser,preview){
       throw Error('V132 actual Kairo buoyant hover is not well formed in '+
        t.stage+': '+JSON.stringify(t));
    }
+  }
+  if(preview==='v133'){
+   for(const t of timeline){
+    if(t.flightWeightlessSilhouette!=='FLOATING'||
+       !t.leftWeightless||!t.rightWeightless)
+      throw Error('V133 must have BOTH open drifting arms on actual Kairo: '+
+       JSON.stringify(t));
+   }
+   // The exact recurring failure of V128–V132: eight nearly identical
+   // stationary body poses despite different motion input. Reject a
+   // V133 recording if elbows, hands and knees did not visibly move.
+   const range=values=>Math.max(...values)-Math.min(...values);
+   const armMotion=range(timeline.map(t=>t.leftWeightless.elbowOutCm));
+   const kneeMotion=range(timeline.map(t=>t.leftKneeDropCm));
+   const handMotion=range(timeline.map(t=>t.leftWeightless.handAheadCm));
+   if(!(armMotion>1.5&&kneeMotion>2&&handMotion>1.5))
+    throw Error('V133 is another frozen hover: '+
+      JSON.stringify({armMotion,kneeMotion,handMotion}));
+   console.log('REAL KAiro V133 visible motion CM',
+    JSON.stringify({armMotion,kneeMotion,handMotion}));
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){

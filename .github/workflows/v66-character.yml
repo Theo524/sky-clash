@@ -222,6 +222,7 @@ jobs:
       - run: node tests/v130-relaxed-integrated-flight.js
       - run: node tests/v131-organic-hover.js
       - run: node tests/v132-buoyant-flight.js
+      - run: node tests/v133-weightless-flight.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
