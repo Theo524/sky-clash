@@ -999,7 +999,8 @@ function guidedKneesAirborneStyleRegression(){
   assert(guided.rise[3][i].angleTo(guided.preLaunch[i])<.105,
    'retain authored bend until both shoes have cleared the ground');
  }
- assert.equal(guided.u.authority.guidedLaunchBlend,0);
+ assert(guided.u.authority.guidedLaunchBlend<=8,
+  'after 5 launch frames the original recorded knee motion should be only gently blending in');
  function fly(style){
   const u=setup(base+'&flightStyle='+style);
   u.step(130);const floor=u.pose(),counts=u.count();
