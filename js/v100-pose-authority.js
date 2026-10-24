@@ -280,6 +280,49 @@
   }
   return signs;
  }
+ // V118: actual Kairo GLB is VRM0; both toe bones face native -Z.
+ // rotateVRM0 rotates the VRM scene by 180 degrees, so scene.world +Z
+ // is BACKWARD relative to the gameplay-facing fighter parent.
+ // V116/V117 wrongly used that reversed scene axis.
+ function realKairoForward(THREE,rig,status){
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  scene.updateMatrixWorld(true);
+  const parent=rig.f?.model?.root||scene.parent||scene;
+  const gameplay=new THREE.Vector3(0,0,1).applyQuaternion(
+   parent.getWorldQuaternion(new THREE.Quaternion()));
+  gameplay.y=0;
+  if(gameplay.lengthSq()<1e-8)gameplay.set(0,0,1);
+  gameplay.normalize();
+  const toeFacing=new THREE.Vector3(),tmp=new THREE.Vector3(),
+   heel=new THREE.Vector3();
+  let observed=0;
+  for(const side of ['left','right']){
+   const foot=hum.getNormalizedBoneNode(side+'Foot');
+   const toe=hum.getNormalizedBoneNode(side+'Toes');
+   if(!foot||!toe)continue;
+   foot.getWorldPosition(heel);toe.getWorldPosition(tmp);
+   tmp.sub(heel);tmp.y=0;
+   if(tmp.lengthSq()<.0004)continue;
+   toeFacing.add(tmp.normalize());observed++;
+  }
+  let selected=gameplay,source='fighter-root';
+  if(observed===2&&toeFacing.lengthSq()>2.25){
+   toeFacing.normalize();
+   if(toeFacing.dot(gameplay)>.5){selected=toeFacing;source='real-vrm-toes';}
+   else source='toe-fighter-mismatch';
+  }
+  const sceneForward=new THREE.Vector3(0,0,1).applyQuaternion(
+   scene.getWorldQuaternion(new THREE.Quaternion()));
+  sceneForward.y=0;
+  if(sceneForward.lengthSq()>1e-8)sceneForward.normalize();
+  if(status){
+   status.prepForwardSource=source;
+   status.prepSceneVsBodyDot=+sceneForward.dot(selected).toFixed(3);
+   status.prepToeVsBodyDot=observed===2&&toeFacing.lengthSq()>1e-8?
+    +toeFacing.clone().normalize().dot(gameplay).toFixed(3):null;
+  }
+  return selected.clone();
+ }
  // V116: a standing jump must be a real crouch, not a signed local-X
  // guess. Rotate each THIGH so its actual knee moves toward visible +forward,
  // and each SHIN so the ankle folds back underneath it. Both operations
@@ -287,10 +330,10 @@
  // The rotation is converted into that joint's current local frame; mirrored
  // humanoid axes and root yaw cannot reverse the knee. One existing V100
  // pose owner remains responsible for the final pose, no new wrapper/IK.
- function worldStandingPrepLegs(THREE,rig,thighAngle,shinAngle,anchors,status){
+ function worldStandingPrepLegs(THREE,rig,thighAngle,shinAngle,anchors,status,gameForward=null){
   const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
   scene.updateMatrixWorld(true);
-  const facing=new THREE.Vector3(0,0,1).applyQuaternion(
+  const facing=gameForward?.clone()||new THREE.Vector3(0,0,1).applyQuaternion(
    scene.getWorldQuaternion(new THREE.Quaternion()));
   facing.y=0;
   if(facing.lengthSq()<1e-6)return 0;
@@ -349,10 +392,10 @@
  // bend through real 3D spine/chest joint positions and world-facing.
  // Keep the pelvis's old rotation OUT of this candidate so the legs
  // don't inherit another backward pitch. Still one V100 pose owner.
- function worldStandingPrepTorso(THREE,rig,spineLoad,chestLoad,status){
+ function worldStandingPrepTorso(THREE,rig,spineLoad,chestLoad,status,gameForward=null){
   const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
   scene.updateMatrixWorld(true);
-  const forward=new THREE.Vector3(0,0,1).applyQuaternion(
+  const forward=gameForward?.clone()||new THREE.Vector3(0,0,1).applyQuaternion(
    scene.getWorldQuaternion(new THREE.Quaternion()));
   forward.y=0;
   if(forward.lengthSq()<1e-8)return 0;
@@ -1000,8 +1043,10 @@
      const v116=profile==='push'&&kneeProfile==='anatomic'&&
        st.prepSpeed<1.3;
       // V115/V116 A/Bs keep their exact former authored pose paths.
-      const v117=v116&&new URLSearchParams(root.location?.search||'')
-       .get('jumpPreview')==='v117';
+      const jumpPreview=new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview');
+      const v117=v116&&(jumpPreview==='v117'||jumpPreview==='v118');
+      const v118=v117&&jumpPreview==='v118';
      // Keep V109's historic A/B profile selection unchanged. V116
      // overrides the sampled PREP POSE only inside its opt-in branch.
      const originalReadable=profile==='push'?'push':profile==='readable';
@@ -1037,13 +1082,14 @@
       if(bendAngle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,bendAngle)).normalize();
       n.updateMatrixWorld(true);
      }
+     const actualForward=v118?realKairoForward(THREE,this.vrmRig,status):null;
      if(v117){
       worldStandingPrepTorso(THREE,this.vrmRig,
-       Math.abs(p.spineX),Math.abs(p.chestX),status);
+       Math.abs(p.spineX),Math.abs(p.chestX),status,actualForward);
      }
      if(v116){
       worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
-       Math.abs(p.kneeX),st.prepFeet,status);
+       Math.abs(p.kneeX),st.prepFeet,status,actualForward);
      }
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
        .get('jumpFeet')==='hold'&&st.prepHipsXZ){
@@ -1076,7 +1122,8 @@
       }
       else if(kneeMode==='anatomic'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=v117?'V117 forward torso + knees':
+       status.prepKneeDirections=v118?'V118 true VRM0 front':
+        v117?'V117 forward torso + knees':
         v116?'V116 world-space anatomy':'V115 calibrated moving prep';
       }
       else for(const anchor of st.prepFeet){
@@ -1225,7 +1272,8 @@
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
     prepFootSlipCm:0,prepHingeSlipCm:0,prepWorldKneeCm:0,
-    prepTorsoForwardCm:0,
+    prepTorsoForwardCm:0,prepForwardSource:'unverified',
+    prepSceneVsBodyDot:null,prepToeVsBodyDot:null,
     prepKneeDirections:'uncalibrated',
     guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
@@ -1254,7 +1302,7 @@
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
-    worldStandingPrepLegs,worldStandingPrepTorso,
+    realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
