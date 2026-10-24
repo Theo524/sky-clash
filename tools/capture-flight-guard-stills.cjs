@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v134,v135').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v135,v136').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -204,6 +204,10 @@ async function capture(browser,preview){
      flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
      flightWeightlessSilhouette:owner.flightWeightlessSilhouette||'not-tested',
      flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
+     flightFullBodySilhouette:owner.flightFullBodySilhouette||'not-tested',
+     flightTorsoWorld:owner.flightTorsoWorld||null,
+     leftFullBody:owner.flightFullBodyWorld?.left||null,
+     rightFullBody:owner.flightFullBodyWorld?.right||null,
      leftNatural:owner.flightNaturalWorld?.left||null,
      rightNatural:owner.flightNaturalWorld?.right||null,
      leftWeightless:owner.flightWeightlessWorld?.left||null,
@@ -219,6 +223,8 @@ async function capture(browser,preview){
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
      leftKneeDropCm:owner.flightKneeWorld?.left?.hipToKneeDropCm??null,
      leftKneeBendDeg:owner.flightKneeWorld?.left?.kneeBendDeg??null,
+     leftToeDropCm:owner.flightKneeWorld?.left?.toeDropCm??null,
+     rightToeDropCm:owner.flightKneeWorld?.right?.toeDropCm??null,
      rightKneeBendDeg:owner.flightKneeWorld?.right?.kneeBendDeg??null,
      rightKneeDropCm:owner.flightKneeWorld?.right?.hipToKneeDropCm??null,
      rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
@@ -347,6 +353,18 @@ async function capture(browser,preview){
        JSON.stringify(frame));
    }
   }
+  if(preview==='v136'){
+   for(const t of timeline){
+    const arms=[t.leftFullBody,t.rightFullBody];
+    if(t.flightFullBodySilhouette!=='COHERENT'||
+       !t.flightTorsoWorld||t.flightTorsoWorld.residualTiltDeg>12||
+       arms.some(a=>!a||a.elbowOutCm<5||a.elbowOutCm>17||
+        a.handAheadCm<8||a.handBelowChestCm<12)||
+       t.leftToeDropCm===null||t.rightToeDropCm===null)
+      throw Error('V136 real Kairo does not show coherent whole-body flight: '+
+       JSON.stringify(t));
+   }
+  }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
@@ -389,6 +407,23 @@ async function capture(browser,preview){
   }
   if(softened<6)throw Error('V135 trailing leg not visibly softer in >=6/8 frames: '+softened);
   console.log('PASS actual Kairo V135 softer right knee across '+softened+'/8 flight views with V134 arms and lead knee preserved');
+ }
+ if(versions.includes('v135')&&versions.includes('v136')){
+  const old=reports.find(c=>c.preview==='v135').timeline;
+  const next=reports.find(c=>c.preview==='v136').timeline;
+  let improved=0;
+  for(let i=0;i<next.length;i++){
+   const a=old[i],b=next[i];
+   const footSweep=((b.leftShinBackCm-a.leftShinBackCm)+
+     (b.rightShinBackCm-a.rightShinBackCm))/2;
+   const toeDrop=((b.leftToeDropCm-(a.leftFoot[1]-a.leftToe[1])*100)+
+    (b.rightToeDropCm-(a.rightFoot[1]-a.rightToe[1])*100))/2;
+   if(footSweep>6&&toeDrop>1.5)improved++;
+  }
+  if(improved<6)throw Error('V136 still reads as planted/sitting in most real Kairo side frames: '+
+   improved+' / 8');
+  console.log('PASS V136 real-VRM 3-view foot sweep + toe drop improved in',
+    improved+'/8 flight stages');
  }
  if(versions.length===2){
   for(const view of Object.keys(views)){
