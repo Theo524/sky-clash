@@ -35,6 +35,56 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## V128: real VRM world-space knees, not guessed local-X hinges (2026-10-24)
+
+**Phone feedback after live V127:** "bad, one leg bending the opposite
+way it seems." Treat that as an actionable rejected anatomical pose,
+not a cosmetic preference. Keep V126/V127 as rollback/comparison while
+fixing the rooted cause: V127 sets same-sign numeric local-X knee/thigh
+angles on Kairo's *unverified mirrored VRM0 normalized local axes*.
+A synthetic idealized rig test made those angles look correct but cannot
+prove correct real-world knee/ankle direction. The canonical rig metadata
+explicitly says per-limb world-space calibration is necessary.
+
+**V128 candidate opt-in** `?flightPreview=v128`, V127 fallback
+`?flightPreview=v127`. Keep V127's torso/guard/quiet hovering motion,
+but zero its six unverified local leg X angles and replace ONLY those
+airborne joint rotations in V100 final-owner with measured world-space
+targets using existing hip->knee, knee->ankle and ankle->toe vectors:
+- Project player **gameplay +Z** into world, *not* scene VRM0 -Z and not
+  the transient toe direction. Aim each real thigh toward down/forward
+  (left higher, right lower) using cross(current limb, target direction)
+  converted to the joint's actual current LOCAL basis via inverse WORLD
+  quaternion; similarly aim each shin gently down/back beneath its knee.
+- Ankle/toe pitch goal follows the shoe's existing horizontal heading
+  but inclines toes down. Don't force VRM0 shoes to arbitrary +Z yaw.
+- 260ms smooth flight entry, 5rad/s cap relative to previous final joint
+  orientation; never modify player root, physics, Y-bob, impact collision,
+  approved V125 jump, V126/V127 source poses, default game, ground gait,
+  landing, Rin or Boost/combat owner priorities.
+- New status telemetry `flightKneeWorld.left/right.kneeForwardCm` checks
+  the observed knee displacement anterior to the hip-to-ankle line and
+  `flightKneeFacing=FORWARD/NEEDS REVIEW`, without claiming a synthetic
+  test proves the actual VRM0 knee looks artistic.
+- New world-space 3D tests set intentionally reversed right local shin
+  Y-basis across four gameplay root yaw orientations; verify both knees
+  move forward, ankles stay staggered, visible toes slope down and pose
+  stepping stays within 5rad/s at 30/60/120fps. Existing V125/V127 tests,
+  animation ownership/character regressions remain mandatory.
+
+The long real-Kairo GitHub flight visual workflow now records V127/V128
+in front/side/back 24fps. An additional screenshot-based real-VRM
+world-geometry review is desirable before asserting complete quality.
+Current game V127 is player-rejected but remains rollback. This change
+must be an *independent experiment* until CI and user visual feedback.
+No claim of perfect knee anatomy until actual screenshots/phone review.
+
+Proposed after merge/deploy ONLY:
+`https://theo524.github.io/sky-clash/?flightPreview=v128`.
+Rollback:
+`https://theo524.github.io/sky-clash/?flightPreview=v127`.
+No default promotion.
+
 ## V127 lifted-knee combat hover: V126 still looks grounded (2026-10-24)
 
 **Player's direct phone/game feedback after V126 merged PR #78:**
