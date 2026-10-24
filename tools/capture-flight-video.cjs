@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v127,v128').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v128,v129').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -137,8 +137,9 @@ async function capture(browser,preview){
    g.__videoCam=yaw=>{
     const center=g.player.model.root.getWorldPosition(new window.THREE.Vector3());
     center.y+=1.08;
-    s.camera.position.set(center.x+Math.sin(yaw)*3.35,
-     center.y+.8,center.z+Math.cos(yaw)*3.35);
+    const distance=2.9; // V129: real 3D elbows/hands readable on QA film
+    s.camera.position.set(center.x+Math.sin(yaw)*distance,
+     center.y+.65,center.z+Math.cos(yaw)*distance);
     s.camera.lookAt(center);s.camera.updateMatrixWorld(true);
    };
    g.__videoCam(0);
@@ -203,6 +204,9 @@ async function capture(browser,preview){
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
      flightKneeFacing:owner.flightKneeFacing||'not-tested',
+     flightGuardFacing:owner.flightGuardFacing||'not-tested',
+     leftGuard:owner.flightGuardWorld?.left||null,
+     rightGuard:owner.flightGuardWorld?.right||null,
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
      rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
      leftShinBackCm:owner.flightKneeWorld?.left?.shinBackCm??null,
@@ -238,7 +242,7 @@ async function capture(browser,preview){
    throw Error('Flight speed blend never reached forward cruising');
   if(!flight.some(t=>t.leftKnee&&t.rightKnee&&t.leftHand&&t.rightHand))
    throw Error('Kairo VRM bones missing from recorded flight telemetry');
-  if(preview==='v128'){
+  if(preview==='v128'||preview==='v129'){
    // Frame 20+ is well beyond the ~260ms flight-entry blend. Checking
    // REAL WebGL VRM0 geometry closes the failure path of V127's fake
    // forward-knee result on an idealized synthetic bone tree.
@@ -252,6 +256,17 @@ async function capture(browser,preview){
      JSON.stringify(settled.map(t=>[t.frame,t.flightKneeFacing,
       t.leftKneeForwardCm,t.rightKneeForwardCm,
       t.leftShinBackCm,t.rightShinBackCm])));
+  }
+  if(preview==='v129'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>
+    t.flightGuardFacing!=='READY'||!t.leftGuard||!t.rightGuard||
+    [t.leftGuard,t.rightGuard].some(g=>
+      !(g.elbowAheadCm>2&&g.handAheadCm>2&&
+        g.handAboveElbowCm>0&&g.elbowOutCm>0&&
+        g.handBelowChestCm<42))))
+    throw Error('V129 REAL KAIRO hands not guarded: '+JSON.stringify(
+     settled.map(t=>[t.frame,t.flightGuardFacing,t.leftGuard,t.rightGuard])));
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){

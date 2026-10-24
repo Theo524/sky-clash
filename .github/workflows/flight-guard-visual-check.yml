@@ -1,0 +1,73 @@
+name: Quick Real Kairo Flight Guard Pose Review
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'js/v100-pose-authority.js'
+      - 'js/v66-game-boot.js'
+      - 'tools/capture-flight-guard-stills.cjs'
+      - '.github/workflows/flight-guard-visual-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare real Kairo browser and encoder
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check tools/capture-flight-guard-stills.cjs
+          ffmpeg -hide_banner -encoders | grep libx264
+      - name: Serve built playable Sky Clash
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-guard-server.log 2>&1 &
+          sleep 2
+          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
+      - name: Capture actual Kairo 8 settled poses front/side/back V128 vs V129
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: 'v128,v129'
+          VISUAL_VIDEO_FPS: '24'
+        run: node tools/capture-flight-guard-stills.cjs
+      - name: Check actual VRM actor, hand directions and video frames
+        run: |
+          python - <<'PY'
+          import pathlib,json,subprocess
+          p=pathlib.Path('visual-review-output/flight-guard-stills')
+          report=json.loads((p/'motion-metrics.json').read_text())
+          assert len(report['captures'])==2
+          for capture in report['captures']:
+              assert capture['info']['realVRM'] and capture['info']['webgl']
+              assert len(capture['timeline'])==8
+              assert all(t['pose']=='flight' for t in capture['timeline'])
+              for view in ('front','side','back'):
+                  f=p/f"{capture['preview']}-{view}.mp4"
+                  assert f.stat().st_size>8000
+                  d=json.loads(subprocess.check_output(['ffprobe','-v','error',
+                      '-select_streams','v:0','-show_entries','stream=nb_frames',
+                      '-of','json',str(f)]))['streams'][0]
+                  assert int(d['nb_frames'])==8
+              if capture['preview']=='v129':
+                  assert all(t['flightGuardFacing']=='READY'
+                   for t in capture['timeline'])
+          print('PASS actual Kairo V128 vs V129 WebGL pose gallery')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-v129-quick-flight-guard-review
+          path: visual-review-output/flight-guard-stills/
+          retention-days: 14
+          if-no-files-found: warn

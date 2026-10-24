@@ -14,7 +14,7 @@
   if(flags.has('movementLab'))return null;
   // V126 and baseline V114 short-links carry the user's approved V125
   // standing jump too. This changes only explicit flight preview URLs.
-  const flightShortcut=['v114','v126','v127','v128'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -178,6 +178,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v126')e.src+='&expressiveFlight=126';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v127')e.src+='&suspendedFlight=127';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v128')e.src+='&worldKneeFlight=128';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v129')e.src+='&worldGuardFlight=129';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });

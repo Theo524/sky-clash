@@ -218,6 +218,7 @@ jobs:
       - run: node tests/v126-expressive-flight.js
       - run: node tests/v127-suspended-flight.js
       - run: node tests/v128-world-flight-knees.js
+      - run: node tests/v129-real-flight-guard.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
