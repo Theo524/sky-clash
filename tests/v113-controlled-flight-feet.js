@@ -46,7 +46,8 @@ const owner=read('js/v100-pose-authority.js'),
  boot=read('js/v66-game-boot.js'),
  html=read('index.html');
 assert(owner.includes("params.get('flightStyle')==='controlled'"));
-assert(owner.includes('const flightControl=controlled?controlledFlightPose('));
+assert(owner.includes('controlled?controlledFlightPose(st.flightMix'),
+ 'V113 remains an independently selectable controlled style after V114 adds a new airborne style');
 assert(owner.includes('st.restPose.length===BONES.length'));
 assert(owner.includes("status.flightStyle=new URLSearchParams"));
 assert(owner.includes("'V113 authored controlled':'V111 continuous hover / travel'"));
