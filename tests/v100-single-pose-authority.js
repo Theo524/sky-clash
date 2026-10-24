@@ -1947,6 +1947,73 @@ function v126WholeStackRegression(){
     'V126 flight entry must respect per-frame angular continuity '+V100.BONES[i]);
  console.log('PASS V126 V100 full writer stack: independent hover/cruise, directional changes, gradual entry, Boost/guard handoff, unchanged ground');
 }
+// V127 performs a VISUAL geometry change inside the same V100 owner.
+// Verify actual parented THREE limbs, distinct raised knees and strict
+// V126/grounded isolation with combat and Boost state handoff.
+function v127SuspendedWholeStackRegression(){
+ const flags='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function one(preview){
+  const u=setup(flags+preview);u.step(90);
+  const grounded=u.pose(),before=u.count(),f=u.f;
+  f.pos.y=2;f.vel.set(0,0,0);
+  const sequence=[];
+  for(let frame=0;frame<48;frame++){
+   const prev=u.pose();
+   u.step();
+   const current=u.pose();
+   sequence.push(current);
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),before,'existing source/ground writers yield in flight');
+   assert(!u.authority.error);
+   if(preview==='v127'){
+    for(let k=0;k<current.length;k++)
+     assert(prev[k].angleTo(current[k])<.155,
+      'V127 first flight/hover transition snaps '+V100.BONES[k]);
+   }
+  }
+  const get=n=>u.bones[n].getWorldPosition(new THREE.Vector3());
+  const joints={hipL:get('leftUpperLeg'),kneeL:get('leftLowerLeg'),
+   ankleL:get('leftFoot'),hipR:get('rightUpperLeg'),
+   kneeR:get('rightLowerLeg'),ankleR:get('rightFoot')};
+  const pose=u.pose(),hoverStatus=u.authority.flightStyle;
+  f.vel.set(0,0,6.2);u.step(48);
+  const cruise=u.pose();
+  f.vel.set(-5,6.5,1);u.step(18);
+  f.vel.set(5,-7,1);u.step(18);
+  f.sprinting=true;u.step(1);
+  assert.equal(V100.ownsAir(f),false,
+   'Boost must immediately interrupt V127 independent of its new pose');
+  f.sprinting=false;u.step(15);
+  assert.equal(u.authority.active,'flight');
+  f.blockHeld=true;u.step(1);
+  assert.equal(V100.ownsAir(f),false,
+   'guard must own the visible fighter immediately');
+  assert(!u.authority.error);
+  return {grounded,pose,cruise,joints,hoverStatus};
+ }
+ const old=one('v126'),next=one('v127');
+ assert.equal(next.hoverStatus,'V127 suspended combat hover');
+ for(let i=0;i<20;i++){
+  assert(old.grounded[i].angleTo(next.grounded[i])<1e-6,
+   'V127 may not change grounded V125 joint '+V100.BONES[i]);
+ }
+ // Same body and both legs have the same root under both versions.
+ // Real bone positions, not local angular unit-test claims, must differ.
+ const deltaKneeL=next.joints.kneeL.clone().sub(old.joints.kneeL).length();
+ const deltaKneeR=next.joints.kneeR.clone().sub(old.joints.kneeR).length();
+ const deltaFootL=next.joints.ankleL.clone().sub(old.joints.ankleL).length();
+ assert(deltaKneeL>.035&&deltaKneeR>.01&&deltaFootL>.035,
+  'V127 must alter the actual airborne knee/ankle silhouette: '+
+   JSON.stringify({deltaKneeL,deltaKneeR,deltaFootL}));
+ assert(old.pose[15].angleTo(next.pose[15])>.25,
+  'new left shin fold must be substantial, not a minor idle wobble');
+ assert(old.cruise[15].angleTo(next.cruise[15])>.22,
+  'visible suspended stance should survive normal forward motion');
+ console.log('PASS V127 full historical stack: raised real knees/ankles, V125 untouched, 30/60/120 pure tests, V126 A/B and immediate combat/Boost yield');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2033,6 +2100,7 @@ try{
  fullArcExpressivenessRegression();
  idleToCrouchFootContinuityRegression();
  v126WholeStackRegression();
+ v127SuspendedWholeStackRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
