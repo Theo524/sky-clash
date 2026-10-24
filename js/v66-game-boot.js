@@ -4,11 +4,11 @@
  */
 (async function(){
  'use strict';
- // Promote only the V97-approved GROUND controls to the public default.
- // The historical boot stack reads location.search from several files, so
- // normalize the URL before any fighter, physics or animation loader starts.
- // Explicit ?movementLab=legacy / walk / step keeps its previous behavior.
- // Jump, landing and powered-flight preview options remain OPT-IN.
+ // Approved ground and previously tested V115 jump are independent
+ // presets. Previously only V97 was promoted, so the plain game opened
+ // with old jumping even though the full V115 preview worked correctly.
+ // Normalize BEFORE physics or animation modules read location.search.
+ // Keep explicit movementLab choices and any air/jump A/B URL untouched.
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
@@ -16,6 +16,24 @@
   if(!flags.has('stance'))flags.set('stance','handoff');
   if(!flags.has('joystickRun'))flags.set('joystickRun','on');
   if(!flags.has('idleArms'))flags.set('idleArms','anchored');
+  // A partial A/B jump URL must not silently become a different V115
+  // experiment. jumpMode=legacy explicitly disables this default preset.
+  const airOptions=['airLab','animator','jumpArms','airLegs',
+   'movingJump','landingLab','landingFeet','landingMove','jumpStyle',
+   'jumpPrep','jumpFeet','jumpKnees','jumpFacing','jumpMode',
+   'flightLab','flightStyle'];
+  if(!airOptions.some(name=>flags.has(name))){
+   const jumpDefaults={
+    airLab:'jump',animator:'unified',jumpArms:'compact',
+    airLegs:'steady',movingJump:'carry',landingLab:'contact',
+    landingFeet:'plant',landingMove:'flow',jumpStyle:'expressive',
+    jumpPrep:'push',jumpFeet:'hold',jumpKnees:'forward',
+    jumpFacing:'locked'
+   };
+   for(const [name,value] of Object.entries(jumpDefaults))
+    flags.set(name,value);
+  }
+  // Powered flight stays opt-in until its appearance is approved.
   return flags.toString();
  }
  const defaultGround=approvedGroundQuery(location.search);

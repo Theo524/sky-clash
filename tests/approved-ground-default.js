@@ -15,8 +15,9 @@ const first=boot.indexOf(' function approvedGroundQuery(search){');
 const last=boot.indexOf(' const store=window.SkyClashCharacterStore;',first);
 assert(first>0&&last>first,'Ground defaults must run before the boot loads animations');
 const prelude=boot.slice(first,last);
-assert(!/\banimator\s*['"]|\bflightLab\s*['"]|\bjumpPrep\s*['"]/.test(prelude),
- 'Ground default must never force experimental airborne settings');
+assert(prelude.includes("jumpMode=legacy"),'Retain an explicit jump rollback');
+assert(prelude.includes("'flightLab','flightStyle'"),
+ 'Explicit flight requests must bypass automatic jump setup');
 
 function simulate(search,hash=''){
   const location={pathname:'/sky-clash/',search,hash};
@@ -40,9 +41,18 @@ for(const [name,value] of Object.entries({
  movementLab:'step',stance:'handoff',joystickRun:'on',idleArms:'anchored'
 }))assert.equal(run.flags.get(name),value,'Default '+name);
 assert.equal(run.urls.length,1,'Rewrite defaults without page reload');
-for(const key of ['animator','airLab','jumpArms','jumpPrep','flightLab',
- 'flightStyle','landingLab','jumpKnees'])assert.equal(run.flags.has(key),false,
- 'Never silently turn on unapproved preview '+key);
+// The public URL must recreate the same V115 JUMP and contact landing
+// settings as the working full preview, without enabling flight experiments.
+const jumpDefaults={
+ airLab:'jump',animator:'unified',jumpArms:'compact',airLegs:'steady',
+ movingJump:'carry',landingLab:'contact',landingFeet:'plant',
+ landingMove:'flow',jumpStyle:'expressive',jumpPrep:'push',
+ jumpFeet:'hold',jumpKnees:'forward',jumpFacing:'locked'
+};
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),value,'Default V115 jump: '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'Flight must remain opt-in: '+key);
 
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
@@ -51,6 +61,20 @@ assert.equal(run.flags.get('jumpArms'),'compact');
 assert.equal(run.flags.get('movementLab'),'step');
 assert.equal(run.location.hash,'#playing');
 
+// A/B and rollback URLs must not receive V115 jump settings implicitly.
+for(const query of [
+ '?jumpMode=legacy','?jumpPrep=subtle','?animator=legacy',
+ '?flightLab=blend','?flightStyle=controlled','?airLab=jump',
+ '?jumpKnees=guided'
+]){
+ const variant=simulate(query);
+ const explicit=new URLSearchParams(query);
+ for(const [name,value] of explicit)
+  assert.equal(variant.flags.get(name),value,'Preserve A/B value '+name);
+ assert.equal(variant.flags.has('jumpFeet'),explicit.has('jumpFeet'),
+   'Do not force the full V115 jump preset over '+query);
+ assert.equal(variant.flags.get('movementLab'),'step');
+}
 run=simulate('?stance=continuous&joystickRun=off&idleArms=steady');
 assert.equal(run.flags.get('movementLab'),'step');
 assert.equal(run.flags.get('stance'),'continuous');
@@ -69,11 +93,11 @@ assert.equal(run.flags.has('joystickRun'),false,
  'Old movement rollback must not turn on V95');
 assert.equal(run.flags.has('stance'),false);
 
-assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97'),
- 'Bump the boot script cache to prevent mobile devices using old startup code');
+assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=115'),
+ 'Bump the boot cache key to prevent mobile devices using old jump defaults');
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
 assert(boot.includes("new URLSearchParams(location.search).get('animator')==='unified'"),
- 'Keep V100 opt-in; ground defaults must not turn on flight/jump controllers');
+ 'Keep V100 conditional; jump default intentionally enables it but flight remains optional');
 
-console.log('PASS approved V97 walking/run/arms defaults, preservation of explicit variants, legacy rollback, and opt-in air behavior.');
+console.log('PASS approved V97 ground + V115 jump/landing defaults, explicit A/B/legacy rollback, opt-in flight behavior.');
