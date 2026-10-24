@@ -30,6 +30,7 @@ class Fighter {
     this.pos.copy(this.spawn); this.vel.set(0, 0, 0); this.jumpsUsed=0;
     this.v108JumpPrepT=0;this.v108JumpPrepDuration=0;
     this.v108JumpPrepLaunchVy=0;this.v108JumpPrepSpeed=0;
+    this.v109LandingDuration=0;this.v109LandingSpeed=0;
     this.facing = yawFromDir(-this.spawn.x, -this.spawn.z);
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
@@ -186,11 +187,16 @@ class Fighter {
       this.pos.y<=this.floor+.025&&!this.sprinting&&!this.dashing&&
       !this.punchT&&!this.blastT&&!this.blockHeld&&!this.charging&&
       !(this.landingMotionT>0)&&
-      window.location?.search?.includes('jumpPrep=subtle')&&
+      (window.location?.search?.includes('jumpPrep=subtle')||
+       window.location?.search?.includes('jumpPrep=readable'))&&
       window.location?.search?.includes('animator=unified')&&
       window.SkyClashPoseAuthority?.ready;
     if(subtlePrep){
-      this.v108JumpPrepDuration=.095;this.v108JumpPrepT=.095;
+      // Keep the V108 95ms experiment; the new readable profile loads
+      // more deeply and for longer when Kairo is starting from rest.
+      const readable=window.location.search.includes('jumpPrep=readable');
+      const duration=readable?.140-.040*Math.min(1,speed/6.2):.095;
+      this.v108JumpPrepDuration=duration;this.v108JumpPrepT=duration;
       this.v108JumpPrepLaunchVy=this.vel.y;
       this.v108JumpPrepSpeed=speed;
       this.jumping=false;this.vel.y=0;
@@ -622,7 +628,22 @@ class Fighter {
         if(this.characterId==='kairo_venn'){
           // Recorded Mixamo landing replaces the old 0.5-radian procedural
           // forward bow. Physics controls the ground contact throughout.
-          this.acro=null;this.landingMotionT=.48;
+          this.acro=null;
+          // V109 moving flow: holding a 0.48s standing-idle contact pose
+          // while the horizontal root travels metres is foot skating.
+          // Keep STATIC contact exactly V106. For normal moving contact,
+          // briefly brake on the physical touchdown and resume the V95
+          // stride after ~0.21s. Boost, attacks, other fighters untouched.
+          const hspeed=Math.hypot(this.vel.x,this.vel.z);
+          const flow=window.location?.search?.includes('landingMove=flow')&&
+            window.location?.search?.includes('landingFeet=plant')&&
+            window.location?.search?.includes('landingLab=contact')&&
+            this===Game.heroes?.kairo_venn&&
+            hspeed>1.3&&!this.sprinting&&!this.dashing;
+          this.v109LandingSpeed=flow?hspeed:0;
+          this.v109LandingDuration=flow?.205:.48;
+          this.landingMotionT=this.v109LandingDuration;
+          if(flow){this.vel.x*=.52;this.vel.z*=.52;}
         }else this.startAcro('landing', speed > 9 ? 0.42 : 0.30, this.landingVariant === 0 ? -1 : 1);
       }
     }
