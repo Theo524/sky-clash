@@ -114,6 +114,41 @@ Links (after green CI and GitHub Pages deployment):
 V121: https://theo524.github.io/sky-clash/?jumpPreview=v121
 Rollback: https://theo524.github.io/sky-clash/?jumpPreview=v120
 
+## V122 visible toe-out, not merely mathematical bone yaw (2026-10-24)
+
+**User rejected V121 visually:** feet STILL point straight ahead even though
+crouch and full jump posture are good. Do not claim 3.4° of LOCAL foot
+quaternion rotation means the rendered shoes look outward. V121
+successfully preserved that tiny turnout but it was almost imperceptible.
+
+V122 is a STANDING jump-only opt-in (`?jumpPreview=v122`) that inherits
+V118 correct real VRM0 facing and anatomical knee bend, V119 toe spring,
+V120 compact fluid arms, and V121 thigh heading at slightly stronger
+(~5.9°) amplitude. ONLY after the existing planted-foot correction,
+sample actual normalized `leftFoot/rightFoot` to `leftToes/rightToes`
+WORLD positions, compare their horizontal vectors against verified
+`fighter.model.root` +Z, and turn each whole shoe to a visible
+~11.5° outward. The last grounded pose is still passed into the one
+V100 final writer, then eased toward approved normal recorded airborne
+leg pose over ~80–290ms. Toe tip curling continues to release normally.
+No local X/Z assumptions; no new controller; no gameplay physics,
+movement, Boost, combat, landing, flight or other characters changed.
+
+**Acceptance is now based on REAL visible toe direction**, not just
+bone quaternion rotation: separate 30/60/120fps VRM0 geometry checks
+confirm both actual foot->toe vectors turn outward relative to Kairo's
+gameplay forward at multiple yaw angles, and the full historical
+controller chain checks both shoes remain angled from grounded crouch
+through the FIRST airborne frame. Existing V121 (and all earlier
+version) checks still run unmodified. The standing-jump browser
+video workflow compares `v121,v122` from front+side and must pass.
+The video viewer should personally confirm on device; mathematical
+tests do not guarantee subjective appearance.
+
+V122 candidate: https://theo524.github.io/sky-clash/?jumpPreview=v122
+V121 rollback: https://theo524.github.io/sky-clash/?jumpPreview=v121
+Public no-preview root remains V115 baseline and is unchanged.
+
 ## Root game URL: important default jump correction (October 24, 2026)
 
 After PR #62 promoted ONLY the V97-approved ground flags on the root URL,
