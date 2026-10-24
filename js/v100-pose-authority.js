@@ -438,6 +438,70 @@
   if(status)status.prepTorsoForwardCm=+(projected*100).toFixed(1);
   return projected;
  }
+ // V119: softer human jump compression (standing PREP only).
+ // Phases deliberately cascade: knee/pelvis load, spine follows, chest
+ // follows last, then the ankle/toe springs recover before release.
+ // No extra controller and no changes to the physical 215ms jump timer.
+ function v119Spring(age,duration){
+  const u=clamp(age/Math.max(.001,duration),0,1);
+  const load=smooth(u/.68),unwind=smooth((u-.79)/.21);
+  const spring=load*(1-unwind);
+  return {
+   spineGain:.83+.17*smooth((u-.06)/.46),
+   chestGain:.65+.35*smooth((u-.15)/.55),
+   hipDip:.010*spring,
+   turnout:.060*spring,
+   toeFlex:.080*spring,
+   spring,unwind
+  };
+ }
+ // V119: the V118 ankle/foot world orientation is deliberately held so
+ // the soles stay on the floor. A FOOT YAW adds a small natural outward
+ // turnout, and the native VRM0 TOE bone flexes separately as the boxer
+ // loads the forefoot. Both are restored from the actual prep-entry bind
+ // each frame; no accumulated pose drift or local +X guessing.
+ function softPrepToes(THREE,rig,anchors,forward,motion,status){
+  if(!anchors?.length||!forward)return;
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  const up=new THREE.Vector3(0,1,0),parentQ=new THREE.Quaternion(),
+   desired=new THREE.Quaternion(),yawQ=new THREE.Quaternion(),
+   toeQ=new THREE.Quaternion(),axis=new THREE.Vector3(),
+   toeDir=new THREE.Vector3(),worldToeQ=new THREE.Quaternion(),
+   footP=new THREE.Vector3(),toeP=new THREE.Vector3(),curlQ=new THREE.Quaternion();
+  let animated=0;
+  for(const anchor of anchors){
+   const side=anchor.side,foot=hum.getNormalizedBoneNode(side+'Foot');
+   const toe=hum.getNormalizedBoneNode(side+'Toes');
+   if(!foot||!anchor.rotation)continue;
+   scene.updateMatrixWorld(true);
+   foot.parent.getWorldQuaternion(parentQ);
+   // +Y yaw sends visible +Z toward +X; actual left foot is at -X.
+   const turnout=side==='left'?-motion.turnout:motion.turnout;
+   yawQ.setFromAxisAngle(up,turnout);
+   desired.copy(yawQ).multiply(anchor.rotation);
+   foot.quaternion.copy(parentQ.invert().multiply(desired)).normalize();
+   if(!toe||!anchor.toeRotation)continue;
+   toe.quaternion.copy(anchor.toeRotation);
+   scene.updateMatrixWorld(true);
+   toe.getWorldPosition(toeP);foot.getWorldPosition(footP);
+   toeDir.subVectors(toeP,footP);toeDir.y=0;
+   if(toeDir.lengthSq()<1e-7)continue;
+   toeDir.normalize();
+   // Axis x toe direction -> +Y, so the forefoot flexes UP, not through
+   // the floor. Convert that WORLD hinge axis to the actual toe local frame.
+   axis.crossVectors(toeDir,up).normalize();
+   toe.getWorldQuaternion(worldToeQ);
+   axis.applyQuaternion(worldToeQ.invert()).normalize();
+   toe.quaternion.multiply(curlQ.setFromAxisAngle(axis,motion.toeFlex)).normalize();
+   animated++;
+  }
+  if(status){
+   status.prepToeFlexDeg=+(motion.toeFlex*180/Math.PI).toFixed(1);
+   status.prepFootTurnDeg=+(motion.turnout*180/Math.PI).toFixed(1);
+   status.prepToeJoints=animated;
+  }
+  scene.updateMatrixWorld(true);
+ }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
  // final joint orientations. Floor contact must be evaluated last.
@@ -589,6 +653,14 @@
    // walking/running stride. Never keep cycling walk/run legs while airborne.
    // Capture just once from ground -> jump; the fall phase keeps that
    // momentum context without grabbing the incoming fall clip as a new base.
+   if(previous==='prep'&&next!=='prep'&&st.prepFeet.length){
+    // Restore just the PREP-only toe curl when handing off to recorded
+    // jump, Boost or another pose owner. No residual toe rotation.
+    for(const anchor of st.prepFeet){
+     const toe=st.rig.vrm.humanoid.getNormalizedBoneNode(anchor.side+'Toes');
+     if(toe&&anchor.toeRotation)toe.quaternion.copy(anchor.toeRotation);
+    }
+   }
    if(next==='jump'&&previous!=='jump'&&previous!=='fall'){
     const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.launchSpeed=speed;
@@ -636,9 +708,13 @@
      st.rig.vrm.scene.updateMatrixWorld(true);
      for(const side of ['left','right']){
       const shoe=st.rig.vrm.humanoid.getNormalizedBoneNode(side+'Foot');
-      if(shoe)st.prepFeet.push({side,
-       point:shoe.getWorldPosition(new THREE.Vector3()),
-       rotation:shoe.getWorldQuaternion(new THREE.Quaternion())});
+      if(shoe){
+       const toe=st.rig.vrm.humanoid.getNormalizedBoneNode(side+'Toes');
+       st.prepFeet.push({side,
+        point:shoe.getWorldPosition(new THREE.Vector3()),
+        rotation:shoe.getWorldQuaternion(new THREE.Quaternion()),
+        toeRotation:toe?.quaternion.clone()||null});
+      }
      }
     }
    }
@@ -1055,14 +1131,18 @@
       // Preserve the V117 opt-in expression for independent A/B rollback.
       const v117=v116&&new URLSearchParams(root.location?.search||'')
        .get('jumpPreview')==='v117';
-      const v118=v116&&new URLSearchParams(root.location?.search||'')
+      const v118Original=v116&&new URLSearchParams(root.location?.search||'')
        .get('jumpPreview')==='v118';
+      const v119=v116&&new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview')==='v119';
+      const v118=v118Original||v119;
       const v117Torso=v117||v118;
      // Keep V109's historic A/B profile selection unchanged. V116
      // overrides the sampled PREP POSE only inside its opt-in branch.
      const originalReadable=profile==='push'?'push':profile==='readable';
      const readable=v116?'loaded':originalReadable;
      const p=prepPose(elapsed,st.prepSpeed,readable);
+     const spring=v119?v119Spring(elapsed,p.duration):null;
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      const axes=profile==='push'&&
       ['forward','anatomic'].includes(kneeProfile)?
@@ -1097,7 +1177,8 @@
      const actualForward=v118?realKairoForward(THREE,this.vrmRig,status):null;
      if(v117Torso){
       worldStandingPrepTorso(THREE,this.vrmRig,
-       Math.abs(p.spineX),Math.abs(p.chestX),status,actualForward);
+       Math.abs(p.spineX)*(spring?.spineGain??1),
+       Math.abs(p.chestX)*(spring?.chestGain??1),status,actualForward);
      }
      if(v116){
       worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
@@ -1108,7 +1189,8 @@
       st.nodes[0].position.x=st.prepHipsXZ.x;
       st.nodes[0].position.z=st.prepHipsXZ.z;
      }
-     st.nodes[0].position.y=st.prepHipsY+p.hipsY/(this.vrmRig.scale||1);
+     st.nodes[0].position.y=st.prepHipsY+
+      (p.hipsY-(spring?.hipDip||0))/(this.vrmRig.scale||1);
      st.prepLastHipY=st.nodes[0].position.y;
      this.vrmRig.vrm.update(0);
      if(profile==='push'){
@@ -1134,7 +1216,8 @@
       }
       else if(kneeMode==='anatomic'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=v118?'V118 true VRM0 front':
+       status.prepKneeDirections=v119?'V119 soft V118 crouch':
+        v118?'V118 true VRM0 front':
         v117?'V117 forward torso + knees':
         v116?'V116 world-space anatomy':'V115 calibrated moving prep';
       }
@@ -1182,6 +1265,13 @@
        status.prepFootSlipCm=+(worst*100).toFixed(1);
        st.prepLastHipXZ=st.nodes[0].position.clone();
       }else status.prepFootSlipCm=+(largest*100).toFixed(1);
+      this.vrmRig.vrm.update(0);
+     }
+     // V119 forefoot spring is composed AFTER the V118 knee/body pose and
+     // old support correction, but BEFORE final sole-floor calibration.
+     // Only the opt-in standing-jump path ever touches normalized toe bones.
+     if(v119){
+      softPrepToes(THREE,this.vrmRig,st.prepFeet,actualForward,spring,status);
       this.vrmRig.vrm.update(0);
      }
      // The normal pre-recording floor solver is bypassed in this 95ms
@@ -1284,7 +1374,8 @@
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
     prepFootSlipCm:0,prepHingeSlipCm:0,prepWorldKneeCm:0,
-    prepTorsoForwardCm:0,prepForwardSource:'unverified',
+    prepTorsoForwardCm:0,prepToeFlexDeg:0,prepFootTurnDeg:0,
+    prepToeJoints:0,prepForwardSource:'unverified',
     prepSceneVsBodyDot:null,prepToeVsBodyDot:null,
     prepKneeDirections:'uncalibrated',
     guidedLaunchBlend:0,
@@ -1315,6 +1406,7 @@
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
+    v119Spring,softPrepToes,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
