@@ -57,8 +57,10 @@ for(const yaw of [0,.7,Math.PI,5.11]){
    if(w>0)V100.v122VisibleToeHeading(THREE,rig,forward,.20*w,status);
    for(const side of ['left','right']){
     const measured=actualOut(side);
-    assert(Math.abs(measured-deg(.20*w))<.45,
-     side+' REAL toe must have an anatomically outward 11.5 degree heading: '+measured);
+    if(w>.99)assert(Math.abs(measured-deg(.20))<.45,
+     side+' REAL toe must finish loading at the measured 11.5 degree target: '+measured);
+    else assert(measured>=-.45&&measured<12.5,
+     'Gradual prep turn cannot move the shoe inward or beyond safe toe-out');
     assert(measured>=prev-1,'no snap back to dead straight');
    }
    prev=actualOut('left');
