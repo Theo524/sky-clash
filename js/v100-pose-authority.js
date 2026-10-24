@@ -1675,7 +1675,7 @@
      }
      if(v122Stance){
       v122VisibleToeHeading(THREE,this.vrmRig,actualForward,
-       v125?.20:.20*stance.ready,status,
+       v125 ? .20 : .20*stance.ready,status,
        (v124||v125)?st.prepFeet:null,v125Stance?.feet||null);
       this.vrmRig.vrm.update(0);
      }
