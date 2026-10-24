@@ -1473,6 +1473,96 @@ function fluidStandingJumpArmsRegression(){
  assert(!candidate.u.authority.error);
  console.log('PASS V120 full V100/Mixamo chain: visible prep+ascent arm swing, unchanged V119 toe/knee/pelvis, compact wrists, and zero competing controllers');
 }
+// V121: the real takeoff should not instantly square BOTH thighs and
+// feet forward. Compare actual V120 and V121 multi-wrapper poses on the
+// correct rotated VRM0 scene, including a MOVING legacy regression.
+function stanceHeadingAcrossTakeoffRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=';
+ function scenario(mode,version){
+  const u=setup(url+version),rig=u.f.vrmRig,root=new THREE.Group();
+  root.rotation.y=.75;root.add(rig.vrm.scene);
+  rig.vrm.scene.rotation.y=Math.PI;u.f.model={root};rig.f=u.f;
+  for(const side of ['left','right']){
+   const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+   u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  }
+  root.updateMatrixWorld(true);u.f.floor=0;u.step(130);
+  V100.plantVisibleSoles(THREE,rig,u.f,{});
+  const initial=u.pose(),writers=u.count();
+  const speed=mode==='moving'?3.2:0;
+  u.f.vel.z=speed;
+  u.f.v108JumpPrepSpeed=speed;
+  u.f.v108JumpPrepDuration=.215-.10*Math.min(1,speed/6.2);
+  u.f.v108JumpPrepT=u.f.v108JumpPrepDuration;
+  const duration=u.f.v108JumpPrepDuration;
+  for(let k=1;k<=12;k++){
+   u.f.v108JumpPrepT=Math.max(.0001,duration-k*duration/12);
+   u.step();
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers);
+  }
+  const crouched=u.pose(),sole={};
+  for(const side of ['left','right'])
+   sole[side]=u.bones[side+'Foot'].getWorldQuaternion(new THREE.Quaternion());
+  const knees={};
+  for(const side of ['left','right'])
+   knees[side]=u.bones[side+'UpperLeg'].getWorldQuaternion(new THREE.Quaternion());
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  const first=[];
+  for(let k=1;k<=18;k++){
+   u.step();
+   if([1,4,7,10,14,18].includes(k)){
+    first.push({pose:u.pose(),feet:Object.fromEntries(['left','right'].map(side=>
+      [side,u.bones[side+'Foot'].getWorldQuaternion(new THREE.Quaternion())])),
+      thighs:Object.fromEntries(['left','right'].map(side=>
+      [side,u.bones[side+'UpperLeg'].getWorldQuaternion(new THREE.Quaternion())])),
+      headingHold:u.authority.takeoffStanceHold||0});
+   }
+   assert.equal(u.authority.active,'jump');
+   assert.deepEqual(u.count(),writers);
+  }
+  assert(!u.authority.error);
+  return {u,initial,crouched,sole,knees,first};
+ }
+ const old=scenario('stationary','v120'),fresh=scenario('stationary','v121');
+ // V121 changes ONLY the lower-body heading in PREP and early ascent,
+ // not the approved torso, compact hands, arm rhythm or pelvis.
+ for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13])
+  assert(fresh.crouched[i].angleTo(old.crouched[i])<.0005,
+   'V121 must preserve approved jump arm/torso/pelvis: '+V100.BONES[i]);
+ for(let k=0;k<fresh.first.length;k++)
+  for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13])
+   assert(fresh.first[k].pose[i].angleTo(old.first[k].pose[i])<.001,
+    'V121 ascent must preserve approved whole body/guard '+V100.BONES[i]);
+ for(const side of ['left','right']){
+  const oldThigh=old.crouched[side==='left'?14:17];
+  const newThigh=fresh.crouched[side==='left'?14:17];
+  assert(newThigh.angleTo(oldThigh)>.04,
+   side+' loaded thigh must have visible outward anatomical heading');
+  assert(fresh.sole[side].angleTo(old.sole[side])>.035,
+   side+' toe-out foot stance must survive PREP end instead of returning neutral');
+  assert(fresh.first[0].feet[side].angleTo(fresh.sole[side])<.1,
+   side+' shoe must not suddenly square forward on the very first launch frame');
+  assert(fresh.first[0].thighs[side].angleTo(fresh.knees[side])<.12,
+   side+' femur must not suddenly rotate at the first impulse');
+ }
+ assert(fresh.first[0].headingHold>90);
+ assert(fresh.first[3].headingHold<fresh.first[1].headingHold,
+  'loaded stance must gradually give way to recorded flight');
+ assert(fresh.first.at(-1).headingHold===0,
+  'normal airborne pose must return fully by end of 275ms release');
+ // Moving jumps DO NOT inherit this stationary fix; they keep V103 run
+ // inheritance and V109 moving landing. Compare all 20 joint quats.
+ const mOld=scenario('moving','v120'),mNew=scenario('moving','v121');
+ for(const i of [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]){
+  assert(mOld.crouched[i].angleTo(mNew.crouched[i])<.0001,
+   'moving jump ground must remain identical: '+V100.BONES[i]);
+  for(let k=0;k<mOld.first.length;k++)
+   assert(mOld.first[k].pose[i].angleTo(mNew.first[k].pose[i])<.0001,
+    'moving jump ascent must remain identical: '+V100.BONES[i]);
+ }
+ console.log('PASS V121 full V100/Mixamo: outward thigh+shoe through grounded handoff, smooth first 275ms, unchanged upper body and moving jump rollback');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1554,6 +1644,7 @@ try{
  softerNaturalVRM0JumpRegression();
  v119CombatToeInterruptRegression();
  fluidStandingJumpArmsRegression();
+ stanceHeadingAcrossTakeoffRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
