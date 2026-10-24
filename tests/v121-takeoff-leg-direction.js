@@ -66,7 +66,8 @@ assert(owner.includes("const v121Takeoff=params.get('jumpPreview')==='v121'&&st.
 assert(owner.includes("const fade=smooth((st.elapsed-.060)/.170)")&&
  owner.includes("const v121Fade=v121Takeoff?smooth((st.elapsed-.070)/.205):fade"),
  'old V115-V120 transfer timing must stay untouched');
-assert(owner.includes("['v120','v121'].includes(params.get('jumpPreview'))"),
- 'V121 must retain existing athletic arm motion');
+assert(owner.includes("params.get('jumpPreview')==='v120'&&st.launchSpeed<1.3")&&
+ owner.includes("params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3"),
+ 'V121 must retain existing athletic arms with independent gate');
 assert(boot.includes("e.src+='&takeoffHeading=121'"));
 console.log('PASS V121: VRM0 mirrored/outward thighs at four yaw angles, 30/60/120fps stance held through prep, legacy rollbacks untouched');
