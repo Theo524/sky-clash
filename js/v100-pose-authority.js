@@ -544,7 +544,7 @@
     status.flightFullBodyWorld=result;
     status.flightFullBodySilhouette=['left','right'].every(side=>
      result[side]?.elbowOutCm>5&&result[side]?.elbowOutCm<17&&
-     result[side]?.handOutCm>3&&result[side]?.handOutCm<24&&
+     result[side]?.handOutCm>1&&result[side]?.handOutCm<24&&
      result[side]?.handAheadCm>8&&result[side]?.handAboveElbowCm<0&&
      result[side]?.handAboveElbowCm>-26&&
      result[side]?.handBelowChestCm>12)?
