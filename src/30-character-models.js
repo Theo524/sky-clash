@@ -600,7 +600,8 @@ class VRMRig {
     // this older preliminary check cannot undo the subtle knee bend.
     const v108FinalPrep=this.f===Game.heroes?.kairo_venn&&
       this.f.v108JumpPrepT>0&&
-      window.location?.search?.includes('jumpPrep=subtle')&&
+      (window.location?.search?.includes('jumpPrep=subtle')||
+       window.location?.search?.includes('jumpPrep=readable'))&&
       window.SkyClashPoseAuthority?.ready;
     // World-space ground constraint for all unmodified grounded states.
     // Does not move hitbox or simulation position.
