@@ -28,7 +28,6 @@
   const t=clamp(age,0,duration);
   const bend=smooth(t/(readable?duration*.83:.080))*
     (1-(readable?.23:.36)*moving);
-  const scale=readable?1:0;
   return {
    bend,
    hipsY:-(readable?.055:.036)*bend,
