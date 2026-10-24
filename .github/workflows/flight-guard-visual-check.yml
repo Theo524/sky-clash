@@ -39,10 +39,10 @@ jobs:
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-guard-server.log 2>&1 &
           sleep 2
           curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
-      - name: Capture real Kairo hover, travel and vertical changes V134 vs V135
+      - name: Capture real Kairo hover, travel and vertical changes V135 vs V136
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v134,v135'
+          VISUAL_PREVIEWS: 'v135,v136'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -63,16 +63,17 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v135':
-                  assert all(t['flightNaturalSilhouette']=='NATURAL'
-                    and t['rightKneeBendDeg']>25
+              if capture['preview']=='v136':
+                  assert all(t['flightFullBodySilhouette']=='COHERENT'
+                    and t['flightTorsoWorld']['residualTiltDeg']<12
+                    and t['leftToeDropCm']>4 and t['rightToeDropCm']>4
                    for t in capture['timeline'])
-          print('PASS actual Kairo V134 vs V135 natural levitation gallery')
+          print('PASS actual Kairo V135 vs V136 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v135-soft-knee-flight-review
+          name: real-kairo-v136-whole-body-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
