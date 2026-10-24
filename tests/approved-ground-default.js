@@ -94,6 +94,16 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V119 must not enable flight');
 
+// V120 inherits V119 feet and V118 true VRM0 facing, changing only
+// PREP and ascent arms inside the existing V100 owner.
+run=simulate('?jumpPreview=v120');
+assert.equal(run.flags.get('jumpPreview'),'v120');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V120 must preserve approved ground/jump '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'No V120 powered flight changes');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');
