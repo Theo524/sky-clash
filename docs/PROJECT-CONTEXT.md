@@ -72,6 +72,37 @@ grounded walking-arm counter-swing, or horizontal Superman posture.
 quaternions protects changes and 30/60/120fps stability. No fingers/wrists
 forced; native VRoid hands remain unchanged.
 
+**Observed full-controller issue and fix:** The first V129 `aim`
+candidate passed its independent arm test but **failed the complete
+V100 owner regression**: right elbow -15cm behind shoulder, both hands
+~13–20cm BELOW elbows. Per-frame trace proved the proposed arm solver
+stopped moving after about 10 frames. The defect was a self-aliasing
+quaternion interpolation: `joint.quaternion.copy(previous).slerp(
+joint.quaternion,ratio)` overwrote its intended target first, yielding
+zero motion. V129 saves `const proposed=joint.quaternion.clone()`
+before the reset and interpolates toward `proposed` instead. Existing
+V128 leg algorithm remains unchanged. The V129 arm solver also owns
+the single 5rad/s arm step budget (legacy flight bound returns the
+previous visible arm without counteracting the solver). On the complete
+20-bone V100 rig, settled left/right elbow forward ~19.3cm/~13.4cm;
+hands forward of elbows ~12.8cm/~16.7cm, above elbows ~15.1cm/~11.5cm.
+These are measurements on the synthetic integration rig, **NOT yet
+the actual Kairo VRM**. Character and ownership suites PASSED on
+commit bc803053.
+
+**Visual review improvement:** The 60-frame V128/V129 front/side/back
+real-Kairo capture still runs, with strict positive arm-forward/up
+guard telemetry. Added `tools/capture-flight-guard-stills.cjs` and
+`.github/workflows/flight-guard-visual-check.yml` to capture 8
+fully-settled representative real-Kairo VRM WebGL poses at hover,
+cruise, left/right strafe, rise and descent from all three views.
+This fast gallery is NOT a continuous motion film; the full video
+tests timing. The gallery also fails if either hand is below elbow,
+or elbows/hands don't face the opponent on the real model. Need
+inspect its MP4 frames/contact sheets before release. Preserve
+rollback V128 live while V129 remains draft PR #81
+(https://github.com/Theo524/sky-clash/pull/81).
+
 **Art quality checks:** New `tests/v129-real-flight-guard.js` uses
 parented THREE actual world joint positions, mirrored/right reversed
 local axes at four yaw angles and 30/60/120fps frame rate caps. In the
