@@ -1016,9 +1016,11 @@ function guidedKneesAirborneStyleRegression(){
   u.f.vel.y=-7;u.step(20);const descend=u.pose();
   u.f.dropping=true;u.step(1);
   assert.equal(u.authority.active,'fall');
+  assert.deepEqual(u.count(),counts,'flight/fall use only one final pose owner');
   u.f.dropping=false;u.f.punchT=.20;u.step();
   assert.equal(u.authority.active,'yielded-to-combat-or-flight');
-  assert.deepEqual(u.count(),counts,'flight/fall never add a final writer');
+  // Combat handoff correctly resumes the previous V81 writer, so its
+  // frame count is allowed to increase AFTER the exclusive air phase.
   assert(!u.authority.error);
   return {u,floor,hover,hoverName,cruise,rise,descend};
  }
