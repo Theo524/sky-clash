@@ -1210,7 +1210,17 @@
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
      // original clips still drive the targets, but cannot twitch across
      // a large frame-to-frame source difference. No physics/IK changes.
-     const rate=i===15||i===18?4.19:3.14;
+     // V123's 9% stronger *grounded* knee load needs a little extra
+     // ankle catch-up during early rise. Otherwise V102's original
+     // 180°/sec cap retains ~3° of residual foot pose into the
+     // approved FALL despite no V123 fall overlay. Blend the maximum
+     // restoration RATE (not the desired pose) after push-off.
+     const v123ShoeRestore=next==='jump'&&
+      params.get('jumpPreview')==='v123'&&st.launchSpeed<1.3&&
+      (i===16||i===19);
+     const extra=v123ShoeRestore?
+      1.86*smooth((st.elapsed-.26)/.13):0;
+     const rate=i===15||i===18?4.19:3.14+extra;
      const maxStep=Math.max(0,dt)*rate;
      const delta=st.prev[i].angleTo(qTarget);
      if(delta>maxStep&&maxStep>0){
