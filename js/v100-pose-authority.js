@@ -661,6 +661,72 @@
    status.jumpArmWorldJoints=count;
   }
  }
+ // V123: the user's descent and landing are expressive enough. This
+ // continuous new envelope affects ONLY crouch + standing ascent.
+ function v123Expression(phase,age,duration=.215){
+  const t=Math.max(0,age);
+  if(phase==='prep'){
+   const u=clamp(t/Math.max(.001,duration),0,1);
+   const load=smooth(u/.74),recoil=load*(1-smooth((u-.77)/.23));
+   return {energy:load,spineGain:1+.17*load,chestGain:1+.14*load,
+    legGain:1,hipDip:.015*load,
+    armUpper:.095*recoil,armLower:.065*recoil,
+    armShoulder:.026*recoil,phase:'recoil'};
+  }
+  if(phase==='jump'){
+   const launch=smooth(t/.11)*(1-smooth((t-.17)/.20));
+   const follow=smooth((t-.095)/.13)*(1-smooth((t-.38)/.16));
+   const reach=smooth(t/.12)*(1-smooth((t-.30)/.30));
+   return {launch,follow,reach,
+    spine:.19*launch+.085*follow,chest:.145*launch+.06*follow,
+    // Retain recorded V122 legs through the whole air sequence. A
+    // first V123 prototype moved both shin world frames directly,
+    // and V102's safe angular limiter carried the offset into FALL.
+    // Stronger V123 grounded knee load supplies leg extension.
+    thigh:0,shin:0,
+    armUpper:.295*reach,armLower:.165*reach,
+    armShoulder:.082*reach,
+    energy:Math.max(launch,follow,reach),phase:'ascent'};
+  }
+  return {launch:0,tuck:0,reach:0,spine:0,chest:0,
+   thigh:0,shin:0,armUpper:0,armLower:0,armShoulder:0,
+   energy:0,phase:'settle'};
+ }
+ function v123WorldRise(THREE,rig,forward,arc,status){
+  if(!rig?.vrm?.scene||!forward||!arc||arc.energy<.00001)return;
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  const up=new THREE.Vector3(0,1,0),f=forward.clone();
+  f.y=0;if(f.lengthSq()<1e-8)return;f.normalize();
+  const p0=new THREE.Vector3(),p1=new THREE.Vector3(),
+   limb=new THREE.Vector3(),target=new THREE.Vector3(),
+   axis=new THREE.Vector3(),qWorld=new THREE.Quaternion(),
+   delta=new THREE.Quaternion();
+  let count=0;
+  function aim(name,endName,goal,amount){
+   if(amount<1e-6)return;
+   const joint=hum.getNormalizedBoneNode(name),end=hum.getNormalizedBoneNode(endName);
+   if(!joint||!end)return;
+   scene.updateMatrixWorld(true);
+   joint.getWorldPosition(p0);end.getWorldPosition(p1);
+   limb.subVectors(p1,p0);
+   if(limb.lengthSq()<1e-8)return;limb.normalize();
+   target.copy(goal).normalize();
+   axis.crossVectors(limb,target);
+   if(axis.lengthSq()<1e-8)return;axis.normalize();
+   joint.getWorldQuaternion(qWorld);
+   axis.applyQuaternion(qWorld.invert()).normalize();
+   joint.quaternion.multiply(delta.setFromAxisAngle(axis,amount)).normalize();
+   count++;
+  }
+  // Authored chest expansion only. Do not alter normalized leg
+  // directions while V102 steadily advances V122's recorded takeoff:
+  // any world shin overlay would carry angular lag into approved fall.
+  aim('spine','upperChest',up.clone().addScaledVector(f,-.25),arc.spine);
+  aim('chest','neck',up.clone().addScaledVector(f,-.32),arc.chest);
+  if(status){status.v123RiseJoints=count;
+   status.v123RiseEnergy=Math.round(arc.energy*100);}
+  scene.updateMatrixWorld(true);
+ }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
  // final joint orientations. Floor contact must be evaluated last.
@@ -990,6 +1056,9 @@
      params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
    const v122Ascent=compactArms&&next==='jump'&&
      params.get('jumpPreview')==='v122'&&st.launchSpeed<1.3;
+   const v123Ascent=next==='jump'&&params.get('jumpPreview')==='v123'&&
+     st.launchSpeed<1.3;
+   const v123Arc=v123Ascent?v123Expression('jump',st.jumpAge):null;
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
      contactLanding?'V105 recovery to approved guard':
      'V100 recorded landing':'V100 recorded jump/fall arms';
@@ -1128,8 +1197,10 @@
      const fade=smooth((st.elapsed-.060)/.170);
      const v121Fade=v121Takeoff?smooth((st.elapsed-.070)/.205):fade;
      const v122Takeoff=params.get('jumpPreview')==='v122'&&st.launchSpeed<1.3;
-     const v122Fade=v122Takeoff?smooth((st.elapsed-.080)/.210):v121Fade;
-     if(v121Takeoff||v122Takeoff)
+     const v123Takeoff=params.get('jumpPreview')==='v123'&&st.launchSpeed<1.3;
+     const v122Fade=(v122Takeoff||v123Takeoff)?
+      smooth((st.elapsed-.080)/.210):v121Fade;
+     if(v121Takeoff||v122Takeoff||v123Takeoff)
       status.takeoffStanceHold=Math.round((1-v122Fade)*100);
      qRaw.copy(qTarget);
      qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,v122Fade).normalize();
@@ -1170,10 +1241,22 @@
    }
    // V120 applied only after recorded V101 guard retarget. Keep the
    // final-arm pose and its wrist safety cap in this ONE V100 owner.
-   if(v120Ascent||v121Ascent||v122Ascent){
-    worldJumpArms(THREE,rig,realKairoForward(THREE,rig,status),
-     v120ArmTiming('jump',st.jumpAge),status);
-    status.armStyle='V120 fluid compact ascent';
+   if(v120Ascent||v121Ascent||v122Ascent||v123Ascent){
+    const forward=realKairoForward(THREE,rig,status);
+    if(v123Ascent){
+     v123WorldRise(THREE,rig,forward,v123Arc,status);
+     if(compactArms)worldJumpArms(THREE,rig,forward,{
+      upper:v123Arc.armUpper,lower:v123Arc.armLower,
+      shoulder:v123Arc.armShoulder,energy:v123Arc.energy,
+      phase:'ascent'},status);
+     status.armStyle='V123 expressive ascent';
+    }else{
+     // Preserve the exact independently tested V120 world-forward
+     // call path, rather than replacing its original guard baseline.
+     worldJumpArms(THREE,rig,realKairoForward(THREE,rig,status),
+      v120ArmTiming('jump',st.jumpAge),status);
+     status.armStyle='V120 fluid compact ascent';
+    }
    }
    if(performance){
     const hips=st.nodes[0];
@@ -1255,7 +1338,8 @@
          .get('jumpPreview')==='v119'||new URLSearchParams(root.location?.search||'')
          .get('jumpPreview')==='v120'||new URLSearchParams(root.location?.search||'')
          .get('jumpPreview')==='v121'||new URLSearchParams(root.location?.search||'')
-         .get('jumpPreview')==='v122'){
+         .get('jumpPreview')==='v122'||new URLSearchParams(root.location?.search||'')
+         .get('jumpPreview')==='v123'){
        for(const anchor of st.prepFeet){
         const toe=st.rig.vrm.humanoid.getNormalizedBoneNode(anchor.side+'Toes');
         if(toe&&anchor.toeRotation)toe.quaternion.copy(anchor.toeRotation);
@@ -1338,7 +1422,10 @@
        .get('jumpPreview')==='v121';
       const v122=v116&&new URLSearchParams(root.location?.search||'')
        .get('jumpPreview')==='v122';
-      const v121Stance=v121||v122;
+      const v123=v116&&new URLSearchParams(root.location?.search||'')
+       .get('jumpPreview')==='v123';
+      const v122Stance=v122||v123;
+      const v121Stance=v121||v122Stance;
       const v120Arms=v120||v121Stance;
       const v119Springed=v119||v120Arms;
       const v118=v118Original||v119Springed;
@@ -1350,6 +1437,7 @@
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const spring=v119Springed?v119Spring(elapsed,p.duration):null;
      const stance=v121Stance?v121LaunchStance(elapsed,p.duration):null;
+     const v123Load=v123?v123Expression('prep',elapsed,p.duration):null;
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      const axes=profile==='push'&&
       ['forward','anatomic'].includes(kneeProfile)?
@@ -1384,17 +1472,22 @@
      const actualForward=v118?realKairoForward(THREE,this.vrmRig,status):null;
      if(v117Torso){
       worldStandingPrepTorso(THREE,this.vrmRig,
-       Math.abs(p.spineX)*(spring?.spineGain??1),
-       Math.abs(p.chestX)*(spring?.chestGain??1),status,actualForward);
+       Math.abs(p.spineX)*(spring?.spineGain??1)*(v123Load?.spineGain??1),
+       Math.abs(p.chestX)*(spring?.chestGain??1)*(v123Load?.chestGain??1),
+       status,actualForward);
      }
      if(v116){
+      // The user's V122 planted stance and foot directions are GOOD.
+      // Expressive V123 pushes by deepening torso/pelvis coil and
+      // releasing the unchanged accepted knees; avoid accumulating
+      // a new V102-leg angular clamp lag into the approved FALL.
       worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
        Math.abs(p.kneeX),st.prepFeet,status,actualForward);
      }
      // Rotate the REAL thigh about world-up only after its correct V118
      // world-forward knee fold. This changes heading, NOT knee flexion.
      if(v121)v121OutwardThighs(THREE,this.vrmRig,stance.thighYaw,status);
-     else if(v122)v121OutwardThighs(THREE,this.vrmRig,
+     else if(v122Stance)v121OutwardThighs(THREE,this.vrmRig,
        stance.thighYaw*1.5,status);
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
        .get('jumpFeet')==='hold'&&st.prepHipsXZ){
@@ -1402,7 +1495,7 @@
       st.nodes[0].position.z=st.prepHipsXZ.z;
      }
      st.nodes[0].position.y=st.prepHipsY+
-      (p.hipsY-(spring?.hipDip||0))/(this.vrmRig.scale||1);
+      (p.hipsY-(spring?.hipDip||0)-(v123Load?.hipDip||0))/(this.vrmRig.scale||1);
      st.prepLastHipY=st.nodes[0].position.y;
      this.vrmRig.vrm.update(0);
      if(profile==='push'){
@@ -1428,7 +1521,8 @@
       }
       else if(kneeMode==='anatomic'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=v122?'V122 visible toe-out crouch':
+       status.prepKneeDirections=v123?'V123 expressive loaded crouch':
+         v122?'V122 visible toe-out crouch':
          v121?'V121 heading-preserved crouch':
          v120?'V120 fluid V119 crouch':
         v119?'V119 soft V118 crouch':
@@ -1488,17 +1582,19 @@
      if(v119Springed){
       const toeMotion=v121?{...spring,turnout:stance.footYaw}:spring;
       softPrepToes(THREE,this.vrmRig,st.prepFeet,actualForward,
-       v122?{...spring,turnout:stance.footYaw}:toeMotion,status);
+       v122Stance?{...spring,turnout:stance.footYaw}:toeMotion,status);
       this.vrmRig.vrm.update(0);
      }
-     if(v122){
+     if(v122Stance){
       v122VisibleToeHeading(THREE,this.vrmRig,actualForward,
        .20*stance.ready,status);
       this.vrmRig.vrm.update(0);
      }
      if(v120Arms){
       worldJumpArms(THREE,this.vrmRig,actualForward,
-       v120ArmTiming('prep',elapsed,p.duration),status);
+       v123?{upper:v123Load.armUpper,lower:v123Load.armLower,
+        shoulder:v123Load.armShoulder,energy:v123Load.energy,
+        phase:'recoil'}:v120ArmTiming('prep',elapsed,p.duration),status);
       this.vrmRig.vrm.update(0);
      }
      // The normal pre-recording floor solver is bypassed in this 95ms
@@ -1604,6 +1700,7 @@
     prepTorsoForwardCm:0,prepToeFlexDeg:0,prepFootTurnDeg:0,
     prepToeJoints:0,takeoffThighOutDeg:0,takeoffThighJoints:0,
     takeoffStanceHold:0,visibleToeHeadingDeg:null,visibleFootCorrections:0,
+    v123RiseJoints:0,v123RiseEnergy:0,
     jumpArmMotion:'original compact',
     jumpArmDrive:0,jumpArmWorldJoints:0,prepForwardSource:'unverified',
     prepSceneVsBodyDot:null,prepToeVsBodyDot:null,
@@ -1637,7 +1734,7 @@
     controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,
-    v122VisibleToeHeading,
+    v122VisibleToeHeading,v123Expression,v123WorldRise,
     v120ArmTiming,worldJumpArms,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,

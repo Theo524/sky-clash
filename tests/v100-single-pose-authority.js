@@ -1640,6 +1640,134 @@ function realVisibleFootHeadingRegression(){
  }
  console.log('PASS V122 full historical VRM0 stack: actual visible bilateral toe-out '+fixed.prepHeading.map(n=>n.toFixed(1)).join('/')+'deg on crouch, retained at airborne trigger, no changes to upper body');
 }
+// V123: A/B the actual historical V71/V72/V76/V79/V81->V100 final
+// pose stack with a rotated VRM0 scene. Only standing prep+rise differs:
+// preserve V122 heading, recorded descending and landing, moving jumps.
+function fullArcExpressivenessRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=';
+ function run(preview,moving=false){
+  const u=setup(url+preview),rig=u.f.vrmRig,root=new THREE.Group();
+  root.rotation.y=.7;root.add(rig.vrm.scene);
+  rig.vrm.scene.rotation.y=Math.PI;
+  rig.f=u.f;u.f.model={root};root.updateMatrixWorld(true);
+  for(const side of ['left','right']){
+   const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+   u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  }
+  u.f.floor=0;u.step(130);
+  V100.plantVisibleSoles(THREE,rig,u.f,{});
+  const writers=u.count();
+  const speed=moving?3.4:0;
+  u.f.vel.z=speed;
+  u.f.v108JumpPrepDuration=.215-.10*Math.min(1,speed/6.2);
+  u.f.v108JumpPrepT=u.f.v108JumpPrepDuration;
+  const duration=u.f.v108JumpPrepDuration;
+  const prep=[];
+  for(let k=1;k<=12;k++){
+   u.f.v108JumpPrepT=Math.max(.0001,duration*(1-k/12));
+   u.step();
+   if([5,8,12].includes(k))prep.push(u.pose());
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers);
+  }
+  const crouch=u.pose();
+  const fwd=V100.realKairoForward(THREE,rig,{});
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(
+   root.getWorldQuaternion(new THREE.Quaternion()));
+  const toeAngles=['left','right'].map(side=>{
+   rig.vrm.scene.updateMatrixWorld(true);
+   const toe=u.bones[side+'Toes'].getWorldPosition(new THREE.Vector3());
+   const foot=u.bones[side+'Foot'].getWorldPosition(new THREE.Vector3());
+   const dir=toe.sub(foot).setY(0).normalize();
+   const a=Math.atan2(dir.dot(right),dir.dot(fwd))*180/Math.PI;
+   return side==='left'?-a:a;
+  });
+  const minGap=Math.min(...V100.soleGaps(THREE,rig,u.f).map(x=>x.gap));
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  const firstAngles=()=>{
+   rig.vrm.scene.updateMatrixWorld(true);
+   return ['left','right'].map(side=>{
+    const toe=u.bones[side+'Toes'].getWorldPosition(new THREE.Vector3());
+    const foot=u.bones[side+'Foot'].getWorldPosition(new THREE.Vector3());
+    const v=toe.sub(foot).setY(0).normalize();
+    return Math.atan2(v.dot(right),v.dot(fwd))*180/Math.PI*
+     (side==='left'?-1:1);
+   });
+  };
+  const ascent=[];let firstHeading=null;
+  for(let k=1;k<=43;k++){
+   u.step();
+   if(k===1)firstHeading=firstAngles();
+   if([1,4,8,12,17,22,31,39,43].includes(k))ascent.push(u.pose());
+   assert.equal(u.authority.active,'jump');
+   assert.deepEqual(u.count(),writers);
+  }
+  // Same fall clip and V105 contact path: explicitly compare AFTER
+  // the V100 phase handoff has completed (not a one-frame crossfade).
+  u.f.vel.y=-5;const fall=[];
+  for(let k=1;k<=15;k++){
+   u.step();
+   if([7,15].includes(k))fall.push(u.pose());
+   assert.equal(u.authority.active,'fall');
+   assert.deepEqual(u.count(),writers);
+  }
+  u.f.jumping=false;u.f.pos.y=0;u.f.landingMotionT=.48;
+  const landing=[];
+  for(let k=1;k<=12;k++){
+   u.f.landingMotionT=Math.max(.001,.48-k/60);
+   u.step();
+   if([6,12].includes(k))landing.push(u.pose());
+  }
+  assert(!u.authority.error);
+  return {u,prep,crouch,toeAngles,firstHeading,minGap,ascent,fall,landing};
+ }
+ const old=run('v122'),newer=run('v123');
+ for(let k=0;k<2;k++){
+  assert(newer.toeAngles[k]>9&&newer.toeAngles[k]<13.5,
+   'the V122 anatomical real toe-heading must survive');
+  assert(Math.abs(newer.toeAngles[k]-old.toeAngles[k])<.15,
+   'V123 may not change accepted visible toe heading');
+ }
+ assert(Math.abs(newer.minGap)<.04,'shoes must stay grounded');
+ const max=(a,b,keys)=>Math.max(...keys.map(i=>a[i].angleTo(b[i])));
+ assert(max(old.prep[1],newer.prep[1],[0,1,2,6,7,8,10,11,12])>.035,
+  'V123 anticipation must visibly change crouched body/arms');
+ assert(max(old.ascent[3],newer.ascent[3],[1,2,6,7,8,10,11,12])>.10,
+  'V123 upward jump must lift chest and arms noticeably');
+ assert(max(old.crouch,newer.crouch,[14,15,16,17,18,19])<.003,
+  'V123 must preserve the good V122 planted knee/ankle pose exactly');
+ for(let k=0;k<2;k++){
+  assert(newer.firstHeading[k]>7.5&&newer.firstHeading[k]<15,
+   'the very FIRST airborne shoe must preserve the approved V122 visible toe-out');
+  assert(Math.abs(newer.firstHeading[k]-old.firstHeading[k])<2.1,
+   'V123 may enhance push-off, not suddenly change V122 first shoe direction');
+ }
+ // V123 deliberately increases thigh/knee compression during PREP, so
+ // source-retarget LOCAL shoe quats need not be bit-identical to V122.
+ // True physical test is what the shoe/toe vector displays in WORLD space.
+
+ console.log('V123 A/B phase diagnostics',JSON.stringify({
+  fall:old.fall.map((v,k)=>v.map((q,i)=>[V100.BONES[i],
+   +q.angleTo(newer.fall[k][i]).toFixed(5)]).filter(x=>x[1]>.003)),
+  landing:old.landing.map((v,k)=>v.map((q,i)=>[V100.BONES[i],
+   +q.angleTo(newer.landing[k][i]).toFixed(5)]).filter(x=>x[1]>.003))
+ }));
+ for(let k=0;k<old.fall.length;k++)for(let i=0;i<20;i++)
+  assert(old.fall[k][i].angleTo(newer.fall[k][i])<.003,
+   'V123 must not modify the already-good descent '+V100.BONES[i]);
+ for(let k=0;k<old.landing.length;k++)for(let i=0;i<20;i++)
+  assert(old.landing[k][i].angleTo(newer.landing[k][i])<.003,
+   'V123 must not modify the approved landing '+V100.BONES[i]);
+ const movingOld=run('v122',true),movingNew=run('v123',true);
+ for(const name of ['crouch','ascent','fall','landing']){
+  const a=movingOld[name],b=movingNew[name];
+  if(name==='crouch'){for(let i=0;i<20;i++)assert(a[i].angleTo(b[i])<.0001)}
+  else for(let k=0;k<a.length;k++)for(let i=0;i<20;i++)
+   assert(a[k][i].angleTo(b[k][i])<.0001,
+    'V103 moving '+name+' must remain byte-identical '+V100.BONES[i]);
+ }
+ console.log('PASS V123 full historic VRM0: deeper load, upward torso/guard + knee gather, V122 actual toe-out, exact approved fall/contact and moving jump');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1723,6 +1851,7 @@ try{
  fluidStandingJumpArmsRegression();
  stanceHeadingAcrossTakeoffRegression();
  realVisibleFootHeadingRegression();
+ fullArcExpressivenessRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
