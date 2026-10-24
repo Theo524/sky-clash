@@ -1393,8 +1393,9 @@
      }
      // Rotate the REAL thigh about world-up only after its correct V118
      // world-forward knee fold. This changes heading, NOT knee flexion.
-     if(v121Stance)v121OutwardThighs(THREE,this.vrmRig,
-       v122?stance.thighYaw*1.5:stance.thighYaw,status);
+     if(v121)v121OutwardThighs(THREE,this.vrmRig,stance.thighYaw,status);
+     else if(v122)v121OutwardThighs(THREE,this.vrmRig,
+       stance.thighYaw*1.5,status);
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
        .get('jumpFeet')==='hold'&&st.prepHipsXZ){
       st.nodes[0].position.x=st.prepHipsXZ.x;
@@ -1485,8 +1486,9 @@
      // old support correction, but BEFORE final sole-floor calibration.
      // Only the opt-in standing-jump path ever touches normalized toe bones.
      if(v119Springed){
+      const toeMotion=v121?{...spring,turnout:stance.footYaw}:spring;
       softPrepToes(THREE,this.vrmRig,st.prepFeet,actualForward,
-       v121Stance?{...spring,turnout:stance.footYaw}:spring,status);
+       v122?{...spring,turnout:stance.footYaw}:toeMotion,status);
       this.vrmRig.vrm.update(0);
      }
      if(v122){
