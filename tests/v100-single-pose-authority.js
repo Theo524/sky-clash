@@ -2321,6 +2321,47 @@ function v134NaturalFlightRegression(){
   'V134 visible arms must differ from stale V128 loose guard');
  console.log('PASS V134 full 20-bone animator: natural hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
 }
+// V135 is an intentionally surgical refinement. The user's V134 arms,
+// torso, lead knee and V125 jump have already been approved.
+function v135TrailingKneeRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counts=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  for(let frame=0;frame<90;frame++){
+   u.step();
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counts,'V135 cannot add another animation owner');
+  }
+  const hover=u.pose(),knees=JSON.parse(JSON.stringify(u.authority.flightKneeWorld));
+  assert.equal(u.authority.flightNaturalSilhouette,'NATURAL',
+   'The approved V134 upper body should remain natural');
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost must still interrupt flight');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat must still interrupt flight');
+  return {ground,hover,knees};
+ }
+ const a=run('v134'),b=run('v135');
+ for(let i=0;i<V100.BONES.length;i++){
+  assert(a.ground[i].angleTo(b.ground[i])<1e-6,
+   'V135 cannot alter approved grounded pose '+V100.BONES[i]);
+  if(i<17){
+   assert(a.hover[i].angleTo(b.hover[i])<1e-5,
+    'V135 must not change V134 arms, torso or leading left leg: '+V100.BONES[i]);
+  }
+ }
+ assert(b.knees.right.kneeBendDeg>a.knees.right.kneeBendDeg+3,
+  'V135 right trailing knee remains visually straight: '+JSON.stringify({a:a.knees,b:b.knees}));
+ assert(b.knees.right.kneeBendDeg<60,'Trailing leg overbent');
+ assert(b.hover[17].angleTo(a.hover[17])>.035,
+  'The only intentional change must be perceptible on the right thigh');
+ console.log('PASS V135 full rig: soften trailing right knee, untouched V134 arms/torso/left leg, intact V125 jump and Boost/combat');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2414,6 +2455,7 @@ try{
  v132BuoyantFlightRegression();
  v133WeightlessFlightRegression();
  v134NaturalFlightRegression();
+ v135TrailingKneeRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
