@@ -2122,6 +2122,56 @@ function v130UnifiedRelaxedFlightRegression(){
   'V130 visible arms must differ from stale V128 loose guard');
  console.log('PASS V130 full 20-bone animator: relaxed hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
 }
+function v131OrganicFlightRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counters=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  for(let k=0;k<78;k++){
+   const prev=u.pose();u.step();
+   if(version==='v131')for(let j=0;j<20;j++)
+    assert(prev[j].angleTo(u.pose()[j])<.18,
+      'Relaxed floating joint snap '+V100.BONES[j]);
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counters,
+    'Single final V100 owner required in V131 floating state');
+  }
+  const hover=u.pose(),geometry=u.authority.flightOrganicWorld,
+   label=u.authority.flightOrganicSilhouette;
+  u.f.vel.z=5;u.step(30);
+  assert.equal(u.authority.active,'flight');
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost interrupts organic flight');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat guard interrupts organic flight');
+  assert(!u.authority.error);
+  return {ground,hover,geometry,label};
+ }
+ const baseline=run('v130'),organic=run('v131');
+ for(let i=0;i<20;i++){
+  assert(baseline.ground[i].angleTo(organic.ground[i])<1e-6,
+   'V131 cannot alter approved grounded Kairo '+V100.BONES[i]);
+  if(i===5)assert(baseline.hover[i].angleTo(organic.hover[i])<1e-4,
+   'V131 must preserve head and native neck orientation '+V100.BONES[i]);
+ }
+ assert.equal(organic.label,'ORGANIC',
+  'V131 full rig must settle into low organic hands: '+JSON.stringify(organic.geometry));
+ for(const side of ['left','right']){
+  const g=organic.geometry?.[side];
+  assert(g&&g.handAboveElbowCm<0&&g.handAboveElbowCm>-24&&
+   g.handAheadCm>7&&g.elbowOutCm>4&&g.handBelowChestCm>13&&
+   g.elbowAheadCm>-3,
+   'No combat guard or backward walking arm in V131 '+side+': '+JSON.stringify(g));
+ }
+ assert(baseline.hover[7].angleTo(organic.hover[7])>.05||
+  baseline.hover[8].angleTo(organic.hover[8])>.05,
+  'V131 visible arms must differ from stale V128 loose guard');
+ console.log('PASS V131 full 20-bone animator: organic hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2211,6 +2261,7 @@ try{
  v127SuspendedWholeStackRegression();
  v129WholeStackHoverGuardRegression();
  v130UnifiedRelaxedFlightRegression();
+ v131OrganicFlightRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

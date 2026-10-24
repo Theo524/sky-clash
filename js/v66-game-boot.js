@@ -20,9 +20,9 @@
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v130');
+   flags.set('flightPreview','v131');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -65,8 +65,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V130';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:130,
+ const BUILD='V131';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:131,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -188,6 +188,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v128')e.src+='&worldKneeFlight=128';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v129')e.src+='&worldGuardFlight=129';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v130')e.src+='&relaxedFlight=130';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v131')e.src+='&organicFlight=131';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });

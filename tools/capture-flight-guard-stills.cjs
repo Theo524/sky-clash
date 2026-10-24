@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v128,v130').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v130,v131').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -200,11 +200,16 @@ async function capture(browser,preview){
      flightKneeFacing:owner.flightKneeFacing||'not-tested',
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
      flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
+     flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
+     leftOrganic:owner.flightOrganicWorld?.left||null,
+     rightOrganic:owner.flightOrganicWorld?.right||null,
      leftRelaxed:owner.flightRelaxedWorld?.left||null,
      rightRelaxed:owner.flightRelaxedWorld?.right||null,
      leftGuard:owner.flightGuardWorld?.left||null,
      rightGuard:owner.flightGuardWorld?.right||null,
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
+     leftKneeDropCm:owner.flightKneeWorld?.left?.hipToKneeDropCm??null,
+     rightKneeDropCm:owner.flightKneeWorld?.right?.hipToKneeDropCm??null,
      rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
      leftShinBackCm:owner.flightKneeWorld?.left?.shinBackCm??null,
      rightShinBackCm:owner.flightKneeWorld?.right?.shinBackCm??null,
@@ -253,6 +258,20 @@ async function capture(browser,preview){
         g.handBelowChestCm>=75))
      throw Error('V130 actual Kairo floating arms are not relaxed in '+
       t.stage+': '+JSON.stringify([left,right]));
+   }
+  }
+  if(preview==='v131'){
+   for(const t of timeline){
+    const left=t.leftOrganic,right=t.rightOrganic;
+    if(t.flightOrganicSilhouette!=='ORGANIC'||!left||!right||
+       [left,right].some(g=>g.elbowAheadCm<=-3||
+        g.handAheadCm<=7||g.handAboveElbowCm>=0||
+        g.handAboveElbowCm<=-24||g.elbowOutCm<=4||
+        g.handBelowChestCm<=13)||
+       t.leftKneeDropCm===null||t.rightKneeDropCm===null||
+       !(t.rightKneeDropCm-t.leftKneeDropCm>8))
+     throw Error('V131 actual Kairo lacks balanced floating silhouette in '+
+      t.stage+': '+JSON.stringify(t));
    }
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));

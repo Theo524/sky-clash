@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v128,v130').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v130,v131').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -206,6 +206,9 @@ async function capture(browser,preview){
      flightKneeFacing:owner.flightKneeFacing||'not-tested',
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
      flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
+     flightOrganicSilhouette:owner.flightOrganicSilhouette||'not-tested',
+     leftOrganic:owner.flightOrganicWorld?.left||null,
+     rightOrganic:owner.flightOrganicWorld?.right||null,
      leftRelaxed:owner.flightRelaxedWorld?.left||null,
      rightRelaxed:owner.flightRelaxedWorld?.right||null,
      leftGuard:owner.flightGuardWorld?.left||null,
@@ -281,6 +284,12 @@ async function capture(browser,preview){
       g.handBelowChestCm>15&&g.handBelowChestCm<75))))
     throw Error('V130 real Kairo relaxed hover failed: '+JSON.stringify(
      settled.map(t=>[t.frame,t.flightRelaxedSilhouette,t.leftRelaxed,t.rightRelaxed])));
+  }
+  if(preview==='v131'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>t.flightOrganicSilhouette!=='ORGANIC'||
+    !t.leftOrganic||!t.rightOrganic))
+    throw Error('V131 real Kairo organic flight geometry failed');
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
