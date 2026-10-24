@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V113';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:113,
+ const BUILD='V114';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:114,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -90,6 +90,10 @@
       (new URLSearchParams(location.search).get('flightStyle')==='controlled'||
        new URLSearchParams(location.search).get('jumpFeet')==='hold'))
      e.src+='&controlled=113';
+   if(src.includes('v100-pose-authority')&&
+      (new URLSearchParams(location.search).get('jumpKnees')==='guided'||
+       new URLSearchParams(location.search).get('flightStyle')==='airborne'))
+     e.src+='&airborne=114';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -212,7 +216,8 @@
     const movingFlow=finalSoles&&flags.get('landingMove')==='flow';
     const facingLocked=flags.get('jumpFacing')==='locked';
     const flightBlendLab=flags.get('flightLab')==='blend';
-    const controlledFlight=flags.get('flightStyle')==='controlled';
+    const controlledFlight=['controlled','airborne'].includes(flags.get('flightStyle'));
+    const guidedKnees=flags.get('jumpKnees')==='guided';
     const stationaryFeet=flags.get('jumpFeet')==='hold';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
@@ -246,11 +251,13 @@
        (pushPrep?' | load '+(airOwner?.pushDurationMs||0)+'ms'+
          ' | release '+(airOwner?.pushRelease||0)+'%'+
          (stationaryFeet?' | shoe shift '+
-         (airOwner?.prepFootSlipCm||0)+'cm':''):'')+'\n':'')+
+         (airOwner?.prepFootSlipCm||0)+'cm'+
+         (guidedKnees?' | hinge-guided':''):''):'')+'\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+
      (flightBlendLab?'FLIGHT: '+(airOwner?.flightStyle||
-       (controlledFlight?'V113 controlled loading':'loading'))+
+       (flags.get('flightStyle')==='airborne'?'V114 airborne loading':
+        controlledFlight?'V113 controlled loading':'loading'))+
        ' | speed '+(airOwner?.flightSpeed||0)+' | forward mix '+
        (airOwner?.flightBlend||0)+'%\n':'')+
      (facingLocked?'AIR FACING: V110 aligned | before '+

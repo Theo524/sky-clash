@@ -221,9 +221,9 @@ function steadyAirLegRegression(){
  const boot=read('js/v66-game-boot.js'),html=read('index.html');
  assert(boot.includes("e.src+='&legs=102'"));
  assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(/SKY CLASH · BUILD V(10[2-9]|11[0-3])/.test(html));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-4])/.test(html));
- assert(/BUILD V(10[2-9]|11[0-3])/.test(read('animation-studio.html')));
+ assert(/SKY CLASH · BUILD V(10[2-9]|11[0-4])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-5])/.test(html));
+ assert(/BUILD V(10[2-9]|11[0-4])/.test(read('animation-studio.html')));
  console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
   steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
   ' degrees/frame), V101 arms and V100 landing unchanged');
@@ -311,9 +311,9 @@ function movingTakeoffRegression(){
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes("e.src+='&moving=103'"));
  assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
- assert(/SKY CLASH · BUILD V(10[3-9]|11[0-3])/.test(read('index.html')));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-4])/.test(read('index.html')));
- assert(/BUILD V(10[3-9]|11[0-3])/.test(read('animation-studio.html')));
+ assert(/SKY CLASH · BUILD V(10[3-9]|11[0-4])/.test(read('index.html')));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-5])/.test(read('index.html')));
+ assert(/BUILD V(10[3-9]|11[0-4])/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
 function contactLandingRegression(){
@@ -951,6 +951,95 @@ function controlledFlightFootHoldRegression(){
  assert(held.u.authority.pushRelease>0,'held foot pose releases smoothly into jump');
  console.log('PASS V113 full stack: separate authored controlled hover/travel/vertical flight, one owner, immediate fall/combat, feet anchored with retained body preload');
 }
+function guidedKneesAirborneStyleRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpFacing=locked&flightLab=blend';
+ function jump(guided){
+  const u=setup(base+(guided?'&jumpKnees=guided':''));
+  u.f.floor=0;u.step(130);
+  V100.plantVisibleSoles(THREE,u.f.vrmRig,u.f,{});
+  const ground=u.pose(),writers=u.count();
+  u.f.v108JumpPrepT=.215;u.f.v108JumpPrepDuration=.215;
+  const last=[],shoes=[];
+  for(let frame=1;frame<=12;frame++){
+   u.f.v108JumpPrepT=Math.max(.0001,.215-frame/60);
+   u.step();
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers,'only one pose owner during prep');
+   const pose=u.pose();
+   last.push(pose);
+   for(const i of [15,18]){
+    const local=ground[i].clone().invert().multiply(pose[i]);
+    assert(local.x>-.045,
+     'left/right knees must remain in the same authored hinge bend plane');
+   }
+   const gaps=V100.soleGaps(THREE,u.f.vrmRig,u.f);
+   shoes.push(Math.abs(Math.min(...gaps.map(x=>x.gap))));
+  }
+  assert(Math.max(...shoes)<.023,'standing planted outsole cannot leave the floor');
+  const preLaunch=u.pose();
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  const rise=[];
+  for(let n=0;n<5;n++){u.step();rise.push(u.pose());}
+  assert.equal(u.authority.active,'jump');
+  assert(!u.authority.error);
+  assert.deepEqual(u.count(),writers,'guarded takeoff remains one final owner');
+  return {u,ground,preLaunch,rise,last,shoes};
+ }
+ const guided=jump(true),original=jump(false);
+ for(const i of [6,7,8,9,10,11,12,13]){
+  assert(guided.preLaunch[i].angleTo(original.preLaunch[i])<.0001,
+   'guiding knees may not move approved boxer arms');
+ }
+ for(const i of [15,18]){
+  const first=guided.rise[0][i].angleTo(guided.preLaunch[i]);
+  assert(first<.085,'first airborne knee must not flip at impulse');
+  for(let j=1;j<4;j++)
+   assert(guided.rise[j][i].angleTo(guided.rise[j-1][i])<.085,
+    'guided knee must not snap in first 4 launch frames');
+  assert(guided.rise[3][i].angleTo(guided.preLaunch[i])<.105,
+   'retain authored bend until both shoes have cleared the ground');
+ }
+ assert(guided.u.authority.guidedLaunchBlend<=8,
+  'after 5 launch frames the original recorded knee motion should be only gently blending in');
+ function fly(style){
+  const u=setup(base+'&flightStyle='+style);
+  u.step(130);const floor=u.pose(),counts=u.count();
+  u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  u.step(20);
+  u.f.jumping=false;u.f.pos.y=5;u.f.vel.y=0;u.f.vel.z=0;
+  u.step(36);
+  assert.equal(u.authority.active,'flight');
+  const hover=u.pose(),hoverName=u.authority.flightStyle;
+  u.f.vel.z=6.2;u.step(75);
+  const cruise=u.pose();
+  u.f.vel.y=7;u.step(20);const rise=u.pose();
+  u.f.vel.y=-7;u.step(20);const descend=u.pose();
+  u.f.dropping=true;u.step(1);
+  assert.equal(u.authority.active,'fall');
+  assert.deepEqual(u.count(),counts,'flight/fall use only one final pose owner');
+  u.f.dropping=false;u.f.punchT=.20;u.step();
+  assert.equal(u.authority.active,'yielded-to-combat-or-flight');
+  // Combat handoff correctly resumes the previous V81 writer, so its
+  // frame count is allowed to increase AFTER the exclusive air phase.
+  assert(!u.authority.error);
+  return {u,floor,hover,hoverName,cruise,rise,descend};
+ }
+ const air=fly('airborne'),groundLike=fly('controlled');
+ assert.equal(air.hoverName,'V114 true hover / cruise');
+ assert.equal(groundLike.hoverName,'V113 authored controlled');
+ for(const i of [6,7,8,9,10,11,12,13,14,15,16,17,18,19])
+  assert(air.floor[i].angleTo(groundLike.floor[i])<.0001,
+   'new airborne pose cannot change approved ground idle');
+ for(const i of [7,11,14,15,17,18])
+  assert(air.hover[i].angleTo(groundLike.hover[i])>.09,
+   'hover must no longer look identical to grounded fighting idle: '+V100.BONES[i]);
+ for(const i of [1,2,14,17])
+  assert(air.cruise[i].angleTo(air.hover[i])>.09,
+   'moving in the air must not stand motionless: '+V100.BONES[i]);
+ assert(air.rise[15].angleTo(air.descend[15])>.08,
+  'flight ascent and descent need distinct knee response');
+ console.log('PASS V114 full VRM stack: both knee bends safe at release, four no-snap jump frames, planted soles, truly airborne hover/cruise, immediate gravity/combat handoff');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1000,10 +1089,10 @@ function compactGuardRegression(){
   assert(fixed.land[i].angleTo(original.land[i])<.001,
    'landing source must be unchanged: '+V100.BONES[i]);
  const html=read('index.html'),studio=read('animation-studio.html'),boot=read('js/v66-game-boot.js');
- assert(/SKY CLASH · BUILD V(10[1-9]|11[0-3])/.test(html));
+ assert(/SKY CLASH · BUILD V(10[1-9]|11[0-4])/.test(html));
  assert(!html.includes('V58'));
  assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-4])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-5])/.test(html));
  assert(boot.includes('SkyClashBuild=Object.freeze'));
  assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
  assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
@@ -1024,6 +1113,7 @@ try{
  continuousFlightRegression();
  visibleStandingPushOffRegression();
  controlledFlightFootHoldRegression();
+ guidedKneesAirborneStyleRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

@@ -46,10 +46,12 @@ const owner=read('js/v100-pose-authority.js'),
  boot=read('js/v66-game-boot.js'),
  html=read('index.html');
 assert(owner.includes("params.get('flightStyle')==='controlled'"));
-assert(owner.includes('const flightControl=controlled?controlledFlightPose('));
+assert(owner.includes('controlled?controlledFlightPose(st.flightMix'),
+ 'V113 remains an independently selectable controlled style after V114 adds a new airborne style');
 assert(owner.includes('st.restPose.length===BONES.length'));
-assert(owner.includes("status.flightStyle=new URLSearchParams"));
-assert(owner.includes("'V113 authored controlled':'V111 continuous hover / travel'"));
+assert(owner.includes("status.flightStyle=choice==='airborne'?"));
+assert(owner.includes("choice==='controlled'?'V113 authored controlled':")&&
+ owner.includes("'V111 continuous hover / travel'"));
 assert(owner.includes("get('jumpFeet')==='hold'"));
 assert(owner.includes('st.prepFeet.length'));
 assert(owner.includes('shift.clampLength(0,.11)'));
@@ -57,7 +59,7 @@ assert(owner.includes('st.pushReleaseHipXZ=previous===\'prep\''));
 assert(owner.includes('if(st.pushReleaseHipXZ){'));
 assert(boot.includes("e.src+='&controlled=113'"));
 assert(boot.includes('shoe shift '));
-assert(html.includes('SKY CLASH · BUILD V113'));
-assert(html.includes('js/v66-game-boot.js?v=820&fix=114'));
-assert(read('animation-studio.html').includes('BUILD V113'));
+assert(/SKY CLASH · BUILD V11[34]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=11[45]/.test(html));
+assert(/BUILD V11[34]/.test(read('animation-studio.html')));
 console.log('PASS V113: 30/60/120fps controlled combat hover, forward travel, ascend, descend, subtle lateral turn; optional double-foot hold and smooth XZ takeoff release');

@@ -55,6 +55,28 @@
    rightAnkleX:-.045*forward
   };
  }
+ // V114: dedicated airborne silhouettes, not grounded-idle offsets.
+ function airborneFlightPose(mix,vertical=0,lateral=0){
+  const travel=smooth(clamp(mix,0,1)),rise=smooth(clamp(vertical/7,0,1));
+  const descend=smooth(clamp(-vertical/7,0,1));
+  const bank=clamp(lateral/6.2,-1,1);
+  return {
+   mix:travel,rise,descend,
+   hipsX:.065+.115*travel-.040*rise+.040*descend,
+   spineX:-.025+.245*travel-.045*rise+.045*descend,
+   chestX:-.025+.105*travel-.035*rise,
+   neckX:.035-.105*travel+.025*rise,
+   spineZ:-.065*bank*(.35+.65*travel),
+   leftShoulderX:-.175+.040*travel,rightShoulderX:-.155+.040*travel,
+   leftUpperArmX:.255+.145*travel,rightUpperArmX:.225+.145*travel,
+   leftLowerArmX:-.245+.050*travel,rightLowerArmX:-.215+.050*travel,
+   leftThighX:-.275-.155*travel-.040*rise+.070*descend,
+   rightThighX:-.105-.285*travel-.040*rise+.070*descend,
+   leftKneeX:.62-.20*travel-.11*rise+.12*descend,
+   rightKneeX:.47-.09*travel-.11*rise+.12*descend,
+   leftAnkleX:-.110+.060*travel,rightAnkleX:-.075+.040*travel
+  };
+ }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
  // hips/spine/chest chain, making a straight jump appear sideways.
@@ -177,6 +199,42 @@
   }
   return slip;
  }
+ // V114 knee-plane guidance: a constrained X-axis hinge rather than
+ // V112/V113 3D CCD that could flip one shin backwards at takeoff.
+ // Knee adjustment can only deepen the authored forward bend.
+ function guidedPrepFeet(THREE,rig,anchors,status){
+  const hum=rig.vrm.humanoid,scene=rig.vrm.scene;
+  const pos=new THREE.Vector3(),test=new THREE.Vector3(),
+    delta=new THREE.Vector3(),q=new THREE.Quaternion(),
+    axis=new THREE.Vector3(1,0,0);
+  let worst=0;
+  for(const anchor of anchors){
+   const thigh=hum.getNormalizedBoneNode(anchor.side+'UpperLeg');
+   const knee=hum.getNormalizedBoneNode(anchor.side+'LowerLeg');
+   const foot=hum.getNormalizedBoneNode(anchor.side+'Foot');
+   if(!thigh||!knee||!foot)continue;
+   for(let pass=0;pass<3;pass++){
+    for(const [joint,lim] of [[thigh,.035],[knee,.025]]){
+     scene.updateMatrixWorld(true);foot.getWorldPosition(pos);
+     delta.set(anchor.point.x-pos.x,0,anchor.point.z-pos.z);
+     if(delta.lengthSq()<.000002)continue;
+     joint.quaternion.multiply(q.setFromAxisAngle(axis,.002)).normalize();
+     scene.updateMatrixWorld(true);foot.getWorldPosition(test);
+     const jx=(test.x-pos.x)/.002,jz=(test.z-pos.z)/.002;
+     joint.quaternion.multiply(q.setFromAxisAngle(axis,-.002)).normalize();
+     const denom=jx*jx+jz*jz;
+     if(denom<1e-8)continue;
+     const lower=joint===knee?0:-lim;
+     const change=clamp((delta.x*jx+delta.z*jz)/denom,lower,lim);
+     joint.quaternion.multiply(q.setFromAxisAngle(axis,change)).normalize();
+    }
+   }
+   scene.updateMatrixWorld(true);foot.getWorldPosition(pos);
+   worst=Math.max(worst,Math.hypot(anchor.point.x-pos.x,anchor.point.z-pos.z));
+  }
+  status.prepHingeSlipCm=+(worst*100).toFixed(1);
+  return worst;
+ }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
  // final joint orientations. Floor contact must be evaluated last.
@@ -274,7 +332,8 @@
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
     movingFlow:false,landingDuration:.48,airFacingPose:[],
     flightMix:0,flightSamples:[],prepLastHipY:null,pushReleaseHipY:null,
-    prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null};
+    prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
+    guidedLaunchLegs:[]};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -312,6 +371,7 @@
    st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
    st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
    st.prepHipsXZ=null;st.prepLastHipXZ=null;st.pushReleaseHipXZ=null;
+   st.guidedLaunchLegs=[];
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -343,6 +403,10 @@
     st.pushReleaseHipXZ=previous==='prep'&&
       new URLSearchParams(root.location?.search||'').get('jumpFeet')==='hold'?
       st.prepLastHipXZ:null;
+    const guided=previous==='prep'&&
+      new URLSearchParams(root.location?.search||'').get('jumpKnees')==='guided'&&
+      st.launchSpeed<1.3;
+    st.guidedLaunchLegs=guided?visible.slice(14,20).map(q=>q.clone()):[];
     // The facing baseline is the last actually displayed PREP/ground
     // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
@@ -451,8 +515,12 @@
    const yaw=f.facing||0;
    const localSide=(f.vel?.x||0)*Math.cos(yaw)-
       (f.vel?.z||0)*Math.sin(yaw);
-   const flightControl=controlled?controlledFlightPose(
-     st.flightMix,f.vel?.y||0,localSide):null;
+   const airborne=next==='flight'&&
+     params.get('flightLab')==='blend'&&
+     params.get('flightStyle')==='airborne';
+   const flightControl=airborne?airborneFlightPose(
+     st.flightMix,f.vel?.y||0,localSide):
+     controlled?controlledFlightPose(st.flightMix,f.vel?.y||0,localSide):null;
    const expressive=params.get('jumpStyle')==='expressive'&&
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
@@ -594,6 +662,15 @@
       qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
       status.landingJointClamps=(status.landingJointClamps||0)+1;
      }
+    }
+    if(st.guidedLaunchLegs.length===6&&next==='jump'&&i>=14){
+     // Do not snap or reverse a shin immediately after standing push.
+     // Gradually transfer from the last grounded knee/ankle orientations
+     // to V102's original clip only after the feet have lifted.
+     const fade=smooth((st.elapsed-.060)/.170);
+     qRaw.copy(qTarget);
+     qTarget.copy(st.guidedLaunchLegs[i-14]).slerp(qRaw,fade).normalize();
+     status.guidedLaunchBlend=Math.round(fade*100);
     }
     if(steadyLegs&&i>=14){
      // Limit 180 deg/s thigh, 240 deg/s knee, 180 deg/s ankle. The
@@ -788,7 +865,10 @@
       // Very small post-pose two-joint IK brings them back without
       // touching horizontal gameplay motion, as during moving landing.
       let largest=0;
-      for(const anchor of st.prepFeet){
+      if(new URLSearchParams(root.location?.search||'')
+        .get('jumpKnees')==='guided')
+       largest=guidedPrepFeet(THREE,this.vrmRig,st.prepFeet,status);
+      else for(const anchor of st.prepFeet){
        const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
        if(Number.isFinite(slip))largest=Math.max(largest,slip);
       }
@@ -850,9 +930,11 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     status.flightStyle=new URLSearchParams(root.location?.search||'')
-       .get('flightStyle')==='controlled'?
-       'V113 authored controlled':'V111 continuous hover / travel';
+     const choice=new URLSearchParams(root.location?.search||'')
+       .get('flightStyle');
+     status.flightStyle=choice==='airborne'?'V114 true hover / cruise':
+       choice==='controlled'?'V113 authored controlled':
+       'V111 continuous hover / travel';
      status.flightSpeed=+speed.toFixed(2);
      status.flightBlend=Math.round(st.flightMix*100);
     }
@@ -931,7 +1013,7 @@
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
     jumpExpression:0,jumpPrep:0,pushExtension:0,pushDurationMs:0,
-    prepFootSlipCm:0,
+    prepFootSlipCm:0,prepHingeSlipCm:0,guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
@@ -956,7 +1038,8 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,flightWeight,flightStep,controlledFlightPose,
+ const api={version:100,BONES,clipFor,flightWeight,flightStep,
+    controlledFlightPose,airborneFlightPose,guidedPrepFeet,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
