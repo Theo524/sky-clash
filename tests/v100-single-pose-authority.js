@@ -1221,6 +1221,80 @@ function forwardWholeBodyJumpRegression(){
  assert(!u.authority.error);
  console.log('PASS V117 full VRM stack: grounded forward torso and knees, unchanged pelvis/guard, planted soles, single writer, smooth jump takeoff');
 }
+// V118 full-controller regression on the ACTUAL Kairo rig hierarchy:
+// fighter model +Z -> VRM0 scene corrected by PI -> native feet -Z.
+// V116/V117 sampled the child scene +Z (backward), not model +Z.
+function correctedActualVRM0ForwardJumpRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=v118';
+ const u=setup(url),rig=u.f.vrmRig;
+ const root=new THREE.Group();root.rotation.y=.75;
+ root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+ u.f.model={root};rig.f=u.f;rig.legacyAxes=true;
+ for(const side of ['left','right']){
+  const toes=new THREE.Bone();
+  toes.name=side+'Toes';toes.position.set(0,-.09,-.16);
+  u.bones[side+'Foot'].add(toes);u.bones[toes.name]=toes;
+ }
+ root.updateMatrixWorld(true);
+ u.f.floor=0;u.step(130);
+ V100.plantVisibleSoles(THREE,rig,u.f,{});
+ const world=n=>u.bones[n].getWorldPosition(new THREE.Vector3());
+ const gameForward=new THREE.Vector3(0,0,1).applyQuaternion(
+  root.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ const WRONG=new THREE.Vector3(0,0,1).applyQuaternion(
+  rig.vrm.scene.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ assert(WRONG.dot(gameForward)<-.99,
+  'mock must reproduce the actual VRM0 corrected-scene 180deg mismatch');
+ const front=()=>world('head').sub(world('hips')).dot(gameForward);
+ const knee=side=>{
+  const hip=world(side+'UpperLeg'),joint=world(side+'LowerLeg'),
+   ankle=world(side+'Foot'),line=ankle.clone().sub(hip);
+  const t=Math.max(0,Math.min(1,joint.clone().sub(hip).dot(line)/
+   Math.max(1e-8,line.lengthSq())));
+  return joint.sub(hip.addScaledVector(line,t)).dot(gameForward);
+ };
+ const startFront=front(),kneeStart=['left','right'].map(knee),
+  owners=u.count(),approvedPose=u.pose();
+ const target=V100.realKairoForward(THREE,rig,{});
+ assert(target.dot(gameForward)>.995,
+  'real toe direction must calibrate to gameplay model forward, not scene');
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ let peakFront=startFront,peakKnee=-Infinity;
+ for(let i=1;i<=12;i++){
+  u.f.v108JumpPrepT=Math.max(.0001,.215-i/60);
+  u.step();
+  assert.equal(u.authority.active,'prep');
+  assert.deepEqual(u.count(),owners,'no historical Mixamo layer gains prep ownership');
+  peakFront=Math.max(peakFront,front());
+  peakKnee=Math.max(peakKnee,Math.min(knee('left'),knee('right')));
+  if(i<=10)assert(front()>=startFront-.008,
+   'VRM0 upper body must not arch backward during the load');
+  const minGap=Math.min(...V100.soleGaps(THREE,rig,u.f).map(x=>x.gap));
+  assert(Math.abs(minGap)<.025,'at least one actual visible sole stays planted');
+ }
+ assert(peakFront>startFront+.055,
+  'VRM0 upper-body loading MUST shift toward actual toes, not scene +Z');
+ assert(peakKnee>.065,
+  'VRM0 real-facing kneecaps must advance past the hip-ankle line');
+ for(const [i,side]of ['left','right'].entries())
+  assert(knee(side)>kneeStart[i]+.07,
+   side+' kneecap must not bend toward Kairo back');
+ assert(u.authority.prepSceneVsBodyDot<-.99,
+  'diagnostic must reveal reversed VRM0 child-scene forward');
+ assert(u.authority.prepForwardSource.startsWith('fighter-root'),
+  'V118 must follow Kairo model facing even with animated toe yaw');
+ assert.equal(u.authority.prepKneeDirections,'V118 true VRM0 front');
+ const loaded=u.pose();
+ assert(loaded[0].angleTo(approvedPose[0])<.024,'no unintended pelvis twist');
+ for(let i=6;i<=13;i++)
+  assert(loaded[i].angleTo(approvedPose[i])<.22,'compact guard remains approved');
+ u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+ u.step();const airborne=u.pose();
+ for(const i of [14,15,16,17,18,19])
+  assert(airborne[i].angleTo(loaded[i])<.12,'smooth V118 into V102 airborne handoff');
+ assert(!u.authority.error);
+ console.log('PASS V118 REAL VRM0 corrected scene full controller stack: BOTH toes and body advance in gameplay forward, one owner, planted soles, unchanged guard and jump handoff');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1298,6 +1372,7 @@ try{
  worldCorrectStandingKneesRegression();
  readableWorldStandingJumpRegression();
  forwardWholeBodyJumpRegression();
+ correctedActualVRM0ForwardJumpRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

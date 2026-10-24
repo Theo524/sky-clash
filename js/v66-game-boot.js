@@ -30,7 +30,7 @@
     jumpPrep:'push',jumpFeet:'hold',
     // Compact V116 preview link uses the SAME approved V115 startup
     // except standing knee bending. Public root remains V115.
-    jumpKnees:['v116','v117'].includes(flags.get('jumpPreview'))?
+    jumpKnees:['v116','v117','v118'].includes(flags.get('jumpPreview'))?
      'anatomic':'forward',
     jumpFacing:'locked'
    };
@@ -146,6 +146,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('jumpPreview')==='v117')
      e.src+='&torso=117';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpPreview')==='v118')
+     e.src+='&vrmFacing=118';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -309,7 +312,10 @@
          (guidedKnees?' | '+
           (anatomicKnees?
             (airOwner?.prepKneeDirections||'V116 world knees')+
-             ' | knee '+(airOwner?.prepWorldKneeCm||0)+'cm':
+             ' | knee '+(airOwner?.prepWorldKneeCm||0)+'cm'+
+             (flags.get('jumpPreview')==='v118'?
+              ' | forward '+(airOwner?.prepForwardSource||'unknown')+
+              ' | scene dot '+(airOwner?.prepSceneVsBodyDot??'?'):''):
            forwardKnees?(airOwner?.prepKneeDirections||'forward bend'):
            'hinge-guided'):''):''):'')+'\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
