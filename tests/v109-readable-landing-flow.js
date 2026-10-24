@@ -57,7 +57,8 @@ assert(owner.includes("get('landingMove')==='flow'"));
 assert(owner.includes("st.movingFlow=flowFlag&&(fighter.v109LandingSpeed||0)>1.3"));
 assert(owner.includes('st.movingFlow&&st.phase===\'landing\'?.090:.17'));
 assert(owner.includes('landingPlan(st.elapsed,st.impactSpeed,st.landingDuration)'));
-assert(owner.includes("const readable=new URLSearchParams(root.location?.search||'')"));
+assert(owner.includes("const profile=new URLSearchParams(root.location?.search||'')")&&
+ owner.includes("profile==='push'?'push':profile==='readable'"));
 assert(boot.includes("e.src+='&groundflow=109'"));
 assert(boot.includes("V109 readable")&&boot.includes('movingFlow'));
 assert(/SKY CLASH · BUILD V(109|11[0-2])/.test(html));
