@@ -50,6 +50,10 @@ for(const yaw of [0,Math.PI/3,Math.PI,Math.PI*1.65]){
     anchors.push({side,point:world(foot),
      rotation:foot.getWorldQuaternion(new THREE.Quaternion())});
    }
+   const startingKnee=['left','right'].map(side=>{
+    const {thigh,knee,foot}=nodes[side];
+    return projected(world(thigh),world(knee),world(foot),front);
+   });
    let last=[0,0],maxAngular=0;
    for(let frame=0;frame<=frames;frame++){
     const t=Math.min(.215*.75,frame/fps);
@@ -69,7 +73,8 @@ for(const yaw of [0,Math.PI/3,Math.PI,Math.PI*1.65]){
     for(const [i,side] of ['left','right'].entries()){
      const {thigh,knee,foot}=nodes[side];
      const signed=projected(world(thigh),world(knee),world(foot),front);
-     assert(signed>=-.015,'knee cannot bend backward: '+side+'/'+mirror);
+     assert(signed>=startingKnee[i]-.005,
+      'knee may not move backwards from its actual neutral skeleton: '+side+'/'+mirror);
      const ankleRot=foot.getWorldQuaternion(new THREE.Quaternion());
      assert(ankleRot.angleTo(anchors[i].rotation)<1e-5,
       'shin rotation must not pitch visible shoe: '+side+'/'+mirror);
