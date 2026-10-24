@@ -1734,8 +1734,8 @@ function fullArcExpressivenessRegression(){
   'V123 anticipation must visibly change crouched body/arms');
  assert(max(old.ascent[3],newer.ascent[3],[1,2,6,7,8,10,11,12])>.10,
   'V123 upward jump must lift chest and arms noticeably');
- assert(max(old.crouch,newer.crouch,[14,15,17,18])>.035,
-  'V123 stronger planted knee load must produce more visible push-off potential');
+ assert(max(old.crouch,newer.crouch,[14,15,16,17,18,19])<.003,
+  'V123 must preserve the good V122 planted knee/ankle pose exactly');
  for(let k=0;k<2;k++){
   assert(newer.firstHeading[k]>7.5&&newer.firstHeading[k]<15,
    'the very FIRST airborne shoe must preserve the approved V122 visible toe-out');
