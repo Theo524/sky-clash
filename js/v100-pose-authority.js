@@ -208,7 +208,7 @@
      f.dashing||f.sprinting||(f.acro&&f.acro.type!=='landing'))
    return null;
   if(f.v108JumpPrepT>0&&
-     ['subtle','readable'].includes(
+     ['subtle','readable','push'].includes(
       new URLSearchParams(root.location?.search||'').get('jumpPrep'))&&
      !f.flying)return 'prep';
   if(f.landingMotionT>0&&!f.flying)return 'landing';
