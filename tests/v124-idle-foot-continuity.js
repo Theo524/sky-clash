@@ -71,7 +71,7 @@ assert(code.includes("if(entryFeet?.length===2)"));
 assert(code.includes("v125 ? .20 : .20*stance.ready,status")&&
  code.includes("(v124||v125)?st.prepFeet:null"),
  'v124 must retain its measured original toe target behind its gate');
-assert(code.includes("['v123','v124'].includes(params.get('jumpPreview'))"),
+assert(code.includes("['v123','v124','v125'].includes(params.get('jumpPreview'))"),
  'preserve expressive ascent from v123');
 assert(boot.includes("e.src+='&idleFeet=124'"));
 console.log('PASS V124: distinct original idle shoe angles, anchor positions and crouch foot heading on '+count+' actual VRM0 mirrored yaw rigs');
