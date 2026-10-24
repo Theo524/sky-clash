@@ -1187,6 +1187,10 @@ function forwardWholeBodyJumpRegression(){
   assert.deepEqual(u.count(),owners,
    'V117 remains one final Kairo pose owner, no extra Mixamo writer');
   const now=projected();
+  if(frame<=5)console.log('V117_DBG',frame,'current',now.toFixed(5),
+   'start',originalForward.toFixed(5),'previous',prior.toFixed(5),
+   'measured',u.authority.prepTorsoForwardCm,'hipQ',
+   u.bones.hips.quaternion.angleTo(neutral[0]).toFixed(4));
   assert(now>=originalForward-.008&&now>=prior-.008,
    'V117 upper body must never pitch backwards at prep');
   prior=now;
