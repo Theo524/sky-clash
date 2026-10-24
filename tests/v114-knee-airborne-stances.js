@@ -55,8 +55,9 @@ for(const fps of [30,60,120]){
 const owner=read('js/v100-pose-authority.js'),boot=read('js/v66-game-boot.js'),
  html=read('index.html');
 assert(owner.includes("params.get('flightStyle')==='airborne'"));
-assert(owner.includes("params.get('jumpKnees')==='guided'")||
- owner.includes(".get('jumpKnees')==='guided'"));
+assert(owner.includes("if(kneeMode==='guided')")&&
+ owner.includes("largest=guidedPrepFeet(THREE,this.vrmRig,st.prepFeet,status)"),
+ 'the previous V114 guided-knee comparison must remain selectable unchanged');
 assert(owner.includes("if(st.guidedLaunchLegs.length===6&&next==='jump'&&i>=14)"));
 assert(owner.includes('const fade=smooth((st.elapsed-.060)/.170)'));
 assert(owner.includes("const lower=joint===knee?0:-lim"));
