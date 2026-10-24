@@ -1267,9 +1267,17 @@ class VRMRig {
       window.location?.search?.includes('landingLab=contact')&&
       window.location?.search?.includes('landingFeet=plant')&&
       window.SkyClashPoseAuthority?.ready;
+    // V108 prep is posed AFTER VRMRig.update by the unified owner,
+    // exactly like landing. Let that final owner handle sole contact so
+    // this older preliminary check cannot undo the subtle knee bend.
+    const v108FinalPrep=this.f===Game.heroes?.kairo_venn&&
+      this.f.v108JumpPrepT>0&&
+      window.location?.search?.includes('jumpPrep=subtle')&&
+      window.SkyClashPoseAuthority?.ready;
     // World-space ground constraint for all unmodified grounded states.
     // Does not move hitbox or simulation position.
-    if (!v106FinalSoles&&!this.f.flying && !this.f.launched && !this.f.spiked && this.f.downT <= 0) {
+    if (!v106FinalSoles&&!v108FinalPrep&&!this.f.flying &&
+        !this.f.launched&&!this.f.spiked&&this.f.downT<=0) {
       this.vrm.scene.updateMatrixWorld(true);
       const footNames = ['leftFoot', 'rightFoot', 'leftToes', 'rightToes'];
       // Measure against the current mesh offset, so the lift settles to a stable
@@ -1300,7 +1308,7 @@ class VRMRig {
       const next = this.footLift + (wanted - this.footLift) * damp(wanted > this.footLift ? 40 : 17, dt);
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
-    } else if (!v106FinalSoles&&this.footLift) {
+    } else if (!v106FinalSoles&&!v108FinalPrep&&this.footLift) {
       const next = this.footLift * (1 - damp(17, dt));
       this.vrm.scene.position.y += next - this.footLift;
       this.footLift = next;
@@ -1980,6 +1988,8 @@ class Fighter {
   }
   reset() {
     this.pos.copy(this.spawn); this.vel.set(0, 0, 0); this.jumpsUsed=0;
+    this.v108JumpPrepT=0;this.v108JumpPrepDuration=0;
+    this.v108JumpPrepLaunchVy=0;this.v108JumpPrepSpeed=0;
     this.facing = yawFromDir(-this.spawn.x, -this.spawn.z);
     this.model.root.rotation.y = this.facing;
     this.hp = 100; this.energy = 60;
@@ -2107,7 +2117,8 @@ class Fighter {
   }
   // tap Up on the ground: a quick hop; keep holding and it turns into flight
   tryJump() {
-    if (this.awakenChargeT > 0 || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
+    if (this.v108JumpPrepT>0||
+        this.awakenChargeT > 0 || this.stun > 0 || this.slamming || this.slamLagT > 0) return false;
     if (!this.canFly) {
       if (this.jumpsUsed >= 2) return false;
       this.jumpsUsed++;
@@ -2125,6 +2136,25 @@ class Fighter {
     if (this.canFly && safe && this.sprinting && speed > this.motionProfile.minFlipSpeed &&
         Math.random() < this.motionProfile.flipChance && this.t - this.lastAcroAt > 1.2) {
       this.startAcro('flip', 0.64);
+    }
+    // V108 opt-in ONLY: a deliberately short, grounded anticipation
+    // before the existing untouched physical jump impulse. The input is
+    // buffered exactly once, not ignored/re-fired each frame. Boost,
+    // airborne double jumps, attacks and non-Kairo fighters stay instant.
+    const subtlePrep=this.characterId==='kairo_venn'&&this.canFly&&
+      this===Game.heroes?.kairo_venn&&
+      this.pos.y<=this.floor+.025&&!this.sprinting&&!this.dashing&&
+      !this.punchT&&!this.blastT&&!this.blockHeld&&!this.charging&&
+      !(this.landingMotionT>0)&&
+      window.location?.search?.includes('jumpPrep=subtle')&&
+      window.location?.search?.includes('animator=unified')&&
+      window.SkyClashPoseAuthority?.ready;
+    if(subtlePrep){
+      this.v108JumpPrepDuration=.095;this.v108JumpPrepT=.095;
+      this.v108JumpPrepLaunchVy=this.vel.y;
+      this.v108JumpPrepSpeed=speed;
+      this.jumping=false;this.vel.y=0;
+      return true;
     }
     Effects.dust(this.pos, 5);
     return true;
@@ -2198,6 +2228,25 @@ class Fighter {
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
+    // V108 owns only the 95ms input-to-takeoff interval. The existing
+    // jump physics runs unmodified after expiry. Interruptions cancel the
+    // buffered jump so a stun/block/dash never causes a delayed surprise hop.
+    if(this.v108JumpPrepT>0){
+      const cancel=this.hp<=0||this.stun>0||this.launched||this.spiked||
+        this.downT>0||this.dashing||this.dashPrep>0||this.sprinting||
+        this.blockHeld||this.blocking||this.charging||this.chargeHeld||
+        this.punchT>0||this.blastT>0||this.slamming||
+        this.pos.y>this.floor+.025;
+      if(cancel){this.v108JumpPrepT=0;this.v108JumpPrepDuration=0;}
+      else{
+        this.v108JumpPrepT=Math.max(0,this.v108JumpPrepT-dt);
+        if(this.v108JumpPrepT===0){
+          this.jumping=true;this.jumpHold=0;
+          this.vel.y=this.v108JumpPrepLaunchVy;
+          Effects.dust(this.pos,5);
+        }
+      }
+    }
     this.guardCounterWindow = Math.max(0, this.guardCounterWindow - dt);
     if (this.awakenChargeT > 0) {
       this.awakenChargeT = Math.max(0, this.awakenChargeT - dt);
@@ -2454,6 +2503,10 @@ class Fighter {
       const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : joystickRunPace) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
+      // Holding the Up/jump button normally commands flight; while the
+      // V108 grounded jump is buffered, suppress that upward flight target
+      // or Kairo would leave the floor before his feet finish compressing.
+      if(this.v108JumpPrepT>0)target.y=0;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
         // jump arc: gravity pulls you down unless you keep holding Up, which turns it into flight
