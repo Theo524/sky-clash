@@ -105,7 +105,8 @@
  // Moving takeoffs use a shallower compression than stationary ones.
  function prepPose(age,speed,readable=false){
   const moving=clamp(speed/6.2,0,1);
-  const push=readable==='push',expressive=!!readable;
+  const loaded=readable==='loaded',push=readable==='push'||loaded,
+   expressive=!!readable;
   // V112: static jump gets a visible two-part load/release, but moving
   // takeoff stays quick. Original subtle/readable curves are untouched.
   const duration=push?.215-.10*moving:expressive?.140-.040*moving:.095;
@@ -121,15 +122,15 @@
   const legBend=push?bend*(1-.42*moving):bend;
   return {
    bend,
-   hipsY:-(push?.080:expressive?.055:.036)*bend,
-   hipsX:(push?.070:expressive?.052:.036)*bend,
-   thighX:push?-.43*legBend:-(expressive?.165:.105)*bend,
-   kneeX:push?.82*legBend:(expressive?.285:.155)*bend,
-   ankleX:push?-.085*legBend:-(expressive?.066:.038)*bend,
-   spineX:(push?.162:expressive?.108:.074)*bend,
-   chestX:(push?.100:expressive?.068:.048)*bend,
+   hipsY:-(loaded?.110:push?.080:expressive?.055:.036)*bend,
+   hipsX:(loaded?.092:push?.070:expressive?.052:.036)*bend,
+   thighX:loaded?-.55*legBend:push?-.43*legBend:-(expressive?.165:.105)*bend,
+   kneeX:loaded?1.08*legBend:push?.82*legBend:(expressive?.285:.155)*bend,
+   ankleX:loaded?0:push?-.085*legBend:-(expressive?.066:.038)*bend,
+   spineX:(loaded?.205:push?.162:expressive?.108:.074)*bend,
+   chestX:(loaded?.128:push?.100:expressive?.068:.048)*bend,
    neckX:-(push?.039:expressive?.028:.018)*bend,
-   shoulderX:push?-.055*bend:0,
+   shoulderX:loaded?-.072*bend:push?-.055*bend:0,
    upperArmX:push?.085*bend:0,
    extend,duration
   };
@@ -278,6 +279,69 @@
    };
   }
   return signs;
+ }
+ // V116: a standing jump must be a real crouch, not a signed local-X
+ // guess. Rotate each THIGH so its actual knee moves toward visible +forward,
+ // and each SHIN so the ankle folds back underneath it. Both operations
+ // derive their own world-space axis from the live VRM limb geometry.
+ // The rotation is converted into that joint's current local frame; mirrored
+ // humanoid axes and root yaw cannot reverse the knee. One existing V100
+ // pose owner remains responsible for the final pose, no new wrapper/IK.
+ function worldStandingPrepLegs(THREE,rig,thighAngle,shinAngle,anchors,status){
+  const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
+  scene.updateMatrixWorld(true);
+  const facing=new THREE.Vector3(0,0,1).applyQuaternion(
+   scene.getWorldQuaternion(new THREE.Quaternion()));
+  facing.y=0;
+  if(facing.lengthSq()<1e-6)return 0;
+  facing.normalize();
+  const pointA=new THREE.Vector3(),pointB=new THREE.Vector3(),
+   dir=new THREE.Vector3(),axis=new THREE.Vector3(),
+   current=new THREE.Quaternion(),delta=new THREE.Quaternion(),
+   parentQ=new THREE.Quaternion();
+  function aim(joint,end,worldDirection,angle){
+   if(angle<=0)return;
+   scene.updateMatrixWorld(true);
+   joint.getWorldPosition(pointA);end.getWorldPosition(pointB);
+   dir.subVectors(pointB,pointA).normalize();
+   axis.crossVectors(dir,worldDirection);
+   if(axis.lengthSq()<1e-8)return;
+   axis.normalize();
+   joint.getWorldQuaternion(current);
+   axis.applyQuaternion(current.invert()).normalize();
+   joint.quaternion.multiply(delta.setFromAxisAngle(axis,angle)).normalize();
+  }
+  let lowest=Infinity;
+  for(const side of ['left','right']){
+   const upper=hum.getNormalizedBoneNode(side+'UpperLeg');
+   const knee=hum.getNormalizedBoneNode(side+'LowerLeg');
+   const foot=hum.getNormalizedBoneNode(side+'Foot');
+   if(!upper||!knee||!foot)continue;
+   aim(upper,knee,facing,clamp(thighAngle,0,.62));
+   aim(knee,foot,facing.clone().negate(),clamp(shinAngle,0,1.18));
+   // Preserve each shoe's actual PREP-ENTRY world orientation; shin
+   // flexion must not rotate toes up or down through the floor.
+   const anchor=anchors?.find(a=>a.side===side);
+   if(anchor?.rotation){
+    scene.updateMatrixWorld(true);
+    foot.parent.getWorldQuaternion(parentQ);
+    foot.quaternion.copy(parentQ.invert().multiply(anchor.rotation)).normalize();
+   }
+   scene.updateMatrixWorld(true);
+   const hipP=upper.getWorldPosition(new THREE.Vector3());
+   const kneeP=knee.getWorldPosition(new THREE.Vector3());
+   const ankleP=foot.getWorldPosition(new THREE.Vector3());
+   // Positive means the knee lies FORWARD of the hip-to-ankle line.
+   // This is the anatomical check missing from V115's derivative test.
+   const hToA=ankleP.clone().sub(hipP);
+   const t=clamp(kneeP.clone().sub(hipP).dot(hToA)/
+    Math.max(1e-8,hToA.lengthSq()),0,1);
+   const offset=kneeP.sub(hipP.addScaledVector(hToA,t)).dot(facing);
+   lowest=Math.min(lowest,offset);
+  }
+  if(Number.isFinite(lowest)&&status)
+   status.prepWorldKneeCm=+(lowest*100).toFixed(1);
+  return Number.isFinite(lowest)?lowest:0;
  }
  // V106 sole alignment: measure the *already retargeted* visible VRM bones.
  // The older procedural ground solver runs before V100 and never sees these
@@ -448,7 +512,7 @@
       new URLSearchParams(root.location?.search||'').get('jumpFeet')==='hold'?
       st.prepLastHipXZ:null;
     const guided=previous==='prep'&&
-      ['guided','forward'].includes(
+      ['guided','forward','anatomic'].includes(
         new URLSearchParams(root.location?.search||'').get('jumpKnees'))&&
       st.launchSpeed<1.3;
     st.guidedLaunchLegs=guided?visible.slice(14,20).map(q=>q.clone()):[];
@@ -468,14 +532,17 @@
     st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
     st.prepLastHipY=null;
     st.prepForwardAxes=null;
-    if(new URLSearchParams(root.location?.search||'').get('jumpKnees')==='forward')
+    if(['forward','anatomic'].includes(
+       new URLSearchParams(root.location?.search||'').get('jumpKnees')))
      st.prepForwardAxes=forwardKneeAxes(THREE,st.rig);
     st.prepFeet=[];
     if(new URLSearchParams(root.location?.search||'').get('jumpPrep')==='push'){
      st.rig.vrm.scene.updateMatrixWorld(true);
      for(const side of ['left','right']){
       const shoe=st.rig.vrm.humanoid.getNormalizedBoneNode(side+'Foot');
-      if(shoe)st.prepFeet.push({side,point:shoe.getWorldPosition(new THREE.Vector3())});
+      if(shoe)st.prepFeet.push({side,
+       point:shoe.getWorldPosition(new THREE.Vector3()),
+       rotation:shoe.getWorldQuaternion(new THREE.Quaternion())});
      }
     }
    }
@@ -882,11 +949,18 @@
      const elapsed=clamp(duration-(this.v108JumpPrepT||0),0,duration);
      const profile=new URLSearchParams(root.location?.search||'')
        .get('jumpPrep');
-     const readable=profile==='push'?'push':profile==='readable';
+     const kneeProfile=new URLSearchParams(root.location?.search||'')
+       .get('jumpKnees');
+     // Anatomic V116 remains a STANDING-only opt-in; inherited walk/run
+     // takeoff uses the untouched V115 forward-calibrated pose.
+     const v116=profile==='push'&&kneeProfile==='anatomic'&&
+       st.prepSpeed<1.3;
+     const readable=v116?'loaded':profile==='push'?'push':
+       profile==='readable';
      const p=prepPose(elapsed,st.prepSpeed,readable);
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      const axes=profile==='push'&&
-      new URLSearchParams(root.location?.search||'').get('jumpKnees')==='forward'?
+      ['forward','anatomic'].includes(kneeProfile)?
       st.prepForwardAxes:null;
      for(let i=0;i<BONES.length;i++){
       const n=st.nodes[i];
@@ -900,8 +974,8 @@
        i===7||i===11?p.upperArmX:0;
       // The original V112 assumed identical local X signs for both VRM
       // thighs/knees. Use measured world-forward bend for each joint.
-      let bendAngle=angle;
-      if(axes&&i>=14&&i<=19){
+      let bendAngle=v116&&i>=14&&i<=19?0:angle;
+      if(!v116&&axes&&i>=14&&i<=19){
        const side=i<=16?'left':'right';
        const knee=axes[side];
        if(knee){
@@ -912,6 +986,10 @@
       }
       if(bendAngle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,bendAngle)).normalize();
       n.updateMatrixWorld(true);
+     }
+     if(v116){
+      worldStandingPrepLegs(THREE,this.vrmRig,Math.abs(p.thighX),
+       Math.abs(p.kneeX),st.prepFeet,status);
      }
      if(profile==='push'&&new URLSearchParams(root.location?.search||'')
        .get('jumpFeet')==='hold'&&st.prepHipsXZ){
@@ -935,10 +1013,11 @@
       // V115 forward: no knee-solving IK at all. The dual-foot visual
       // pelvis anchor below handles any shared horizontal foot shift.
       // This ensures no hidden IK rotation can undo the measured bend.
-      else if(kneeMode==='forward'){
+      else if(kneeMode==='forward'||kneeMode==='anatomic'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=st.prepForwardAxes?
-        ['left','right'].map(s=>s[0].toUpperCase()+
+       status.prepKneeDirections=v116?
+        'V116 world-space anatomy':
+        st.prepForwardAxes?['left','right'].map(s=>s[0].toUpperCase()+
         ':T'+(st.prepForwardAxes[s].thigh>0?'+':'-')+
         ' K'+(st.prepForwardAxes[s].knee>0?'+':'-')).join(' '):'not-calibrated';
       }
@@ -1115,6 +1194,7 @@
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,guidedPrepFeet,forwardKneeAxes,
+    worldStandingPrepLegs,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
