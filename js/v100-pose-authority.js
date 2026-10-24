@@ -342,14 +342,13 @@
    if(previous?.[index]&&dt>0){
     const maxStep=5*Math.max(0,dt);
     const change=previous[index].angleTo(joint.quaternion);
-    if(change>maxStep&&maxStep>0)
-     // Slerp target MUST be a separate quaternion. Copying the previous
-    // visible pose into joint.quaternion and then passing THAT SAME
-    // object as the slerp target silently produces zero rotation.
-    // This exact aliasing bug was keeping both visible hands dangling.
-    const proposed=joint.quaternion.clone();
-    joint.quaternion.copy(previous[index]).slerp(
-      proposed,maxStep/change).normalize();
+    if(change>maxStep&&maxStep>0){
+     // Copy intended target BEFORE resetting joint quaternion, otherwise
+     // a self-aliased slerp silently traps both arms in the old pose.
+     const proposed=joint.quaternion.clone();
+     joint.quaternion.copy(previous[index]).slerp(
+       proposed,maxStep/change).normalize();
+    }
    }
    if(status){
     scene.updateMatrixWorld(true);
