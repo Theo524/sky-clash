@@ -100,7 +100,7 @@ for(const yaw of [0,Math.PI*.5,Math.PI,Math.PI*1.75]){
  assert(corrected.dot(physical)>.995,'V118 must follow Kairo REAL toe direction');
  assert(corrected.dot(game)>.995,'V118 must follow fighter gameplay +Z');
  assert(wrong.dot(game)<-.995,'prove earlier V116/V117 front was exactly backwards');
- assert.equal(status.prepForwardSource,'real-vrm-toes');
+ assert.equal(status.prepForwardSource,'fighter-root/toes-confirmed');
  assert(status.prepSceneVsBodyDot<-.995,
   'Kairo corrected VRM scene +Z must be opposite the visible/model front');
  gameRoot.remove(base);
