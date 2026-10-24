@@ -81,7 +81,8 @@ async function run(){
     g.player.facing=0;g.player.model.root.rotation.y=0;
     // Pose is advanced by the REAL animation chain but physics/input is
     // frozen, so screenshots show a repeatable deterministic silhouette.
-    g.update=dt=>g.player.animate(dt);
+    g.update=()=>{}; // freeze BOTH physics and animation between captures
+    g.__visualJumpFrames=0;
     s.CameraRig.rig.pitch=.17;
     s.CameraRig.rig.yaw=0;
     document.querySelectorAll('.sky-lab-panel').forEach(n=>n.style.display='none');
@@ -97,6 +98,10 @@ async function run(){
    if(viewCheck.game!=='playing'||viewCheck.titleDisplay!=='none'||!viewCheck.hidden)
     throw new Error('Capture view is still blocked by the title menu!');
    for(const [name,t,settle] of phases){
+    // Sample at a DETERMINISTIC animation-clock age. Taking a browser
+    // screenshot can take hundreds of ms on software GPU; if RAF kept
+    // advancing the pose, the "rising" image would accidentally show
+    // the already recovered arms rather than the early upward swing.
     await page.evaluate(({t,name})=>{
      const g=window.SkyClash.Game,p=g.player;
      p.facing=0;p.model.root.rotation.y=0;
@@ -105,15 +110,21 @@ async function run(){
      if(name==='idle'){
       p.v108JumpPrepT=0;p.jumping=false;p.vel.y=0;
       p.pos.y=p.floor;
+      for(let k=0;k<130;k++)p.animate(1/60);
      }else if(typeof t==='number'){
       p.v108JumpPrepT=Math.max(.0001,.215-t);
       p.jumping=false;p.vel.y=0;p.pos.y=p.floor;
+      p.animate(1/60);
      }else{
       p.v108JumpPrepT=0;p.jumping=true;
       p.pos.y=p.floor+1.1;p.vel.y=name==='apex'?1.5:13;
+      const target={takeoff:.05,rising:.17,apex:.38}[name];
+      const next=Math.round(target*60),previous=g.__visualJumpFrames||0;
+      for(let i=previous;i<next;i++)p.animate(1/60);
+      g.__visualJumpFrames=next;
      }
     },{t,name});
-    await sleep(settle);
+    await sleep(85);
     for(const [view,yaw] of [['front',0],['side',Math.PI/2]]){
      await page.evaluate(yaw=>{const c=window.SkyClash.CameraRig;
       c.rig.yaw=yaw;c.rig.pitch=.17;c.update(0,true);},yaw);
