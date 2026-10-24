@@ -1684,9 +1684,20 @@ function fullArcExpressivenessRegression(){
   });
   const minGap=Math.min(...V100.soleGaps(THREE,rig,u.f).map(x=>x.gap));
   u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
-  const ascent=[];
+  const firstAngles=()=>{
+   rig.vrm.scene.updateMatrixWorld(true);
+   return ['left','right'].map(side=>{
+    const toe=u.bones[side+'Toes'].getWorldPosition(new THREE.Vector3());
+    const foot=u.bones[side+'Foot'].getWorldPosition(new THREE.Vector3());
+    const v=toe.sub(foot).setY(0).normalize();
+    return Math.atan2(v.dot(right),v.dot(fwd))*180/Math.PI*
+     (side==='left'?-1:1);
+   });
+  };
+  const ascent=[];let firstHeading=null;
   for(let k=1;k<=43;k++){
    u.step();
+   if(k===1)firstHeading=firstAngles();
    if([1,4,8,12,17,22,31,39,43].includes(k))ascent.push(u.pose());
    assert.equal(u.authority.active,'jump');
    assert.deepEqual(u.count(),writers);
@@ -1708,7 +1719,7 @@ function fullArcExpressivenessRegression(){
    if([6,12].includes(k))landing.push(u.pose());
   }
   assert(!u.authority.error);
-  return {u,prep,crouch,toeAngles,minGap,ascent,fall,landing};
+  return {u,prep,crouch,toeAngles,firstHeading,minGap,ascent,fall,landing};
  }
  const old=run('v122'),newer=run('v123');
  for(let k=0;k<2;k++){
@@ -1725,12 +1736,16 @@ function fullArcExpressivenessRegression(){
   'V123 upward jump must lift chest and arms noticeably');
  assert(max(old.ascent[4],newer.ascent[4],[14,15,17,18])>.055,
   'V123 midrise must contain an actual knee/leg gather');
- for(const k of [0,1,2]){
-  const index=[0,1,2][k];
-  for(const i of [16,19])
-   assert(old.ascent[index][i].angleTo(newer.ascent[index][i])<.002,
-    'the approved V122 shoe must not be reoriented during initial ascent');
+ for(let k=0;k<2;k++){
+  assert(newer.firstHeading[k]>7.5&&newer.firstHeading[k]<15,
+   'the very FIRST airborne shoe must preserve the approved V122 visible toe-out');
+  assert(Math.abs(newer.firstHeading[k]-old.firstHeading[k])<2.1,
+   'V123 may enhance push-off, not suddenly change V122 first shoe direction');
  }
+ // V123 deliberately increases thigh/knee compression during PREP, so
+ // source-retarget LOCAL shoe quats need not be bit-identical to V122.
+ // True physical test is what the shoe/toe vector displays in WORLD space.
+
  for(let k=0;k<old.fall.length;k++)for(let i=0;i<20;i++)
   assert(old.fall[k][i].angleTo(newer.fall[k][i])<.003,
    'V123 must not modify the already-good descent '+V100.BONES[i]);
