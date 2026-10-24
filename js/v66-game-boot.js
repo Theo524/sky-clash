@@ -30,7 +30,7 @@
     jumpPrep:'push',jumpFeet:'hold',
     // Compact V116 preview link uses the SAME approved V115 startup
     // except standing knee bending. Public root remains V115.
-    jumpKnees:['v116','v117','v118','v119'].includes(flags.get('jumpPreview'))?
+    jumpKnees:['v116','v117','v118','v119','v120'].includes(flags.get('jumpPreview'))?
      'anatomic':'forward',
     jumpFacing:'locked'
    };
@@ -152,6 +152,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('jumpPreview')==='v119')
      e.src+='&toeSpring=119';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpPreview')==='v120')
+     e.src+='&fluidArms=120';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });

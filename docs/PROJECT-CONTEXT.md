@@ -210,6 +210,51 @@ combat, flight and ground tests. These do NOT constitute a visual
 approval of V119; show the user the preview and ask whether foot/toe
 articulation and jump body flow feel natural before promoting it.
 
+## V120 standing jump and ascent arm flow (October 24, 2026)
+
+The user confirmed V119's realistic toes and jump body are **good** and
+requested the arms flow more naturally during the crouch and while
+ascending: V101 compact guard arm rotations had remained nearly static.
+This is *arm animation only*, not a return to the V98–V100 oversized
+forward double-hand thrust.
+
+**V120 isolated opt-in:** `?jumpPreview=v120`
+- Inherits V119 realistic toe/foot spring, V118 verified real VRM0
+  gameplay-forward axis, V97 gait, V101 compact arms, V105–V115 landing,
+  unchanged jump/fall clips and combat.
+- The EXISTING V100 single airborne pose owner provides a small recoil
+  of upper arms/forearms during stationary push-prep, then a staggered
+  world-geometric shoulder/elbow arm drive in the first ~0.5 seconds
+  of ascent; both arms return to the approved compact guard.
+- Targets use the actual shoulder, upper-arm, lower-arm and hand joint
+  positions in world space to determine motion axes (VRM0 corrected
+  forward is from fighter.model.root, not scene +Z). Avoids assumed
+  local-X axis and previous backwards-bend regressions.
+- Physically modest angular range, left/right slight natural asymmetry,
+  hands and fingers untouched. No other animator or new wrapper.
+- **Only** stationary normal jump PREP/upward state when
+  `jumpArms=compact` and `jumpPreview=v120`. Moving jumps, falling,
+  powered ascent/flight, Boost, landing, combat and Rin remain unchanged.
+- All earlier opt-in comparisons and public V115 default remain
+  selectable; V119 is the immediate approved visual rollback.
+
+CI checks V120 arm trajectory on actual Three.js mirrored/VRM0-yawed
+rigs at 30/60/120fps plus the full V100 historic upper-body wrapper
+chain A/B comparing V119 and V120: new shoulder/elbow motion must be
+visible, but pelvis/legs, compact wrist and landing must match V119.
+Green tests do not substitute real visual approval.
+
+URLs after PR merge and successful GitHub Pages deployment:
+- V120 candidate: https://theo524.github.io/sky-clash/?jumpPreview=v120
+- V119 approved: https://theo524.github.io/sky-clash/?jumpPreview=v119
+
+**Seeing the game:** We can verify bone geometry and inspect the
+published GitHub assets and browser-rendered captures if made
+available, but repository/static tests alone do not allow the text
+assistant to continuously watch the user's phone. A one-tap recorded
+clip or live screen share would materially improve visual review;
+never claim to have seen on-device animations without such a capture.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:

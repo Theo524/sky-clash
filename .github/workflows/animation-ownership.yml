@@ -93,5 +93,7 @@ jobs:
         run: node tests/v118-real-kairo-orientation.js
       - name: Check V119 native toe and outward foot articulation under true VRM0 facing
         run: node tests/v119-natural-jump-spring.js
+      - name: Verify V120 world-space compact arm recoil and ascent at 30/60/120 fps
+        run: node tests/v120-jump-arm-geometry.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js
