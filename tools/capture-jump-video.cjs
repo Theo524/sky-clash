@@ -11,10 +11,14 @@ const os=require('node:os');
 const {execFileSync}=require('node:child_process');
 const {chromium}=require('playwright');
 
-const output=path.resolve('visual-review-output','videos');
+const output=path.resolve('visual-review-output','videos',process.env.VISUAL_JUMP_MOTION||'standing');
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'sky-clash-motion-'));
 const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
+const motion=process.env.VISUAL_JUMP_MOTION||'standing';
+const speeds={standing:0,walking:2.7,running:5.6};
+if(!(motion in speeds))throw Error('Motion must be standing, walking or running');
+const horizontalSpeed=speeds[motion];
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
 const versions=(process.env.VISUAL_PREVIEWS||'v119,v120').split(',')
@@ -98,7 +102,7 @@ async function capture(browser,preview){
   });
   if(!info.realVRM||!info.webgl)
    throw new Error('Missing actual Kairo VRM/WebGL — cannot record substitute');
-  await page.evaluate(()=>{
+  await page.evaluate(mode=>{
    const s=window.SkyClash,g=s.Game;
    g.enterDojo();
    const title=document.getElementById('titleScreen');
@@ -122,6 +126,9 @@ async function capture(browser,preview){
    g.player.facing=0;g.player.model.root.rotation.y=0;
    g.update=()=>{};s.CameraRig.update=()=>{};
    g.__videoGroundY=g.player.model.root.position.y;
+   g.__videoStartZ=g.player.model.root.position.z;
+   g.__videoPosZ=g.player.pos.z;
+   g.__videoMode=mode;
    g.__videoFrame=0;
    g.__videoCam=yaw=>{
     const center=g.player.model.root.getWorldPosition(new window.THREE.Vector3());
@@ -133,7 +140,7 @@ async function capture(browser,preview){
    g.__videoCam(0);
    // Real game rendering remains active; physics is deterministic and frozen.
    // Reuse the regular canvas instead of injecting a parallel WebGL scene.
-  });
+  },motion);
   const qa=await page.evaluate(()=>{
    const g=window.SkyClash.Game,t=document.getElementById('titleScreen'),
     c=document.querySelector('canvas');
@@ -156,12 +163,20 @@ async function capture(browser,preview){
   const timeline=[];
   for(let i=0;i<count;i++){
    const stage=motionDescriptor(i);
-   const datum=await page.evaluate(({i,stage,fps})=>{
+   const datum=await page.evaluate(({i,stage,fps,motion,horizontalSpeed})=>{
     const g=window.SkyClash.Game,p=g.player;
     p.facing=0;p.model.root.rotation.y=0;
-    p.vel.x=p.vel.z=0;p.sprinting=false;p.blockHeld=false;
-    p.v108JumpPrepDuration=.215;
+    p.vel.x=0;p.vel.z=horizontalSpeed;
+    p.moveIntent.set(0,0,horizontalSpeed?1:0);
+    p.v95JoystickRun=motion==='running';
+    p.v89Step.mode=horizontalSpeed?'walk':'idle';
+    p.sprinting=false;p.blockHeld=false;
+    p.v108JumpPrepDuration=horizontalSpeed?
+     .215-.10*Math.min(1,horizontalSpeed/6.2):.215;
     p.landingMotionT=0;
+    const travel=horizontalSpeed*i/fps;
+    p.model.root.position.z=g.__videoStartZ+travel;
+    p.pos.z=g.__videoPosZ+travel;
     if(stage.name==='idle'){
      p.v108JumpPrepT=0;p.jumping=false;p.dropping=false;
      p.pos.y=p.floor;p.vel.y=0;
@@ -171,7 +186,8 @@ async function capture(browser,preview){
     }else if(stage.name==='prep'){
      p.jumping=false;p.dropping=false;p.vel.y=0;
      p.pos.y=p.floor;p.model.root.position.y=g.__videoGroundY;
-     p.v108JumpPrepT=Math.max(.0001,.215-stage.elapsed);
+     p.v108JumpPrepT=Math.max(.0001,
+      p.v108JumpPrepDuration*(1-stage.elapsed/.215));
      p.animate(1/fps);
     }else if(stage.name==='jump'){
      p.v108JumpPrepT=0;p.jumping=true;p.dropping=false;
@@ -188,7 +204,9 @@ async function capture(browser,preview){
      p.v108JumpPrepT=0;p.jumping=false;p.dropping=false;
      p.pos.y=p.floor;p.vel.y=0;
      p.model.root.position.y=g.__videoGroundY;
-     p.landingMotionT=.36-stage.elapsed;
+     p.v109LandingSpeed=horizontalSpeed;
+     p.v109LandingDuration=horizontalSpeed?.205:.48;
+     p.landingMotionT=Math.max(.001,(horizontalSpeed?.205:.36)-stage.elapsed);
      p.animate(1/fps);
     }
     const owner=window.SkyClashPoseAuthority;
@@ -199,13 +217,20 @@ async function capture(browser,preview){
      const v=b.getWorldPosition(new window.THREE.Vector3());
      return [v.x,v.y,v.z].map(x=>+x.toFixed(4));
     };
-    return {frame:i,stage:stage.name,elapsed:stage.elapsed,
+    return {frame:i,stage:stage.name,elapsed:stage.elapsed,motion,
+     horizontalSpeed:Math.hypot(p.vel.x,p.vel.z),
+     rootZ:+p.model.root.position.z.toFixed(4),
      pose:owner.active,armStyle:owner.armStyle,
      armDrive:owner.jumpArmDrive,
+     movingJump:owner.movingJump||null,
+     movingJumpWeight:owner.movingJumpWeight||0,
+     landingFlow:owner.landingFlow||null,
      leftHand:point('leftHand'),rightHand:point('rightHand'),
      leftElbow:point('leftLowerArm'),rightElbow:point('rightLowerArm'),
+     leftKnee:point('leftLowerLeg'),rightKnee:point('rightLowerLeg'),
+     leftFoot:point('leftFoot'),rightFoot:point('rightFoot'),
      leftToe:point('leftToes'),rightToe:point('rightToes')};
-   },{i,stage,fps});
+   },{i,stage,fps,motion,horizontalSpeed});
    timeline.push(datum);
    for(const [view,yaw] of Object.entries(views)){
     await page.evaluate(yaw=>window.SkyClash.Game.__videoCam(yaw),yaw);
@@ -223,8 +248,18 @@ async function capture(browser,preview){
   if(timeline.length!==count||Object.values(dirs).some(d=>readdir(d).length!==count))
    throw Error('Incomplete video frames');
   const distinct=new Set(timeline.map(t=>t.pose));
-  if(!distinct.has('prep')||!distinct.has('jump'))
-   throw Error('Video did not exercise real unified prep and jump pose owner: '+[...distinct]);
+  if(!distinct.has('prep')||!distinct.has('jump')||
+    !distinct.has('fall')||!distinct.has('landing'))
+   throw Error('Capture must include prep, jump, fall and landing: '+[...distinct]);
+  if(motion!=='standing'){
+   const airborne=timeline.filter(t=>t.stage==='jump'&&t.pose==='jump');
+   if(airborne.length<5||!airborne.some(t=>t.movingJumpWeight>.05))
+    throw Error('Moving capture lacks V103 recorded stride carry');
+   if(timeline.at(-1).rootZ-timeline[0].rootZ<horizontalSpeed)
+    throw Error('Moving capture must show horizontal travel');
+   if(!timeline.some(t=>t.pose==='landing'&&t.landingFlow==='MOVING FLOW'))
+    throw Error('Moving capture lacks V109 contact flow');
+  }
   if(pages.length)console.warn('VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
@@ -233,7 +268,7 @@ async function capture(browser,preview){
     throw Error('Empty/unusable MP4 '+dest);
   }
   console.log('VIDEO ENCODED',preview,'frames='+count);
-  return {preview,info,frameRate:fps,frames:count,timeline,
+  return {preview,motion,horizontalSpeed,info,frameRate:fps,frames:count,timeline,
    files:Object.keys(dirs).map(view=>preview+'-'+view+'.mp4')};
  }finally{
   await context.close();
@@ -259,8 +294,8 @@ async function capture(browser,preview){
   }
  }
  fs.writeFileSync(path.join(output,'motion-metrics.json'),
-  JSON.stringify({source:'real Kairo VRM WebGL pose stack',
-   note:'deterministic pose-clock frame recordings, not phone captures',
+  JSON.stringify({source:'real Kairo VRM WebGL pose stack',motion,horizontalSpeed,
+   note:'deterministic full-jump moving-root videos, not phone captures',
    captures:reports},null,2));
  // Remove the 200+ intermediate JPEGs. Only small MP4s and a JSON
  // report are uploaded as GitHub Actions artifacts.
