@@ -35,6 +35,71 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## V127 lifted-knee combat hover: V126 still looks grounded (2026-10-24)
+
+**Player's direct phone/game feedback after V126 merged PR #78:**
+"The floating up and down lightly is good but the pose, looks like he
+just standing, surely you can get better mechanics." This supersedes
+earlier approval of the *direction*, NOT the standing-looking pose.
+Keep V126's quiet bob and upright close-battle movement; don't replace it
+with faster bob, Superman horizontal flight, an idle mannequin, or Boost.
+
+**Current root cause in V126 authored joint pose:** only ~0.205/0.248rad
+forward thigh lift, ~0.34/0.485rad shin bend. The lower body hangs almost
+directly beneath a floor-like pelvis. Its arms receive local X-only guard
+offsets with zero independent upper-arm lateral float; numerically
+"asymmetrical knees" did NOT ensure real suspended geometry.
+
+**V127 candidate (flight ONLY):** `?flightPreview=v127` for an explicitly
+opt-in preview after GitHub Pages deployment, with `?flightPreview=v126`
+as the exact prior comparison. New `v127SuspendedFlightPose()` runs inside
+the same V100 final 20-bone rig writer; no new animator or extra VRM writer.
+- Keep V126's faint 2.1rad/s hover breathing and existing physics-driven
+  root bob **unchanged**; DO NOT add another oscillation to root height.
+- Subtle pelvis tuck and small opposed chest curve, but upper-body total
+  pitch stays <0.22rad at ordinary cruise. Avoid a sitting/horizontal pose.
+- Deliberate two-joint suspended lower-body pose: LEFT thigh ~-0.625rad,
+  shin bend ~1.06rad (one knee lifted clearly forward), RIGHT thigh
+  ~-0.248rad, shin bend ~0.535rad (looser low leg). The independent knees
+  must differ from V126 in world space, not merely in numeric pose fields.
+  Small rise/descent variations retain the asymmetry; travel doesn't
+  straighten both legs or kick them behind him.
+- Relax BOTH ankles so forefeet slope down from their ankles, not point
+  flat like shoes waiting to plant. Avoid ballet pointe and twitch.
+- Allow slight mirrored upper-arm Z deviation from V126's compact combat
+  guard to let elbows float away from his ribs. Hands keep native/rest
+  orientation; no propeller/T-posed arms or new fingers.
+- Keep V111/V126 smoothed lateral and vertical directional effort, per-bone
+  5rad/s angular limiter, existing state ownership, immediate Boost and
+  combat handoff; V125 standing jump, locomotion, landing and Rin unchanged.
+- Numeric targets are *authored VRM-local radians*, not verified world
+  degrees. Actual VRM0 orientation can differ: evaluate front, side AND back
+  captures, particularly hip-knee-ankle projections and shoe toe direction.
+  The same-world-quat geometry checks in the new THREE integration test
+  are synthetic only, not equivalent to browser-rendered Kairo.
+
+**Engineering QA:** `tests/v127-suspended-flight.js` performs mirrored
+3D bone end-point tests (knee lift, hanging toe offset, staggered ankles,
+suspended arm offsets), idle/cruise/ascend/descend/bank checks at
+30/60/120fps, and old V126 version protection. Existing
+`tests/v100-single-pose-authority.js` now compares actual parented visible
+bone coordinates at hover for V126 vs V127, verifies V125 jump and approved
+ground remain unchanged, then checks immediate Boost/guard interruption.
+Capture using the `Real Kairo Powered Flight Visual Captures` workflow,
+now defaulting to V126/V127 A/B, with real-WebGL front/side/back 24fps MP4s
+and joint telemetry. Green CI isn't artistic approval.
+
+**Status:** V127 is an unmerged experiment on
+`lab/v127-suspended-combat-levitation`, PR to be created. Do not publish
+to the plain URL, replace V126, or merge until reviewed with the player.
+Proposed preview URL if subsequently deployed:
+`https://theo524.github.io/sky-clash/?flightPreview=v127`.
+Rollback: `https://theo524.github.io/sky-clash/?flightPreview=v126`.
+Source for intent only: Microsoft Animation Principles
+`https://learn.microsoft.com/en-us/windows/win32/lwef/animation-principles`,
+Jonathan Cooper on staging, asymmetry and overlap
+`https://www.gamedeveloper.com/production/the-12-principles-of-animation-in-video-games`.
+
 ## Player correction to V126: upright Green Lantern-style combat levitation
 
 The player challenged the premise of aerodynamic/horizontal flight for a
