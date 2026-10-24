@@ -35,6 +35,38 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## Full moving-jump video review (October 24, 2026)
+
+After PR #71, the automatic 24fps front+side WebGL video captured only
+STANDING jump phases. User correctly asked to inspect the WHOLE jump,
+especially while walking and running, since V103 moving takeoff and
+V109 moving-contact landing differ from the stationary animation.
+
+`tools/capture-jump-video.cjs` now accepts
+`VISUAL_JUMP_MOTION=standing|walking|running`. Walking (2.7 units/s)
+and V95 normal joystick running (5.6 units/s, **not** Boost) sample
+48 deterministic frames of the actual Kairo VRM/WebGL, including
+ground stride, compressed moving preparation, launch, ascent, fall
+and V109 moving landing. Root moves forward and the camera follows.
+Telemetry includes visible arms, knees, feet, toes, V103 launch-stride
+weight, root travel, and moving-contact status. The script refuses to
+pass if the moving animation does not actually use V103 stride carry or
+V109 flow, or if the fighter root did not move.
+
+`.github/workflows/moving-jump-visual-review.yml` runs both walking
+and running cases; artifacts are `real-kairo-walking-jump-videos`
+and `real-kairo-running-jump-videos`. The original
+`Real Kairo Jump Visual Captures` workflow keeps standing captures.
+Review all three before changing foot/toe stance, full-body flow or
+moving-jump arms. Desktop software WebGL remains approximate relative
+to user phone. This is QA tooling ONLY, no changes to animation
+controllers, movement physics, default game or approved previews.
+
+V120 arm fluidity is specifically **standing-only**; V101/V103 moving
+arms remain separately unapproved for visual polish. If improved moving
+arms or stance is desired, create an independently reversible opt-in
+preview, compare full-motion videos and obtain user approval.
+
 ## Root game URL: important default jump correction (October 24, 2026)
 
 After PR #62 promoted ONLY the V97-approved ground flags on the root URL,
