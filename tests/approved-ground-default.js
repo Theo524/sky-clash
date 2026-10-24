@@ -41,18 +41,28 @@ for(const [name,value] of Object.entries({
  movementLab:'step',stance:'handoff',joystickRun:'on',idleArms:'anchored'
 }))assert.equal(run.flags.get(name),value,'Default '+name);
 assert.equal(run.urls.length,1,'Rewrite defaults without page reload');
-// The public URL must recreate the same V115 JUMP and contact landing
-// settings as the working full preview, without enabling flight experiments.
+// Historical V115 defaults are retained for explicit comparison URLs.
+// The normal game URL now integrates improved V125 jump + relaxed V130 flight.
 const jumpDefaults={
  airLab:'jump',animator:'unified',jumpArms:'compact',airLegs:'steady',
  movingJump:'carry',landingLab:'contact',landingFeet:'plant',
  landingMove:'flow',jumpStyle:'expressive',jumpPrep:'push',
  jumpFeet:'hold',jumpKnees:'forward',jumpFacing:'locked'
 };
-for(const [name,value] of Object.entries(jumpDefaults))
- assert.equal(run.flags.get(name),value,'Default V115 jump: '+name);
-for(const key of ['flightLab','flightStyle'])
- assert.equal(run.flags.has(key),false,'Flight must remain opt-in: '+key);
+for(const [name,value] of Object.entries({...jumpDefaults,jumpKnees:'anatomic',
+ flightLab:'blend',flightStyle:'airborne',
+ jumpPreview:'v125',flightPreview:'v130'}))
+ assert.equal(run.flags.get(name),value,'V130 integrated public default: '+name);
+// Scene/custom gameplay URL parameters must not remove the unified default.
+const integratedScene=simulate('?scene=dojo');
+assert.equal(integratedScene.flags.get('scene'),'dojo');
+assert.equal(integratedScene.flags.get('jumpPreview'),'v125');
+assert.equal(integratedScene.flags.get('flightPreview'),'v130');
+run=simulate('?flightPreview=v130');
+assert.equal(run.flags.get('jumpPreview'),'v125');
+assert.equal(run.flags.get('flightLab'),'blend');
+assert.equal(run.flags.get('flightStyle'),'airborne');
+run=simulate('');
 
 // The V116 short game link inherits the exact tested V115 base,
  // changing ONLY the standing jump knee profile.
@@ -180,11 +190,13 @@ assert.equal(run.flags.has('joystickRun'),false,
  'Old movement rollback must not turn on V95');
 assert.equal(run.flags.has('stance'),false);
 
-assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=115'),
+assert(index.includes('js/v66-game-boot.js?v=830&fix=130&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
+assert(boot.includes("const BUILD='V130'"));
+assert(boot.includes("&relaxedFlight=130"));
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
 assert(boot.includes("new URLSearchParams(location.search).get('animator')==='unified'"),
  'Keep V100 conditional; jump default intentionally enables it but flight remains optional');
 
-console.log('PASS approved V97 ground + V115 jump/landing defaults, explicit A/B/legacy rollback, opt-in flight behavior.');
+console.log('PASS unified public URL: approved V97 ground + V125 jump + relaxed V130 flight, explicit A/B/legacy rollbacks.');
