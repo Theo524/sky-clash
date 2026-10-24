@@ -140,7 +140,9 @@ const src=read('src/45-fighter-controller.js'),input=read('src/95-game.js'),
  boot=read('js/v66-game-boot.js');
 assert(src.includes('dropFromFlight()'),'Flight must have explicit user-triggered exit');
 assert(src.includes('this.dropping&&this.canFly'),'Flight exit must be real gravity, not freeze');
-assert(src.includes('landingMotionT=.48'),'Actual landing state lasts long enough to see');
+assert(src.includes('this.v109LandingDuration=flow?.205:.48;')&&
+ src.includes('this.landingMotionT=this.v109LandingDuration;'),
+ 'Original 480ms standing landing must remain available while moving-only flow uses 205ms');
 assert(src.includes('Math.max(TUNING.skidTime,0.42)'),'Ground Boost braking must be visible');
 assert(input.includes('p.dropFromFlight?.()'),'Double-tap Fly Up must exit hover');
 assert(boot.includes('SkyClashV81Transitions.start(window)'));

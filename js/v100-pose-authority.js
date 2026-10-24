@@ -21,20 +21,24 @@
  // A deliberately modest pre-jump action. At 30–120 FPS the knee fold,
  // hip sink and forward weight shift are continuous, with no arm flourish.
  // Moving takeoffs use a shallower compression than stationary ones.
- function prepPose(age,speed){
-  const t=clamp(age,0,.095);
+ function prepPose(age,speed,readable=false){
   const moving=clamp(speed/6.2,0,1);
-  const bend=smooth(t/.080)*(1-.36*moving);
+  // V108 subtle remains available for A/B and rollback.
+  const duration=readable?.140-.040*moving:.095;
+  const t=clamp(age,0,duration);
+  const bend=smooth(t/(readable?duration*.83:.080))*
+    (1-(readable?.23:.36)*moving);
   return {
    bend,
-   hipsY:-.036*bend,
-   hipsX:.036*bend,
-   thighX:-.105*bend,
-   kneeX:.155*bend,
-   ankleX:-.038*bend,
-   spineX:.074*bend,
-   chestX:.048*bend,
-   neckX:-.018*bend
+   hipsY:-(readable?.055:.036)*bend,
+   hipsX:(readable?.052:.036)*bend,
+   thighX:-(readable?.165:.105)*bend,
+   kneeX:(readable?.285:.155)*bend,
+   ankleX:-(readable?.066:.038)*bend,
+   spineX:(readable?.108:.074)*bend,
+   chestX:(readable?.068:.048)*bend,
+   neckX:-(readable?.028:.018)*bend,
+   duration
   };
  }
  // V107 is a *small authored body-performance overlay*, not another clip.
@@ -143,8 +147,11 @@
  }
  // One collision-clock plan for a single landing pose writer. The physics
  // surface contact is elapsed=0, not arbitrary Mixamo frame zero.
- function landingPlan(elapsed,impactSpeed){
-  const t=clamp(elapsed,0,.48);
+ function landingPlan(elapsed,impactSpeed,duration=.48){
+  // Moving-only V109 runs this existing authored contact arc faster and
+  // immediately returns control to the true running gait. V106 static
+  // landing retains the exact original 480ms source timing.
+  const t=clamp(elapsed,0,duration)*(.48/duration);
   const force=clamp((impactSpeed-4)/12,0,1);
   return Object.freeze({
    sourceTime:.30+(.28+.07*force)*smooth(t/.195),
@@ -160,7 +167,8 @@
      f.dashing||f.sprinting||(f.acro&&f.acro.type!=='landing'))
    return null;
   if(f.v108JumpPrepT>0&&
-     new URLSearchParams(root.location?.search||'').get('jumpPrep')==='subtle'&&
+     ['subtle','readable'].includes(
+      new URLSearchParams(root.location?.search||'').get('jumpPrep'))&&
      !f.flying)return 'prep';
   if(f.landingMotionT>0&&!f.flying)return 'landing';
   if(f.dropping)return 'fall';
@@ -187,7 +195,8 @@
     maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
     jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
-    landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0};
+    landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
+    movingFlow:false,landingDuration:.48};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -221,6 +230,7 @@
    st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
+   st.movingFlow=false;st.landingDuration=.48;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -255,6 +265,15 @@
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
     st.landingSupport=null;
+    // Use the REAL measured horizontal collision speed, not the takeoff
+    // gait flag that may have cleared during the fall.
+    const flowFlag=new URLSearchParams(root.location?.search||'')
+      .get('landingMove')==='flow';
+    st.movingFlow=flowFlag&&(fighter.v109LandingSpeed||0)>1.3;
+    st.landingDuration=st.movingFlow?
+      Math.max(.17,Math.min(.28,fighter.v109LandingDuration||.205)):.48;
+    status.landingDuration=st.landingDuration;
+    status.landingFlow=st.movingFlow?'MOVING FLOW':'STATIC V106';
     // Snapshot the last approved grounded stance, never an uncalibrated
     // local T-pose. The source landing clip cannot be trusted as an idle.
     st.landingRest=(st.restPose.length===BONES.length?
@@ -307,7 +326,8 @@
      (next==='jump'||next==='fall');
    const contactLanding=params.get('landingLab')==='contact'&&next==='landing'&&
       st.landingRest.length===BONES.length;
-   const contactPlan=contactLanding?landingPlan(st.elapsed,st.impactSpeed):null;
+   const contactPlan=contactLanding?
+     landingPlan(st.elapsed,st.impactSpeed,st.landingDuration):null;
    if(contactPlan){
     status.landingPhase=contactPlan.phase;
     status.landingRecovery=Math.round(contactPlan.recover*100);
@@ -459,7 +479,8 @@
    if(next==='landing'&&params.get('landingLab')==='contact'&&
       params.get('landingFeet')==='plant'){
     plantVisibleSoles(THREE,rig,f,status);
-    if(params.get('landingMove')==='pin'&&st.launchSpeed>1.3){
+    if((params.get('landingMove')==='pin'&&st.launchSpeed>1.3)||
+       (params.get('landingMove')==='flow'&&st.movingFlow)){
      if(!st.landingSupport){
       // The support foot is whichever *visible* ankle/toe sole is closest
       // to the floor at the collision event. Never alternate arbitrarily.
@@ -471,7 +492,8 @@
        if(foot)st.landingSupport={side,point:foot.getWorldPosition(new THREE.Vector3())};
       }
      }else{
-      const strength=1-smooth((st.elapsed-.04)/.23);
+      const strength=1-smooth((st.elapsed-.025)/
+        (st.movingFlow?.105:.23));
       if(strength>.001){
        steadyLandingSupport(THREE,rig,st.landingSupport,strength,status);
        // IK may rotate toes downward. Apply V106 vertical support *last*.
@@ -509,7 +531,10 @@
      }
      if(st.phase){
       st.exitElapsed+=safe;
-      const w=smooth(st.exitElapsed/.17);
+      // Grounded idle/walk/run take over as soon as the foot has carried
+      // the collision. The 170ms stationary crossfade is preserved.
+      const duration=st.movingFlow&&st.phase==='landing'?.090:.17;
+      const w=smooth(st.exitElapsed/duration);
       for(let i=0;i<BONES.length;i++){
        const n=st.nodes[i];if(!n)continue;
        qRaw.copy(n.quaternion);
@@ -548,9 +573,11 @@
     if(st.phase!==state)begin(state,visible,this);
     st.elapsed+=safe;
     if(state==='prep'){
-     const elapsed=clamp((this.v108JumpPrepDuration||.095)-
-       (this.v108JumpPrepT||0),0,.095);
-     const p=prepPose(elapsed,st.prepSpeed);
+     const duration=this.v108JumpPrepDuration||.095;
+     const elapsed=clamp(duration-(this.v108JumpPrepT||0),0,duration);
+     const readable=new URLSearchParams(root.location?.search||'')
+       .get('jumpPrep')==='readable';
+     const p=prepPose(elapsed,st.prepSpeed,readable);
      const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
      for(let i=0;i<BONES.length;i++){
       const n=st.nodes[i];
@@ -585,7 +612,7 @@
       // Collision contact is time=0. Use the authored planted-ankle and
       // knee-absorption section at its native 30 Hz sampling rate, without
       // compressing a 1.1s standing sequence into a 0.48s collision.
-      landingPlan(st.elapsed,st.impactSpeed).sourceTime:
+      landingPlan(st.elapsed,st.impactSpeed,st.landingDuration).sourceTime:
       state==='jump'?
       Math.min(clip.seconds*.96,st.elapsed*1.18):
       state==='fall'?
@@ -594,7 +621,7 @@
       // the physics' 0.48s contact window without holding a frozen pose.
       clip.seconds*smooth(st.elapsed/.48);
     const blend=state==='jump'?.12:state==='fall'?.14:
-      contactLanding?.085:.10;
+      contactLanding?(st.movingFlow?.055:.085):.10;
     retarget(clip,seconds,smooth(st.elapsed/blend),state,safe);
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
@@ -605,7 +632,8 @@
       'V103 '+st.launchGait+' takeoff '+st.launchSpeed.toFixed(1):
       'V102 standing baseline';
     status.landingStyle=state==='landing'?
-       contactLanding?'V105 contact / absorb / recover':'V100 recorded':
+       contactLanding?(st.movingFlow?'V109 short step handoff':
+        'V105 contact / absorb / recover'):'V100 recorded':
        'not-landing';
     status.legStyle=new URLSearchParams(root.location?.search||'')
       .get('airLegs')==='steady'&&(state==='jump'||state==='fall')?
@@ -629,7 +657,8 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
-    jumpExpression:0,jumpPrep:0,movingFootPin:'off',movingFootSlipCm:0,
+    jumpExpression:0,jumpPrep:0,landingDuration:.48,
+    landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
     soleGapCm:null,otherSoleGapCm:null,soleLastShiftCm:0,
     soleCorrections:0,soleContact:'not-tested',error:null};

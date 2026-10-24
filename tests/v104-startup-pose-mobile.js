@@ -81,7 +81,7 @@ assert(boot.includes('window.SKY_V104_STARTUP_GATE=true;'));
 assert(boot.includes('window.SKY_V104_ANIMATIONS_READY=true;'));
 assert(boot.includes('window.SkyClashLoadScreen?.animationsFinished?.();'));
 assert(boot.includes("await script('js/game.js?v=820&startup=104');"));
-assert(/js\/v66-game-boot\.js\?v=820&fix=10[5-9]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=(?:10[5-9]|110)/.test(html));
 assert(html.includes('css/game.css?v=1040'));
 assert(/SKY CLASH · BUILD V10[4-9]/.test(html));
 assert(/BUILD V10[4-9]/.test(read('animation-studio.html')));

@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V108';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:108,
+ const BUILD='V109';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:109,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -73,6 +73,10 @@
    if(new URLSearchParams(location.search).get('jumpPrep')==='subtle'&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&anticipation=108';
+   if((new URLSearchParams(location.search).get('jumpPrep')==='readable'||
+       new URLSearchParams(location.search).get('landingMove')==='flow')&&
+      (src.includes('js/game.js')||src.includes('v100-pose-authority')))
+     e.src+='&groundflow=109';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -189,7 +193,9 @@
     const finalSoles=contactLanding&&flags.get('landingFeet')==='plant';
     const expressive=flags.get('jumpStyle')==='expressive';
     const movingPin=finalSoles&&flags.get('landingMove')==='pin';
-    const subtlePrep=flags.get('jumpPrep')==='subtle';
+    const subtlePrep=['subtle','readable'].includes(flags.get('jumpPrep'));
+    const readablePrep=flags.get('jumpPrep')==='readable';
+    const movingFlow=finalSoles&&flags.get('landingMove')==='flow';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -213,7 +219,8 @@
        airOwner.movingJump||'V103 PREPARING':
        movingJump?'UNAVAILABLE':'V102 ORIGINAL')+
        ' | mix: '+Math.round((airOwner?.movingJumpWeight||0)*100)+'%\n'+
-     (subtlePrep?'ANTICIPATION: V108 subtle · knee load '+
+     (subtlePrep?'ANTICIPATION: '+(readablePrep?'V109 readable':'V108 subtle')+
+       ' · knee load '+
        (airOwner?.jumpPrep||0)+'% · remaining '+
        Math.round((p?.v108JumpPrepT||0)*1000)+'ms\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
@@ -227,9 +234,11 @@
         ' | lowest gap '+(airOwner?.soleGapCm??'?')+'cm'+
         ' | other '+(airOwner?.otherSoleGapCm??'?')+'cm'+
         ' | corrections '+(airOwner?.soleCorrections||0)+'\n':'')+
-      (movingPin?'MOVING PLANT: '+(airOwner?.movingFootPin||'waiting')+
+      ((movingPin||movingFlow)?'MOVING PLANT: '+(airOwner?.movingFootPin||'waiting')+
        ' | slip '+(airOwner?.movingFootSlipCm||0)+'cm'+
-       ' | pinned frames '+(airOwner?.movingFootPinFrames||0)+'\n':''):
+       ' | pinned frames '+(airOwner?.movingFootPinFrames||0)+
+       (movingFlow?' | landing '+
+         Math.round((airOwner?.landingDuration||.48)*1000)+'ms':'')+'\n':''):
       'LAND: V100 UNCHANGED · MOVING-JUMP TEST ONLY\n')+
      'Idle > weight shift > first step > walk > settle\n'+
      'Stage: '+step+' | Speed: '+v.toFixed(2)+' | Walk: '+Math.round(walk*100)+'%\n'+
