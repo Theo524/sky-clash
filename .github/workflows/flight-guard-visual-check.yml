@@ -37,8 +37,16 @@ jobs:
       - name: Serve built playable Sky Clash
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-guard-server.log 2>&1 &
-          sleep 2
-          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
+          for i in $(seq 1 16); do
+            if curl --max-time 3 --fail -sSf http://127.0.0.1:8765/index.html >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null || {
+            cat /tmp/kairo-guard-server.log
+            exit 1
+          }
       - name: Capture real Kairo hover, travel and vertical changes V135 vs V136
         env:
           VISUAL_PORT: '8765'
