@@ -196,6 +196,66 @@ V122 rollback: https://theo524.github.io/sky-clash/?jumpPreview=v122
 Public root V115 is still unchanged. V123 is NOT default unless user
 explicitly approves promotion.
 
+## V125 whole jump video audit + knee-tracking shoe preview (October 24, 2026; unapproved)
+
+User reports V124 **decent** for foot-position continuity but the feet now appear
+too outward/twisted during crouch; requests a deep *full jump* review using the
+existing real-Kairo front/side 24fps capture, biomechanics and animation timing.
+
+Evidence inspected: successful V123 headless WebGL 48-frame, 24fps MP4s from
+GitHub Actions run 40119454188, comparing V122 and V123, plus telemetry.
+The first 5 frames are idle, 5–10 are grounded 215ms preparation, 11–31
+represent the upward arc, 32–39 fall, and 40–47 contact recovery. For V123,
+actual world ankle->toe yaw relative to gameplay +Z was approximately:
+idle **left -45°, right -72°**; at first PREP **+2°, +1°**; last PREP
+**-11°, +11°**. This proves WHY V123 visually teleported/re-squared toes
+and WHY V124's faithfully inherited original idle yaw can now look twisted
+when its V122 fixed outward-femur yaw still bends both knees forward.
+The idle fighting stance is intentionally asymmetrical; these are *measured*
+world-angle values, not prescribed universal human foot angles.
+
+**Additional full-sequence observation:** late ascent and FALL show extreme
+reported planar toe headings, but at those frames the horizontal projection
+of the real foot->toe bone is only 2.6–7cm because the toe-to-ankle segment
+points almost vertically down (~16cm). Planar heading becomes ill-conditioned
+there. Do NOT interpret +/-160° as proof of an airborne foot yaw bug or
+rotate the approved falling/landing animation to fix a horizontal-angle
+artifact. The front/side sequence shows distinct recoil/load, body-led launch,
+upper-arm/chest continuation, air tuck/brace and contact recovery; no evidence
+strong enough to justify another wholesale rewrite. Compare against the
+biomechanical countermovement sequence (unweight / brake / propulsion /
+flight / land) and established anticipation, overlapping action and arcs.
+
+**V125 is opt-in only**: `?jumpPreview=v125` inherits V124's last-visible
+idle world positions and 1st prep shoe yaw without teleports. Replace only
+its grounded standing-jump V122 fixed outward-femur correction with measured
+per-foot toe-knee tracking; gradually moderate each *individual* extreme toe
+yaw toward a conservative ±34° envelope during the existing 215ms preparation,
+no more than ~34° of turn, and limit the knee tracking plane to ±28°.
+These limits are **artistic safety caps, not universal biomechanical norms**.
+The shoe pivot happens gradually after initial compression (not instantly
+at jump press), with toes/ankles kept in the existing support solver.
+Keep V123 torso/compact-arm/recoil/ascent timing, its V102 80–290ms leg
+handoff, and unmodified recorded fall, contact, ground and moving jump.
+Do not add a wrapper, new animator, off-axis yaw source or physics change.
+
+- Compare new V125 with V124 in ACTUAL Kairo WebGL front/side 24fps films,
+  including first idle->prep frames, last loaded ankles, takeoff, apex,
+  descent, first landing contact; human aesthetic approval is required.
+- Run V100 full wrapper regressions + real native toe synthetic yaw in
+  four VRM0 world directions, and all approved source/animation tests.
+- Do not confuse V123 film evidence with **V124 or V125** visual proof.
+  V124 video run 40121606905 was in progress when this change began;
+  current V125 film must finish successfully before claiming visually clear.
+- References: McMahon et al. (2018), "Understanding the Key Phases of the
+  Countermovement Jump Force-Time Curve" DOI 10.1519/SSC.0000000000000375;
+  Jonathan Cooper (Game Anim), discussion of anticipation, arcs and
+  overlapping action at https://www.gamedeveloper.com/production/the-12-principles-of-animation-in-video-games
+
+Candidate after separate deployment: `https://theo524.github.io/sky-clash/?jumpPreview=v125`.
+Rollback: `https://theo524.github.io/sky-clash/?jumpPreview=v124`.
+Public default stays V115. **DO NOT merge/promote without player's review**.
+
 ## V124 actual idle-stance shoe continuity (October 24, 2026)
 
 User approves V123's expressive crouch, upward movement, descent and
