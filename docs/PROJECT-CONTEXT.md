@@ -169,6 +169,47 @@ axis-guessing pattern: inspect the actual VRM pose and render screenshots.
 Rollback: https://theo524.github.io/sky-clash/
 Old comparisons: `?jumpPreview=v116`, `?jumpPreview=v117`.
 
+## V119 natural jump preparation (opt-in, October 24, 2026)
+
+User reviewed the deployed `?jumpPreview=v118` on their phone and
+**confirmed knees and body finally bend the CORRECT direction**. Their
+remaining feedback: feet and toes face too rigidly straight forward,
+and the crouch/torso motion needs more natural fluidity. This **does
+not** justify changing the corrected V118 game-facing axis.
+
+V119 **only** for standing jump prep (speed <1.3, push+anatomic):
+- Reuses V118 world-corrected knee and V117 world-corrected torso
+  inside the SAME existing V100 final pose writer, no new controller.
+- Adds a small outward foot turnout (max ~3.4 degrees) relative to
+  the approved starting WORLD foot orientation and a real native VRM0
+  `leftToes/rightToes` forefoot flex (max ~4.6 degrees). The toe
+  joint rotates from its saved entry quaternion every frame (no drift).
+  Both are eased back to zero before takeoff, with an explicit restore
+  on leaving prep. NO local-X assumption for mirrored toe bones.
+- A gentle ~1cm extra pelvic sink and slightly staggered spine/chest
+  motion distribute the body load over time instead of one stiff
+  whole-body hinge.
+- Existing dual-foot plant, world-sole correction, physical jump timer,
+  moving jump, V97 gait, combat, Boost, flight, Rin, and compact arms
+  are untouched.
+
+Test candidate after merge and GitHub Pages deployment:
+https://theo524.github.io/sky-clash/?jumpPreview=v119
+
+Visual-approved direction-only baseline:
+https://theo524.github.io/sky-clash/?jumpPreview=v118
+
+Public default remains V115:
+https://theo524.github.io/sky-clash/
+
+Automated checks include real Kairo VRM0 geometry (native toes -Z),
+30/60/120 fps individual toe/foot kinematics, fixed floor, foot
+turnout/yaw limit, neutral takeoff, full historical V100 wrapper
+chain with actual VRM0 corrected scene rotation, and approved moving,
+combat, flight and ground tests. These do NOT constitute a visual
+approval of V119; show the user the preview and ask whether foot/toe
+articulation and jump body flow feel natural before promoting it.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
