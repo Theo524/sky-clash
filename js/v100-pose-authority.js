@@ -1015,13 +1015,17 @@
       // V115 forward: no knee-solving IK at all. The dual-foot visual
       // pelvis anchor below handles any shared horizontal foot shift.
       // This ensures no hidden IK rotation can undo the measured bend.
-      else if(kneeMode==='forward'||kneeMode==='anatomic'){
+      else if(kneeMode==='forward'){
        status.prepHingeSlipCm=0;
-       status.prepKneeDirections=v116?
-        'V116 world-space anatomy':
-        st.prepForwardAxes?['left','right'].map(s=>s[0].toUpperCase()+
+       status.prepKneeDirections=st.prepForwardAxes?
+        ['left','right'].map(s=>s[0].toUpperCase()+
         ':T'+(st.prepForwardAxes[s].thigh>0?'+':'-')+
         ' K'+(st.prepForwardAxes[s].knee>0?'+':'-')).join(' '):'not-calibrated';
+      }
+      else if(kneeMode==='anatomic'){
+       status.prepHingeSlipCm=0;
+       status.prepKneeDirections=v116?'V116 world-space anatomy':
+        'V115 calibrated moving prep';
       }
       else for(const anchor of st.prepFeet){
        const slip=steadyLandingSupport(THREE,this.vrmRig,anchor,1,status,false);
