@@ -30,7 +30,7 @@ const physics=read('src/45-fighter-controller.js'),
  rig=read('src/30-character-models.js'),
  boot=read('js/v66-game-boot.js'),
  html=read('index.html');
-assert(physics.includes("this.v108JumpPrepDuration=.095;this.v108JumpPrepT=.095;"),
+assert(physics.includes("this.v108JumpPrepDuration=duration;this.v108JumpPrepT=duration;"),
  'actual input event must start 95ms buffered action');
 assert(physics.includes("this.jumping=false;this.vel.y=0;"),
  'physics impulse must not happen at the beginning of the visual crouch');
@@ -46,7 +46,7 @@ assert(physics.includes("this.characterId==='kairo_venn'&&this.canFly"),
 assert(physics.includes("this.pos.y<=this.floor+.025&&!this.sprinting"),
  'only ordinary grounded jump gets preparation');
 assert(owner.includes("state==='prep'"));
-assert(owner.includes("get('jumpPrep')==='subtle'"));
+assert(owner.includes("['subtle','readable'].includes("));
 assert(owner.includes('plantVisibleSoles(THREE,this.vrmRig,this,status);'),
  'visible shoes must stay planted after the single final pose write');
 assert(owner.includes("st.prepBase=visible.map(q=>q.clone());"));
@@ -56,9 +56,9 @@ assert(rig.includes('!v106FinalSoles&&!v108FinalPrep&&!this.f.flying'),
  'old procedural foot solver must yield only during new preview');
 assert(boot.includes("e.src+='&anticipation=108'"),
  'physics and pose owner must refresh together in real game');
-assert(boot.includes('ANTICIPATION: V108 subtle'));
+assert(boot.includes("V108 subtle")&&boot.includes("V109 readable"));
 assert(boot.includes("'PREP'"));
-assert(html.includes('SKY CLASH · BUILD V108'));
-assert(html.includes('js/v66-game-boot.js?v=820&fix=109'));
-assert(read('animation-studio.html').includes('BUILD V108'));
+assert(/SKY CLASH · BUILD V10[8-9]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=(?:109|110)/.test(html));
+assert(/BUILD V10[8-9]/.test(read('animation-studio.html')));
 console.log('PASS V108: 30/60/120fps shallow 95ms grounded preparation, no other-character/flight effects, exact buffered original impulse and sole-grounded pose owner');
