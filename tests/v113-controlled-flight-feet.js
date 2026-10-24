@@ -49,8 +49,9 @@ assert(owner.includes("params.get('flightStyle')==='controlled'"));
 assert(owner.includes('controlled?controlledFlightPose(st.flightMix'),
  'V113 remains an independently selectable controlled style after V114 adds a new airborne style');
 assert(owner.includes('st.restPose.length===BONES.length'));
-assert(owner.includes("status.flightStyle=new URLSearchParams"));
-assert(owner.includes("'V113 authored controlled':'V111 continuous hover / travel'"));
+assert(owner.includes("status.flightStyle=choice==='airborne'?"));
+assert(owner.includes("choice==='controlled'?'V113 authored controlled':")&&
+ owner.includes("'V111 continuous hover / travel'"));
 assert(owner.includes("get('jumpFeet')==='hold'"));
 assert(owner.includes('st.prepFeet.length'));
 assert(owner.includes('shift.clampLength(0,.11)'));
