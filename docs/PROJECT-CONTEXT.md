@@ -90,7 +90,10 @@ now defaulting to V126/V127 A/B, with real-WebGL front/side/back 24fps MP4s
 and joint telemetry. Green CI isn't artistic approval.
 
 **Status:** V127 is an unmerged experiment on
-`lab/v127-suspended-combat-levitation`, PR to be created. Do not publish
+`lab/v127-suspended-combat-levitation`, draft PR #79
+(https://github.com/Theo524/sky-clash/pull/79). Full V66 character and
+animation-ownership CI pass on commit aa9126be; powered-flight real-Kairo
+video capture is still in progress. This is not yet player-verified. Do not publish
 to the plain URL, replace V126, or merge until reviewed with the player.
 Proposed preview URL if subsequently deployed:
 `https://theo524.github.io/sky-clash/?flightPreview=v127`.
