@@ -1410,6 +1410,69 @@ function v119CombatToeInterruptRegression(){
    'V119 toe bend must be restored before combat owns the rig');
  console.log('PASS V119 combat interrupt: dynamic native toes cleaned up immediately without another bone writer');
 }
+// V120: end-to-end historical controller stack, not just a helper.
+ // Compare V119 (approved feet/knees) with V120 at IDENTICAL jump times:
+ // legs, root, wrists and physics must match; real arms must move.
+function fluidStandingJumpArmsRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=';
+ function run(preview){
+  const u=setup(base+preview),rig=u.f.vrmRig;
+  const root=new THREE.Group();root.rotation.y=.7;
+  root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+  u.f.model={root};rig.f=u.f;rig.legacyAxes=true;
+  for(const side of ['left','right']){
+   const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+   u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  }
+  root.updateMatrixWorld(true);
+  u.f.floor=0;u.step(130);V100.plantVisibleSoles(THREE,rig,u.f,{});
+  const ground=u.pose(),writers=u.count();
+  u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+  const prep=[];
+  for(let k=1;k<=12;k++){
+   u.f.v108JumpPrepT=Math.max(.0001,.215-k/60);u.step();
+   if(k===8||k===12)prep.push(u.pose());
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers,'old Mixamo layer cannot write during prep');
+  }
+  const finalPrep=u.pose();
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  const ascent=[];
+  for(let k=1;k<=19;k++){
+   u.step();
+   if([1,4,9,14,19].includes(k))ascent.push(u.pose());
+   assert.equal(u.authority.active,'jump');
+   assert.deepEqual(u.count(),writers,'old recorded writers must yield during ascent');
+  }
+  return {u,ground,prep,finalPrep,ascent};
+ }
+ const previous=run('v119'),candidate=run('v120');
+ for(const [label,parts]of [['ground',[previous.ground,candidate.ground]],
+  ['prep',[previous.finalPrep,candidate.finalPrep]],
+  ...previous.ascent.map((pose,i)=>['ascent-'+i,[pose,candidate.ascent[i]]])]){
+  const [old,next]=parts;
+  for(const i of [0,1,2,3,4,5,14,15,16,17,18,19])
+   assert(old[i].angleTo(next[i])<.001,
+    'V120 may not alter corrected V118 torso/legs: '+label+'/'+V100.BONES[i]);
+  for(const i of [9,13])
+   assert(old[i].angleTo(next[i])<.001,
+    'V120 must retain V101 compact wrist pose: '+label+'/'+V100.BONES[i]);
+ }
+ let prepChange=0,maxRiseChange=0;
+ for(let i=6;i<=12;i++)if([6,7,8,10,11,12].includes(i)){
+  prepChange=Math.max(prepChange,previous.prep[0][i].angleTo(candidate.prep[0][i]));
+  for(let k=1;k<4;k++)maxRiseChange=Math.max(maxRiseChange,
+   previous.ascent[k][i].angleTo(candidate.ascent[k][i]));
+ }
+ assert(prepChange>.012,'V120 arms must recoil during crouch');
+ assert(maxRiseChange>.065,'V120 arms must actually swing during upward jump');
+ assert(maxRiseChange<.35,'V120 arms must not swing wildly/cross');
+ assert.equal(candidate.u.authority.armStyle,'V120 fluid compact ascent');
+ assert(candidate.u.authority.jumpArmDrive>=0);
+ assert.equal(candidate.u.authority.jumpArmWorldJoints,6);
+ assert(!candidate.u.authority.error);
+ console.log('PASS V120 full V100/Mixamo chain: visible prep+ascent arm swing, unchanged V119 toe/knee/pelvis, compact wrists, and zero competing controllers');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1490,6 +1553,7 @@ try{
  correctedActualVRM0ForwardJumpRegression();
  softerNaturalVRM0JumpRegression();
  v119CombatToeInterruptRegression();
+ fluidStandingJumpArmsRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
