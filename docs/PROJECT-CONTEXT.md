@@ -10,23 +10,30 @@ Sable. The editable engine is in src/*.js; running python tools/build.py
 generates js/game.js. index.html boots through js/v66-game-boot.js, attaching
 historical animation layers and the optional final pose owner.
 
-Main at this snapshot: **V115**, commit 97551be3e0a32e81093b7cb0eaf1fbec4ec03342.
-GitHub Actions passed. **Automated success is NOT visual approval.**
-PR #60 (feature/v115-visual-review-lab) was open and had passed CI;
-it adds an A/B animation testing page without modifying the game.
-Verify the PR status instead of assuming it remains open.
-- PR #61 (architecture/animation-ownership-contract) is the separate
-  documentation/CI safeguard for Kairo's animation architecture. As of
-  October 24, 2026 it is **open, not merged**. Deep pre-merge audit
-  confirmed no gameplay, physics, VRM asset or live animation changes;
-  the compiled game bundle is identical to its source rebuild, and the
-  70 existing Node syntax/regression commands plus V100, V115 and ownership
-  checks passed on commit 504c5f6f5c1f6d3dbbb725849fbfb0ef32ad77a4.
-  This is not a guarantee of visual quality or complete per-bone write
-  exclusivity. Recheck current head and CI before merging.
-- PRs #60 and #61 have distinct modified-file sets after the CI workflow
-  separation, so the architecture branch no longer edits PR #60's
-  existing V66 workflow. Verify this again if either PR changes.
+Playable build is still **V115**. Architecture PR #61 merged to main as
+commit 45ad5e5318fcb8a35f94bb30dea4584504643fe8. That change
+contains the handoff and safety gate, not new character animations.
+**Automated success is NOT visual approval.**
+
+- PR #60 (feature/v115-visual-review-lab) was open with passing CI;
+  it adds an A/B preview page without modifying the game. Recheck status.
+- PR #61 (architecture/animation-ownership-contract) **merged** on
+  October 24, 2026. Its previous audit confirmed no live gameplay changes;
+  all 70 existing source/animation checks, V100, V115 and ownership checks
+  passed. The guard does not yet enforce a unique real VRM writer per frame.
+- PR #62 (fix/approved-ground-default) promotes the user-approved
+  `movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored`
+  **ground** settings on the public root URL when `movementLab` is absent.
+  The user confirmed the V115 preview URL had proper walking while the
+  plain root URL looked like gliding, then approved this promotion.
+  The boot normalizes the browser query before loading scripts. The
+  existing `?movementLab=legacy` explicitly restores the previous plain
+  ground behavior; `?movementLab=walk` and `?movementLab=step` remain
+  explicit A/B modes. No flight, jump, landing or Boost preview is enabled
+  automatically. No extra animation controller, rig or source clip added.
+  The public build label remains V115, not a new animation redesign.
+  Run tests/approved-ground-default.js plus the full regression suite;
+  verify the main URL visually on a phone after deployment.
 
 ## The longstanding issue
 

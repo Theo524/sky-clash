@@ -4,6 +4,25 @@
  */
 (async function(){
  'use strict';
+ // Promote only the V97-approved GROUND controls to the public default.
+ // The historical boot stack reads location.search from several files, so
+ // normalize the URL before any fighter, physics or animation loader starts.
+ // Explicit ?movementLab=legacy / walk / step keeps its previous behavior.
+ // Jump, landing and powered-flight preview options remain OPT-IN.
+ function approvedGroundQuery(search){
+  const flags=new URLSearchParams(search||'');
+  if(flags.has('movementLab'))return null;
+  flags.set('movementLab','step');
+  if(!flags.has('stance'))flags.set('stance','handoff');
+  if(!flags.has('joystickRun'))flags.set('joystickRun','on');
+  if(!flags.has('idleArms'))flags.set('idleArms','anchored');
+  return flags.toString();
+ }
+ const defaultGround=approvedGroundQuery(location.search);
+ if(defaultGround!==null){
+  window.history.replaceState(window.history.state,'',
+   location.pathname+'?'+defaultGround+location.hash);
+ }
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.

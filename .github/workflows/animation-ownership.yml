@@ -79,6 +79,8 @@ jobs:
           }
           console.log('PASS: '+commands.length+' legacy Node syntax + gameplay tests');
           NODE
+      - name: Verify approved V97 ground defaults and explicit old-mode rollback
+        run: node tests/approved-ground-default.js
       - name: Block unreviewed animation wrapper registrations
         run: node tests/animation-ownership-contract.js
       - name: Preserve V100 multi-controller airborne ownership
