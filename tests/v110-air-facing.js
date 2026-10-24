@@ -64,7 +64,9 @@ const owner=read('js/v100-pose-authority.js'),
  boot=read('js/v66-game-boot.js'),html=read('index.html');
 assert(owner.includes("params.get('jumpFacing')==='locked'"));
 assert(owner.includes("st.airFacingPose=visible.slice(0,6).map(q=>q.clone())"));
-assert(owner.includes("if(facingLock&&i<=5)"));
+assert(owner.includes("if(facingLock){")&&
+ owner.includes("const correction=stabilizeFacing(THREE,bone.quaternion,"),
+ 'facing correction must occur AFTER leg/guard retarget within the one final owner');
 assert(owner.includes("target.copy(swing).multiply(restrained).normalize()"));
 assert(owner.includes("st.airFacingPose=[];"));
 assert(boot.includes("e.src+='&facing=110'"));
