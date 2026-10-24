@@ -361,11 +361,14 @@
    const elbowGoal=f.clone().multiplyScalar((left?.70:.63)+.06*drift)
     .addScaledVector(out,left?.40:.44)
     .addScaledVector(up,left?-.57:-.64).normalize();
-   aim(upper,lower,elbowGoal,1.85,left?7:11);
+   // Source VRM0 arms can point behind Kairo in the recorded-rest
+   // pose. Allow enough geometric reach to face forward, but respect
+   // the exact same per-frame visible 5rad/s joint limiter.
+   aim(upper,lower,elbowGoal,Math.PI,left?7:11);
    const handGoal=f.clone().multiplyScalar((left?.75:.70)+.04*drift)
     .addScaledVector(out,left?-.47:-.47)
     .addScaledVector(up,left?.70:.59).normalize();
-   aim(lower,hand,handGoal,2.1,left?8:12);
+   aim(lower,hand,handGoal,Math.PI,left?8:12);
    scene.updateMatrixWorld(true);
    const sh=upper.getWorldPosition(new THREE.Vector3());
    const el=lower.getWorldPosition(new THREE.Vector3());
