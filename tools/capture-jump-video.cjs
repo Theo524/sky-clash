@@ -108,6 +108,16 @@ async function capture(browser,preview){
     '.title-screen,.menu-overlay,.loading-overlay,[data-screen="title"]'))
     el.style.setProperty('display','none','important');
    g.showPlayUI(true);g.introT=0;
+   // The game's debug HUD overlays Kairo's waist, knees and hands
+   // in small screenshots. Hide ONLY DOM overlays in this disposable
+   // headless capture page; preserve the actual WebGL canvas and its
+   // ancestor layout so the physical model is unobstructed in video.
+   const canvas=document.querySelector('canvas');
+   if(!canvas)throw new Error('Cannot create video without gameplay canvas');
+   for(const el of document.body.querySelectorAll('*')){
+    if(el===canvas||el.contains(canvas))continue;
+    el.style.setProperty('visibility','hidden','important');
+   }
    g.player.blockHeld=false;g.player.blocking=false;
    g.player.facing=0;g.player.model.root.rotation.y=0;
    g.update=()=>{};s.CameraRig.update=()=>{};
@@ -125,12 +135,15 @@ async function capture(browser,preview){
    // Reuse the regular canvas instead of injecting a parallel WebGL scene.
   });
   const qa=await page.evaluate(()=>{
-   const g=window.SkyClash.Game,t=document.getElementById('titleScreen');
+   const g=window.SkyClash.Game,t=document.getElementById('titleScreen'),
+    c=document.querySelector('canvas');
    return {playing:g.state==='playing',
-    titleHidden:!t||getComputedStyle(t).display==='none'};
+    titleHidden:!t||getComputedStyle(t).display==='none',
+    canvasVisible:!!c&&getComputedStyle(c).visibility!=='hidden'&&
+     c.getBoundingClientRect().width>100};
   });
-  if(!qa.playing||!qa.titleHidden)
-   throw Error('Visual capture must not record title overlay or paused menu');
+  if(!qa.playing||!qa.titleHidden||!qa.canvasVisible)
+   throw Error('Visual capture must display WebGL Kairo without title/UI overlay');
 
   // Give model loaders and UI one stable RAF, then start a new fixed-time
   // sequence. One step is exactly 1/24 s, not screenshot wall time.
