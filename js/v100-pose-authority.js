@@ -280,6 +280,9 @@
   }
   return signs;
  }
+ // V118: use model-root +Z as the true BODY facing, not temporary toe yaw.
+ // The real Kairo GLB proves native toes -Z; rotateVRM0 flips the scene.
+ // The observed toe direction is diagnostic only, never a torso steering input.
  // V118: actual Kairo GLB is VRM0; both toe bones face native -Z.
  // rotateVRM0 rotates the VRM scene by 180 degrees, so scene.world +Z
  // is BACKWARD relative to the gameplay-facing fighter parent.
@@ -305,11 +308,17 @@
    if(tmp.lengthSq()<.0004)continue;
    toeFacing.add(tmp.normalize());observed++;
   }
-  let selected=gameplay,source='fighter-root';
+  // Actual feet are allowed to yaw during idle. They establish the
+  // MODEL'S 180-degree parity but must not steer the entire torso/legs
+  // sideways in the middle of a pose. Gameplay model.root always owns
+  // the stable character facing for the crouch.
+  const selected=gameplay;
+  let source='fighter-root';
   if(observed===2&&toeFacing.lengthSq()>2.25){
    toeFacing.normalize();
-   if(toeFacing.dot(gameplay)>.5){selected=toeFacing;source='real-vrm-toes';}
-   else source='toe-fighter-mismatch';
+   const agreement=toeFacing.dot(gameplay);
+   source=agreement>.25?'fighter-root/toes-confirmed':
+    'fighter-root/toe-heading-disagrees';
   }
   const sceneForward=new THREE.Vector3(0,0,1).applyQuaternion(
    scene.getWorldQuaternion(new THREE.Quaternion()));
