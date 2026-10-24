@@ -2404,8 +2404,12 @@ function v136WholeBodyFlightRegression(){
  assert(next.knees.left.shinBackCm>old.knees.left.shinBackCm+4 &&
   next.knees.right.shinBackCm>old.knees.right.shinBackCm+4,
   'Feet must trail knees rather than make the old seated/cycling silhouette');
- assert(next.knees.left.toeDropCm>old.knees.left.toeDropCm+1,
-  'Toes must hang instead of making invisible grounded shoes');
+ // Some whole-20-bone synthetic rigs have no toes; only assert shoe
+ // droop when the rig genuinely includes the toe nodes. The separate
+ // V136 anatomical rig test and real-Kairo WebGL capture require toes.
+ if(next.knees.left.toeDropCm!==null&&old.knees.left.toeDropCm!==null)
+  assert(next.knees.left.toeDropCm>old.knees.left.toeDropCm+1,
+   'Toes must hang instead of making invisible grounded shoes');
  assert(old.hover[1].angleTo(next.hover[1])>.02,
   'Torso must visibly change, not merely tweak one foot or elbow');
  console.log('PASS V136: real game body director, upright spine, tucked trailing feet, draped arms, unchanged V125 jump + ground + Boost/combat');
