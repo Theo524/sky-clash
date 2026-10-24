@@ -102,8 +102,9 @@ assert(code.includes("profile==='push'&&kneeProfile==='anatomic'"));
 assert(code.includes('st.prepSpeed<1.3'),
  'moving jump must remain on the existing approved V115 calibration');
 assert(code.includes('worldStandingPrepLegs(THREE,this.vrmRig'));
-assert(code.includes("['guided','forward','anatomic'].includes("),
- 'V116 must hand off last visible prep shin pose at takeoff');
+assert(code.includes("['guided','forward'].includes(kneeChoice)")&&
+ code.includes("kneeChoice==='anatomic'"),
+ 'V116 must hand off last visible prep shin pose without changing V115 selection');
 assert(boot.includes("e.src+='&anatomic=116'"),
  'preview must use independent cache key on phones');
 assert(boot.includes('anatomicKnees'));
