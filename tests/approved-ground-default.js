@@ -64,6 +64,16 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'V116 must not enable experimental flight');
 
+// V117 fixes the torso as well as the anatomic knee preset; the public
+// default stays V115 and all flight options remain opt-in.
+run=simulate('?jumpPreview=v117');
+assert.equal(run.flags.get('jumpPreview'),'v117');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V117 must inherit approved baseline option '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V117 never enables experimental flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');

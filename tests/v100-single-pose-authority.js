@@ -1156,6 +1156,71 @@ function readableWorldStandingJumpRegression(){
  assert(!u.authority.error);
  console.log('PASS V116 full real Three.js V100 stack: forward anatomical crouch, planted soles, compact approved guard, smooth takeoff and no competing writer');
 }
+// V117: run the actual V71/V76/V72/V79/V81 + V100 WRAPPER CHAIN.
+// A world-space helper test alone cannot catch another controller's effect
+// or a misplaced hips rotation after the visual shoe-ground correction.
+function forwardWholeBodyJumpRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=v117';
+ const u=setup(url),rig=u.f.vrmRig;
+ u.f.floor=0;u.step(130);
+ V100.plantVisibleSoles(THREE,rig,u.f,{});
+ const forward=new THREE.Vector3(0,0,1).applyQuaternion(
+  rig.vrm.scene.getWorldQuaternion(new THREE.Quaternion()));
+ forward.y=0;forward.normalize();
+ const wp=n=>u.bones[n].getWorldPosition(new THREE.Vector3());
+ const projected=()=>wp('head').sub(wp('hips')).dot(forward);
+ const kneeOffset=s=>{
+  const hip=wp(s+'UpperLeg'),knee=wp(s+'LowerLeg'),
+    foot=wp(s+'Foot'),line=foot.clone().sub(hip);
+  const t=Math.max(0,Math.min(1,knee.clone().sub(hip).dot(line)/
+    Math.max(.00001,line.lengthSq())));
+  return knee.sub(hip.addScaledVector(line,t)).dot(forward);
+ };
+ const neutral=u.pose(),originalForward=projected(),
+  kneeStart=['left','right'].map(kneeOffset),owners=u.count();
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ let prior=originalForward;
+ for(let frame=1;frame<=12;frame++){
+  u.f.v108JumpPrepT=Math.max(.0001,.215-frame/60);
+  u.step();
+  assert.equal(u.authority.active,'prep');
+  assert.deepEqual(u.count(),owners,
+   'V117 remains one final Kairo pose owner, no extra Mixamo writer');
+  const now=projected();
+  assert(now>=originalForward-.008,
+   'V117 upper body must never pitch backward past its standing pose');
+  // V112 deliberately begins knee/torso EXTENSION in the final ~18%
+  // of the 215ms buffered prep. Forward loading is monotone until then;
+  // a smooth return toward neutral in the release is physically correct.
+  if(frame<=10)assert(now>=prior-.008,
+   'V117 loading torso must move forwards before the push-off');
+  if(frame>10)assert(Math.abs(now-prior)<.075,
+   'V117 push-off extension must not snap the whole body backwards');
+  prior=now;
+  const minGap=Math.min(...V100.soleGaps(THREE,rig,u.f).map(x=>x.gap));
+  assert(Math.abs(minGap)<.025,'loaded shoe must stay on ground');
+ }
+ const loaded=u.pose();
+ assert(projected()>originalForward+.055,
+  'V117 head must visibly travel FORWARD rather than arch backwards');
+ assert(loaded[0].angleTo(neutral[0])<.024,
+  'the pelvis must NOT rotate the thighs backward during prep');
+ for(const [i,side]of ['left','right'].entries())
+  assert(kneeOffset(side)>kneeStart[i]+.07&&kneeOffset(side)>.05,
+   side+' whole knee must fold in correct physical direction');
+ assert(u.authority.prepTorsoForwardCm>5);
+ assert.equal(u.authority.prepKneeDirections,'V117 forward torso + knees');
+ for(let i=6;i<=13;i++)
+  assert(loaded[i].angleTo(neutral[i])<.22,
+   'approved V101 guard must remain compact');
+ u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+ u.step();const firstAir=u.pose();
+ for(const i of [14,15,16,17,18,19])
+  assert(firstAir[i].angleTo(loaded[i])<.12,
+   'V117 legs must hand off smoothly at takeoff');
+ assert(!u.authority.error);
+ console.log('PASS V117 full VRM stack: grounded forward torso and knees, unchanged pelvis/guard, planted soles, single writer, smooth jump takeoff');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1232,6 +1297,7 @@ try{
  guidedKneesAirborneStyleRegression();
  worldCorrectStandingKneesRegression();
  readableWorldStandingJumpRegression();
+ forwardWholeBodyJumpRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

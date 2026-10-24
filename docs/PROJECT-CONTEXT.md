@@ -100,6 +100,38 @@ and a real full V100 multi-wrapper jump->takeoff path in
 Kairo mesh/skinned-shoe clearance, and visual user approval. Do not
 automatically promote this preset to the default on green CI alone.
 
+## V117 trial after real-device V116 feedback (October 24, 2026)
+
+The user tested the published `?jumpPreview=v116` and reported:
+"most of the body bending the opposite direction". Treat the user's
+observation as evidence that V116 has NOT passed the visual acceptance
+gate, despite passing synthetic world-space leg and knee tests.
+
+**Root cause isolated in source:** V116 steered thigh/shin joints in
+world space but still applied *local X* rotation to hips, spine, chest,
+and neck. The pelvis local pitch also rotated the whole thigh hierarchy,
+which can visually counteract the anatomically measured knee pose.
+
+**V117 opt-in trial:** `?jumpPreview=v117` retains V116 measured knee
+hinges but suppresses those local-X *body* rotations in PREP only.
+Torso tilt is now calculated by actual world-space vectors from spine to
+upper chest and chest to neck. The pelvis retains its original standing
+quaternion while the hips lower vertically through the existing jump
+preparation. No animation controller, new clip, VRM or physics change.
+Existing root game link remains V115; V116 comparison remains available.
+
+URLs (after this PR is merged and GitHub Pages deployed):
+- New opt-in candidate: https://theo524.github.io/sky-clash/?jumpPreview=v117
+- Prior rejected V116: https://theo524.github.io/sky-clash/?jumpPreview=v116
+- V115 rollback/default: https://theo524.github.io/sky-clash/
+
+Validate with actual screen recordings from the target phone; green
+quaternion tests and artificial bone fixtures do NOT certify the real
+skinned VRM's front/back visual correctness. If V117 still looks wrong,
+measure the actual normalized Kairo VRM rest axes and stop iterating
+heuristic plus-Z assumptions. V117 must not become the default without
+the user's explicit visual acceptance.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
