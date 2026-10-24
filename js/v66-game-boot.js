@@ -27,7 +27,10 @@
     airLab:'jump',animator:'unified',jumpArms:'compact',
     airLegs:'steady',movingJump:'carry',landingLab:'contact',
     landingFeet:'plant',landingMove:'flow',jumpStyle:'expressive',
-    jumpPrep:'push',jumpFeet:'hold',jumpKnees:'forward',
+    jumpPrep:'push',jumpFeet:'hold',
+    // Compact V116 preview link uses the SAME approved V115 startup
+    // except standing knee bending. Public root remains V115.
+    jumpKnees:flags.get('jumpPreview')==='v116'?'anatomic':'forward',
     jumpFacing:'locked'
    };
    for(const [name,value] of Object.entries(jumpDefaults))
@@ -134,6 +137,11 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('jumpKnees')==='forward')
      e.src+='&forward=115';
+   // New V116 candidate loads ONLY when requested. The published V115
+   // remains byte-for-byte selectable with jumpKnees=forward.
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('jumpKnees')==='anatomic')
+     e.src+='&anatomic=116';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -257,7 +265,8 @@
     const facingLocked=flags.get('jumpFacing')==='locked';
     const flightBlendLab=flags.get('flightLab')==='blend';
     const controlledFlight=['controlled','airborne'].includes(flags.get('flightStyle'));
-    const guidedKnees=['guided','forward'].includes(flags.get('jumpKnees'));
+    const guidedKnees=['guided','forward','anatomic'].includes(flags.get('jumpKnees'));
+    const anatomicKnees=flags.get('jumpKnees')==='anatomic';
     const forwardKnees=flags.get('jumpKnees')==='forward';
     const stationaryFeet=flags.get('jumpFeet')==='hold';
     const airOwner=window.SkyClashPoseAuthority;
@@ -294,7 +303,10 @@
          (stationaryFeet?' | shoe shift '+
          (airOwner?.prepFootSlipCm||0)+'cm'+
          (guidedKnees?' | '+
-          (forwardKnees?(airOwner?.prepKneeDirections||'forward bend'):
+          (anatomicKnees?
+            (airOwner?.prepKneeDirections||'V116 world knees')+
+             ' | knee '+(airOwner?.prepWorldKneeCm||0)+'cm':
+           forwardKnees?(airOwner?.prepKneeDirections||'forward bend'):
            'hinge-guided'):''):''):'')+'\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+

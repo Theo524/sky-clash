@@ -85,5 +85,7 @@ jobs:
         run: node tests/animation-ownership-contract.js
       - name: Preserve V100 multi-controller airborne ownership
         run: node tests/v100-single-pose-authority.js
+      - name: Check V116 forward whole-leg geometry across mirrored VRM rigs
+        run: node tests/v116-standing-jump-geometry.js
       - name: Preserve V115 knee geometry and model axis behavior
         run: node tests/v115-forward-knee-calibration.js

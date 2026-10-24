@@ -54,6 +54,16 @@ for(const [name,value] of Object.entries(jumpDefaults))
 for(const key of ['flightLab','flightStyle'])
  assert.equal(run.flags.has(key),false,'Flight must remain opt-in: '+key);
 
+// The V116 short game link inherits the exact tested V115 base,
+ // changing ONLY the standing jump knee profile.
+run=simulate('?jumpPreview=v116');
+assert.equal(run.flags.get('jumpPreview'),'v116');
+for(const [name,value] of Object.entries(jumpDefaults))
+ assert.equal(run.flags.get(name),name==='jumpKnees'?'anatomic':value,
+  'V116 must preserve the approved V115/ground option '+name);
+for(const key of ['flightLab','flightStyle'])
+ assert.equal(run.flags.has(key),false,'V116 must not enable experimental flight');
+
 run=simulate('?scene=dojo&flightStyle=airborne&jumpArms=compact','#playing');
 assert.equal(run.flags.get('scene'),'dojo');
 assert.equal(run.flags.get('flightStyle'),'airborne');

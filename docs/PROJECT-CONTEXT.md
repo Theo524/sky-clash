@@ -63,6 +63,43 @@ requires user visual evaluation. Build label remains V115.
 Check the latest PR, CI and phone-browser visuals before treating
 any default animation as fully approved.
 
+## V116 standing jump experiment (October 24, 2026)
+
+User feedback after deploying PR #63: the jump preparation still looks
+nearly upright, and both knees visibly fold the wrong way despite V115
+numerical tests. V115's calibrated local-X *derivatives* did not validate
+the forward orientation of the entire hip/knee/ankle hinge in rendered VRM.
+
+**V116 candidate, opt-in only**: use
+https://theo524.github.io/sky-clash/?jumpPreview=v116
+after this candidate is merged and GitHub Pages deployment passes.
+The plain URL is **still V115**; V116 is not yet visually approved.
+Rollback/comparison:
+https://theo524.github.io/sky-clash/
+
+What changes: `jumpPrep=push&jumpKnees=anatomic` enables an existing V100
+standing-preparation branch that computes joint rotation axes from live
+VRM 3D leg vectors and world forward. Each thigh steers its knee forward;
+each shin folds its ankle back below the knee. Shoes preserve the world
+orientation recorded on entering prep. The V116 profile adds a deeper
+leg compression, visible torso lean and hip load. Real jump physics
+timing (215ms stationary/shorter moving), contacts, speed and attack
+controllers remain untouched.
+
+Guardrail: V116 acts **only** with anatomic knees during `jumpPrep=push`
+at standing launch speed below 1.3; moving jumps explicitly continue
+the existing V115 sign-calibrated route. V97 walk/run, V101 guard,
+Rin, Boost and flight are not modified; no additional animation wrapper.
+
+Regression tests include 30/60/120fps whole-leg signed knee projection
+for mirrored limbs/rotated skeletons, shoe world-facing, static invariants,
+and a real full V100 multi-wrapper jump->takeoff path in
+`tests/v100-single-pose-authority.js`.
+
+**Not yet established**: real-device front/side/back aesthetics, actual
+Kairo mesh/skinned-shoe clearance, and visual user approval. Do not
+automatically promote this preset to the default on green CI alone.
+
 ## The longstanding issue
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:

@@ -1096,6 +1096,66 @@ function worldCorrectStandingKneesRegression(){
  assert(!u.authority.error);
  console.log('PASS V115 full VRM rig: both actual kneecaps travel FORWARD, shins fold back, soles planted, safe launch and unchanged fighting guard');
 }
+// V116: exercise the *full historical wrapper chain* and the new
+// world-geometric standing crouch; do not mistake helper-only tests for
+// a full V100/frame handoff test.
+function readableWorldStandingJumpRegression(){
+ const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked';
+ const u=setup(url),rig=u.f.vrmRig;
+ u.f.floor=0;u.step(130);
+ V100.plantVisibleSoles(THREE,rig,u.f,{});
+ rig.vrm.scene.updateMatrixWorld(true);
+ const positions=n=>u.bones[n].getWorldPosition(new THREE.Vector3());
+ const forward=new THREE.Vector3(0,0,1).applyQuaternion(
+  rig.vrm.scene.getWorldQuaternion(new THREE.Quaternion())).normalize();
+ forward.y=0;forward.normalize();
+ const kneeBend=side=>{
+  const hip=positions(side+'UpperLeg'),knee=positions(side+'LowerLeg'),
+   ankle=positions(side+'Foot'),line=ankle.clone().sub(hip);
+  const t=Math.max(0,Math.min(1,knee.clone().sub(hip).dot(line)/
+   Math.max(.00001,line.lengthSq())));
+  return knee.sub(hip.addScaledVector(line,t)).dot(forward);
+ };
+ const initialPose=u.pose(),baseKnee=['left','right'].map(kneeBend),
+  baselineFoot=['left','right'].map(s=>positions(s+'Foot')),
+  owners=u.count(),states=[];
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ for(let frame=1;frame<=12;frame++){
+  u.f.v108JumpPrepT=Math.max(.0001,.215-frame/60);
+  u.step();
+  assert.equal(u.authority.active,'prep');
+  assert.deepEqual(u.count(),owners,'V116 must be the same ONE final air writer');
+  const geometry=['left','right'].map(kneeBend);
+  geometry.forEach((v,i)=>assert(v>=baseKnee[i]-.045,
+   'V116 knee must not bend backward even at early prep frame'));
+  states.push(geometry);
+  const minGap=Math.min(...V100.soleGaps(THREE,rig,u.f).map(x=>x.gap));
+  assert(Math.abs(minGap)<.024,'at least one sole must remain touching floor');
+ }
+ for(const [i,side] of ['left','right'].entries()){
+  assert(kneeBend(side)>.07,
+   'loaded '+side+' knee must project forward of entire hip-ankle line');
+  assert(kneeBend(side)>baseKnee[i]+.085,
+   'new crouch must visibly improve over the idle leg');
+  const footTravel=positions(side+'Foot').clone().sub(baselineFoot[i]);
+  footTravel.y=0;
+  assert(footTravel.length()<.15,
+   'standing shoe must not skate while loading knees: '+side);
+ }
+ assert(u.authority.prepWorldKneeCm>7,
+  'V116 must measure actual anatomically forward knee geometry');
+ assert(u.authority.prepKneeDirections==='V116 world-space anatomy');
+ const final=u.pose();
+ for(let i=6;i<=13;i++)assert(final[i].angleTo(initialPose[i])<.22,
+  'V116 must preserve approved guard and not throw hands forward');
+ // Releasing into UE5 jump must blend from the CURRENT crouched leg pose.
+ u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+ u.step();const airborne=u.pose();
+ for(const i of [14,15,16,17,18,19])assert(
+  airborne[i].angleTo(final[i])<.12,'no abrupt first-frame knee/foot flip');
+ assert(!u.authority.error);
+ console.log('PASS V116 full real Three.js V100 stack: forward anatomical crouch, planted soles, compact approved guard, smooth takeoff and no competing writer');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1171,6 +1231,7 @@ try{
  controlledFlightFootHoldRegression();
  guidedKneesAirborneStyleRegression();
  worldCorrectStandingKneesRegression();
+ readableWorldStandingJumpRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
