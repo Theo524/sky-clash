@@ -101,6 +101,6 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v130'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132']"));
+assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132','v133']"));
 assert(boot.includes("e.src+='&relaxedFlight=130'"));
 console.log('PASS V130: relaxed low hands and floating sway at four facing angles and mirrored bones, V128 body continuity, 30/60/120fps joint caps');
