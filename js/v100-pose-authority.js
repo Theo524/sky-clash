@@ -447,8 +447,12 @@
    const controlled=next==='flight'&&
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='controlled';
+   // Read strafe in character-relative coordinates, not global world X.
+   const yaw=f.facing||0;
+   const localSide=(f.vel?.x||0)*Math.cos(yaw)-
+      (f.vel?.z||0)*Math.sin(yaw);
    const flightControl=controlled?controlledFlightPose(
-     st.flightMix,f.vel?.y||0,f.moveIntent?.x||0):null;
+     st.flightMix,f.vel?.y||0,localSide):null;
    const expressive=params.get('jumpStyle')==='expressive'&&
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
