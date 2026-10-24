@@ -2058,7 +2058,8 @@ function v129WholeStackHoverGuardRegression(){
    'V129 may not change existing flight body/leg pose '+V100.BONES[i]);
  }
  assert(fixed.label==='READY'&&fixed.telemetry,
-  'Full real writer must produce a forward-facing hover guard');
+  'Full real writer must produce a forward-facing hover guard: '+
+  JSON.stringify({label:fixed.label,geometry:fixed.telemetry}));
  for(const side of ['left','right']){
   const g=fixed.telemetry[side];
   assert(g&&g.elbowAheadCm>2&&g.handAheadCm>2&&
