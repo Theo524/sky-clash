@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v128,v129').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v128,v130').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -205,6 +205,9 @@ async function capture(browser,preview){
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
      flightKneeFacing:owner.flightKneeFacing||'not-tested',
      flightGuardFacing:owner.flightGuardFacing||'not-tested',
+     flightRelaxedSilhouette:owner.flightRelaxedSilhouette||'not-tested',
+     leftRelaxed:owner.flightRelaxedWorld?.left||null,
+     rightRelaxed:owner.flightRelaxedWorld?.right||null,
      leftGuard:owner.flightGuardWorld?.left||null,
      rightGuard:owner.flightGuardWorld?.right||null,
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
@@ -267,6 +270,17 @@ async function capture(browser,preview){
         g.handBelowChestCm<42))))
     throw Error('V129 REAL KAIRO hands not guarded: '+JSON.stringify(
      settled.map(t=>[t.frame,t.flightGuardFacing,t.leftGuard,t.rightGuard])));
+  }
+  if(preview==='v130'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>
+    t.flightRelaxedSilhouette!=='RELAXED'||!t.leftRelaxed||!t.rightRelaxed||
+    [t.leftRelaxed,t.rightRelaxed].some(g=>
+     !(g.elbowAheadCm>-5&&g.handAheadCm>0&&
+      g.handAboveElbowCm<0&&g.elbowOutCm>3&&
+      g.handBelowChestCm>15&&g.handBelowChestCm<75))))
+    throw Error('V130 real Kairo relaxed hover failed: '+JSON.stringify(
+     settled.map(t=>[t.frame,t.flightRelaxedSilhouette,t.leftRelaxed,t.rightRelaxed])));
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
