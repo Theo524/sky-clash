@@ -1380,6 +1380,36 @@ function softerNaturalVRM0JumpRegression(){
  assert(!u.authority.error);
  console.log('PASS V119 full Kairo VRM0 + historical mixamo stack: springy native toes, outward feet, forward knees/torso, grounded soles, approved guard and smooth takeoff');
 }
+// V119 toe curls are PREP-only. If guard/Boost interrupts before
+// begin(next='jump'), they must not persist on the combat skeleton.
+function v119CombatToeInterruptRegression(){
+ const u=setup('?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=flow&jumpStyle=expressive&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpFacing=locked&jumpPreview=v119');
+ const rig=u.f.vrmRig,root=new THREE.Group();
+ root.add(rig.vrm.scene);rig.vrm.scene.rotation.y=Math.PI;
+ u.f.model={root};rig.f=u.f;
+ const saved={};
+ for(const side of ['left','right']){
+  const toe=new THREE.Bone();toe.position.set(0,-.09,-.16);
+  u.bones[side+'Foot'].add(toe);u.bones[side+'Toes']=toe;
+  saved[side]=toe.quaternion.clone();
+ }
+ u.step(130);u.f.floor=0;
+ u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
+ for(let i=1;i<=8;i++){
+  u.f.v108JumpPrepT=.215-i/60;u.step();
+  assert.equal(u.authority.active,'prep');
+ }
+ for(const side of ['left','right'])
+  assert(u.bones[side+'Toes'].quaternion.angleTo(saved[side])>.025,
+   'V119 forefoot must be active just before interrupt');
+ u.f.blockHeld=true;u.step();
+ assert.equal(u.authority.active,'yielded-to-combat-or-flight',
+  'combat must immediately preempt the jump writer');
+ for(const side of ['left','right'])
+  assert(u.bones[side+'Toes'].quaternion.angleTo(saved[side])<1e-6,
+   'V119 toe bend must be restored before combat owns the rig');
+ console.log('PASS V119 combat interrupt: dynamic native toes cleaned up immediately without another bone writer');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1459,6 +1489,7 @@ try{
  forwardWholeBodyJumpRegression();
  correctedActualVRM0ForwardJumpRegression();
  softerNaturalVRM0JumpRegression();
+ v119CombatToeInterruptRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
