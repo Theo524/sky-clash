@@ -35,6 +35,63 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## V129: real-video-led upper-body levitation guard (2026-10-24)
+
+**Latest player feedback after playing V128:** "much better, but not
+the upper body, i tought you said you would do better since you can
+verify on video or smt". The player is correct. V128 was published
+before actual front/side/back flight movie acceptance, which was not
+a sufficient art quality gate. Do not repeat this error.
+
+**Footage actually inspected before V129 code work:** downloaded
+successful Github real WebGL VRM0 flight capture run 40128409397, artifact
+`real-kairo-powered-flight-videos`, including V126/V127 front, side and
+back 24fps 60-frame MP4s. Zoomed key frames 8,22,35,47. Both versions
+show a dropped near-hip open hand toward the forward direction and a
+second arm trailing backward behind the torso, particularly from the
+SIDE and BACK. This reads like an idle/walking arm swing, not a calm
+levitating fighter ready to attack. Local-X and local-Z upper-arm numbers
+were **not** reliable 3D hand placement. The player preferred V128's
+world-space-corrected knees and low-amplitude hover.
+
+**V129 proposal:** `?flightPreview=v129` explicitly opt-in, ONLY
+flight upper-body articulation. No change to V128's leg solver,
+V125 approved jump, torso/neck shape, game hover bob, root/physics,
+grounded locomotion, Rin, or Boost/combat ownership. Keep the same
+V100 final-authority one-skeleton-writer architecture. Build from
+`v128FlightPose` and preserve its pelvis/spine/chest/legs byte-for-byte.
+Zero V127 uncalibrated local shoulder/upper/lower arm X/Z pose and
+replace with `v129CorrectFlightGuard()`, using the real visible
+shoulder→elbow and elbow→hand **world-space** vectors. The right/left
+outward axis comes from actual left/right shoulder positions, not
+sign-assumed mirrored local VRM0 axes. Guide elbows slightly out,
+down, ahead of shoulders. Guide hands INWARD, UP and ahead of elbows.
+Lead hand subtly above off-hand. No T-pose, boxer fists in face,
+grounded walking-arm counter-swing, or horizontal Superman posture.
+260–320ms easing and 5rad/s per-bone cap relative to prior visible
+quaternions protects changes and 30/60/120fps stability. No fingers/wrists
+forced; native VRoid hands remain unchanged.
+
+**Art quality checks:** New `tests/v129-real-flight-guard.js` uses
+parented THREE actual world joint positions, mirrored/right reversed
+local axes at four yaw angles and 30/60/120fps frame rate caps. In the
+real Kairo WebGL 24fps front/side/back A/B capture (V128 vs V129), show
+BOTH elbow->hand forward, BOTH hand heights above elbows, elbows visibly
+outward, both hands above approximately waist level. Capture now emits
+`flightGuardWorld.left/right`, `flightGuardFacing` and **fails if either
+arm still dangles/trails in settled flight** (frames 20–47). QA camera
+moved closer equally for A and B, making wrists readable. A successful
+GitHub workflow followed by actual *human inspection* of new
+front/side/back film is required BEFORE claiming art validated, merging
+or publishing. The old film is useful for diagnosing baseline, NOT
+evidence that the new V129 appears good.
+
+**Status:** Experimental branch `lab/v129-real-vrm-flying-upper-guard`.
+V128 remains the latest player-approved legs; current live link
+`https://theo524.github.io/sky-clash/?flightPreview=v128`.
+V129 is not a game URL until merged/Pages deployed.
+Do not remove rollback or promote by default.
+
 ## V128: real VRM world-space knees, not guessed local-X hinges (2026-10-24)
 
 **Phone feedback after live V127:** "bad, one leg bending the opposite
