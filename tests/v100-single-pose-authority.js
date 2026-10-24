@@ -222,7 +222,7 @@ function steadyAirLegRegression(){
  assert(boot.includes("e.src+='&legs=102'"));
  assert(boot.includes('AIR LEGS: ')&&boot.includes('LAND: V100 UNCHANGED'));
  assert(/SKY CLASH · BUILD V(10[2-9]|11[0-5])/.test(html));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-6])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[3-9]|11[0-6]|130)/.test(html));
  assert(/BUILD V(10[2-9]|11[0-5])/.test(read('animation-studio.html')));
  console.log('PASS V102: one owner, measured real 60fps UE5 rise/fall knee/ankle cap ('+
   steady.biggest.toFixed(2)+' vs '+original.biggest.toFixed(2)+
@@ -312,7 +312,7 @@ function movingTakeoffRegression(){
  assert(boot.includes("e.src+='&moving=103'"));
  assert(boot.includes('TAKEOFF: ')&&boot.includes('LAND: V100 UNCHANGED'));
  assert(/SKY CLASH · BUILD V(10[3-9]|11[0-5])/.test(read('index.html')));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-6])/.test(read('index.html')));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[4-9]|11[0-6]|130)/.test(read('index.html')));
  assert(/BUILD V(10[3-9]|11[0-5])/.test(read('animation-studio.html')));
  console.log('PASS V103: unchanged standing jump, separate moving walk and approved Standard Run takeoff carry; compact guard, fall ownership, landing and Boost preserved');
 }
@@ -2071,6 +2071,57 @@ function v129WholeStackHoverGuardRegression(){
   'Visible guard must change, not just status counters');
  console.log('PASS V129 full V100 owner: both hands forward/up, earlier legs/torso untouched, smooth entry and instant Boost/combat handoff');
 }
+// V130 changes powered-flight silhouette, not integrated V125 jumping,
+// approved grounded stance or combat/Boost interruption priorities.
+function v130UnifiedRelaxedFlightRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counters=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  for(let k=0;k<78;k++){
+   const prev=u.pose();u.step();
+   if(version==='v130')for(let j=0;j<20;j++)
+    assert(prev[j].angleTo(u.pose()[j])<.18,
+      'Relaxed floating joint snap '+V100.BONES[j]);
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counters,
+    'Single final V100 owner required in V130 floating state');
+  }
+  const hover=u.pose(),geometry=u.authority.flightRelaxedWorld,
+   label=u.authority.flightRelaxedSilhouette;
+  u.f.vel.z=5;u.step(30);
+  assert.equal(u.authority.active,'flight');
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost interrupts relaxed flight');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat guard interrupts relaxed flight');
+  assert(!u.authority.error);
+  return {ground,hover,geometry,label};
+ }
+ const baseline=run('v128'),relaxed=run('v130');
+ for(let i=0;i<20;i++){
+  assert(baseline.ground[i].angleTo(relaxed.ground[i])<1e-6,
+   'V130 cannot alter approved grounded Kairo '+V100.BONES[i]);
+  if(i<6)assert(baseline.hover[i].angleTo(relaxed.hover[i])<1e-4,
+   'V130 cannot alter approved flight torso/head '+V100.BONES[i]);
+ }
+ assert.equal(relaxed.label,'RELAXED',
+  'V130 full rig must settle into low relaxed hands: '+JSON.stringify(relaxed.geometry));
+ for(const side of ['left','right']){
+  const g=relaxed.geometry?.[side];
+  assert(g&&g.handAboveElbowCm<0&&g.elbowOutCm>3&&
+   g.handBelowChestCm>15&&g.elbowAheadCm>-5,
+   'No combat guard or backward walking arm in V130 '+side+': '+JSON.stringify(g));
+ }
+ assert(baseline.hover[7].angleTo(relaxed.hover[7])>.05||
+  baseline.hover[8].angleTo(relaxed.hover[8])>.05,
+  'V130 visible arms must differ from stale V128 loose guard');
+ console.log('PASS V130 full 20-bone animator: relaxed hover, preserved jump/ground/body, no competing writers and immediate Boost/combat yield');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2123,7 +2174,7 @@ function compactGuardRegression(){
  assert(/SKY CLASH · BUILD V(10[1-9]|11[0-5])/.test(html));
  assert(!html.includes('V58'));
  assert(!studio.includes('V83')&&!studio.includes('V82 · DIRECT ASSIGN')&&!studio.includes('RIG LAB V60'));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-6])/.test(html));
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[2-9]|11[0-6]|130)/.test(html));
  assert(boot.includes('SkyClashBuild=Object.freeze'));
  assert(boot.includes('GROUND: ')&&boot.includes('JUMP: ')&&boot.includes('LAND: '));
  assert(boot.includes("e.src+='&arms=101'"),'new V100 animator URL must cache-refresh for jump test');
@@ -2159,6 +2210,7 @@ try{
  v126WholeStackRegression();
  v127SuspendedWholeStackRegression();
  v129WholeStackHoverGuardRegression();
+ v130UnifiedRelaxedFlightRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
@@ -2167,7 +2219,7 @@ try{
  for(const f of files)assert(read(f).includes('SkyClashV100Animator?.ownsAir(this)'),
   f+' must explicitly yield during unified air');
  const index=read('index.html');
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9])/.test(index),
+ assert(/js[/]v66-game-boot[.]js[?]v=820&fix=(10[1-9]|1[1-9][0-9]|130)/.test(index),
   'entrypoint must advance so V100 cooperative versions actually load');
  assert(boot.includes("e.src+='&poseOwner=100'"),
   'all old airborne controller files must be cache-busted together');

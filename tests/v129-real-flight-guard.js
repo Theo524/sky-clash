@@ -97,6 +97,6 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v129'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("['v114','v126','v127','v128','v129']"));
+assert(boot.includes("['v114','v126','v127','v128','v129'"),'V129 rollback remains selectable');
 assert(boot.includes("e.src+='&worldGuardFlight=129'"));
 console.log('PASS V129: real-world guard vectors for both hands at four yaw angles with reversed local arm axes; V128 leg body isolation and 30/60/120fps continuity');

@@ -12,9 +12,17 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V126 and baseline V114 short-links carry the user's approved V125
-  // standing jump too. This changes only explicit flight preview URLs.
-  const flightShortcut=['v114','v126','v127','v128','v129'].includes(flags.get('flightPreview'));
+  // V130 unified public release: plain /sky-clash/ includes the best
+  // grounded pose, approved V125 expressive jump, and relaxed V130 flight.
+  // Explicit historical animation comparisons still opt out of promotion.
+  const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
+   'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
+   'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
+  if(!requested){
+   flags.set('jumpPreview','v125');
+   flags.set('flightPreview','v130');
+  }
+  const flightShortcut=['v114','v126','v127','v128','v129','v130'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -32,8 +40,8 @@
     airLegs:'steady',movingJump:'carry',landingLab:'contact',
     landingFeet:'plant',landingMove:'flow',jumpStyle:'expressive',
     jumpPrep:'push',jumpFeet:'hold',
-    // Compact V116 preview link uses the SAME approved V115 startup
-    // except standing knee bending. Public root remains V115.
+    // All opt-in historical jumps preserve their chosen knee profile.
+    // The public root now resolves directly to V125.
     jumpKnees:['v116','v117','v118','v119','v120','v121','v122','v123','v124','v125'].includes(flags.get('jumpPreview'))?
      'anatomic':'forward',
     jumpFacing:'locked'
@@ -41,8 +49,8 @@
    for(const [name,value] of Object.entries(jumpDefaults))
     flags.set(name,value);
   }
-  // Powered flight stays opt-in. Standalone V126/V114 comparison URLs
-  // reuse the identical V125 jump/ground defaults and only change flight.
+  // V130 is default for the plain link; past flight preview URLs stay
+  // available as independent comparisons with the same V125 jump.
   if(flightShortcut){
    if(!flags.has('flightLab'))flags.set('flightLab','blend');
    if(!flags.has('flightStyle'))flags.set('flightStyle','airborne');
@@ -57,8 +65,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V115';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:115,
+ const BUILD='V130';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:130,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -179,6 +187,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v127')e.src+='&suspendedFlight=127';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v128')e.src+='&worldKneeFlight=128';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v129')e.src+='&worldGuardFlight=129';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v130')e.src+='&relaxedFlight=130';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
