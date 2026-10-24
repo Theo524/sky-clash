@@ -1255,11 +1255,7 @@ function correctedActualVRM0ForwardJumpRegression(){
  };
  const startFront=front(),kneeStart=['left','right'].map(knee),
   owners=u.count(),approvedPose=u.pose();
- const diagnostic={};const target=V100.realKairoForward(THREE,rig,diagnostic);
- console.log('V118_AXIS_DEBUG',JSON.stringify({modelForward:gameForward.toArray(),
-  selected:target.toArray(),wrongSceneForward:WRONG.toArray(),
-  dot:target.dot(gameForward),diagnostic,
-  footToToe:['left','right'].map(s=>world(s+'Toes').sub(world(s+'Foot')).toArray())}));
+ const target=V100.realKairoForward(THREE,rig,{});
  assert(target.dot(gameForward)>.995,
   'real toe direction must calibrate to gameplay model forward, not scene');
  u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
@@ -1285,7 +1281,8 @@ function correctedActualVRM0ForwardJumpRegression(){
    side+' kneecap must not bend toward Kairo back');
  assert(u.authority.prepSceneVsBodyDot<-.99,
   'diagnostic must reveal reversed VRM0 child-scene forward');
- assert.equal(u.authority.prepForwardSource,'real-vrm-toes');
+ assert(u.authority.prepForwardSource.startsWith('fighter-root'),
+  'V118 must follow Kairo model facing even with animated toe yaw');
  assert.equal(u.authority.prepKneeDirections,'V118 true VRM0 front');
  const loaded=u.pose();
  assert(loaded[0].angleTo(approvedPose[0])<.024,'no unintended pelvis twist');
