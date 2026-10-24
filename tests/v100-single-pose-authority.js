@@ -1255,7 +1255,11 @@ function correctedActualVRM0ForwardJumpRegression(){
  };
  const startFront=front(),kneeStart=['left','right'].map(knee),
   owners=u.count(),approvedPose=u.pose();
- const target=V100.realKairoForward(THREE,rig,{});
+ const diagnostic={};const target=V100.realKairoForward(THREE,rig,diagnostic);
+ console.log('V118_AXIS_DEBUG',JSON.stringify({modelForward:gameForward.toArray(),
+  selected:target.toArray(),wrongSceneForward:WRONG.toArray(),
+  dot:target.dot(gameForward),diagnostic,
+  footToToe:['left','right'].map(s=>world(s+'Toes').sub(world(s+'Foot')).toArray())}));
  assert(target.dot(gameForward)>.995,
   'real toe direction must calibrate to gameplay model forward, not scene');
  u.f.v108JumpPrepDuration=.215;u.f.v108JumpPrepT=.215;
