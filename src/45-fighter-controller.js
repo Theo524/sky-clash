@@ -543,6 +543,10 @@ class Fighter {
       const target = this.moveIntent.clone().multiplyScalar((this.flying ? TUNING.moveSpeed : joystickRunPace) * speedMul * (this.blocking ? TUNING.blockMove : this.charging ? TUNING.chargeMove : 1));
       if(step){target.x*=step.scale;target.z*=step.scale;}
       target.y = this.vert * TUNING.flySpeed * speedMul;
+      // Holding the Up/jump button normally commands flight; while the
+      // V108 grounded jump is buffered, suppress that upward flight target
+      // or Kairo would leave the floor before his feet finish compressing.
+      if(this.v108JumpPrepT>0)target.y=0;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
       if (this.jumping && this.canFly) {
         // jump arc: gravity pulls you down unless you keep holding Up, which turns it into flight
