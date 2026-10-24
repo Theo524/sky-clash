@@ -105,33 +105,33 @@
  // Moving takeoffs use a shallower compression than stationary ones.
  function prepPose(age,speed,readable=false){
   const moving=clamp(speed/6.2,0,1);
-  const loaded=readable==='loaded',push=readable==='push'||loaded,
-   expressive=!!readable;
+  const push=readable==='push',loaded=readable==='loaded',
+   pushLike=push||loaded,expressive=!!readable;
   // V112: static jump gets a visible two-part load/release, but moving
   // takeoff stays quick. Original subtle/readable curves are untouched.
-  const duration=push?.215-.10*moving:expressive?.140-.040*moving:.095;
+  const duration=pushLike?.215-.10*moving:expressive?.140-.040*moving:.095;
   const t=clamp(age,0,duration);
-  const extend=push?smooth((t-duration*.82)/(duration*.18)):0;
-  const bend=smooth(t/(push?duration*.66:expressive?duration*.83:.080))*
-    (1-(push?.22:expressive?.23:.36)*moving)*
+  const extend=pushLike?smooth((t-duration*.82)/(duration*.18)):0;
+  const bend=smooth(t/(pushLike?duration*.66:expressive?duration*.83:.080))*
+    (1-(pushLike?.22:expressive?.23:.36)*moving)*
     (1-.14*extend);
   // Real leg shortening matters more than an animated hip offset:
   // V106 keeps the shoes on the floor and cancels much of hipsY. Nearly
   // opposite thigh/shin pitches compress the leg vertically (~6cm) with
   // little horizontal ankle drift, producing a VISIBLE grounded load.
-  const legBend=push?bend*(1-.42*moving):bend;
+  const legBend=pushLike?bend*(1-.42*moving):bend;
   return {
    bend,
-   hipsY:-(loaded?.110:push?.080:expressive?.055:.036)*bend,
-   hipsX:(loaded?.092:push?.070:expressive?.052:.036)*bend,
-   thighX:loaded?-.55*legBend:push?-.43*legBend:-(expressive?.165:.105)*bend,
-   kneeX:loaded?1.08*legBend:push?.82*legBend:(expressive?.285:.155)*bend,
-   ankleX:loaded?0:push?-.085*legBend:-(expressive?.066:.038)*bend,
-   spineX:(loaded?.205:push?.162:expressive?.108:.074)*bend,
-   chestX:(loaded?.128:push?.100:expressive?.068:.048)*bend,
-   neckX:-(push?.039:expressive?.028:.018)*bend,
-   shoulderX:loaded?-.072*bend:push?-.055*bend:0,
-   upperArmX:push?.085*bend:0,
+   hipsY:-(loaded?.110:pushLike?.080:expressive?.055:.036)*bend,
+   hipsX:(loaded?.092:pushLike?.070:expressive?.052:.036)*bend,
+   thighX:loaded?-.55*legBend:pushLike?-.43*legBend:-(expressive?.165:.105)*bend,
+   kneeX:loaded?1.08*legBend:pushLike?.82*legBend:(expressive?.285:.155)*bend,
+   ankleX:loaded?0:pushLike?-.085*legBend:-(expressive?.066:.038)*bend,
+   spineX:(loaded?.205:pushLike?.162:expressive?.108:.074)*bend,
+   chestX:(loaded?.128:pushLike?.100:expressive?.068:.048)*bend,
+   neckX:-(pushLike?.039:expressive?.028:.018)*bend,
+   shoulderX:loaded?-.072*bend:pushLike?-.055*bend:0,
+   upperArmX:pushLike?.085*bend:0,
    extend,duration
   };
  }
