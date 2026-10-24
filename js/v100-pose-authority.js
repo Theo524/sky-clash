@@ -240,8 +240,13 @@
    const toe=hum.getNormalizedBoneNode(side+'Toes');
    if(!thigh||!shin||!ankle)continue;
    const index=side==='left'?14:17;
-   const forwardKnee=side==='left'?.86:.38;
-   const foldBack=side==='left'?.43:.24;
+   // Slight asynchronous knee drift, only for relaxed V130; the V128
+   // calibrated forward-bending anatomy and ankle heading stay intact.
+   const relaxed=pose?.profile==='V130 relaxed suspended flight';
+   const sway=relaxed?Math.sin(Math.max(0,pose.age)*1.55+
+    (side==='left'?.35:1.75)):0;
+   const forwardKnee=(side==='left'?.86:.38)+.042*sway;
+   const foldBack=(side==='left'?.43:.24)+.020*sway;
    const rise=pose?.rise||0,drop=pose?.descend||0;
    // Distinct thigh and shin target directions produce a knee genuinely
    // FRONT of the hip-to-ankle support line on either mirrored leg.
@@ -308,7 +313,7 @@
    leftLowerArmX:0,rightLowerArmX:0};
  }
  function v129CorrectFlightGuard(THREE,rig,forward,pose,strength=1,
-                                previous=null,dt=1/60,status=null){
+                                previous=null,dt=1/60,status=null,style='guard'){
   const hum=rig?.vrm?.humanoid,scene=rig?.vrm?.scene;
   if(!hum||!scene||!forward||strength<=0)return null;
   const f=forward.clone();f.y=0;if(f.lengthSq()<1e-8)return null;
@@ -351,6 +356,8 @@
   }
   const result={};
   const drift=clamp(pose?.mix||0,0,1);
+  const relaxed=style==='relaxed';
+  const time=Math.max(0,pose?.age||0);
   for(const side of ['left','right']){
    const left=side==='left',out=across.clone().multiplyScalar(left?1:-1);
    const shoulder=hum.getNormalizedBoneNode(side+'Shoulder');
@@ -362,16 +369,28 @@
    // Make BOTH elbows face the opponent, and keep their lateral
    // separation. The lead hand is slightly higher for an asymmetric,
    // fighter-ready float without two stiff fists in front of the face.
-   const elbowGoal=f.clone().multiplyScalar((left?.70:.63)+.06*drift)
-    .addScaledVector(out,left?.40:.44)
-    .addScaledVector(up,left?-.57:-.64).normalize();
+   // V130: ordinary flight is NOT a guard. Float with gravity-soft arms,
+   // visible space under the armpits and staggered loose elbows. Unequal
+   // low-frequency cycles avoid a mirrored puppet or walking-arm swing.
+   const phase=time*1.72+(left?0:1.05);
+   const elbowGoal=relaxed?
+    f.clone().multiplyScalar((left?.13:.10)+.025*Math.sin(phase-.5)+.03*drift)
+     .addScaledVector(out,(left?.36:.33)+.018*Math.sin(phase))
+     .addScaledVector(up,-.91+.017*Math.sin(phase-.8)).normalize():
+    f.clone().multiplyScalar((left?.70:.63)+.06*drift)
+     .addScaledVector(out,left?.40:.44)
+     .addScaledVector(up,left?-.57:-.64).normalize();
    // Source VRM0 arms can point behind Kairo in the recorded-rest
    // pose. Allow enough geometric reach to face forward, but respect
    // the exact same per-frame visible 5rad/s joint limiter.
    aim(upper,lower,elbowGoal,Math.PI,left?7:11);
-   const handGoal=f.clone().multiplyScalar((left?.75:.70)+.04*drift)
-    .addScaledVector(out,left?-.47:-.47)
-    .addScaledVector(up,left?.70:.59).normalize();
+   const handGoal=relaxed?
+    f.clone().multiplyScalar((left?.22:.16)+.035*Math.sin(phase-.35))
+     .addScaledVector(out,(left?-.055:-.035)+.025*Math.sin(phase-.6))
+     .addScaledVector(up,-.82+.025*Math.sin(phase-.9)).normalize():
+    f.clone().multiplyScalar((left?.75:.70)+.04*drift)
+     .addScaledVector(out,left?-.47:-.47)
+     .addScaledVector(up,left?.70:.59).normalize();
    aim(lower,hand,handGoal,Math.PI,left?8:12);
    scene.updateMatrixWorld(true);
    const sh=upper.getWorldPosition(new THREE.Vector3());
@@ -387,13 +406,34 @@
    };
   }
   if(status){
-   status.flightGuardWorld=result;
-   status.flightGuardFacing=['left','right'].every(side=>
-    result[side]?.elbowAheadCm>2&&result[side]?.handAheadCm>2&&
-    result[side]?.handAboveElbowCm>0&&result[side]?.elbowOutCm>0)?
-    'READY':'NEEDS REVIEW';
+   if(relaxed){
+    status.flightRelaxedWorld=result;
+    status.flightRelaxedSilhouette=['left','right'].every(side=>
+     result[side]?.elbowAheadCm>-5&&result[side]?.handAheadCm>0&&
+     result[side]?.handAboveElbowCm<0&&result[side]?.elbowOutCm>3&&
+     result[side]?.handBelowChestCm>15)?
+     'RELAXED':'NEEDS REVIEW';
+   }else{
+    status.flightGuardWorld=result;
+    status.flightGuardFacing=['left','right'].every(side=>
+     result[side]?.elbowAheadCm>2&&result[side]?.handAheadCm>2&&
+     result[side]?.handAboveElbowCm>0&&result[side]?.elbowOutCm>0)?
+     'READY':'NEEDS REVIEW';
+   }
   }
   return result;
+ }
+ // V130: calmly airborne rather than combat-guarded. Preserve Kairo's
+ // visible V128 corrected legs and V127 subtle bob/torso; remove ALL
+ // hardcoded VRM0 arm angle guesses. Existing world-target solver places
+ // hands low and loose near the waist, not high ahead of elbows.
+ function v130FlightPose(mix,vertical=0,lateral=0,age=0){
+  const p=v128FlightPose(mix,vertical,lateral,age);
+  return {...p,profile:'V130 relaxed suspended flight',age,
+   leftShoulderX:0,rightShoulderX:0,
+   leftUpperArmX:0,rightUpperArmX:0,
+   leftUpperArmZ:0,rightUpperArmZ:0,
+   leftLowerArmX:0,rightLowerArmX:0};
  }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
@@ -1421,11 +1461,14 @@
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='airborne';
    const flightVersion=params.get('flightPreview');
+   const v130=airborne&&flightVersion==='v130';
    const v129=airborne&&flightVersion==='v129';
    const v128=airborne&&flightVersion==='v128';
    const v127=airborne&&flightVersion==='v127';
    const v126=airborne&&flightVersion==='v126';
-   const flightControl=v129?v129FlightPose(st.flightMix,
+   const flightControl=v130?v130FlightPose(st.flightMix,
+     st.flightVelocityY,st.flightSide,st.elapsed):
+     v129?v129FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
      v128?v128FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
@@ -1641,7 +1684,7 @@
      // arm quaternion here, letting only the final real-world solver
      // advance those four joints with the original 5rad/s budget.
      // All other flight joints retain the historical V111 limiter.
-     if(v129&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     if((v129||v130)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
      else{
       const maxStep=5.0*Math.max(0,dt);
       const delta=st.prev[i].angleTo(qTarget);
@@ -1698,14 +1741,14 @@
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
    }
-   if(v128||v129){
+   if(v128||v129||v130){
     // Stabilized from the REAL game-model facing, including VRM0's native
     // -Z parity; no extra Fighter.animate layer or invisible guide rig.
     const forward=realKairoForward(THREE,rig,null);
     v128CorrectFlightLegs(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.26),st.prev,dt,status);
-    if(v129)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
-      smooth(st.elapsed/.32),st.prev,dt,status);
+    if(v129||v130)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
+      smooth(st.elapsed/.32),st.prev,dt,status,v130?'relaxed':'guard');
    }
    // V73 natural VRoid hands are the only finger source in this state.
    // No V81 artificial Y-axis curl and no independent extra-action writer.
@@ -2059,7 +2102,7 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     if(['v126','v127','v128','v129'].includes(new URLSearchParams(root.location?.search||'')
+     if(['v126','v127','v128','v129','v130'].includes(new URLSearchParams(root.location?.search||'')
        .get('flightPreview'))){
       const yaw=this.facing||0;
       const side=(this.vel?.x||0)*Math.cos(yaw)-
@@ -2073,6 +2116,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v130'?'V130 relaxed animated levitation':
+        new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v129'?'V129 forward hover guard':
         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v128'?'V128 corrected world-space knees':
@@ -2174,7 +2219,8 @@
     guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightSmoothedVertical:0,
-    flightSmoothedLateral:0,flightGuardWorld:null,
+    flightSmoothedLateral:0,flightRelaxedWorld:null,
+    flightRelaxedSilhouette:'not-tested',flightGuardWorld:null,
     flightGuardFacing:'not-tested',flightKneeWorld:null,
     flightKneeFacing:'not-tested',flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
@@ -2202,6 +2248,7 @@
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
+    v130FlightPose,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,
