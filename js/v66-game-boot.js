@@ -7,8 +7,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V107';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:107,
+ const BUILD='V108';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:108,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -68,6 +68,11 @@
       (new URLSearchParams(location.search).get('jumpStyle')==='expressive'||
        new URLSearchParams(location.search).get('landingMove')==='pin'))
      e.src+='&performance=107';
+   // V108 collision-to-air transition is both a physics input buffer
+   // (compiled js/game.js) and a final-pose state (V100).
+   if(new URLSearchParams(location.search).get('jumpPrep')==='subtle'&&
+      (src.includes('js/game.js')||src.includes('v100-pose-authority')))
+     e.src+='&anticipation=108';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -184,6 +189,7 @@
     const finalSoles=contactLanding&&flags.get('landingFeet')==='plant';
     const expressive=flags.get('jumpStyle')==='expressive';
     const movingPin=finalSoles&&flags.get('landingMove')==='pin';
+    const subtlePrep=flags.get('jumpPrep')==='subtle';
     const airOwner=window.SkyClashPoseAuthority;
     const airMode=unifiedAir?
       airOwner?.ready?(compactAir?'V101 COMPACT GUARD':'V100 RECORDED ARMS')+
@@ -193,7 +199,7 @@
       joystickLab?'V95 JOYSTICK':handoffLab?'V94 HANDOFF':
       stepLab?'V89 STEP':'DEFAULT';
     // Do not enlarge mobile panel automatically as the game state changes.
-    heading.textContent=BUILD+' · '+(p?.jumping?'JUMP':p?.landingMotionT>0?
+    heading.textContent=BUILD+' · '+(p?.v108JumpPrepT>0?'PREP':p?.jumping?'JUMP':p?.landingMotionT>0?
       'LANDING':p?.v80AnalogRun?'RUN':v>1.3?'WALK':'IDLE')+
       (label.open?' ▲':' ▾');
     detail.textContent=stepLab?
@@ -207,6 +213,9 @@
        airOwner.movingJump||'V103 PREPARING':
        movingJump?'UNAVAILABLE':'V102 ORIGINAL')+
        ' | mix: '+Math.round((airOwner?.movingJumpWeight||0)*100)+'%\n'+
+     (subtlePrep?'ANTICIPATION: V108 subtle · knee load '+
+       (airOwner?.jumpPrep||0)+'% · remaining '+
+       Math.round((p?.v108JumpPrepT||0)*1000)+'ms\n':'')+
      (expressive?'JUMP BODY: V107 expressive · energy '+
        (airOwner?.jumpExpression||0)+'%\n':'')+
      (contactLanding?

@@ -17,7 +17,26 @@
  const SEGMENTS=['Proximal','Intermediate','Distal'];
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
- const clipFor=(state)=>state==='fall'?'fallingIdle':state;
+ const clipFor=(state)=>state==='fall'?'fallingIdle':state==='prep'?'jump':state;
+ // A deliberately modest pre-jump action. At 30–120 FPS the knee fold,
+ // hip sink and forward weight shift are continuous, with no arm flourish.
+ // Moving takeoffs use a shallower compression than stationary ones.
+ function prepPose(age,speed){
+  const t=clamp(age,0,.095);
+  const moving=clamp(speed/6.2,0,1);
+  const bend=smooth(t/.080)*(1-.36*moving);
+  return {
+   bend,
+   hipsY:-.036*bend,
+   hipsX:.036*bend,
+   thighX:-.105*bend,
+   kneeX:.155*bend,
+   ankleX:-.038*bend,
+   spineX:.074*bend,
+   chestX:.048*bend,
+   neckX:-.018*bend
+  };
+ }
  // V107 is a *small authored body-performance overlay*, not another clip.
  // Separate rise/float/brace envelopes keep energy continuous across the
  // jump -> fall sample switch, with the same physics and compact guard.
@@ -140,6 +159,9 @@
      f.slamming||f.charging||f.blockHeld||f.blocking||
      f.dashing||f.sprinting||(f.acro&&f.acro.type!=='landing'))
    return null;
+  if(f.v108JumpPrepT>0&&
+     new URLSearchParams(root.location?.search||'').get('jumpPrep')==='subtle'&&
+     !f.flying)return 'prep';
   if(f.landingMotionT>0&&!f.flying)return 'landing';
   if(f.dropping)return 'fall';
   if(f.jumping)return (f.vel?.y||0)<-1.1?'fall':'jump';
@@ -165,7 +187,7 @@
     maxWristExcursion:0,clipsUsed:[],launchLegs:[],launchCarry:0,
     jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
-    landingSupport:null};
+    landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -198,7 +220,7 @@
    st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
    st.launchSpeed=0;st.launchGait='stationary';st.groundWasRun=false;
    st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
-   st.landingSupport=null;
+   st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -224,6 +246,11 @@
     st.launchLegs=st.launchCarry>0?
       visible.slice(14,20).map(q=>q.clone()):[];
     st.jumpAge=0;
+   }
+   if(next==='prep'){
+    st.prepBase=visible.map(q=>q.clone());
+    st.prepHipsY=st.nodes[0].position.y;
+    st.prepSpeed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
    }
    if(next==='landing'){
     st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
@@ -520,6 +547,33 @@
     const visible=before||st.nodes.map(n=>n.quaternion.clone());
     if(st.phase!==state)begin(state,visible,this);
     st.elapsed+=safe;
+    if(state==='prep'){
+     const elapsed=clamp((this.v108JumpPrepDuration||.095)-
+       (this.v108JumpPrepT||0),0,.095);
+     const p=prepPose(elapsed,st.prepSpeed);
+     const rotX=new THREE.Quaternion(),xAxis=new THREE.Vector3(1,0,0);
+     for(let i=0;i<BONES.length;i++){
+      const n=st.nodes[i];
+      n.quaternion.copy(st.prepBase[i]);
+      const angle=i===0?p.hipsX:
+       i===1?p.spineX:i===2?p.chestX:i===4?p.neckX:
+       i===14||i===17?p.thighX:
+       i===15||i===18?p.kneeX:
+       i===16||i===19?p.ankleX:0;
+      if(angle)n.quaternion.multiply(rotX.setFromAxisAngle(xAxis,angle)).normalize();
+      n.updateMatrixWorld(true);
+     }
+     st.nodes[0].position.y=st.prepHipsY+p.hipsY/(this.vrmRig.scale||1);
+     this.vrmRig.vrm.update(0);
+     // The normal pre-recording floor solver is bypassed in this 95ms
+     // interval; correct visible shoes AFTER the final crouched pose.
+     plantVisibleSoles(THREE,this.vrmRig,this,status);
+     for(let i=0;i<BONES.length;i++)
+      st.prev[i].copy(st.nodes[i].quaternion);
+     status.active='prep';status.jumpPrep=Math.round(p.bend*100);
+     status.frames=++st.frames;
+     return;
+    }
     if(state==='jump'||state==='fall')st.jumpAge+=safe;
     const clips=root.SkyClashPublishedActions.motionClips;
     const contactLanding=new URLSearchParams(root.location?.search||'')
@@ -575,7 +629,7 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
-    jumpExpression:0,movingFootPin:'off',movingFootSlipCm:0,
+    jumpExpression:0,jumpPrep:0,movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
     soleGapCm:null,otherSoleGapCm:null,soleLastShiftCm:0,
     soleCorrections:0,soleContact:'not-tested',error:null};
@@ -595,7 +649,7 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,landingPlan,jumpExpression,steadyLandingSupport,
+ const api={version:100,BONES,clipFor,prepPose,landingPlan,jumpExpression,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;

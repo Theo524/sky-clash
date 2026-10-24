@@ -535,6 +535,56 @@ function movingLandingSupportRegression(){
   assert(!fresh.u.authority.error);
  }
 }
+function subtleGroundedPrepRegression(){
+ const base='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified&jumpArms=compact&airLegs=steady&movingJump=carry&landingLab=contact&landingFeet=plant&landingMove=pin&jumpStyle=expressive';
+ for(const speed of [0,4.8,6.2]){
+  const u=setup(base+'&jumpPrep=subtle');
+  u.f.floor=0;u.step(130);
+  u.f.vel.z=speed;u.f.moveIntent.z=speed>0?1:0;u.step(6);
+  const grounded=u.pose(),writers=u.count();
+  u.f.v108JumpPrepT=.095;u.f.v108JumpPrepDuration=.095;
+  const dev=[];
+  for(let frame=0;frame<5;frame++){
+   u.f.v108JumpPrepT=.095-(frame+1)/60;
+   const before=u.pose();u.step(1);
+   assert.equal(V100.stateOf(u.f),'prep');
+   assert.equal(V100.ownsAir(u.f),true,
+    'prep must be under the same final V100 owner as rising/falling');
+   assert.equal(u.authority.active,'prep');
+   assert.deepEqual(u.count(),writers,'no old recorded owner may draw over the grounded bend');
+   const pose=u.pose();
+   dev.push(pose[15].angleTo(grounded[15]));
+   for(const i of [6,7,8,9,10,11,12,13])
+    assert(pose[i].angleTo(grounded[i])<.0001,
+     'prep cannot lower or cross the approved fighting guard: '+V100.BONES[i]);
+   assert(pose[15].angleTo(before[15])<.075,
+    'knee must not twitch between short grounded preparation frames');
+   const gaps=V100.soleGaps(THREE,u.f.vrmRig,u.f);
+   assert(Math.abs(Math.min(...gaps.map(g=>g.gap)))<.021,
+    'feet must stay grounded while preparing, not jump early');
+  }
+  assert(dev[4]>.065,'pre-jump knee bend must be visible rather than absent');
+  assert(dev[4]<.16,'pre-jump knee bend must remain small and believable');
+  assert(u.authority.jumpPrep>30,
+    'diagnostic must report an active grounded knee load');
+  // The buffered physics impulse fires ONCE only after the short prep.
+  u.f.v108JumpPrepT=0;u.f.jumping=true;u.f.pos.y=1.2;u.f.vel.y=14;
+  u.step(1);
+  assert.equal(u.authority.active,'jump');
+  assert.deepEqual(u.count(),writers,
+   'launch must continue directly through same single pose owner');
+  assert.equal(V100.stateOf(u.f),'jump');
+  assert(!u.authority.error);
+ }
+ // The option never changes the original instant V107 jump route if unset.
+ const original=setup(base);
+ original.step(130);
+ original.f.pos.y=1.2;original.f.jumping=true;original.f.vel.y=14;
+ assert.equal(V100.stateOf(original.f),'jump');
+ original.step(1);
+ assert.equal(original.authority.active,'jump');
+ console.log('PASS V108 full V100 stack: visible grounded 95ms knee/hip load, protected fighter guard, planted soles, one owner and instant original rollback');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -602,6 +652,7 @@ try{
  visibleLandingFootRegression();
  expressiveJumpRegression();
  movingLandingSupportRegression();
+ subtleGroundedPrepRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
