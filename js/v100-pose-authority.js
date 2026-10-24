@@ -1630,18 +1630,25 @@
        finalAngle*180/Math.PI);
     }
     if(next==='flight'){
-     // Two different recorded loops may have different phases and lengths.
-     // Cap the *visible* local joint travel on 30/60/120fps devices
-     // without freezing the pose or delaying combat/Boost takeover.
-     const maxStep=5.0*Math.max(0,dt);
-     const delta=st.prev[i].angleTo(qTarget);
-     if(delta>maxStep&&maxStep>0){
-      qTmp.copy(qTarget);
-      qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
-      status.flightJointClamps=(status.flightJointClamps||0)+1;
+     // V129 forearms are posed by the FINAL world-geometry pass. If the
+     // legacy flight clip FIRST eases them back to rest and the final
+     // guard THEN eases them forward, the two 5rad/s limits cancel out:
+     // a hand stays dangling forever. Hold exactly the PREVIOUS visible
+     // arm quaternion here, letting only the final real-world solver
+     // advance those four joints with the original 5rad/s budget.
+     // All other flight joints retain the historical V111 limiter.
+     if(v129&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     else{
+      const maxStep=5.0*Math.max(0,dt);
+      const delta=st.prev[i].angleTo(qTarget);
+      if(delta>maxStep&&maxStep>0){
+       qTmp.copy(qTarget);
+       qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
+       status.flightJointClamps=(status.flightJointClamps||0)+1;
+      }
+      status.flightMaxStepDeg=Math.max(status.flightMaxStepDeg||0,
+        st.prev[i].angleTo(qTarget)*180/Math.PI);
      }
-     status.flightMaxStepDeg=Math.max(status.flightMaxStepDeg||0,
-       st.prev[i].angleTo(qTarget)*180/Math.PI);
     }
     node.quaternion.copy(qTarget);
     node.updateMatrixWorld(true);
