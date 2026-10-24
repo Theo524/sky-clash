@@ -42,15 +42,20 @@ for(const yaw of [0,Math.PI*.5,Math.PI,Math.PI*1.65]){
  const status={};
  V100.v121OutwardThighs(THREE,rig,f.thighYaw,status);
  assert.equal(status.takeoffThighJoints,2);
+ const first={};
  for(const side of ['left','right']){
   const joint=bones[side+'UpperLeg'],rest=origin[side];
   assert(Math.abs(joint.quaternion.angleTo(rest)-f.thighYaw)<1e-5,
    'actual VRM leg yaw must equal measured anatomical turnout');
-  const first=joint.quaternion.clone();
+  first[side]=joint.quaternion.clone();
   joint.quaternion.copy(rest);
-  V100.v121OutwardThighs(THREE,rig,f.thighYaw,{});
-  assert(first.angleTo(joint.quaternion)<1e-5,'same input must have same pose');
  }
+ // Re-apply ONCE to the reset PAIR; re-applying for each side would
+ // double-turn the other leg and test a pose that gameplay never uses.
+ V100.v121OutwardThighs(THREE,rig,f.thighYaw,{});
+ for(const side of ['left','right'])
+  assert(first[side].angleTo(bones[side+'UpperLeg'].quaternion)<1e-5,
+   'same starting VRM pair must have the same outward yaw');
 }
 const owner=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  boot=fs.readFileSync('js/v66-game-boot.js','utf8');
