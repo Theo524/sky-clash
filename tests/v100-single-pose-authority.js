@@ -1895,6 +1895,58 @@ function idleToCrouchFootContinuityRegression(){
  }
  console.log('PASS V124 whole V100 stack: no idle->PREP foot position/heading teleport, both native feet retained; V123 ascent, landing and moving path protected');
 }
+// Flight animation must be continuous in the actual historical V100
+// pipeline, not only in pure synthetic curves. Approved V125 grounded
+// jump, prior hover and Boost/combat ownership remain separate.
+function v126WholeStackRegression(){
+ const flags='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function test(preview){
+  const u=setup(flags+preview),f=u.f;
+  u.step(100);const ground=u.pose(),writers=u.count(),positions=[];
+  f.pos.y=2;f.vel.set(0,0,0);
+  for(let n=0;n<25;n++){u.step();positions.push(u.pose());}
+  assert.equal(u.authority.active,'flight');
+  assert.deepEqual(u.count(),writers,'legacy flight writer must yield to V100');
+  const hover=u.pose();
+  f.vel.set(0,0,6.2);u.step(50);
+  const travel=u.pose();
+  f.vel.set(6,6.5,3);u.step(25);
+  const steering=u.pose();
+  f.vel.set(-6,-7,3);u.step(25);
+  const reverse=u.pose();
+  assert.equal(u.authority.active,'flight');
+  assert.deepEqual(u.count(),writers);
+  f.vel.set(0,0,0);u.step(55);
+  const stop=u.pose();
+  assert(!u.authority.error);
+  f.sprinting=true;u.step(2);
+  assert.equal(V100.ownsAir(f),false,'Boost must immediately reclaim ownership');
+  f.sprinting=false;u.step(20);
+  assert.equal(u.authority.active,'flight','flight should resume after Boost');
+  f.blockHeld=true;u.step(1);
+  assert.equal(V100.ownsAir(f),false,'guard/combat must supersede flight immediately');
+  f.blockHeld=false;f.pos.y=0;f.vel.set(0,0,0);
+  u.step(30);assert(!u.authority.error);
+  return {ground,hover,travel,steering,reverse,stop,positions};
+ }
+ const old=test('v114'),next=test('v126');
+ let changed=0;
+ for(let i=0;i<20;i++){
+  changed=Math.max(changed,old.travel[i].angleTo(next.travel[i]));
+  assert(old.ground[i].angleTo(next.ground[i])<1e-6,
+   'V126 may not alter approved grounded pose '+V100.BONES[i]);
+ }
+ assert(changed>.05,'V126 must materially improve the actual cruise silhouette');
+ // V126 is not allowed to create a "suddenly upright" hover snap.
+ for(let k=1;k<next.positions.length;k++)
+  for(let i=0;i<20;i++)
+   assert(next.positions[k-1][i].angleTo(next.positions[k][i])<.145,
+    'V126 flight entry must respect per-frame angular continuity '+V100.BONES[i]);
+ console.log('PASS V126 V100 full writer stack: independent hover/cruise, directional changes, gradual entry, Boost/guard handoff, unchanged ground');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -1980,6 +2032,7 @@ try{
  realVisibleFootHeadingRegression();
  fullArcExpressivenessRegression();
  idleToCrouchFootContinuityRegression();
+ v126WholeStackRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

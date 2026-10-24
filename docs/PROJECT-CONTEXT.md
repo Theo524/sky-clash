@@ -35,6 +35,119 @@ contains the handoff and safety gate, not new character animations.
   Run tests/approved-ground-default.js plus the full regression suite;
   verify the main URL visually on a phone after deployment.
 
+## Player correction to V126: upright Green Lantern-style combat levitation
+
+The player challenged the premise of aerodynamic/horizontal flight for a
+**small close-range battle arena** and described the preferred motion as
+calm, natural, more upright, similar to Green Lantern floating. This is a
+critical design choice, not a minor tuning request: Kairo must keep facing
+an opponent and remain visibly ready to strike at ordinary aerial speeds.
+An aggressive horizontal Superman-style pose belongs to deliberate
+high-speed Boost/dash, which has a **separate existing animation owner**.
+
+**Revised V126 PR #78 (NOT public/default):** reject the previous
+large additive hip+spine+chest travel pitch. At full normal cruise,
+new local flight hip/spine/chest sum is only about 0.15 rad versus
+about 0.48 rad in the old V114 profile. These are local authored
+angular parameters and NOT verified absolute-world torso tilt;
+actual VRM yaw/forward axis must still be visually inspected. Keep
+one subtly flexed knee more pronounced than the other, ankles gently
+pointing down, small living shoulder/guard overlap, smooth vertical
+and lateral velocity response, very modest body banking and
+opponent-facing head. Avoid windmilling/swimming arms, a stiff
+vertical mannequin, or any physics/camera/Boost changes.
+
+Visual reference: the 3D upright Green Lantern character pose in
+DC Worlds Collide (https://dcworldscollidegame.com/roster/greenlantern-hal)
+and Injustice Mobile's alternate one-knee-raised levitation pose
+(https://www.mortalkombatwarehouse.com/krossovers/injusticemobile/characters/greenlantern/).
+These illustrate **attitude/silhouette**, not bone orientations or
+licensed source material to copy. Readable attack/neutral distinctions
+are essential (https://www.rivalslib.com/workshop_guide/art/anticipation_action_recovery.html).
+
+**New hard acceptance tests:** hover torso sum < 0.14 rad,
+normal-cruise torso sum < 0.23 rad and less than 55% of V114's
+big cumulative lean; maintain asymmetrical relaxed knee flexion and
+compact arms; preserve smooth 30/60/120fps directional changes and
+all existing V100 state-owner/Boost/guard protections. The resulting
+front/side/back WebGL video must be assessed before merging or
+calling the art completed. Prior PR was already draft, so it stays
+draft. `?flightPreview=v126` only works on main Pages AFTER
+explicit visual approval and merge; `?flightPreview=v114` remains
+the equivalent baseline.
+
+## V126 powered hover/cruise polish (2026-10-24; isolated test preview)
+
+**Latest player feedback:** V125 standing jump foot/knee coordination is
+"much better". Preserve V125 unchanged. User requests the same deep,
+example-based animation review for **powered flight** (separate from
+jumping, falling, Boost and physics-controlled landing).
+
+Live baseline remains V114 airborne flight opt-in, requiring
+`flightLab=blend&flightStyle=airborne`. The public root does NOT enable
+powered-flight redesign. V111 recorded float/fly loops continuously blend
+by horizontal speed; V113 derives a subtle hover from grounded guard;
+V114 has stronger suspended knee asymmetry and forward cruising silhouette.
+V114 static pose consists of sampled local X rotations plus a slight
+lateral spine bank. V114 inputs sudden vertical or lateral velocity directly,
+so snap reversals can instantly change visible thigh/arm/spine direction;
+V111's `st.flightMix` alone smooths horizontal speed. V114 doesn't have
+quiet hover breathing/arm overlap, so an otherwise decent stance can be
+frozen. Do not apply uncalibrated source clip yaw to fix this, and do not
+mistake the height-derived `fighter.flying` for intentional jump state.
+
+**V126 preview candidate (subsequently redesigned for upright levitation above):** `?flightPreview=v126` is a *flight-only*
+opt-in on top of **V125** as the unchanged ground/jump behavior. A simple
+query with `flightPreview=v114` is the exact V114 airborne-flight A/B
+with the SAME V125 ground/jump baseline. Both shortcuts configure the
+existing unified animator and opt-in flight without enabling it on the
+public root. The new `v126FlightPose(mix,vertical,lateral,age)` is built
+on `airborneFlightPose` in the SAME V100 final skeleton writer:
+- Keep asymmetrical suspended knees and the recognizable compact hover
+  fighter guard.
+- Gradually increase forward torso/chest drive and trailing leg extension
+  with filtered V111 travel weight. Head counters a little to keep the
+  direction readable from the side.
+- Filter rising/falling and strafe velocities on the existing ~7/s V111
+  per-frame exponential clock; modest counter-steer in both shoulders,
+  chest and spine, with opposite signs on left/right bank.
+- Add sub-degree delayed upper-body hover breathing only while stationary,
+  not repeated leg cycles or artificial root movement.
+- Retain V111 per-bone max 5rad/s step clamp, facing stabilization, state
+  priority and immediate Boost/guard/combat interruption.
+- Preserve V125 jump, V97 idle/walk/run, V103 moving takeoff, V109
+  landings, all gameplay physics, root translation and camera controls.
+- Refuse to promote to default until explicit player/device visual approval.
+
+Sources for silhouette/timing reference (not literal asset copying):
+Disney Animation, `https://disneyanimation.com/process/animation/`
+(follow-through, overlap, staging and motion timing);
+Meta VR animation principles,
+`https://developers.meta.com/vr/design/animation/`;
+Etherington Brothers' hover-body language sheet,
+`https://www.deviantart.com/etheringtonbrothers/art/How-to-draw-CHARACTERS-HOVERING-IN-FLIGHT-TIP-860659245`;
+classic flight motion sheets illustrate stronger torso travel direction
+versus poised hovering guard. These are artistic references, not claims
+of medically optimal flying anatomy.
+
+**Real-geometry acceptance:** new `tools/capture-flight-video.cjs` and
+`.github/workflows/flight-visual-review.yml` sample the actual Kairo
+WebGL VRM0 at a fixed 24fps from FRONT/SIDE/BACK through 60 frames:
+ground, hover, acceleration, cruise, left/right strafe, upward/downward
+flight, braking, immediate Boost yield and flight recovery. The capture
+checks actual owner state and visible hands/knees/feet. It simulates
+velocity input; it is NOT an on-phone physics recording. Artifact:
+`real-kairo-powered-flight-videos`. Run synthetic 30/60/120fps
+source-unit tests, full V100 historical owner tests, V125 isolation,
+prior V114/flight tests, then inspect MP4 A/Bs and ask for player approval.
+
+Preview URL **only once this candidate is actually deployed**:
+`https://theo524.github.io/sky-clash/?flightPreview=v126`.
+Rollback:
+`https://theo524.github.io/sky-clash/?flightPreview=v114`.
+Until merged, candidate is in the V126 PR branch and NOT live on Pages.
+Previous jump link `?jumpPreview=v125` remains unchanged.
+
 ## Full moving-jump video review (October 24, 2026)
 
 After PR #71, the automatic 24fps front+side WebGL video captured only

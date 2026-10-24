@@ -12,6 +12,10 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
+  // V126 and baseline V114 short-links carry the user's approved V125
+  // standing jump too. This changes only explicit flight preview URLs.
+  const flightShortcut=['v114','v126'].includes(flags.get('flightPreview'));
+  if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
   if(!flags.has('joystickRun'))flags.set('joystickRun','on');
@@ -37,7 +41,12 @@
    for(const [name,value] of Object.entries(jumpDefaults))
     flags.set(name,value);
   }
-  // Powered flight stays opt-in until its appearance is approved.
+  // Powered flight stays opt-in. Standalone V126/V114 comparison URLs
+  // reuse the identical V125 jump/ground defaults and only change flight.
+  if(flightShortcut){
+   if(!flags.has('flightLab'))flags.set('flightLab','blend');
+   if(!flags.has('flightStyle'))flags.set('flightStyle','airborne');
+  }
   return flags.toString();
  }
  const defaultGround=approvedGroundQuery(location.search);
@@ -166,6 +175,7 @@
       e.src+='&expressiveArc=123';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('jumpPreview')==='v124')e.src+='&idleFeet=124';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('jumpPreview')==='v125')e.src+='&coordinatedFeet=125';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v126')e.src+='&expressiveFlight=126';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
