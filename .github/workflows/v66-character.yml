@@ -41,6 +41,7 @@ on:
       - 'tests/v106-*.js'
       - 'tests/v107-*.js'
       - 'tests/v108-*.js'
+      - 'tests/v109-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -98,6 +99,7 @@ on:
       - 'tests/v106-*.js'
       - 'tests/v107-*.js'
       - 'tests/v108-*.js'
+      - 'tests/v109-*.js'
       - 'js/v100-*'
       - 'js/v81-*'
       - 'js/v79-*'
@@ -192,6 +194,7 @@ jobs:
       - run: node tests/v106-visible-sole-contact.js
       - run: node tests/v107-fluid-jump-moving-land.js
       - run: node tests/v108-grounded-jump-prep.js
+      - run: node tests/v109-readable-landing-flow.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
