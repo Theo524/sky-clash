@@ -1064,6 +1064,17 @@
        this.blockHeld||this.blocking||this.dashing||this.sprinting||
        (this.acro&&this.acro.type!=='landing');
      if(interrupted){
+      // V119: combat, Boost, knockback or flight may interrupt before
+      // begin(next) gets a chance to restore toe entry quaternions.
+      // Restore only toes (our exclusively opt-in prep articulation);
+      // never overwrite the newly-owned combat/Boost FOOT rotations.
+      if(st.phase==='prep'&&new URLSearchParams(root.location?.search||'')
+         .get('jumpPreview')==='v119'){
+       for(const anchor of st.prepFeet){
+        const toe=st.rig.vrm.humanoid.getNormalizedBoneNode(anchor.side+'Toes');
+        if(toe&&anchor.toeRotation)toe.quaternion.copy(anchor.toeRotation);
+       }
+      }
       st.phase=null;st.wristAnchor=[];st.armAnchor=[];
       st.launchLegs=[];st.launchCarry=0;st.jumpAge=0;
       st.airFacingPose=[];
