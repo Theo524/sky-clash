@@ -17,7 +17,14 @@
  const SEGMENTS=['Proximal','Intermediate','Distal'];
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  const smooth=v=>{const t=clamp(v,0,1);return t*t*(3-2*t);};
- const clipFor=(state)=>state==='fall'?'fallingIdle':state==='prep'?'jump':state;
+ const clipFor=(state)=>state==='fall'?'fallingIdle':
+   state==='prep'?'jump':state==='flight'?'floating':state;
+ // V111: one continuous hover-to-travel state, rather than a hard cut
+ // from 3.6s floating to 2.6s flying when speed crosses 3m/s.
+ function flightWeight(speed){return smooth((Math.max(0,speed)-.7)/5.5);}
+ function flightStep(current,target,dt){
+  return current+(target-current)*(1-Math.exp(-clamp(dt,0,.065)*7));
+ }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
  // hips/spine/chest chain, making a straight jump appear sideways.
@@ -196,6 +203,8 @@
   if(f.landingMotionT>0&&!f.flying)return 'landing';
   if(f.dropping)return 'fall';
   if(f.jumping)return (f.vel?.y||0)<-1.1?'fall':'jump';
+  if(new URLSearchParams(root.location?.search||'').get('flightLab')==='blend'&&
+     f.flying&&!f.sprinting)return 'flight';
   return null; // A height-based 'flying' getter is NOT a jump state.
  }
  function isPreview(context=root){
@@ -219,7 +228,8 @@
     jumpAge:0,launchSpeed:0,launchGait:'stationary',groundWasRun:false,
     restPose:[],landingRest:[],impactSpeed:0,contactSerial:0,
     landingSupport:null,prepBase:[],prepHipsY:0,prepSpeed:0,
-    movingFlow:false,landingDuration:.48,airFacingPose:[]};
+    movingFlow:false,landingDuration:.48,airFacingPose:[],
+    flightMix:0,flightSamples:[]};
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -254,6 +264,7 @@
    st.restPose=[];st.landingRest=[];st.impactSpeed=0;st.contactSerial=0;
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
+   st.flightMix=0;st.flightSamples=BONES.map(()=>new THREE.Quaternion());
    st.fingerNodes=[];st.fingerRest=[];
    for(const side of ['left','right'])for(const finger of FINGERS)
     for(const segment of SEGMENTS){
@@ -281,6 +292,11 @@
     st.jumpAge=0;
     // The facing baseline is the last actually displayed PREP/ground
     // pose, not an arbitrary neutral VRM T-pose or Mixamo source yaw.
+    st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
+   }
+   if(next==='flight'){
+    // Entry is last visible jump/hover pose, not the guide-rig T-pose.
+    st.flightMix=flightWeight(Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0));
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
    }
    if(next==='prep'){
@@ -322,9 +338,15 @@
     st.wristAnchor=[];st.armAnchor=[];
    }
   }
-  function retarget(clip,seconds,weight,next,dt){
+  function retarget(clip,seconds,weight,next,dt,flightSource=null){
    const rig=st.rig,scene=rig.vrm.scene;
-   clip.sample(seconds,st.samples,false);
+   clip.sample(seconds,st.samples,next==='flight');
+   if(next==='flight'&&flightSource){
+    const phase=seconds/clip.seconds;
+    flightSource.sample(phase*flightSource.seconds,st.flightSamples,true);
+    for(let i=0;i<BONES.length;i++)
+     st.samples[i].slerp(st.flightSamples[i],st.flightMix).normalize();
+   }
    // One matrix-world refresh per frame, not once for each humanoid bone.
    scene.updateMatrixWorld(true);
    scene.getWorldQuaternion(qScene);
@@ -363,9 +385,13 @@
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
    status.jumpExpression=expressive?+(performance.energy*100).toFixed(0):0;
-   const facingLock=params.get('jumpFacing')==='locked'&&
-     (next==='jump'||next==='fall')&&st.airFacingPose.length===6;
-   status.airFacingStyle=facingLock?'V110 takeoff-facing torso':'original recorded yaw';
+   const facingLock=((params.get('jumpFacing')==='locked'&&
+     (next==='jump'||next==='fall'))||
+     (next==='flight'&&params.get('flightLab')==='blend'))&&
+     st.airFacingPose.length===6;
+   status.airFacingStyle=facingLock?
+     next==='flight'?'V111 powered flight facing':'V110 takeoff-facing torso':
+     'original recorded yaw';
    status.airFacingSourceYawDeg=0;status.airFacingDriftDeg=0;
    const carryJump=params.get('movingJump')==='carry'&&
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
@@ -492,6 +518,20 @@
      const finalAngle=st.prev[i].angleTo(qTarget);
      status.maxLegStepDeg=Math.max(status.maxLegStepDeg||0,
        finalAngle*180/Math.PI);
+    }
+    if(next==='flight'){
+     // Two different recorded loops may have different phases and lengths.
+     // Cap the *visible* local joint travel on 30/60/120fps devices
+     // without freezing the pose or delaying combat/Boost takeover.
+     const maxStep=5.0*Math.max(0,dt);
+     const delta=st.prev[i].angleTo(qTarget);
+     if(delta>maxStep&&maxStep>0){
+      qTmp.copy(qTarget);
+      qTarget.copy(st.prev[i]).slerp(qTmp,maxStep/delta).normalize();
+      status.flightJointClamps=(status.flightJointClamps||0)+1;
+     }
+     status.flightMaxStepDeg=Math.max(status.flightMaxStepDeg||0,
+       st.prev[i].angleTo(qTarget)*180/Math.PI);
     }
     node.quaternion.copy(qTarget);
     node.updateMatrixWorld(true);
@@ -651,6 +691,13 @@
     }
     if(state==='jump'||state==='fall')st.jumpAge+=safe;
     const clips=root.SkyClashPublishedActions.motionClips;
+    if(state==='flight'){
+     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
+     st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
+     status.flightStyle='V111 continuous hover / travel';
+     status.flightSpeed=+speed.toFixed(2);
+     status.flightBlend=Math.round(st.flightMix*100);
+    }
     const contactLanding=new URLSearchParams(root.location?.search||'')
       .get('landingLab')==='contact'&&state==='landing'&&
       !!clips.fallingToLanding;
@@ -661,6 +708,8 @@
       // knee-absorption section at its native 30 Hz sampling rate, without
       // compressing a 1.1s standing sequence into a 0.48s collision.
       landingPlan(st.elapsed,st.impactSpeed,st.landingDuration).sourceTime:
+      state==='flight'?
+      (st.elapsed%clip.seconds):
       state==='jump'?
       Math.min(clip.seconds*.96,st.elapsed*1.18):
       state==='fall'?
@@ -669,8 +718,10 @@
       // the physics' 0.48s contact window without holding a frozen pose.
       clip.seconds*smooth(st.elapsed/.48);
     const blend=state==='jump'?.12:state==='fall'?.14:
+      state==='flight'?.22:
       contactLanding?(st.movingFlow?.055:.085):.10;
-    retarget(clip,seconds,smooth(st.elapsed/blend),state,safe);
+    retarget(clip,seconds,smooth(st.elapsed/blend),state,safe,
+      state==='flight'?clips.flying:null);
     st.prev=st.nodes.map(n=>n.quaternion.clone());
     st.frames++;
     status.active=state;status.frames=st.frames;
@@ -705,7 +756,9 @@
     owner:'none',frames:0,wristClamps:0,legStepClamps:0,maxLegStepDeg:0,
     landingStyle:'not-landing',landingPhase:'off',landingRecovery:0,
     impactSpeed:0,contactSerial:0,landingJointClamps:0,
-    jumpExpression:0,jumpPrep:0,airFacingStyle:'original recorded yaw',
+    jumpExpression:0,jumpPrep:0,flightStyle:'legacy switch',
+    flightSpeed:0,flightBlend:0,flightJointClamps:0,
+    flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
@@ -727,7 +780,8 @@
   status.active='grounded-owners-preserved';
   return status;
  }
- const api={version:100,BONES,clipFor,prepPose,landingPlan,jumpExpression,
+ const api={version:100,BONES,clipFor,flightWeight,flightStep,
+    prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
     soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
