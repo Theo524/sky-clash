@@ -63,12 +63,6 @@ on:
       - 'tests/v69-*.js'
       - 'tests/v70-*.js'
       - '.github/workflows/v66-character.yml'
-      - 'AGENTS.md'
-      - 'docs/PROJECT-CONTEXT.md'
-      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
-      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
-      - 'tests/animation-ownership-contract.js'
-      - '.github/workflows/animation-ownership.yml'
   push:
     branches: [main]
     paths:
@@ -133,12 +127,6 @@ on:
       - 'tests/v69-*.js'
       - 'tests/v70-*.js'
       - '.github/workflows/v66-character.yml'
-      - 'AGENTS.md'
-      - 'docs/PROJECT-CONTEXT.md'
-      - 'docs/ANIMATION-OWNERSHIP-CONTRACT.md'
-      - 'docs/KAIRO-RIG-CONTRACT.v1.json'
-      - 'tests/animation-ownership-contract.js'
-      - '.github/workflows/animation-ownership.yml'
 permissions:
   contents: write
 jobs:
@@ -225,7 +213,6 @@ jobs:
       - run: node tests/v113-controlled-flight-feet.js
       - run: node tests/v114-knee-airborne-stances.js
       - run: node tests/v115-forward-knee-calibration.js
-      - run: node tests/animation-ownership-contract.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
