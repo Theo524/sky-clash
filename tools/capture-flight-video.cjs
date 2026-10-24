@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v126,v127').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v127,v128').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -202,6 +202,11 @@ async function capture(browser,preview){
      smoothedLateral:owner.flightSmoothedLateral||0,
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
+     flightKneeFacing:owner.flightKneeFacing||'not-tested',
+     leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
+     rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
+     leftShinBackCm:owner.flightKneeWorld?.left?.shinBackCm??null,
+     rightShinBackCm:owner.flightKneeWorld?.right?.shinBackCm??null,
      leftHand:point('leftHand'),rightHand:point('rightHand'),
      leftElbow:point('leftLowerArm'),rightElbow:point('rightLowerArm'),
      leftKnee:point('leftLowerLeg'),rightKnee:point('rightLowerLeg'),
@@ -233,6 +238,21 @@ async function capture(browser,preview){
    throw Error('Flight speed blend never reached forward cruising');
   if(!flight.some(t=>t.leftKnee&&t.rightKnee&&t.leftHand&&t.rightHand))
    throw Error('Kairo VRM bones missing from recorded flight telemetry');
+  if(preview==='v128'){
+   // Frame 20+ is well beyond the ~260ms flight-entry blend. Checking
+   // REAL WebGL VRM0 geometry closes the failure path of V127's fake
+   // forward-knee result on an idealized synthetic bone tree.
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&
+    t.pose==='flight');
+   if(settled.length<15||settled.some(t=>
+     t.flightKneeFacing!=='FORWARD'||
+     !(t.leftKneeForwardCm>0&&t.rightKneeForwardCm>0&&
+       t.leftShinBackCm>0&&t.rightShinBackCm>0)))
+    throw Error('V128 ACTUAL-Kairo backward shin in settled flight: '+
+     JSON.stringify(settled.map(t=>[t.frame,t.flightKneeFacing,
+      t.leftKneeForwardCm,t.rightKneeForwardCm,
+      t.leftShinBackCm,t.rightShinBackCm])));
+  }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');

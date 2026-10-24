@@ -174,6 +174,120 @@
    rightAnkleX:-.075-.012*travel+.017*rise
   };
  }
+
+ // V128: solve the flight knee from ACTUAL hip/knee/ankle vectors in world
+ // space. Kairo's normalized VRM0 joint rotations are not a validated bind
+ // pose: V127's identical local-X assumptions can bend one knee backward.
+ // The target is a gently raised knee in front of the true gameplay +Z,
+ // with the shin dropping back under it. This is a single final V100
+ // writer pass, never a competing controller or physics/IK/root motion.
+ function v128FlightPose(mix,vertical=0,lateral=0,age=0){
+  const p=v127SuspendedFlightPose(mix,vertical,lateral,age);
+  return {...p,profile:'V128 world-validated suspended knees',
+   // Disable V127's uncalibrated local X on these six bones. The
+   // world-space final pass below is authoritative for their silhouette.
+   leftThighX:0,rightThighX:0,
+   leftKneeX:0,rightKneeX:0,
+   leftAnkleX:0,rightAnkleX:0};
+ }
+ function v128CorrectFlightLegs(THREE,rig,forward,pose,strength=1,
+                              previous=null,dt=1/60,status=null){
+  const hum=rig?.vrm?.humanoid,scene=rig?.vrm?.scene;
+  if(!hum||!scene||!forward||strength<=0)return null;
+  const f=forward.clone();f.y=0;
+  if(f.lengthSq()<1e-8)return null;
+  f.normalize();
+  const up=new THREE.Vector3(0,1,0);
+  const right=new THREE.Vector3().crossVectors(up,f).normalize();
+  const down=up.clone().negate();
+  const qWorld=new THREE.Quaternion(),q=new THREE.Quaternion(),
+   p0=new THREE.Vector3(),p1=new THREE.Vector3(),
+   current=new THREE.Vector3(),target=new THREE.Vector3(),
+   axis=new THREE.Vector3();
+  const results={};
+  function aim(joint,end,goal,maxAngle,priorIndex){
+   if(!joint||!end)return false;
+   scene.updateMatrixWorld(true);
+   joint.getWorldPosition(p0);end.getWorldPosition(p1);
+   current.subVectors(p1,p0);
+   if(current.lengthSq()<1e-8)return false;
+   current.normalize();target.copy(goal).normalize();
+   const angle=Math.acos(clamp(current.dot(target),-1,1));
+   axis.crossVectors(current,target);
+   if(axis.lengthSq()<1e-9||angle<1e-5)return false;
+   axis.normalize();
+   // A real joint's WORLD quaternion, not global +X or a guessed
+   // mirrored VRM0 knee axis, establishes the local hinge plane.
+   joint.getWorldQuaternion(qWorld);
+   axis.applyQuaternion(qWorld.invert()).normalize();
+   const old=joint.quaternion.clone();
+   joint.quaternion.multiply(q.setFromAxisAngle(axis,
+    Math.min(angle,maxAngle)*clamp(strength,0,1))).normalize();
+   if(previous?.[priorIndex]&&dt>0){
+    const limit=5*Math.max(0,dt);
+    const delta=previous[priorIndex].angleTo(joint.quaternion);
+    if(delta>limit&&limit>0)
+     joint.quaternion.copy(previous[priorIndex]).slerp(joint.quaternion,
+      limit/delta).normalize();
+   }
+   return !old.equals(joint.quaternion);
+  }
+  for(const side of ['left','right']){
+   const sign=side==='left'?1:-1;
+   const thigh=hum.getNormalizedBoneNode(side+'UpperLeg');
+   const shin=hum.getNormalizedBoneNode(side+'LowerLeg');
+   const ankle=hum.getNormalizedBoneNode(side+'Foot');
+   const toe=hum.getNormalizedBoneNode(side+'Toes');
+   if(!thigh||!shin||!ankle)continue;
+   const index=side==='left'?14:17;
+   const forwardKnee=side==='left'?.86:.38;
+   const foldBack=side==='left'?.43:.24;
+   const rise=pose?.rise||0,drop=pose?.descend||0;
+   // Distinct thigh and shin target directions produce a knee genuinely
+   // FRONT of the hip-to-ankle support line on either mirrored leg.
+   target.copy(down).addScaledVector(f,
+      forwardKnee+.06*rise-.03*drop)
+    .addScaledVector(right,sign*.075).normalize();
+   aim(thigh,shin,target,.85,index);
+   target.copy(down).addScaledVector(f,
+      -foldBack+.025*rise-.04*drop)
+    .addScaledVector(right,-sign*.018).normalize();
+   aim(shin,ankle,target,1.13,index+1);
+   // Toe-down relative to its EXISTING world horizontal heading:
+   // don't force an unverified VRM0 shoe yaw to gameplay +Z.
+   if(toe){
+    scene.updateMatrixWorld(true);
+    ankle.getWorldPosition(p0);toe.getWorldPosition(p1);
+    target.subVectors(p1,p0);
+    const horizontal=Math.hypot(target.x,target.z);
+    if(horizontal>.025){
+     target.y=-horizontal*.29;
+     aim(ankle,toe,target,.32,index+2);
+    }
+   }
+   scene.updateMatrixWorld(true);
+   const hipP=thigh.getWorldPosition(new THREE.Vector3());
+   const kneeP=shin.getWorldPosition(new THREE.Vector3());
+   const ankleP=ankle.getWorldPosition(new THREE.Vector3());
+   const hToA=ankleP.clone().sub(hipP);
+   const projection=clamp(kneeP.clone().sub(hipP).dot(hToA)/
+    Math.max(1e-8,hToA.lengthSq()),0,1);
+   const clearance=kneeP.clone().sub(hipP.addScaledVector(
+    hToA,projection)).dot(f);
+   results[side]={kneeForwardCm:+(clearance*100).toFixed(2),
+    kneeHipForwardCm:+(kneeP.clone().sub(
+      thigh.getWorldPosition(new THREE.Vector3())).dot(f)*100).toFixed(2),
+    shinBackCm:+(kneeP.clone().sub(ankleP).dot(f)*100).toFixed(2)};
+  }
+  if(status){
+   status.flightKneeWorld=results;
+   status.flightKneeFacing=(results.left?.kneeForwardCm||0)>0&&
+    (results.right?.kneeForwardCm||0)>0&&
+    (results.left?.shinBackCm||0)>0&&
+    (results.right?.shinBackCm||0)>0?'FORWARD':'NEEDS REVIEW';
+  }
+  return results;
+ }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
  // hips/spine/chest chain, making a straight jump appear sideways.
@@ -1200,9 +1314,12 @@
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='airborne';
    const flightVersion=params.get('flightPreview');
+   const v128=airborne&&flightVersion==='v128';
    const v127=airborne&&flightVersion==='v127';
    const v126=airborne&&flightVersion==='v126';
-   const flightControl=v127?v127SuspendedFlightPose(st.flightMix,
+   const flightControl=v128?v128FlightPose(st.flightMix,
+     st.flightVelocityY,st.flightSide,st.elapsed):
+     v127?v127SuspendedFlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
      v126?v126FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed):
@@ -1463,6 +1580,13 @@
      status.airFacingSourceYawDeg+=correction.source*180/Math.PI;
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
+   }
+   if(v128){
+    // Stabilized from the REAL game-model facing, including VRM0's native
+    // -Z parity; no extra Fighter.animate layer or invisible guide rig.
+    const forward=realKairoForward(THREE,rig,null);
+    v128CorrectFlightLegs(THREE,rig,forward,flightControl,
+     smooth(st.elapsed/.26),st.prev,dt,status);
    }
    // V73 natural VRoid hands are the only finger source in this state.
    // No V81 artificial Y-axis curl and no independent extra-action writer.
@@ -1816,7 +1940,7 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     if(['v126','v127'].includes(new URLSearchParams(root.location?.search||'')
+     if(['v126','v127','v128'].includes(new URLSearchParams(root.location?.search||'')
        .get('flightPreview'))){
       const yaw=this.facing||0;
       const side=(this.vel?.x||0)*Math.cos(yaw)-
@@ -1830,6 +1954,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v128'?'V128 corrected world-space knees':
+        new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v127'?'V127 suspended combat hover':
         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v126'?'V126 expressive hover / cruise':
@@ -1927,7 +2053,8 @@
     guidedLaunchBlend:0,
     pushRelease:0,flightStyle:'legacy switch',
     flightSpeed:0,flightBlend:0,flightSmoothedVertical:0,
-    flightSmoothedLateral:0,flightJointClamps:0,
+    flightSmoothedLateral:0,flightKneeWorld:null,
+    flightKneeFacing:'not-tested',flightJointClamps:0,
     flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
@@ -1952,6 +2079,7 @@
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
+    v128FlightPose,v128CorrectFlightLegs,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,

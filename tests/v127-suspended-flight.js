@@ -105,10 +105,12 @@ const owner=fs.readFileSync('js/v100-pose-authority.js','utf8');
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(owner.includes("flightVersion==='v127'"));
 assert(owner.includes('v127?v127SuspendedFlightPose('));
-assert(owner.includes("if(['v126','v127'].includes("));
+assert(owner.includes("if(['v126','v127'"),
+ "V127 and V126 must keep smoothed flight reactions after V128 is added");
 assert(owner.includes('const maxStep=5.0*Math.max(0,dt)'),
  'old per-frame flight angular limiter must survive');
-assert(boot.includes("['v114','v126','v127']"));
+assert(boot.includes("['v114','v126','v127'"),
+ "V126 and V127 legacy opt-in URLs remain bootable alongside V128");
 assert(boot.includes("e.src+='&suspendedFlight=127'"));
 assert(boot.includes("flags.set('flightStyle','airborne')"));
 console.log('PASS V127: 3D suspended segment silhouettes, hanging toes, compact guard, 30/60/120fps and version-isolated powered flight');
