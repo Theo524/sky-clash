@@ -1,0 +1,84 @@
+name: Real Kairo Powered Flight Visual Captures
+
+on:
+  workflow_dispatch:
+    inputs:
+      previews:
+        description: "Two isolated powered flight versions"
+        required: false
+        default: "v114,v126"
+  pull_request:
+    paths:
+      - 'js/v100-pose-authority.js'
+      - 'js/v66-game-boot.js'
+      - 'tools/capture-flight-video.cjs'
+      - '.github/workflows/flight-visual-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Chromium and offline MP4 encoder
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          node --check tools/capture-flight-video.cjs
+          ffmpeg -hide_banner -encoders | grep libx264
+      - name: Serve local Kairo game
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/sky-flight-review-server.log 2>&1 &
+          sleep 3
+          curl --fail --silent --show-error http://127.0.0.1:8765/index.html > /dev/null
+      - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v114,v126' }}
+          VISUAL_VIDEO_FPS: '24'
+        run: node tools/capture-flight-video.cjs
+      - name: Verify real flight pose, telemetry and video frames
+        run: |
+          python - <<'PY'
+          import json,pathlib,subprocess
+          p=pathlib.Path('visual-review-output/flight-videos')
+          report=json.loads((p/'motion-metrics.json').read_text())
+          assert len(report['captures'])==2
+          for c in report['captures']:
+              assert c['frames']==60 and c['frameRate']==24
+              seq=c['timeline']
+              assert len(seq)==60
+              assert {'hover','cruise','strafe-left','strafe-right','ascend','descend','boost','recover'} <= {x['stage'] for x in seq}
+              assert all(x['pose']=='flight' for x in seq if x['stage'] not in ('ground','boost'))
+              assert all(x['pose']!='flight' for x in seq if x['stage']=='boost')
+              assert max(x['flightBlend'] for x in seq)>90
+              for view in ('front','side','back'):
+                  video=p/f"{c['preview']}-{view}.mp4"
+                  assert video.stat().st_size>10000,video
+                  stream=json.loads(subprocess.check_output([
+                      'ffprobe','-v','error','-select_streams','v:0',
+                      '-show_entries','stream=r_frame_rate,nb_frames',
+                      '-of','json',str(video)]))['streams'][0]
+                  assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
+          print('PASS: real Kairo 24fps three-view V114 versus V126 full powered flight A/B')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-powered-flight-videos
+          path: visual-review-output/flight-videos/
+          retention-days: 14
+          if-no-files-found: warn
