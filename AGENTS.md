@@ -40,6 +40,14 @@ only a previous conversation may not have the full project context.
   Capture pairs with the workflow_dispatch `previews` input. This allows
   future chats to see browser-rendered animations without making the user
   take screenshots, but still requires visual approval for phone behavior.
+- For timing, fluidity and transitions, also inspect `real-kairo-jump-videos`
+  from that same workflow. It contains 24fps front/side H.264 MP4s,
+  synchronized A/B composites and `motion-metrics.json` with 48 fixed-time
+  frames spanning crouch → rise → fall → landing. This is NOT a continuous
+  recording of the user's phone; animations are sampled on a fixed clock
+  against the real headless WebGL VRM. Check both recorded angles, not
+  bone math alone. A failed video job or empty artifact is a blocker, not
+  a pass. The action is also manually dispatchable with a `previews` pair.
 - Run prior tests AND new tests at 30/60/120 FPS where relevant.
 - Never merge, change the visual default, or remove the rollback before
   explicit user approval.

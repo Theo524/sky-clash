@@ -10,6 +10,7 @@ on:
   pull_request:
     paths:
       - 'tools/capture-jump-frames.cjs'
+      - 'tools/capture-jump-video.cjs'
       - '.github/workflows/jump-visual-review.yml'
 
 permissions:
@@ -18,7 +19,7 @@ permissions:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 16
+    timeout-minutes: 26
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,10 +43,38 @@ jobs:
           VISUAL_PORT: '8765'
           VISUAL_PREVIEWS: ${{ inputs.previews || 'v119,v120' }}
         run: node tools/capture-jump-frames.cjs
+      - name: Install and strictly verify offline MP4 encoder
+        run: |
+          set -euo pipefail
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          command -v ffmpeg
+          ffmpeg -version > /tmp/sky-clash-ffmpeg-version.txt
+          sed -n '1p' /tmp/sky-clash-ffmpeg-version.txt
+          ffmpeg -hide_banner -encoders > /tmp/sky-clash-video-encoders.txt
+          grep 'libx264' /tmp/sky-clash-video-encoders.txt
+          node --check tools/capture-jump-video.cjs
+      - name: Record deterministic full-motion Kairo front/side MP4 comparisons
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v119,v120' }}
+          VISUAL_VIDEO_FPS: '24'
+        run: node tools/capture-jump-video.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: real-kairo-jump-frames
-          path: visual-review-output/
+          path: |
+            visual-review-output/*.png
+            visual-review-output/*.json
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-jump-videos
+          path: visual-review-output/videos/
           if-no-files-found: warn
           retention-days: 14

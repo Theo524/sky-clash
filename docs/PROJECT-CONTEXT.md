@@ -292,7 +292,50 @@ code is modified by the workflow; screenshots are GitHub Actions
 artifacts, not silently transmitted from user devices. Future branches
 can rerun it for each new opt-in animation comparison.
 
-## The longstanding issue
+## Video-based temporal visual review (PR #71, 2026-10-24)
+
+The user explicitly asked for video inspection because still screenshots
+are insufficient to judge jump arm timing, popping, delayed body/foot
+follow-through and foot skating. The new (opt-in automation) helper
+`tools/capture-jump-video.cjs` extends the existing
+`Real Kairo Jump Visual Captures` GitHub Actions workflow.
+
+When the workflow is green, download the `real-kairo-jump-videos`
+artifact, containing real decoded Kairo WebGL MP4s at **24 FPS**
+(`v119-front.mp4`, `v119-side.mp4`, `v120-front.mp4`,
+`v120-side.mp4`) plus `v119-vs-v120-front.mp4` and
+`v119-vs-v120-side.mp4` comparison films and
+`motion-metrics.json` (48 matched timeline frames). Read through
+actual motion, not just a frozen screenshot. Recordings cover
+idle → standing crouch load → takeoff → ascent → fall → landing.
+The workflow can be manually rerun with `previews`, e.g.
+`v120,v121`, after the new preview exists in a checked-out revision.
+
+The encoder uses FFmpeg/libx264 from an explicitly installed and
+verified runner package. Frames are **rendered through the actual
+VRM/WebGL engine** and animated at a deterministic step independently
+of capture-wall-clock latency, so two presets align by frame; they
+are stitched into time-correct video by FFmpeg. The video-only capture
+hides the opaque game HUD overlays so arms, torso and feet are visible.
+The earlier real-Kairo PNG snapshot artifact is still preserved.
+
+For cross-chat review, use the connected GitHub action
+`fetch_workflow_run_artifacts` → `download_workflow_artifact` and
+inspect the MP4s with playback or extract representative frames with
+`ffmpeg`. Explicitly confirm that the video ZIP includes nonempty MP4
+files and that the workflow passed, rather than inferring success from
+a merge. These GitHub artifact links expire after **14 days**; rerun
+the workflow for a fresh comparison.
+
+**Caveat:** the sequences use a synthetic-but-deterministic jump
+timeline, freezing game physics while advancing the game's real
+animation chain; they are *not* natural-speed captures of the user's
+particular phone and cannot measure physical controller latency.
+The simulated height is only for clear visibility, not a change to
+actual game jump physics. Keep approved V119 limbs and default V115
+untouched until the user reviews new arm behavior.
+
+
 
 Historical VRM bone/pose controllers can overlap. Past user reports included:
 - Odd finger/Italian-hand gesture while jumping (V98–V99).
