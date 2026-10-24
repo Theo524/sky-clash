@@ -34,6 +34,8 @@ assert(physics.includes("this.v108JumpPrepDuration=.095;this.v108JumpPrepT=.095;
  'actual input event must start 95ms buffered action');
 assert(physics.includes("this.jumping=false;this.vel.y=0;"),
  'physics impulse must not happen at the beginning of the visual crouch');
+assert(physics.includes("if(this.v108JumpPrepT>0)target.y=0;"),
+ 'holding jump/Up must NOT turn anticipation into immediate powered flight');
 assert(physics.includes("this.vel.y=this.v108JumpPrepLaunchVy;"),
  'real original upward velocity resumes at release');
 assert(physics.includes("if(this.v108JumpPrepT===0){"),'buffered jump must release once');
