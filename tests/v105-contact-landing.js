@@ -49,7 +49,7 @@ assert(boot.includes("src.includes('js/game.js')")&&
 assert(boot.includes('LAND: V100 UNCHANGED')&&boot.includes('V105 CONTACT PREPARING'),
  'rollback and opt-in test status remain visibly distinguishable');
 const html=read('index.html');
-assert(/SKY CLASH · BUILD V10[5-9]/.test(html));
-assert(/js\/v66-game-boot\.js\?v=820&fix=(?:10[6-9]|110)/.test(html));
-assert(/BUILD V10[5-9]/.test(read('animation-studio.html')));
+assert(/SKY CLASH · BUILD V(10[5-9]|110)/.test(html));
+assert(/js\/v66-game-boot\.js\?v=820&fix=(?:10[6-9]|11[01])/.test(html));
+assert(/BUILD V(10[5-9]|110)/.test(read('animation-studio.html')));
 console.log('PASS V105: real 30Hz falling/contact Mixamo clip, impact-sensitive monotonic 30/60/120fps recovery, preserved V100 rollback and coordinated cache');
