@@ -1,0 +1,51 @@
+name: Real Kairo Jump Visual Captures
+
+on:
+  workflow_dispatch:
+    inputs:
+      previews:
+        description: "Comma-separated, version-specific jump previews"
+        required: false
+        default: "v119,v120"
+  pull_request:
+    paths:
+      - 'tools/capture-jump-frames.cjs'
+      - '.github/workflows/jump-visual-review.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install browser automation
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start local published game
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/sky-visual-server.log 2>&1 &
+          echo $! > /tmp/sky-visual-server.pid
+          sleep 3
+          curl --fail --silent --show-error http://127.0.0.1:8765/index.html > /dev/null
+      - name: Capture ACTUAL VRM from front and side during idle, crouch and ascent
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v119,v120' }}
+        run: node tools/capture-jump-frames.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-jump-frames
+          path: visual-review-output/
+          if-no-files-found: warn
+          retention-days: 14
