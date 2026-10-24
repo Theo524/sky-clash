@@ -83,6 +83,7 @@ async function run(){
     // frozen, so screenshots show a repeatable deterministic silhouette.
     g.update=()=>{}; // freeze BOTH physics and animation between captures
     g.__visualJumpFrames=0;
+    g.__visualGroundY=g.player.model.root.position.y;
     // Own the QA camera ONLY within this disposable headless browser.
     // The game source and production camera behaviour are NOT changed.
     s.CameraRig.update=()=>{};
@@ -123,15 +124,21 @@ async function run(){
      p.v108JumpPrepDuration=.215;
      if(name==='idle'){
       p.v108JumpPrepT=0;p.jumping=false;p.vel.y=0;
-      p.pos.y=p.floor;
+      p.pos.y=p.floor;p.model.root.position.y=g.__visualGroundY;
       for(let k=0;k<130;k++)p.animate(1/60);
      }else if(typeof t==='number'){
       p.v108JumpPrepT=Math.max(.0001,.215-t);
       p.jumping=false;p.vel.y=0;p.pos.y=p.floor;
+      p.model.root.position.y=g.__visualGroundY;
       p.animate(1/60);
      }else{
       p.v108JumpPrepT=0;p.jumping=true;
-      p.pos.y=p.floor+1.1;p.vel.y=name==='apex'?1.5:13;
+      // Hold a realistic camera-relative lift, independently of the
+      // pure pose clock; we otherwise capture an "ascent" silhouette
+      // still standing on the floor because physics is frozen.
+      const lift={takeoff:.18,rising:.83,apex:1.45}[name];
+      p.model.root.position.y=g.__visualGroundY+lift;
+      p.pos.y=p.floor+lift;p.vel.y=name==='apex'?1.5:13;
       const target={takeoff:.05,rising:.17,apex:.38}[name];
       const next=Math.round(target*60),previous=g.__visualJumpFrames||0;
       for(let i=previous;i<next;i++)p.animate(1/60);
