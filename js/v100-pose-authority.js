@@ -931,8 +931,11 @@
      steadyLegs&&st.launchCarry>0&&st.launchLegs.length===6&&
      (next==='jump'||next==='fall');
    const armCap={6:.11,7:.17,8:.22,9:.085,10:.11,11:.17,12:.22,13:.085};
+   // Preserve V120's independently testable standing-only arm gate.
    const v120Ascent=compactArms&&next==='jump'&&
-     ['v120','v121'].includes(params.get('jumpPreview'))&&st.launchSpeed<1.3;
+     params.get('jumpPreview')==='v120'&&st.launchSpeed<1.3;
+   const v121Ascent=compactArms&&next==='jump'&&
+     params.get('jumpPreview')==='v121'&&st.launchSpeed<1.3;
    status.armStyle=compactArms?'V101 compact guard':next==='landing'?
      contactLanding?'V105 recovery to approved guard':
      'V100 recorded landing':'V100 recorded jump/fall arms';
@@ -1110,7 +1113,7 @@
    }
    // V120 applied only after recorded V101 guard retarget. Keep the
    // final-arm pose and its wrist safety cap in this ONE V100 owner.
-   if(v120Ascent){
+   if(v120Ascent||v121Ascent){
     worldJumpArms(THREE,rig,realKairoForward(THREE,rig,status),
      v120ArmTiming('jump',st.jumpAge),status);
     status.armStyle='V120 fluid compact ascent';
