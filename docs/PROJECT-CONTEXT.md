@@ -1,5 +1,21 @@
 # Sky Clash — project context for future sessions
 
+## V149 — living forward and backward flight rather than static legs (2026-10-25)
+
+Player rejected V148 forward/back as still too stiff, especially legs and
+body. V149 adds a 4.6s 7-pose (plus exact final key) authored performance
+in `js/v149-travel-performance.js` under existing V100 final pose authority.
+Forward/back now have slow FLOATING knee and calf movement, delayed torso/
+pelvis counterweight, spine/chest/neck follow-through, staggered elbows and
+hands. The raised leg always remains distinctly bent while the longer
+trailing leg changes shape without pedalling/stepping. One constantly
+held travel pose is forbidden. Zero forward/back intent keeps V148 100%
+unchanged, along with V146 vertical, V144 hovering, V125 jumping, V97
+walk/run, combat, Rin and Boost gameplay/physics. Other V148 directions,
+diagonals and turns remain functional. Inspect real Kairo side/front
+WebGL films, focusing on consecutive frames—not just static numeric IK.
+Normal playable URL on release, V148 via `?flightPreview=v148`.
+
 ## V148 — comprehensive full-body flight choreography (2026-10-25)
 
 The player found V147 forward/back too stiff and asked to **do all**

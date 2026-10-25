@@ -13,6 +13,7 @@ on:
       - 'js/v146-vertical-followthrough.js'
       - 'js/v147-horizontal-flight.js'
       - 'js/v148-full-flight.js'
+      - 'js/v149-travel-performance.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -54,10 +55,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V147 vs V148
+      - name: Capture real Kairo hover, travel and vertical changes V148 vs V149
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v147,v148'
+          VISUAL_PREVIEWS: 'v148,v149'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -78,8 +79,8 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==13
-              if capture['preview']=='v148':
-                  assert all(t['flightAuthoredClip']=='V148 full-body omnidirectional flight'
+              if capture['preview']=='v149':
+                  assert all(t['flightAuthoredClip']=='V149 expressive moving flight legs'
                     and 2<t['leftAuthored']['handAheadCm']<25
                     and 2<t['rightAuthored']['handAheadCm']<25
                    and t['leftAuthored']['handAboveElbowCm']< -12
@@ -104,12 +105,12 @@ jobs:
                   assert states['descend']['verticalPoseWeight']>.65
                   assert states['hover']['verticalPoseWeight']<.01
                   assert states['ascend']['leftKneeForwardCm'] != states['descend']['leftKneeForwardCm']
-          print('PASS actual Kairo V147 vs V148 natural levitation gallery')
+          print('PASS actual Kairo V148 vs V149 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v148-omni-flight-review
+          name: real-kairo-v149-living-forward-back-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn

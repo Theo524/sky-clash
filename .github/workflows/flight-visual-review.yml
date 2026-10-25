@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v147,v148"
+        default: "v148,v149"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -18,6 +18,7 @@ on:
       - 'js/v146-vertical-followthrough.js'
       - 'js/v147-horizontal-flight.js'
       - 'js/v148-full-flight.js'
+      - 'js/v149-travel-performance.js'
       - 'tools/capture-flight-video.cjs'
       - '.github/workflows/flight-visual-review.yml'
 
@@ -63,7 +64,7 @@ jobs:
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v147,v148' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v148,v149' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
@@ -89,7 +90,7 @@ jobs:
                       '-show_entries','stream=r_frame_rate,nb_frames',
                       '-of','json',str(video)]))['streams'][0]
                   assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
-          print('PASS: real Kairo 24fps three-view V147 versus V148 authored hover A/B')
+          print('PASS: real Kairo 24fps three-view V148 versus V149 authored hover A/B')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
