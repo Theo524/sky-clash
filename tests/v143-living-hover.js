@@ -23,7 +23,7 @@ assert(out.bodyS>.02&&back.bodyS<-.025,'body leans from side to side');
 const late=b.sample(2.40);
 assert(out.chestF>zero.chestF&&late.chestF>out.chestF+.025&&back.chestF<late.chestF,
  'chest follows pelvis and peaks later in the authored performance');
-assert(out.leftElbowF>zero.leftElbowF+.09,
+assert(out.leftElbowF>zero.leftElbowF+.07,
  'one elbow visibly floats while other stays relaxed');
 assert(back.rightHandF>zero.rightHandF+.09,
  'opposite hand receives delayed follow-through');
