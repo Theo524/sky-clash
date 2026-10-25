@@ -1,4 +1,4 @@
-/* V142 authored hover: periodic time-keyed whole body; preserve public V141.
+/* V142 authored hover: periodic time-keyed whole body; public V142 release.
  * Real-Kairo VRM mesh reviews happen separately in CI browser capture.
  */
 'use strict';
@@ -106,9 +106,9 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2])
 
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 const authority=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("flags.set('flightPreview','v141')"),'public build unchanged');
+assert(boot.includes("flags.set('flightPreview','v142')"),'V142 must now be public default');
 assert(boot.includes("flags.set('jumpPreview','v125')"),'approved jump preserved');
 assert(boot.includes("await script('js/v142-hover-keyframes.js?v=1420')"),'load authored clip before V100');
 assert(authority.includes("flightVersion==='v142'"),'isolated playable preview');
 assert(authority.includes("v142?'authored-hover'"),'world-based authored IK');
-console.log('PASS V142 authored multi-bone cyclic hover: 30/60/120fps continuity, world knees/arms all yaw/mirror, public V141 and V125 jump unchanged');
+console.log('PASS V142 authored multi-bone cyclic hover: 30/60/120fps continuity, world knees/arms all yaw/mirror, public V142 and approved V125 jump preserved');
