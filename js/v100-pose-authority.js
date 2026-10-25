@@ -2411,12 +2411,19 @@
      status.flightHorizontalBrake=+flightControl.omniBrake.toFixed(3);
      status.flightHorizontalSide=+flightControl.omniSide.toFixed(3);
      if(v149)status.flightTravelPhase=+flightControl.travelPerformancePhase.toFixed(3);
-     if(v150){
-      status.flightTravelPhase=+flightControl.travelPerformancePhase.toFixed(3);
-      status.flightInputStrength=+flightControl.inputStrength.toFixed(3);
-      status.flightRetreatLocked=flightControl.inputLocked;
-      status.flightInputForward=+flightControl.inputForward.toFixed(3);
-     }
+    }
+    if(v150){
+     status.flightHorizontalMode=flightControl.omniMode;
+     status.flightHorizontalWeight=+flightControl.omniWeight.toFixed(3);
+     status.flightHorizontalTurn=+flightControl.omniTurn.toFixed(3);
+     status.flightHorizontalFast=+flightControl.omniFast.toFixed(3);
+     status.flightHorizontalLaunch=+flightControl.omniLaunch.toFixed(3);
+     status.flightHorizontalBrake=+flightControl.omniBrake.toFixed(3);
+     status.flightHorizontalSide=+flightControl.omniSide.toFixed(3);
+     status.flightTravelPhase=+flightControl.travelPerformancePhase.toFixed(3);
+     status.flightInputStrength=+flightControl.inputStrength.toFixed(3);
+     status.flightRetreatLocked=flightControl.inputLocked;
+     status.flightInputForward=+flightControl.inputForward.toFixed(3);
     }
    }
    const expressive=params.get('jumpStyle')==='expressive'&&
