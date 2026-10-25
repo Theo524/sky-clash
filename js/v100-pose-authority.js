@@ -246,7 +246,7 @@
    const index=side==='left'?14:17;
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
-   const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight','V146 expressive vertical follow-through','V147 directional forward/back flight','V148 full-body omni flight','V149 living forward/back flight'].includes(pose?.profile)&&pose.keys;
+   const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight','V146 expressive vertical follow-through','V147 directional forward/back flight','V148 full-body omni flight','V149 living forward/back flight','V150 joystick-responsive flight'].includes(pose?.profile)&&pose.keys;
    const suspended=pose?.profile==='V141 suspended silhouette';
    const reference=pose?.profile==='V140 reference-balanced hover';
    const serene=pose?.profile==='V138 calm anime levitation';
