@@ -51,13 +51,13 @@ const jumpDefaults={
 };
 for(const [name,value] of Object.entries({...jumpDefaults,jumpKnees:'anatomic',
  flightLab:'blend',flightStyle:'airborne',
- jumpPreview:'v125',flightPreview:'v140'}))
+ jumpPreview:'v125',flightPreview:'v138'}))
  assert.equal(run.flags.get(name),value,'V130 integrated public default: '+name);
 // Scene/custom gameplay URL parameters must not remove the unified default.
 const integratedScene=simulate('?scene=dojo');
 assert.equal(integratedScene.flags.get('scene'),'dojo');
 assert.equal(integratedScene.flags.get('jumpPreview'),'v125');
-assert.equal(integratedScene.flags.get('flightPreview'),'v140');
+assert.equal(integratedScene.flags.get('flightPreview'),'v138');
 run=simulate('?flightPreview=v130');
 assert.equal(run.flags.get('jumpPreview'),'v125');
 assert.equal(run.flags.get('flightLab'),'blend');
