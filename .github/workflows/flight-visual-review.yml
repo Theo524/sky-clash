@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v138,v140"
+        default: "v138,v141"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -56,7 +56,7 @@ jobs:
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v138,v140' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v138,v141' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
