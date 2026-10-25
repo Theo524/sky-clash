@@ -166,6 +166,7 @@ jobs:
       - run: node --check js/v145-vertical-flight.js
       - run: node --check js/v146-vertical-followthrough.js
       - run: node --check js/v147-horizontal-flight.js
+      - run: node --check js/v148-full-flight.js
       - run: node --check js/v89-grounded-step.js
       - run: node --check js/v95-joystick-radius.js
       - run: node --check js/v91-stance-continuity.js
@@ -242,6 +243,7 @@ jobs:
       - run: node tests/v145-vertical-flight.js
       - run: node tests/v146-vertical-followthrough.js
       - run: node tests/v147-horizontal-flight.js
+      - run: node tests/v148-full-flight.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
