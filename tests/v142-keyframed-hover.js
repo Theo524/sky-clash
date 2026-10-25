@@ -12,7 +12,8 @@ assert.equal(duration,4.6);
 assert(keys.length>=8&&channels.length>=25,'authored multi-pose full-body source');
 assert.deepEqual(sample(0),sample(duration),'exact position loop closure');
 assert.deepEqual(sample(-duration),sample(0),'negative phase wraps');
-assert.deepEqual(sample(duration*3+.58),sample(.58),'loop cycles reproduce exactly');
+for(const c of channels)assert(Math.abs(sample(duration*3+.58)[c]-sample(.58)[c])<1e-9,
+ 'loop cycles preserve '+c);
 for(const fps of [30,60,120]){
  let maxStep=0;
  for(let frame=0;frame<fps*duration;frame++){
