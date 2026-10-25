@@ -1006,7 +1006,7 @@
  function v141FlightPose(mix,vertical=0,lateral=0,age=0){
   const p=v140FlightPose(mix,vertical,lateral,age);
   const flow=p.mix||0,rise=p.rise||0,drop=p.descend||0;
-  const slow=Math.sin(Math.max(0,age)*1.18-.15);
+  const slow=Math.sin(Math.max(0,age)*1.18+.22);
   return {...p,profile:'V141 suspended silhouette',
    hipsX:.001+.011*flow-.014*rise+.010*drop+.007*slow,
    spineX:-.009+.013*flow-.008*rise+.006*drop+
