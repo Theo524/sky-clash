@@ -1,5 +1,23 @@
 # Sky Clash — project context for future sessions
 
+## V143 — living flight body animation (2026-10-25)
+
+The player confirmed V142's silhouette is far better, but Kairo looked
+frozen inside the flying stance. V143 keeps the EXACT V142 base keyframes
+for the distinctive bent/extended legs and layers a 4.6-second, nine-key
+secondary body performance: pelvis/chest pitch and bank, subtly independent
+shoulders, elbows and wrists, with delayed follow-through and gentle
+asymmetric shin movement. V143 modifies the world-space pelvis and chest
+solvers to track these small animation goals; V142's previous fixed
+upright aim was erasing torso motion. No root bob, physics changes, joint
+controller wrappers, or edits to approved V125 jump, V97 ground, running,
+walking, combat, Boost or Rin. V142 retained as `?flightPreview=v142`.
+
+Explicit player direction from the previous request: deliver ALL changes on
+the playable normal game URL, not merely on an unpublished branch.
+Release needs green character/ownership QA plus actual VRM0 WebGL movie review.
+
+
 ## V142 public release — October 25, 2026 (explicit player request)
 
 The player said they should always be able to **play the actual game** with
