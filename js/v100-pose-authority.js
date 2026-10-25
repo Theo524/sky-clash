@@ -1132,6 +1132,29 @@
    hipsX:p.hipsX+o.hipsX,spineX:p.spineX+o.spineX,
    chestX:p.chestX+o.chestX,neckX:p.neckX+o.neckX};
  }
+ // V146: the approved V144 hover plus smooth velocity-driven
+ // full-body rise/descent. No added controller or world/root translation.
+ function v146FlightPose(mix,vertical=0,lateral=0,age=0,motion=null){
+  const clip=root.SkyClashV146Vertical||
+   (typeof module!=='undefined'&&module.exports?
+    require('./v146-vertical-followthrough.js'):null);
+  if(!clip)throw Error('Missing V146 flight choreography');
+  const p=v144FlightPose(mix,vertical,lateral,age),
+   o=clip.performance(motion,age),keys={...p.keys};
+  for(const [k,value] of Object.entries(o))
+   if(Object.prototype.hasOwnProperty.call(keys,k))keys[k]+=value;
+  const lead=motion?.torso||{},weight=Math.max(lead.up||0,lead.drop||0);
+  return {...p,profile:'V146 expressive vertical follow-through',
+   keys,verticalAction:(lead.up||0)>.008&&(lead.up||0)>(lead.drop||0)?
+    'ascending':(lead.drop||0)>.008?'descending':'hover',
+   verticalActionStrength:weight,
+   verticalActionTorso:weight,
+   verticalActionLegs:Math.max(motion?.legs?.up||0,motion?.legs?.drop||0),
+   verticalActionArms:Math.max(motion?.arms?.up||0,motion?.arms?.drop||0),
+   pelvisGoalF:p.pelvisGoalF+o.bodyF,chestGoalF:p.chestGoalF+o.chestF,
+   hipsX:p.hipsX+o.hipsX,spineX:p.spineX+o.spineX,
+   chestX:p.chestX+o.chestX,neckX:p.neckX+o.neckX};
+ }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
  // hips/spine/chest chain, making a straight jump appear sideways.
