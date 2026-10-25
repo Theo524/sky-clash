@@ -59,6 +59,8 @@ jobs:
         run: |
           python tools/build.py
           git diff --exit-code -- js/game.js
+      - name: Check V142 authored full-body hover interpolation
+        run: node tests/v142-keyframed-hover.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'
