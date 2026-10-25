@@ -14,6 +14,7 @@ on:
       - 'js/v147-horizontal-flight.js'
       - 'js/v148-full-flight.js'
       - 'js/v149-travel-performance.js'
+      - 'js/v150-joystick-flight.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -55,10 +56,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V148 vs V149
+      - name: Capture real Kairo hover, travel and vertical changes V149 vs V150
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v148,v149'
+          VISUAL_PREVIEWS: 'v149,v150'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -105,12 +106,25 @@ jobs:
                   assert states['descend']['verticalPoseWeight']>.65
                   assert states['hover']['verticalPoseWeight']<.01
                   assert states['ascend']['leftKneeForwardCm'] != states['descend']['leftKneeForwardCm']
-          print('PASS actual Kairo V148 vs V149 natural levitation gallery')
+              if capture['preview']=='v150':
+                  states={t['stage']:t for t in capture['timeline']}
+                  assert all(t['flightAuthoredClip']=='V150 joystick-responsive flight'
+                    for t in capture['timeline'])
+                  assert states['hover']['horizontalPoseMode']=='hover'
+                  assert states['hover']['inputStrength']<.01
+                  assert states['cruise']['inputForward']>.8
+                  assert states['cruise']['inputStrength']>.8
+                  assert states['backward']['lockedRetreat'] is True
+                  assert states['backward']['horizontalPoseMode']=='backward'
+                  assert states['backward']['signedForward']< -5
+                  assert states['ascend']['verticalPoseMode']=='ascending'
+                  assert states['descend']['verticalPoseMode']=='descending'
+          print('PASS actual Kairo V149 vs V150 joystick and locked retreat gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v149-living-forward-back-review
+          name: real-kairo-v150-joystick-flight-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
