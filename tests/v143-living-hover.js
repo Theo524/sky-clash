@@ -84,9 +84,9 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
 }
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 const source=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("'v143','v144','v145','v146','v147'].includes(flags.get('flightPreview'))"),'V143 remains a selectable rollback');
+assert(boot.includes("'v143','v144','v145','v146','v147','v148'].includes(flags.get('flightPreview'))"),'V143 remains a selectable rollback');
 assert(boot.includes("flags.set('jumpPreview','v125')"),'approved jump stays V125');
-assert(boot.includes("const BUILD='V147'"));
+assert(boot.includes("const BUILD='V148'"));
 assert(boot.includes("await script('js/v143-hover-performance.js?v=1430')"));
 assert(source.includes("flightVersion==='v143'"));
 assert(source.includes("v143?'living-hover'"));
