@@ -185,6 +185,6 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v138'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138']"));
+assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v139']"));
 assert(boot.includes("e.src+='&sereneFlight=138'"));
 console.log('PASS V138: pelvis-balanced organic arms and leg drift at four facing angles and mirrored bones, VRM upright torso and trailing shoes, 30/60/120fps joint caps');
