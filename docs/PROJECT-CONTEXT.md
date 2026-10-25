@@ -1,5 +1,19 @@
 # Sky Clash — project context for future sessions
 
+## V146 — smoother, more expressive flight rise/descent (2026-10-25)
+
+Player said V145's going up/down was "not bad" but requested noticeably
+smoother and more expressive movement. V146 enhances ONLY the already
+authored ascent/descent animation: critically damped responses with faster
+chest/pelvis (ω=12), medium knee/shin (ω=8.5), and softly trailing
+elbows/wrists (ω=6.4); significantly fuller VRM world-space vertical
+gestures and inertial change-of-direction accents, all deterministic and
+consistent across frame rates. The stationary V144 hovering motion and V143
+chest breathing are EXACTLY preserved at rest. Previous V145 is available
+with `?flightPreview=v145`. No root/physics, jump V125, ground V97, walking,
+running, combat, Boost or other character changes. Player requests the
+normal playable link for every release.
+
 ## V145 — authored rise/descent flight (2026-10-25)
 
 The player asked to work on **going up and down**, after liking V143
