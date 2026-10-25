@@ -69,6 +69,8 @@ jobs:
         run: node tests/v145-vertical-flight.js
       - name: Check V146 smooth expressive vertical motion with approved neutral preserved
         run: node tests/v146-vertical-followthrough.js
+      - name: Check V147 forward/backward authored flight and existing motion safety
+        run: node tests/v147-horizontal-flight.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'

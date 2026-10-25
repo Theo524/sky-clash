@@ -24,7 +24,7 @@ if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  throw new Error('Provide 1–3 distinct safe preview IDs like v119,v120');
 
 const views={front:0,side:Math.PI/2,back:Math.PI};
-const count=8;
+const count=9;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+preview;
@@ -55,15 +55,16 @@ function compose(left,right,dest,labels){
 }
 function motionDescriptor(i){
  // Pose-gallery stages: 45 fixed animation steps PER stage so
- // hands have fully settled. These 8 photos are not a continuous
- // 8-frame physics film; the normal full film remains separately tested.
+ // hands have fully settled. These 9 photos are not a continuous
+ // 9-frame physics film; the normal full film remains separately tested.
  const common={elapsed:i*45/fps,height:2,forward:0,side:0,vertical:0};
- if(i===0||i===1||i===7)return {...common,name:'hover'};
+ if(i===0||i===1||i===8)return {...common,name:'hover'};
  if(i===2)return {...common,name:'cruise',forward:6.2};
  if(i===3)return {...common,name:'strafe-left',forward:3,side:-5};
  if(i===4)return {...common,name:'strafe-right',forward:3,side:5};
  if(i===5)return {...common,name:'ascend',forward:3,vertical:7};
- return {...common,name:'descend',forward:3,vertical:-7};
+ if(i===6)return {...common,name:'descend',forward:3,vertical:-7};
+ return {...common,name:'backward',forward:-6.2};
 }
 async function capture(browser,preview){
  const context=await browser.newContext({viewport:{width:960,height:640},
@@ -168,7 +169,7 @@ async function capture(browser,preview){
     p.t=(p.t||0)+1/fps;
     p.facing=0;p.model.root.rotation.y=0;
     p.vel.x=stage.side;p.vel.y=stage.vertical;p.vel.z=stage.forward;
-    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,stage.forward?1:0);
+    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,Math.sign(stage.forward));
     p.v95JoystickRun=false;
     p.v89Step=p.v89Step||{mode:'idle',scale:0};
     p.v89Step.mode='idle';p.v89Step.scale=0;
@@ -199,6 +200,12 @@ async function capture(browser,preview){
      verticalPoseTorso:owner.flightVerticalTorso??null,
      verticalPoseLegs:owner.flightVerticalLegs??null,
      verticalPoseArms:owner.flightVerticalArms??null,
+     horizontalPoseMode:owner.flightHorizontalMode||null,
+     horizontalPoseWeight:owner.flightHorizontalWeight??null,
+     horizontalPoseTorso:owner.flightHorizontalTorso??null,
+     horizontalPoseLegs:owner.flightHorizontalLegs??null,
+     horizontalPoseArms:owner.flightHorizontalArms??null,
+     signedForward:owner.flightSignedForward??null,
      smoothedLateral:owner.flightSmoothedLateral||0,
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
      flightMaxStepDeg:owner.flightMaxStepDeg||0,

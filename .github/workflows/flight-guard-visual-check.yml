@@ -11,6 +11,7 @@ on:
       - 'js/v144-relaxed-arms.js'
       - 'js/v145-vertical-flight.js'
       - 'js/v146-vertical-followthrough.js'
+      - 'js/v147-horizontal-flight.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -52,10 +53,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V145 vs V146
+      - name: Capture real Kairo hover, travel and vertical changes V146 vs V147
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v145,v146'
+          VISUAL_PREVIEWS: 'v146,v147'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -67,7 +68,7 @@ jobs:
           assert len(report['captures'])==2
           for capture in report['captures']:
               assert capture['info']['realVRM'] and capture['info']['webgl']
-              assert len(capture['timeline'])==8
+              assert len(capture['timeline'])==9
               assert all(t['pose']=='flight' for t in capture['timeline'])
               for view in ('front','side','back'):
                   f=p/f"{capture['preview']}-{view}.mp4"
@@ -75,15 +76,20 @@ jobs:
                   d=json.loads(subprocess.check_output(['ffprobe','-v','error',
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
-                  assert int(d['nb_frames'])==8
-              if capture['preview']=='v146':
-                  assert all(t['flightAuthoredClip']=='V146 expressive ascent/descent follow-through'
+                  assert int(d['nb_frames'])==9
+              if capture['preview']=='v147':
+                  assert all(t['flightAuthoredClip']=='V147 forward/back authored performance'
                     and 2<t['leftAuthored']['handAheadCm']<25
                     and 2<t['rightAuthored']['handAheadCm']<25
                    and t['leftAuthored']['handAboveElbowCm']< -12
                    and t['rightAuthored']['handAboveElbowCm']< -12
                    for t in capture['timeline'])
                   states={t['stage']:t for t in capture['timeline']}
+                  assert states['cruise']['horizontalPoseMode']=='forward'
+                  assert states['backward']['horizontalPoseMode']=='backward'
+                  assert states['hover']['horizontalPoseMode']=='hover'
+                  assert states['cruise']['signedForward']>5
+                  assert states['backward']['signedForward']< -5
                   assert states['ascend']['verticalPoseMode']=='ascending'
                   assert states['descend']['verticalPoseMode']=='descending'
                   assert states['hover']['verticalPoseMode']=='hover'
@@ -91,12 +97,12 @@ jobs:
                   assert states['descend']['verticalPoseWeight']>.65
                   assert states['hover']['verticalPoseWeight']<.01
                   assert states['ascend']['leftKneeForwardCm'] != states['descend']['leftKneeForwardCm']
-          print('PASS actual Kairo V145 vs V146 natural levitation gallery')
+          print('PASS actual Kairo V146 vs V147 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v146-vertical-followthrough-review
+          name: real-kairo-v147-horizontal-flight-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
