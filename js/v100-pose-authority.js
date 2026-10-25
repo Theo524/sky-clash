@@ -369,8 +369,8 @@
      // Actual V138 back-view VRM movie: the shoes STILL project like
      // grounded walking feet. Aim the toes DOWN while retaining their
      // calibrated horizontal heading (never force global +Z toe yaw).
-     target.y=-horizontal*((aerial||serene)?1.80:(holistic||fullHover)?.65:.29);
-     aim(ankle,toe,target,(aerial||serene)?.84:
+     target.y=-horizontal*(aerial?2.20:serene?1.80:(holistic||fullHover)?.65:.29);
+     aim(ankle,toe,target,aerial?1.05:serene?.84:
       (holistic||fullHover)?.52:.32,index+2);
     }
    }
