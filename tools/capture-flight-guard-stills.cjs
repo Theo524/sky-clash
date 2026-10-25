@@ -281,7 +281,7 @@ async function capture(browser,preview){
   if(page.isClosed())throw Error('Browser closed before all motion frames');
   if(timeline.length!==count||Object.values(dirs).some(d=>readdir(d).length!==count))
    throw Error('Incomplete video frames');
-  if(timeline.length!==8||timeline.some(t=>t.pose!=='flight'))
+  if(timeline.length!==count||timeline.some(t=>t.pose!=='flight'))
    throw Error('Every quick guard photo must be real powered flight');
   if(preview==='v129'){
    for(const t of timeline){
