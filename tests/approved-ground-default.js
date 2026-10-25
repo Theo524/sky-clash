@@ -192,7 +192,8 @@ assert.equal(run.flags.has('stance'),false);
 
 assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
-assert(boot.includes("const BUILD='V140'"));
+assert(boot.includes("const BUILD='V138'"), 'unapproved flight profile cannot change public release identity');
+assert(boot.includes("&suspendedFlight=141"), 'V141 must remain reachable only by explicit preview');
 assert(boot.includes("&referenceFlight=140"));
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
