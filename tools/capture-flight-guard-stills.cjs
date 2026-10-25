@@ -395,6 +395,7 @@ async function capture(browser,preview){
        arms.some(a=>!a||a.elbowOutCm<1||a.elbowOutCm>10||
         a.handAheadCm>12||a.handBelowChestCm<23)||
        t.leftToeDropCm==null||t.rightToeDropCm==null||
+       t.leftToeDropCm<11||t.rightToeDropCm<11||
        t.leftKneeBendDeg==null||t.rightKneeBendDeg==null||
        t.leftKneeBendDeg<10||t.rightKneeBendDeg<10||
        t.leftKneeBendDeg>43||t.rightKneeBendDeg>43)
