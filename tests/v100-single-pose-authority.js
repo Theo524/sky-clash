@@ -2362,6 +2362,111 @@ function v135TrailingKneeRegression(){
   'The only intentional change must be perceptible on the right thigh');
  console.log('PASS V135 full rig: soften trailing right knee, untouched V134 arms/torso/left leg, intact V125 jump and Boost/combat');
 }
+// V136 is a coordinated WHOLE-BODY flight pose, not another isolated
+// knee/arm target. Check true 20-bone ownership and the revised attitude.
+function v136WholeBodyFlightRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counts=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  let last;
+  for(let frame=0;frame<105;frame++){
+   last=u.pose();u.step();
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counts,
+    'V136 may not introduce competing skin/bone pose writers');
+   if(version==='v136')
+    for(let i=0;i<20;i++)
+     assert(last[i].angleTo(u.pose()[i])<.18,
+      'V136 flight joint snapped: '+V100.BONES[i]);
+  }
+  const hover=u.pose(),knees=u.authority.flightKneeWorld,
+   arms=u.authority.flightFullBodyWorld,torso=u.authority.flightTorsoWorld,
+   silhouette=u.authority.flightFullBodySilhouette;
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost interrupts flight immediately');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat guard interrupts flight immediately');
+  assert(!u.authority.error);
+  return {ground,hover,knees,arms,torso,silhouette};
+ }
+ const old=run('v135'),next=run('v136');
+ for(let i=0;i<20;i++)assert(old.ground[i].angleTo(next.ground[i])<1e-6,
+  'V136 cannot alter approved V97 grounded Kairo '+V100.BONES[i]);
+ assert(next.torso&&next.torso.residualTiltDeg<17,
+  'World-coherent spine must stand upright: '+JSON.stringify(next.torso));
+ assert.equal(next.silhouette,'COHERENT',
+  'V136 must show safely bent, free hanging forearms: '+JSON.stringify(next.arms));
+ assert(next.knees.left.shinBackCm>old.knees.left.shinBackCm+4 &&
+  next.knees.right.shinBackCm>old.knees.right.shinBackCm+4,
+  'Feet must trail knees rather than make the old seated/cycling silhouette');
+ // Some whole-20-bone synthetic rigs have no toes; only assert shoe
+ // droop when the rig genuinely includes the toe nodes. The separate
+ // V136 anatomical rig test and real-Kairo WebGL capture require toes.
+ if(next.knees.left.toeDropCm!==null&&old.knees.left.toeDropCm!==null)
+  assert(next.knees.left.toeDropCm>old.knees.left.toeDropCm+1,
+   'Toes must hang instead of making invisible grounded shoes');
+ assert(old.hover[1].angleTo(next.hover[1])>.02,
+  'Torso must visibly change, not merely tweak one foot or elbow');
+ console.log('PASS V136: real game body director, upright spine, tucked trailing feet, draped arms, unchanged V125 jump + ground + Boost/combat');
+}
+function v137PelvisBalancedFlightRegression(){
+ const prefix='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored'+
+  '&animator=unified&airLab=jump&jumpArms=compact&airLegs=steady'+
+  '&jumpPrep=push&jumpFeet=hold&jumpKnees=anatomic&jumpPreview=v125'+
+  '&flightLab=blend&flightStyle=airborne&flightPreview=';
+ function run(version){
+  const u=setup(prefix+version);u.step(90);
+  const ground=u.pose(),counts=u.count();
+  u.f.pos.y=2;u.f.vel.set(0,0,0);
+  let last;
+  for(let frame=0;frame<105;frame++){
+   last=u.pose();u.step();
+   assert.equal(u.authority.active,'flight');
+   assert.deepEqual(u.count(),counts,
+    'V137 may not introduce competing skin/bone pose writers');
+   if(version==='v137')
+    for(let i=0;i<20;i++)
+     assert(last[i].angleTo(u.pose()[i])<.18,
+      'V137 flight joint snapped: '+V100.BONES[i]);
+  }
+  const hover=u.pose(),knees=u.authority.flightKneeWorld,
+   arms=u.authority.flightHolisticWorld,torso=u.authority.flightTorsoWorld,
+   pelvis=u.authority.flightPelvisBalanceWorld,
+   silhouette=u.authority.flightHolisticSilhouette;
+  u.f.sprinting=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Boost interrupts flight immediately');
+  u.f.sprinting=false;u.step(16);u.f.blockHeld=true;u.step();
+  assert.equal(V100.ownsAir(u.f),false,'Combat guard interrupts flight immediately');
+  assert(!u.authority.error);
+  return {ground,hover,knees,arms,torso,pelvis,silhouette};
+ }
+ const old=run('v136'),next=run('v137');
+ for(let i=0;i<20;i++)assert(old.ground[i].angleTo(next.ground[i])<1e-6,
+  'V137 cannot alter approved V97 grounded Kairo '+V100.BONES[i]);
+ assert(next.pelvis&&next.pelvis.residualTiltDeg<13,
+  'Real hips-to-neck silhouette must be near vertical: '+
+   JSON.stringify(next.pelvis));
+ assert(next.torso&&next.torso.residualTiltDeg<13,
+  'Pelvis and spine must not fight one another: '+JSON.stringify(next.torso));
+ assert.equal(next.silhouette,'SUSPENDED',
+  'V137 must show safely bent, free hanging forearms: '+JSON.stringify(next.arms));
+ assert(next.knees.left.shinBackCm>9&&next.knees.right.shinBackCm>9,
+  'Shoes must trail softly rather than dangle beneath stepping knees');
+ // Some whole-20-bone synthetic rigs have no toes; only assert shoe
+ // droop when the rig genuinely includes the toe nodes. The separate
+ // V137 anatomical rig test and real-Kairo WebGL capture require toes.
+ if(next.knees.left.toeDropCm!==null)
+  assert(next.knees.left.toeDropCm>4,
+   'V137 must retain V136 suspended shoe pointing');
+ assert(old.hover[0].angleTo(next.hover[0])>.01,
+  'V137 must correct pelvis ancestry, not merely tweak one foot or elbow');
+ console.log('PASS V137: real game body director, upright spine, tucked trailing feet, draped arms, unchanged V125 jump + ground + Boost/combat');
+}
 function compactGuardRegression(){
  const url='?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored&airLab=jump&animator=unified';
  const run=flag=>{
@@ -2456,6 +2561,8 @@ try{
  v133WeightlessFlightRegression();
  v134NaturalFlightRegression();
  v135TrailingKneeRegression();
+ v136WholeBodyFlightRegression();
+ v137PelvisBalancedFlightRegression();
  const boot=read('js/v66-game-boot.js');
  assert(boot.includes('js/v100-pose-authority.js?v=1000'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));

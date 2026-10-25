@@ -37,12 +37,20 @@ jobs:
       - name: Serve built playable Sky Clash
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-guard-server.log 2>&1 &
-          sleep 2
-          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
-      - name: Capture real Kairo hover, travel and vertical changes V134 vs V135
+          for i in $(seq 1 16); do
+            if curl --max-time 3 --fail -sSf http://127.0.0.1:8765/index.html >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null || {
+            cat /tmp/kairo-guard-server.log
+            exit 1
+          }
+      - name: Capture real Kairo hover, travel and vertical changes V136 vs V137
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v134,v135'
+          VISUAL_PREVIEWS: 'v136,v137'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -63,16 +71,18 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v135':
-                  assert all(t['flightNaturalSilhouette']=='NATURAL'
-                    and t['rightKneeBendDeg']>25
+              if capture['preview']=='v137':
+                  assert all(t['flightHolisticSilhouette']=='SUSPENDED'
+                    and t['flightPelvisBalanceWorld']['residualTiltDeg']<12
+                    and t['flightTorsoWorld']['residualTiltDeg']<12
+                    and t['leftToeDropCm']>4 and t['rightToeDropCm']>4
                    for t in capture['timeline'])
-          print('PASS actual Kairo V134 vs V135 natural levitation gallery')
+          print('PASS actual Kairo V136 vs V137 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v135-soft-knee-flight-review
+          name: real-kairo-v137-pelvis-balanced-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn

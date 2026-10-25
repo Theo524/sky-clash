@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v134,v135"
+        default: "v136,v137"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -43,11 +43,20 @@ jobs:
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/sky-flight-review-server.log 2>&1 &
           sleep 3
-          curl --fail --silent --show-error http://127.0.0.1:8765/index.html > /dev/null
+          for i in $(seq 1 16); do
+            if curl --max-time 3 --fail -sSf http://127.0.0.1:8765/index.html >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null || {
+            cat /tmp/sky-flight-review-server.log
+            exit 1
+          }
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v134,v135' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v136,v137' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
@@ -73,7 +82,7 @@ jobs:
                       '-show_entries','stream=r_frame_rate,nb_frames',
                       '-of','json',str(video)]))['streams'][0]
                   assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
-          print('PASS: real Kairo 24fps three-view V134 versus V135 relaxed floating pose A/B')
+          print('PASS: real Kairo 24fps three-view V136 versus V137 relaxed floating pose A/B')
           PY
       - uses: actions/upload-artifact@v4
         if: always()

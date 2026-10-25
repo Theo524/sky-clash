@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v134,v135').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v136,v137').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -204,6 +204,14 @@ async function capture(browser,preview){
      flightBuoyantSilhouette:owner.flightBuoyantSilhouette||'not-tested',
      flightWeightlessSilhouette:owner.flightWeightlessSilhouette||'not-tested',
      flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
+     flightFullBodySilhouette:owner.flightFullBodySilhouette||'not-tested',
+     flightHolisticSilhouette:owner.flightHolisticSilhouette||'not-tested',
+     flightPelvisBalanceWorld:owner.flightPelvisBalanceWorld||null,
+     leftHolistic:owner.flightHolisticWorld?.left||null,
+     rightHolistic:owner.flightHolisticWorld?.right||null,
+     flightTorsoWorld:owner.flightTorsoWorld||null,
+     leftFullBody:owner.flightFullBodyWorld?.left||null,
+     rightFullBody:owner.flightFullBodyWorld?.right||null,
      leftNatural:owner.flightNaturalWorld?.left||null,
      rightNatural:owner.flightNaturalWorld?.right||null,
      leftWeightless:owner.flightWeightlessWorld?.left||null,
@@ -219,6 +227,8 @@ async function capture(browser,preview){
      leftKneeForwardCm:owner.flightKneeWorld?.left?.kneeForwardCm??null,
      leftKneeDropCm:owner.flightKneeWorld?.left?.hipToKneeDropCm??null,
      leftKneeBendDeg:owner.flightKneeWorld?.left?.kneeBendDeg??null,
+     leftToeDropCm:owner.flightKneeWorld?.left?.toeDropCm??null,
+     rightToeDropCm:owner.flightKneeWorld?.right?.toeDropCm??null,
      rightKneeBendDeg:owner.flightKneeWorld?.right?.kneeBendDeg??null,
      rightKneeDropCm:owner.flightKneeWorld?.right?.hipToKneeDropCm??null,
      rightKneeForwardCm:owner.flightKneeWorld?.right?.kneeForwardCm??null,
@@ -347,6 +357,33 @@ async function capture(browser,preview){
        JSON.stringify(frame));
    }
   }
+  if(preview==='v136'){
+   for(const t of timeline){
+    const arms=[t.leftFullBody,t.rightFullBody];
+    if(t.flightFullBodySilhouette!=='COHERENT'||
+       !t.flightTorsoWorld||t.flightTorsoWorld.residualTiltDeg>12||
+       arms.some(a=>!a||a.elbowOutCm<5||a.elbowOutCm>17||
+        a.handAheadCm<8||a.handBelowChestCm<12)||
+       t.leftToeDropCm===null||t.rightToeDropCm===null)
+      throw Error('V136 real Kairo does not show coherent whole-body flight: '+
+       JSON.stringify(t));
+   }
+  }
+  if(preview==='v137'){
+   for(const t of timeline){
+    const arms=[t.leftHolistic,t.rightHolistic];
+    if(t.flightHolisticSilhouette!=='SUSPENDED'||
+       !t.flightPelvisBalanceWorld||
+       t.flightPelvisBalanceWorld.residualTiltDeg>12||
+       !t.flightTorsoWorld||t.flightTorsoWorld.residualTiltDeg>12||
+       arms.some(a=>!a||a.elbowOutCm<5||a.elbowOutCm>16||
+        a.handAheadCm<4||a.handBelowChestCm<14)||
+       t.leftShinBackCm<9||t.rightShinBackCm<9||
+       t.leftToeDropCm<4||t.rightToeDropCm<4)
+     throw Error('V137 real Kairo entire-body flight not balanced: '+
+       JSON.stringify(t));
+   }
+  }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
@@ -389,6 +426,24 @@ async function capture(browser,preview){
   }
   if(softened<6)throw Error('V135 trailing leg not visibly softer in >=6/8 frames: '+softened);
   console.log('PASS actual Kairo V135 softer right knee across '+softened+'/8 flight views with V134 arms and lead knee preserved');
+ }
+ if(versions.includes('v136')&&versions.includes('v137')){
+  const old=reports.find(c=>c.preview==='v136').timeline;
+  const next=reports.find(c=>c.preview==='v137').timeline;
+  let improved=0;
+  for(let i=0;i<next.length;i++){
+   const a=old[i],b=next[i];
+   // The V136 video proves toe drop is already correct; V137 fixes
+   // the WHOLE pelvis-to-neck line and removes the midair stepping
+   // thigh placement. Verify that change, not a toe gain repeated.
+   const lessStep=(a.leftKneeForwardCm-b.leftKneeForwardCm);
+   if(lessStep>3&&b.flightPelvisBalanceWorld&&
+      b.flightPelvisBalanceWorld.residualTiltDeg<12)improved++;
+  }
+  if(improved<6)throw Error('V137 still reads as a stepping walker instead of a floating body: '+
+   improved+' / 8');
+  console.log('PASS V137 real-VRM 3-view pelvis + thigh silhouette improved in',
+    improved+'/8 flight stages');
  }
  if(versions.length===2){
   for(const view of Object.keys(views)){

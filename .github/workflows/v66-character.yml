@@ -225,6 +225,8 @@ jobs:
       - run: node tests/v133-weightless-flight.js
       - run: node tests/v134-natural-hover.js
       - run: node tests/v135-soft-trailing-knee.js
+      - run: node tests/v136-whole-body-hover.js
+      - run: node tests/v137-balanced-freeflight.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
