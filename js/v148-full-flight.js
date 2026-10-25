@@ -44,7 +44,7 @@
   right:{
    bodyS:.125,chestS:-.090,hipsZ:-.043,spineZ:.063,chestZ:.047,
    leftKnee:-.021,rightKnee:.045,leftShin:-.027,rightShin:.024,
-   leftElbowF:-.055,rightElbowF:.045,leftElbowO:.055,rightElbowO:.122,
+   leftElbowF:-.055,rightElbowF:.045,leftElbowO:.055,rightElbowO:.164,
    leftElbowY:-.025,rightElbowY:.052,leftHandF:-.082,rightHandF:.070,
    leftHandO:.029,rightHandO:-.090,leftHandY:-.021,rightHandY:.050}
  };
