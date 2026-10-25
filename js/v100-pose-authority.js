@@ -2214,6 +2214,12 @@
      st.flightVelocityY,st.flightSide,st.elapsed):
      airborne?airborneFlightPose(st.flightMix,f.vel?.y||0,localSide):
      controlled?controlledFlightPose(st.flightMix,f.vel?.y||0,localSide):null;
+   // QA and debug HUD read the *actual* velocity-derived airborne mode.
+   // This is pose telemetry only: jump and physics state remain untouched.
+   if(v145&&flightControl){
+    status.flightVerticalMode=flightControl.verticalAction;
+    status.flightVerticalWeight=+flightControl.verticalActionStrength.toFixed(3);
+   }
    const expressive=params.get('jumpStyle')==='expressive'&&
      (next==='jump'||next==='fall');
    const performance=expressive?jumpExpression(st.jumpAge,st.launchSpeed):null;
