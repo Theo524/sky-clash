@@ -71,6 +71,8 @@ jobs:
         run: node tests/v146-vertical-followthrough.js
       - name: Check V147 forward/backward authored flight and existing motion safety
         run: node tests/v147-horizontal-flight.js
+      - name: Verify V148 omnidirectional flight, transitions, and unchanged approved animation
+        run: node tests/v148-full-flight.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'
