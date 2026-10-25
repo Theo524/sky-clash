@@ -88,9 +88,9 @@ for(let i=0;i<90;i++){
 }
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  authority=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("'v146','v147'].includes(flags.get('flightPreview'))"));
+assert(boot.includes("'v146','v147','v148'].includes(flags.get('flightPreview'))"));
 assert(boot.includes("flags.set('jumpPreview','v125')"));
-assert(boot.includes("const BUILD='V147'"));
+assert(boot.includes("const BUILD='V148'"));
 assert(boot.includes("await script('js/v146-vertical-followthrough.js?v=1460')"));
 assert(authority.includes("flightVersion==='v146'"));
 assert(authority.includes("v146?'expressive-vertical'"));

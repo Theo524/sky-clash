@@ -1,5 +1,26 @@
 # Sky Clash — project context for future sessions
 
+## V148 — comprehensive full-body flight choreography (2026-10-25)
+
+The player found V147 forward/back too stiff and asked to **do all**
+remaining flight basics together. V148 replaces V147's subtle forward/
+retreat overlay with visibly expressive hips, chest, asymmetrically
+drifting elbows/wrists and leg follow-through, adding **left/right
+strafing, diagonal 2-axis blending, turning and banking, acceleration,
+braking, and high-speed/Boost-entry & exit visual settling** as one
+integrated performance on top of the V146 vertical/hover owner.
+`js/v148-full-flight.js` contains a 4.6s loop of authored performance
+beats, direction-specific poses, and staggered critically damped
+responses for torso, legs and arms. Signed direction derives from
+actual velocity in Kairo-local facing axes; turning from the wrapped
+change in character-facing yaw. No root translation, input, camera,
+physics, or multiple final animation owners. Player-loved V144 neutral
+hover, V146 ascent/descent, V125 jump, V97 walk/run and combat are kept.
+Boost is a separate combat/game state, so V148 can animate the adjacent
+fast-flight transition without taking over the game's Boost pose.
+Rollback through `?flightPreview=v147`. Publish normal playable
+Sky Clash link once passes tests.
+
 ## V147 — authored forward/back powered flight (2026-10-25)
 
 Player requested forward and backward next, then remaining basics. V147
