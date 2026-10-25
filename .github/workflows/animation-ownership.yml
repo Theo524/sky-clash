@@ -67,6 +67,8 @@ jobs:
         run: node tests/v144-relaxed-arms.js
       - name: Check V145 vertical flight without physics/jump ownership changes
         run: node tests/v145-vertical-flight.js
+      - name: Check V146 smooth expressive vertical motion with approved neutral preserved
+        run: node tests/v146-vertical-followthrough.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'
