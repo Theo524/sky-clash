@@ -134,9 +134,9 @@ assert(pfast.pelvisGoalF>pf.pelvisGoalF+.03,
  'speed-up intensifies body engagement');
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  source=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("flags.set('flightPreview','v148')"));
+assert(boot.includes("'v148','v149'].includes(flags.get('flightPreview'))"));
 assert(boot.includes("flags.set('jumpPreview','v125')"));
-assert(boot.includes("const BUILD='V148'"));
+assert(boot.includes("const BUILD='V149'"));
 assert(boot.includes("await script('js/v148-full-flight.js?v=1480')"));
 assert(source.includes("flightVersion==='v148'"));
 assert(source.includes("v148?'omni-flight'"));
