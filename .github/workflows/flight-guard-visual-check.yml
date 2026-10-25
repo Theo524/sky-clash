@@ -9,6 +9,7 @@ on:
       - 'js/v142-hover-keyframes.js'
       - 'js/v143-hover-performance.js'
       - 'js/v144-relaxed-arms.js'
+      - 'js/v145-vertical-flight.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -50,10 +51,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V143 vs V144
+      - name: Capture real Kairo hover, travel and vertical changes V144 vs V145
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v143,v144'
+          VISUAL_PREVIEWS: 'v144,v145'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -74,19 +75,27 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v144':
-                  assert all(t['flightAuthoredClip']=='V144 natural floating forearms'
-                    and 4<t['leftAuthored']['handAheadCm']<20
-                    and 4<t['rightAuthored']['handAheadCm']<20
+              if capture['preview']=='v145':
+                  assert all(t['flightAuthoredClip']=='V145 upward and downward keyed flight'
+                    and 2<t['leftAuthored']['handAheadCm']<25
+                    and 2<t['rightAuthored']['handAheadCm']<25
                    and t['leftAuthored']['handAboveElbowCm']< -12
                    and t['rightAuthored']['handAboveElbowCm']< -12
                    for t in capture['timeline'])
-          print('PASS actual Kairo V143 vs V144 natural levitation gallery')
+                  states={t['stage']:t for t in capture['timeline']}
+                  assert states['ascend']['verticalPoseMode']=='ascending'
+                  assert states['descend']['verticalPoseMode']=='descending'
+                  assert states['hover']['verticalPoseMode']=='hover'
+                  assert states['ascend']['verticalPoseWeight']>.65
+                  assert states['descend']['verticalPoseWeight']>.65
+                  assert states['hover']['verticalPoseWeight']<.01
+                  assert states['ascend']['leftKneeForwardCm'] != states['descend']['leftKneeForwardCm']
+          print('PASS actual Kairo V144 vs V145 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v144-relaxed-arm-review
+          name: real-kairo-v145-vertical-flight-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn

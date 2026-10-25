@@ -12,17 +12,17 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V144 unified public release: plain /sky-clash/ includes the best
-  // grounded pose, approved V125 expressive jump, and V144 natural flying arms.
+  // V145 unified public release: plain /sky-clash/ includes the best
+  // grounded pose, approved V125 jump, V144 relaxed arms and V145 vertical motion.
   // Explicit historical animation comparisons still opt out of promotion.
   const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
    'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v144');
+   flags.set('flightPreview','v145');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -65,8 +65,8 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V144';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:144,
+ const BUILD='V145';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:145,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -201,6 +201,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v142')e.src+='&authoredFlight=142';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v143')e.src+='&livingFlight=143';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v144')e.src+='&naturalArms=144';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v145')e.src+='&verticalFlight=145';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -278,12 +279,14 @@
   // V100 unified air owner is installed LAST after every legacy layer.
   // The old wrappers yield only during natural jump/fall/landing states.
   if(new URLSearchParams(location.search).get('animator')==='unified'){
-   if(['v142','v143','v144'].includes(new URLSearchParams(location.search).get('flightPreview')))
+   if(['v142','v143','v144','v145'].includes(new URLSearchParams(location.search).get('flightPreview')))
     await script('js/v142-hover-keyframes.js?v=1420');
-   if(['v143','v144'].includes(new URLSearchParams(location.search).get('flightPreview')))
+   if(['v143','v144','v145'].includes(new URLSearchParams(location.search).get('flightPreview')))
     await script('js/v143-hover-performance.js?v=1430');
-   if(new URLSearchParams(location.search).get('flightPreview')==='v144')
+   if(['v144','v145'].includes(new URLSearchParams(location.search).get('flightPreview')))
     await script('js/v144-relaxed-arms.js?v=1440');
+   if(new URLSearchParams(location.search).get('flightPreview')==='v145')
+    await script('js/v145-vertical-flight.js?v=1450');
    await script('js/v100-pose-authority.js?v=1000');
    window.SkyClashV100Animator.start(window);
   }

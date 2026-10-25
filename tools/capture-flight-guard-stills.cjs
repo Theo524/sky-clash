@@ -194,6 +194,8 @@ async function capture(browser,preview){
      pose:owner.active,flightStyle:owner.flightStyle,
      flightBlend:owner.flightBlend||0,
      smoothedVertical:owner.flightSmoothedVertical||0,
+     verticalPoseMode:owner.flightVerticalMode||null,
+     verticalPoseWeight:owner.flightVerticalWeight??null,
      smoothedLateral:owner.flightSmoothedLateral||0,
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
