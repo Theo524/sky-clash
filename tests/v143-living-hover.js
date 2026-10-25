@@ -20,8 +20,9 @@ for(const channel of b.channels){
 const zero=b.sample(0),out=b.sample(1.17),back=b.sample(2.99);
 assert(out.bodyF>.05&&back.bodyF<-.035,'authored pelvic counterweight must move, not root bob');
 assert(out.bodyS>.02&&back.bodyS<-.025,'body leans from side to side');
-assert(out.chestF>zero.chestF&&back.chestF<out.chestF,
- 'chest follows hips with offset timing');
+const late=b.sample(2.40);
+assert(out.chestF>zero.chestF&&late.chestF>out.chestF+.025&&back.chestF<late.chestF,
+ 'chest follows pelvis and peaks later in the authored performance');
 assert(out.leftElbowF>zero.leftElbowF+.09,
  'one elbow visibly floats while other stays relaxed');
 assert(back.rightHandF>zero.rightHandF+.09,
