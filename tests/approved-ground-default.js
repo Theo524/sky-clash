@@ -51,13 +51,13 @@ const jumpDefaults={
 };
 for(const [name,value] of Object.entries({...jumpDefaults,jumpKnees:'anatomic',
  flightLab:'blend',flightStyle:'airborne',
- jumpPreview:'v125',flightPreview:'v138'}))
+ jumpPreview:'v125',flightPreview:'v139'}))
  assert.equal(run.flags.get(name),value,'V130 integrated public default: '+name);
 // Scene/custom gameplay URL parameters must not remove the unified default.
 const integratedScene=simulate('?scene=dojo');
 assert.equal(integratedScene.flags.get('scene'),'dojo');
 assert.equal(integratedScene.flags.get('jumpPreview'),'v125');
-assert.equal(integratedScene.flags.get('flightPreview'),'v138');
+assert.equal(integratedScene.flags.get('flightPreview'),'v139');
 run=simulate('?flightPreview=v130');
 assert.equal(run.flags.get('jumpPreview'),'v125');
 assert.equal(run.flags.get('flightLab'),'blend');
@@ -192,11 +192,11 @@ assert.equal(run.flags.has('stance'),false);
 
 assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
-assert(boot.includes("const BUILD='V138'"));
-assert(boot.includes("&sereneFlight=138"));
+assert(boot.includes("const BUILD='V139'"));
+assert(boot.includes("&referenceFlight=139"));
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
 assert(boot.includes("new URLSearchParams(location.search).get('animator')==='unified'"),
  'Keep V100 conditional; jump default intentionally enables it but flight remains optional');
 
-console.log('PASS unified public URL: approved V97 ground + V125 jump + calm levitation V138 flight, explicit A/B/legacy rollbacks.');
+console.log('PASS unified public URL: approved V97 ground + V125 jump + reference-informed V139 flight, explicit A/B/legacy rollbacks.');
