@@ -330,7 +330,7 @@
    // FRONT of the hip-to-ankle support line on either mirrored leg.
    target.copy(down).addScaledVector(f,
       forwardKnee+.06*rise-.03*drop)
-    .addScaledVector(right,sign*(serene?
+    .addScaledVector(right,sign*((reference||serene)?
       .045+.018*Math.sin(Math.max(0,pose.age)*1.0+
        (side==='left'?0:1.6)):
       holistic?.055+.025*Math.sin(
@@ -346,7 +346,7 @@
    aim(thigh,shin,target,.85,index);
    target.copy(down).addScaledVector(f,
       -foldBack+.025*rise-.04*drop)
-    .addScaledVector(right,-sign*(serene?.012:
+    .addScaledVector(right,-sign*((reference||serene)?.012:
       holistic?.015:fullHover?.018:
       (softTrailingKnee||naturalHover)?.025:
       weightless?.045:
@@ -366,8 +366,8 @@
      // Actual V138 back-view VRM movie: the shoes STILL project like
      // grounded walking feet. Aim the toes DOWN while retaining their
      // calibrated horizontal heading (never force global +Z toe yaw).
-     target.y=-horizontal*(serene?1.80:(holistic||fullHover)?.65:.29);
-     aim(ankle,toe,target,serene?.84:
+     target.y=-horizontal*((reference||serene)?1.80:(holistic||fullHover)?.65:.29);
+     aim(ankle,toe,target,(reference||serene)?.84:
       (holistic||fullHover)?.52:.32,index+2);
     }
    }
