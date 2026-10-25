@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v135,v136').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v136,v137').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -211,6 +211,10 @@ async function capture(browser,preview){
      flightWeightlessSilhouette:owner.flightWeightlessSilhouette||'not-tested',
      flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
      flightFullBodySilhouette:owner.flightFullBodySilhouette||'not-tested',
+     flightHolisticSilhouette:owner.flightHolisticSilhouette||'not-tested',
+     flightPelvisBalanceWorld:owner.flightPelvisBalanceWorld||null,
+     leftHolistic:owner.flightHolisticWorld?.left||null,
+     rightHolistic:owner.flightHolisticWorld?.right||null,
      flightTorsoWorld:owner.flightTorsoWorld||null,
      leftFullBody:owner.flightFullBodyWorld?.left||null,
      rightFullBody:owner.flightFullBodyWorld?.right||null,
@@ -342,6 +346,16 @@ async function capture(browser,preview){
     t.leftToeDropCm==null||t.leftToeDropCm<4||
     t.rightToeDropCm==null||t.rightToeDropCm<4))
     throw Error('V136 real continuous Kairo full-body flight is crouched/flat-footed');
+  }
+  if(preview==='v137'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>
+    t.flightHolisticSilhouette!=='SUSPENDED'||
+    !t.flightPelvisBalanceWorld||t.flightPelvisBalanceWorld.residualTiltDeg>12||
+    !t.flightTorsoWorld||t.flightTorsoWorld.residualTiltDeg>12||
+    t.leftToeDropCm==null||t.leftToeDropCm<4||
+    t.rightToeDropCm==null||t.rightToeDropCm<4))
+    throw Error('V137 real continuous Kairo motion is not balanced in its entire pelvis/spine/limbs');
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
