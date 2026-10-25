@@ -1,5 +1,30 @@
 # Sky Clash — project context for future sessions
 
+## V142 — authored Kairo hover loop (experimental, NOT PUBLIC)
+
+Player rejected the public V141 procedural hover and explicitly opted for a
+new authored-animation approach instead of paid AI sites or manual joint
+editing. Work proceeds in `lab/v142-authored-hover-clip` only. The plain
+GitHub Pages URL stays **V141**, with approved V125 jump and V97 ground.
+
+`js/v142-hover-keyframes.js` contains a **4.6-second cyclic series of 9
+full-body performance keys** (including identical final/start pose) with
+periodic cubic interpolation across 25+ author channels. The animation
+specifies torso/neck counter-motion, independent forward knee lift, shin
+trailing and toe-down, and loose elbows/wrists in real-world directions.
+No controller/physics/world-root movement changes and no extra animation
+wrapper. `?flightPreview=v142` opts into the same V100 final owner,
+which resolves this frame's keyed anatomical directions on Kairo's existing
+VRM0 world-space joints and blends during movement. This is an authored
+skeletal *target* animation, not an imported motion-capture file.
+
+V142 is not visually approved merely because tests pass. Verify actual
+three-camera Kairo WebGL videos at 24fps before any proposal to publish.
+Reject if feet look planted, legs read as a pedal stroke, arms resemble
+dangling rigid sticks, or torso/head pitch is wrong. Preserve V141 as public
+until the player approves the actual visual result.
+
+
 ## V141 public release — October 25, 2026 (user explicitly requested publishing)
 
 The player explicitly authorized publishing V141 to the normal public game URL
