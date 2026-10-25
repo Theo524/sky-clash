@@ -56,7 +56,7 @@ assert.equal(pr.omniMode,'sideways');
 assert(pf.pelvisGoalF>baseline.pelvisGoalF+.09,
  'forward motion must visibly involve real pelvis and chest');
 assert(pb.pelvisGoalF<baseline.pelvisGoalF-.13,
- 'backward motion has substantial counterlean');
+ 'backward motion counterlean '+JSON.stringify({got:pb.pelvisGoalF,baseline:baseline.pelvisGoalF,back:b.parts.torso.b,beat:clip.interpolate(beats,1.45).torso}));
 assert(pf.chestGoalF>baseline.chestGoalF+.12,
  'front thrust engages spine, not only static legs');
 assert(pb.chestGoalF<baseline.chestGoalF-.11,
