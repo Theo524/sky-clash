@@ -101,7 +101,7 @@ for(const fps of [30,60,120]){
 
 // V138 must look different across idle hover, cruise, strafe, and vertical
 // movement. Static poses which simply pass a hand-height rule are rejected.
-const h=pose(0,0,0,.3),later=pose(0,0,0,1.75);
+const h=pose(0,0,0,.3),later=pose(0,0,0,3.3);
 const cruise=pose(.95,0,0,.3),str=pose(.45,0,6,.3),
  ascend=pose(.45,7,0,.3),descend=pose(.45,-7,0,.3);
 assert(Math.abs(h.spineX-later.spineX)>.003,
