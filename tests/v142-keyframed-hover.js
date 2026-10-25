@@ -106,7 +106,7 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2])
 
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 const authority=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("'v142','v143','v144','v145','v146','v147','v148'].includes(flags.get('flightPreview'))"),'V142 rollback retained');
+assert(boot.includes("'v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))"),'V142 rollback retained');
 assert(boot.includes("flags.set('jumpPreview','v125')"),'approved jump preserved');
 assert(boot.includes("await script('js/v142-hover-keyframes.js?v=1420')"),'load authored clip before V100');
 assert(authority.includes("flightVersion==='v142'"),'isolated playable preview');
