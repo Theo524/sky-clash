@@ -17,9 +17,9 @@ for(const t of [0,.58,1.17,1.76,2.4,2.99,3.61,4.12,4.599])
   const lower=new THREE.Vector3(p[side+'HandF'],p[side+'HandO'],p[side+'HandY']).normalize();
   const bend=Math.acos(THREE.MathUtils.clamp(upper.dot(lower),-1,1))*180/Math.PI;
   assert(bend>17&&bend<65,'relaxed, flexed elbow not a dangling straight line or boxing guard: '+side+' '+bend);
-  assert(lower.y<-.5,'hands hang below elbow, not forward punch');
+  assert(lower.z<-.5,'hands hang below elbow, not forward punch');
   assert(lower.x>.30&&lower.x<.70,'hands float a little ahead of elbows, not puppet straight');
-  assert(upper.y<-.7&&upper.z<0,'upper arms remain gently downward');
+  assert(upper.z<-.7&&upper.y>0,'upper arms stay downward and outside ribs');
  }
 const starts=sample(0),ends=sample(duration);
 assert.deepEqual(starts,ends,'periodic keyed arm loop closes');
