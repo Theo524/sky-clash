@@ -47,10 +47,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V138 vs V140
+      - name: Capture real Kairo hover, travel and vertical changes V138 vs V141
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v138,v140'
+          VISUAL_PREVIEWS: 'v138,v141'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -71,17 +71,17 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v140':
-                  assert all(t['flightReferenceSilhouette']=='RELAXED'
-                    and t['leftReference']['handAheadCm']<16
-                    and t['rightReference']['handAheadCm']<16
+              if capture['preview']=='v141':
+                  assert all(t['flightSuspendedSilhouette']=='RELAXED'
+                    and t['leftSuspended']['handAheadCm']<18
+                    and t['rightSuspended']['handAheadCm']<18
                    for t in capture['timeline'])
-          print('PASS actual Kairo V138 vs V140 natural levitation gallery')
+          print('PASS actual Kairo V138 vs V141 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v140-reference-balanced-review
+          name: real-kairo-v141-suspended-silhouette-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
