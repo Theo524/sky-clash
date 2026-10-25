@@ -982,7 +982,8 @@
   const p=v138FlightPose(mix,vertical,lateral,age);
   const slow=Math.sin(Math.max(0,age)*1.18+.2);
   return {...p,profile:'V139 reference-informed aerial pose',
-   hipsX:.010+.017*(p.mix||0)+.010*slow,
+   hipsX:.010+.017*(p.mix||0)-.018*(p.rise||0)+
+    .018*(p.descend||0)+.010*slow,
    spineX:-.020+.026*(p.mix||0)+.011*Math.sin(age*1.18-.4),
    chestX:-.020+.018*(p.mix||0)+.008*Math.sin(age*1.18-1.0),
    neckX:.014-.012*(p.mix||0)};
