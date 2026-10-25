@@ -2682,13 +2682,13 @@
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
    }
-   if(v128||v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149){
+   if(v128||v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150){
     // Stabilized from the REAL game-model facing, including VRM0's native
     // -Z parity; no extra Fighter.animate layer or invisible guide rig.
     const forward=realKairoForward(THREE,rig,null);
-    if(v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149)v137CorrectPelvisBalance(THREE,rig,forward,flightControl,
+    if(v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150)v137CorrectPelvisBalance(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.32),st.prev,dt,status);
-    if(v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149)v136CorrectSuspendedTorso(THREE,rig,forward,flightControl,
+    if(v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150)v136CorrectSuspendedTorso(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.30),st.prev,dt,status);
     v128CorrectFlightLegs(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.26),st.prev,dt,status);
