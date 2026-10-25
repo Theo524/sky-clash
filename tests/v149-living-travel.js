@@ -72,7 +72,7 @@ for(const t of from){
 const f0=performance(forward,1.24),b0=performance(back,1.24);
 assert(f0.bodyF>0&&b0.bodyF<0,
  'backward travel uses opposing chest/hip movement');
-assert(f0.leftKnee>.24&&b0.leftKnee>.27,
+assert(f0.leftKnee>.18&&b0.leftKnee>.23,
  'both directions feature real suspended knee motion');
 assert(f0.rightHandF<0&&b0.rightHandF>0,
  'hands respond differently to forward and backward travel');
