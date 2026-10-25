@@ -968,10 +968,12 @@
  // V140 reference-led calm hovering rather than stepping or crouching.
  function v140FlightPose(mix,vertical=0,lateral=0,age=0){
   const p=v138FlightPose(mix,vertical,lateral,age);
-  const flow=p.mix||0,slow=Math.sin(Math.max(0,age)*1.15+.2);
+  const flow=p.mix||0,rise=p.rise||0,drop=p.descend||0,
+   slow=Math.sin(Math.max(0,age)*1.15+.2);
   return {...p,profile:'V140 reference-balanced hover',
-   hipsX:.002+.013*flow+.006*slow,
-   spineX:-.015+.017*flow+.009*Math.sin(age*1.15-.3),
+   hipsX:.002+.013*flow-.013*rise+.010*drop+.006*slow,
+   spineX:-.015+.017*flow-.009*rise+.007*drop+
+    .009*Math.sin(age*1.15-.3),
    chestX:-.014+.013*flow+.006*Math.sin(age*1.15-.7),
    neckX:.011-.016*flow};
  }
