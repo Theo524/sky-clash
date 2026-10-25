@@ -160,6 +160,7 @@ jobs:
       - run: node --check js/v79-extra-actions.js
       - run: node --check js/v81-pose-transitions.js
       - run: node --check js/v100-pose-authority.js
+      - run: node --check js/v142-hover-keyframes.js
       - run: node --check js/v89-grounded-step.js
       - run: node --check js/v95-joystick-radius.js
       - run: node --check js/v91-stance-continuity.js
@@ -230,6 +231,7 @@ jobs:
       - run: node tests/v138-reference-levitation.js
       - run: node tests/v140-reference-balanced-hover.js
       - run: node tests/v141-suspended-silhouette.js
+      - run: node tests/v142-keyframed-hover.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
