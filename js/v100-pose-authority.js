@@ -357,8 +357,12 @@
      // V136: unplant feet visually. VRM0 stock shoes stay flat in
      // V135, reading like stepping on an invisible ground plane.
      // Only the coherent new flight profile gets dangling toes.
-     target.y=-horizontal*((serene||holistic||fullHover)?.65:.29);
-     aim(ankle,toe,target,(serene||holistic||fullHover)?.52:.32,index+2);
+     // Actual V138 back-view VRM movie: the shoes STILL project like
+     // grounded walking feet. Aim the toes DOWN while retaining their
+     // calibrated horizontal heading (never force global +Z toe yaw).
+     target.y=-horizontal*(serene?1.80:(holistic||fullHover)?.65:.29);
+     aim(ankle,toe,target,serene?.84:
+      (holistic||fullHover)?.52:.32,index+2);
     }
    }
    scene.updateMatrixWorld(true);
