@@ -24,7 +24,7 @@ if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  throw new Error('Provide 1–3 distinct safe preview IDs like v119,v120');
 
 const views={front:0,side:Math.PI/2,back:Math.PI};
-const count=9;
+const count=13;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+preview;
@@ -55,16 +55,20 @@ function compose(left,right,dest,labels){
 }
 function motionDescriptor(i){
  // Pose-gallery stages: 45 fixed animation steps PER stage so
- // hands have fully settled. These 9 photos are not a continuous
- // 9-frame physics film; the normal full film remains separately tested.
+ // hands have fully settled. These 13 photos are not a continuous
+ // 13-frame physics film; the normal full film remains separately tested.
  const common={elapsed:i*45/fps,height:2,forward:0,side:0,vertical:0};
- if(i===0||i===1||i===8)return {...common,name:'hover'};
+ if(i===0||i===1||i===12)return {...common,name:'hover'};
  if(i===2)return {...common,name:'cruise',forward:6.2};
  if(i===3)return {...common,name:'strafe-left',forward:3,side:-5};
  if(i===4)return {...common,name:'strafe-right',forward:3,side:5};
  if(i===5)return {...common,name:'ascend',forward:3,vertical:7};
  if(i===6)return {...common,name:'descend',forward:3,vertical:-7};
- return {...common,name:'backward',forward:-6.2};
+ if(i===7)return {...common,name:'backward',forward:-6.2};
+ if(i===8)return {...common,name:'diagonal',forward:4.4,side:4.4};
+ if(i===9)return {...common,name:'fast',forward:11.5};
+ if(i===10)return {...common,name:'turn-left',forward:2};
+ return {...common,name:'turn-right',forward:2};
 }
 async function capture(browser,preview){
  const context=await browser.newContext({viewport:{width:960,height:640},
@@ -180,7 +184,13 @@ async function capture(browser,preview){
     p.model.root.position.y=g.__videoGroundY+stage.height;
     p.model.root.position.z=g.__videoStartZ;
     p.pos.z=g.__videoPosZ;
-    for(let k=0;k<(i===0?90:45);k++)p.animate(1/fps);
+    for(let k=0;k<(i===0?90:45);k++){
+     if(stage.name==='turn-left'||stage.name==='turn-right'){
+      p.facing+=(stage.name==='turn-left'?-1:1)*.055;
+      p.model.root.rotation.y=p.facing;
+     }
+     p.animate(1/fps);
+    }
     const owner=window.SkyClashPoseAuthority;
     const h=p.vrmRig.vrm.humanoid;
     const point=n=>{
@@ -206,6 +216,12 @@ async function capture(browser,preview){
      horizontalPoseLegs:owner.flightHorizontalLegs??null,
      horizontalPoseArms:owner.flightHorizontalArms??null,
      signedForward:owner.flightSignedForward??null,
+     signedSide:owner.flightSignedSide??null,
+     horizontalPoseSide:owner.flightHorizontalSide??null,
+     horizontalPoseTurn:owner.flightHorizontalTurn??null,
+     horizontalPoseFast:owner.flightHorizontalFast??null,
+     horizontalPoseLaunch:owner.flightHorizontalLaunch??null,
+     horizontalPoseBrake:owner.flightHorizontalBrake??null,
      smoothedLateral:owner.flightSmoothedLateral||0,
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
      flightMaxStepDeg:owner.flightMaxStepDeg||0,
