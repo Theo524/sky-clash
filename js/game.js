@@ -2685,7 +2685,13 @@ class Fighter {
     else if (this.dashing || fastFly) {
       // Controlled powered flight: upper body still faces travel direction instead
       // of tipping nearly horizontal like a falling meteor.
-      pitchT = 0.15 + 0.13 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.10, 0.10);
+      // V150 is a Kairo-only opt-in Boost animation; the physics/camera
+      // and other characters continue to use the existing sprint owner.
+      const boost150 = this.characterId === 'kairo_venn' &&
+        !!window.SkyClashV150Flight;
+      pitchT = boost150 ?
+        0.29 + 0.08 * this.flightSpeedBlend - clamp(this.vel.y / 180, -0.04, 0.04) :
+        0.15 + 0.13 * this.flightSpeedBlend - clamp(this.vel.y / 150, -0.10, 0.10);
       rollT = this.airBank;
     }
     else if (this.sprinting) {
@@ -2847,7 +2853,19 @@ class Fighter {
       P = { arm: [[-0.82, 0.52, -1.18], [-0.58, 0.62, -1.02]], leg: [[0.28, 0.92, 0.20], [-0.62, 0.54, 0.18]], spineY: 0.12, spineX: 0.02, headX: 0.04 };
     } else if (this.sprinting && flying) {
       // Boosted aerial travel: relaxed martial-arts flight posture, not a dive.
-      P = { arm: [[-0.2, 0.28, -1.05], [-0.95, 0.20, -0.85]], leg: [[0.05, 0.38, 0.06], [-0.25, 0.66, 0.06]], spineY: 0.08, spineX: 0.20, headX: -0.12 };
+      if (this.characterId === 'kairo_venn' && window.SkyClashV150Flight) {
+        // Athletic boosted flight with a little more pitch than normal
+        // joystick travel, but never a horizontal Superman dive. Legs
+        // and hands keep breathing on different beats throughout Boost.
+        const drift = Math.sin(this.t * 2.35), delay = Math.sin(this.t * 2.35 - 0.8);
+        P = { arm: [[-0.26 + 0.07 * delay, 0.31, -1.06 + 0.08 * drift],
+                    [-0.80 - 0.06 * drift, 0.25, -0.91 + 0.08 * delay]],
+              leg: [[0.10 + 0.10 * delay, 0.44 + 0.09 * drift, 0.06],
+                    [-0.31 - 0.06 * drift, 0.72 + 0.09 * delay, 0.06]],
+              spineY: 0.08, spineX: 0.11 + 0.025 * drift, headX: -0.10 };
+      } else {
+        P = { arm: [[-0.2, 0.28, -1.05], [-0.95, 0.20, -0.85]], leg: [[0.05, 0.38, 0.06], [-0.25, 0.66, 0.06]], spineY: 0.08, spineX: 0.20, headX: -0.12 };
+      }
     } else if (this.sprinting) {
       // ground sprint: long strides, arms swept back
       // athletic sprint: upright chest, strong arm pump, long strides (no arms-back lean)
