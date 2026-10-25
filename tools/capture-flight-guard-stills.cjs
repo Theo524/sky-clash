@@ -173,7 +173,12 @@ async function capture(browser,preview){
     p.t=(p.t||0)+1/fps;
     p.facing=0;p.model.root.rotation.y=0;
     p.vel.x=stage.side;p.vel.y=stage.vertical;p.vel.z=stage.forward;
-    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,Math.sign(stage.forward));
+    // Lock on specifically for combat retreat and strafing; forward
+    // exploration should use free-camera movement in V150.
+    g.lockOn=stage.name==='backward'||stage.name==='strafe-left'||
+      stage.name==='strafe-right'||stage.name==='diagonal';
+    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,
+      Math.sign(stage.forward));
     p.v95JoystickRun=false;
     p.v89Step=p.v89Step||{mode:'idle',scale:0};
     p.v89Step.mode='idle';p.v89Step.scale=0;
@@ -211,6 +216,9 @@ async function capture(browser,preview){
      verticalPoseLegs:owner.flightVerticalLegs??null,
      verticalPoseArms:owner.flightVerticalArms??null,
      horizontalPoseMode:owner.flightHorizontalMode||null,
+     inputStrength:owner.flightInputStrength??null,
+     lockedRetreat:owner.flightRetreatLocked??null,
+     inputForward:owner.flightInputForward??null,
      horizontalPoseWeight:owner.flightHorizontalWeight??null,
      horizontalPoseTorso:owner.flightHorizontalTorso??null,
      horizontalPoseLegs:owner.flightHorizontalLegs??null,
