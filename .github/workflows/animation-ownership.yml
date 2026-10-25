@@ -63,6 +63,8 @@ jobs:
         run: node tests/v142-keyframed-hover.js
       - name: Check V143 living hover animation ownership and transitions
         run: node tests/v143-living-hover.js
+      - name: Check V144 natural arms without changes to approved body or jump
+        run: node tests/v144-relaxed-arms.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'
