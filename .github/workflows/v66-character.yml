@@ -227,6 +227,7 @@ jobs:
       - run: node tests/v135-soft-trailing-knee.js
       - run: node tests/v136-whole-body-hover.js
       - run: node tests/v137-balanced-freeflight.js
+      - run: node tests/v138-reference-levitation.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |

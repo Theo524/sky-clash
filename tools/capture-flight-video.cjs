@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v136,v137').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v137,v138').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -212,6 +212,9 @@ async function capture(browser,preview){
      flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
      flightFullBodySilhouette:owner.flightFullBodySilhouette||'not-tested',
      flightHolisticSilhouette:owner.flightHolisticSilhouette||'not-tested',
+     flightSereneSilhouette:owner.flightSereneSilhouette||'not-tested',
+     leftSerene:owner.flightSereneWorld?.left||null,
+     rightSerene:owner.flightSereneWorld?.right||null,
      flightPelvisBalanceWorld:owner.flightPelvisBalanceWorld||null,
      leftHolistic:owner.flightHolisticWorld?.left||null,
      rightHolistic:owner.flightHolisticWorld?.right||null,
@@ -356,6 +359,18 @@ async function capture(browser,preview){
     t.leftToeDropCm==null||t.leftToeDropCm<4||
     t.rightToeDropCm==null||t.rightToeDropCm<4))
     throw Error('V137 real continuous Kairo motion is not balanced in its entire pelvis/spine/limbs');
+  }
+  if(preview==='v138'){
+   const settled=timeline.filter(t=>t.frame>=20&&t.frame<=47&&t.pose==='flight');
+   if(settled.length<15||settled.some(t=>
+      t.flightSereneSilhouette!=='RELAXED'||
+      !t.leftSerene||!t.rightSerene||
+      t.leftSerene.handAheadCm>=12||t.rightSerene.handAheadCm>=12||
+      t.leftToeDropCm==null||t.leftToeDropCm<11||
+      t.rightToeDropCm==null||t.rightToeDropCm<11||
+      t.leftKneeBendDeg==null||t.leftKneeBendDeg>43||
+      t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
+      throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
   }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){

@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v136,v137').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v137,v138').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -206,6 +206,9 @@ async function capture(browser,preview){
      flightNaturalSilhouette:owner.flightNaturalSilhouette||'not-tested',
      flightFullBodySilhouette:owner.flightFullBodySilhouette||'not-tested',
      flightHolisticSilhouette:owner.flightHolisticSilhouette||'not-tested',
+     flightSereneSilhouette:owner.flightSereneSilhouette||'not-tested',
+     leftSerene:owner.flightSereneWorld?.left||null,
+     rightSerene:owner.flightSereneWorld?.right||null,
      flightPelvisBalanceWorld:owner.flightPelvisBalanceWorld||null,
      leftHolistic:owner.flightHolisticWorld?.left||null,
      rightHolistic:owner.flightHolisticWorld?.right||null,
@@ -384,6 +387,22 @@ async function capture(browser,preview){
        JSON.stringify(t));
    }
   }
+  if(preview==='v138'){
+   for(const t of timeline){
+    const arms=[t.leftSerene,t.rightSerene];
+    if(t.flightSereneSilhouette!=='RELAXED'||
+       !t.flightPelvisBalanceWorld||t.flightPelvisBalanceWorld.residualTiltDeg>13||
+       arms.some(a=>!a||a.elbowOutCm<1||a.elbowOutCm>10||
+        a.handAheadCm>12||a.handBelowChestCm<23)||
+       t.leftToeDropCm==null||t.rightToeDropCm==null||
+       t.leftToeDropCm<11||t.rightToeDropCm<11||
+       t.leftKneeBendDeg==null||t.rightKneeBendDeg==null||
+       t.leftKneeBendDeg<10||t.rightKneeBendDeg<10||
+       t.leftKneeBendDeg>43||t.rightKneeBendDeg>43)
+     throw Error('V138 actual Kairo failed reference-like serene hover: '+
+       JSON.stringify(t));
+   }
+  }
   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
@@ -444,6 +463,21 @@ async function capture(browser,preview){
    improved+' / 8');
   console.log('PASS V137 real-VRM 3-view pelvis + thigh silhouette improved in',
     improved+'/8 flight stages');
+ }
+ if(versions.includes('v137')&&versions.includes('v138')){
+  const old=reports.find(c=>c.preview==='v137').timeline;
+  const fresh=reports.find(c=>c.preview==='v138').timeline;
+  let improved=0;
+  for(let i=0;i<fresh.length;i++){
+   const a=old[i],b=fresh[i];
+   const oldReach=(a.leftHolistic.handAheadCm+a.rightHolistic.handAheadCm)/2;
+   const newReach=(b.leftSerene.handAheadCm+b.rightSerene.handAheadCm)/2;
+   if(oldReach-newReach>5)improved++;
+  }
+  if(improved<6)
+   throw Error('V138 hands still visibly reach forward in real Kairo '+improved+'/8');
+  console.log('PASS real Kairo V138 downward relaxed arm silhouette in',
+   improved,'of 8 stages');
  }
  if(versions.length===2){
   for(const view of Object.keys(views)){
