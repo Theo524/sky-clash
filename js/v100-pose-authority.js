@@ -2373,7 +2373,7 @@
      status.flightHorizontalLegs=+flightControl.horizontalActionLegs.toFixed(3);
      status.flightHorizontalArms=+flightControl.horizontalActionArms.toFixed(3);
     }
-    if(v148){
+    if(v148||v149){
      status.flightHorizontalMode=flightControl.omniMode;
      status.flightHorizontalWeight=+flightControl.omniWeight.toFixed(3);
      status.flightHorizontalTurn=+flightControl.omniTurn.toFixed(3);
@@ -2381,6 +2381,7 @@
      status.flightHorizontalLaunch=+flightControl.omniLaunch.toFixed(3);
      status.flightHorizontalBrake=+flightControl.omniBrake.toFixed(3);
      status.flightHorizontalSide=+flightControl.omniSide.toFixed(3);
+     if(v149)status.flightTravelPhase=+flightControl.travelPerformancePhase.toFixed(3);
     }
    }
    const expressive=params.get('jumpStyle')==='expressive'&&
@@ -3037,7 +3038,7 @@
        st.v147Motion=clip.step(st.v147Motion,signedForward,safe);
        status.flightSignedForward=+signedForward.toFixed(2);
       }
-      if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v148'){
+      if(['v148','v149'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
        const clip=root.SkyClashV148AllFlight;
        if(!clip)throw Error('V148 omnibus authored motion unavailable');
        st.v148Motion=clip.step(st.v148Motion,this.vel?.x||0,
