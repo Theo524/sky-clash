@@ -173,7 +173,7 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2])
    assert(g.kneeForwardCm>0&&g.shinBackCm>4,
     'Knee must bend forwards but trailing shoe sweep BACK under the hip: '+
     JSON.stringify({yaw,mirrored,side,g}));
-   assert(g.toeDropCm>3,
+   assert(g.toeDropCm>10,
     'Toe-down suspended foot, not flat ground plant: '+JSON.stringify(g));
    assert(g.kneeBendDeg>10&&g.kneeBendDeg<39,
     'Calm hovering knee flex: '+JSON.stringify(g));
