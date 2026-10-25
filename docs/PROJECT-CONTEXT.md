@@ -1,5 +1,20 @@
 # Sky Clash — project context for future sessions
 
+## V144 — natural relaxed flight arms (2026-10-25)
+
+Player LOVES V143's newly living hover body and V142's flight stance, but
+asked for more natural flying arms. V144 **only replaces authored elbow
+and hand direction goals**, keeps the V143 torso, legs and flight physics
+identical and preserves approved V125 jump and V97 ground/walk/run/combat.
+It is a nine-key, 4.6-second loop with staggered left/right upper-arm and
+forearm movement: softly bent elbows, wrists below elbows, hands gently
+ahead/inward, no boxing guard or airplane arms. Solved against the real
+VRM0 bone geometry inside the single V100 owner. The V143 profile remains
+available through `?flightPreview=v143` for instant rollback. The player
+has requested each iteration be playable at the normal Sky Clash URL:
+https://theo524.github.io/sky-clash/. Do not alter approved actions.
+
+
 ## V143 — living flight body animation (2026-10-25)
 
 The player confirmed V142's silhouette is far better, but Kairo looked
