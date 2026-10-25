@@ -60,14 +60,15 @@ function motionDescriptor(i){
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
  if(i<4)return {...common,name:'ground',height:0};
  if(i<12)return {...common,name:'hover'};
- if(i<21)return {...common,name:'accelerate',forward:6.2*(i-12)/8};
- if(i<28)return {...common,name:'cruise',forward:6.2};
- if(i<34)return {...common,name:'strafe-left',forward:4,side:-5};
- if(i<40)return {...common,name:'strafe-right',forward:4,side:5};
- if(i<44)return {...common,name:'ascend',forward:3,vertical:7};
- if(i<48)return {...common,name:'descend',forward:3,vertical:-7};
- if(i<52)return {...common,name:'brake',forward:6.2*(51-i)/4};
- if(i<54)return {...common,name:'boost',forward:6.2};
+ if(i<20)return {...common,name:'accelerate',forward:6.2*(i-12)/7};
+ if(i<26)return {...common,name:'cruise',forward:6.2};
+ if(i<31)return {...common,name:'strafe-left',forward:4,side:-5};
+ if(i<36)return {...common,name:'strafe-right',forward:4,side:5};
+ if(i<42)return {...common,name:'backward',forward:-6.2};
+ if(i<46)return {...common,name:'ascend',forward:3,vertical:7};
+ if(i<50)return {...common,name:'descend',forward:3,vertical:-7};
+ if(i<54)return {...common,name:'brake',forward:6.2*(53-i)/4};
+ if(i<57)return {...common,name:'boost',forward:6.2};
  return {...common,name:'recover'};
 }
 async function capture(browser,preview){
@@ -173,7 +174,12 @@ async function capture(browser,preview){
     p.t=(p.t||0)+1/fps;
     p.facing=0;p.model.root.rotation.y=0;
     p.vel.x=stage.side;p.vel.y=stage.vertical;p.vel.z=stage.forward;
-    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,stage.forward?1:0);
+    // Real camera lock decision drives V150's distinct retreat animation.
+    g.lockOn=stage.name==='backward'||stage.name==='strafe-left'||
+      stage.name==='strafe-right';
+    g.CameraRigLockForReview=g.lockOn;
+    p.moveIntent.set(stage.side?Math.sign(stage.side):0,0,
+      stage.forward?Math.sign(stage.forward):0);
     p.v95JoystickRun=false;
     p.v89Step=p.v89Step||{mode:'idle',scale:0};
     p.v89Step.mode='idle';p.v89Step.scale=0;
@@ -199,6 +205,10 @@ async function capture(browser,preview){
      verticalSpeed:p.vel.y,lateralSpeed:p.vel.x,
      pose:owner.active,flightStyle:owner.flightStyle,
      flightBlend:owner.flightBlend||0,
+     inputStrength:owner.flightInputStrength??null,
+     lockedRetreat:owner.flightRetreatLocked??null,
+     inputForward:owner.flightInputForward??null,
+     horizontalPoseMode:owner.flightHorizontalMode??null,
      smoothedVertical:owner.flightSmoothedVertical||0,
      smoothedLateral:owner.flightSmoothedLateral||0,
      airFacingDriftDeg:owner.airFacingDriftDeg||0,
