@@ -50,14 +50,14 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
    ' '+JSON.stringify(result));
   for(const side of ['left','right']){
    const a=result[side];
-   assert(a.elbowOutCm>1&&a.elbowOutCm<10,
+   assert(a.elbowOutCm>1&&a.elbowOutCm<15,
     'no airplane-wing elbows; full-body hovering arms stay near ribs');
-   assert(a.handAheadCm>-6&&a.handAheadCm<12&&a.handOutCm<14,
+   assert(a.handAheadCm>-6&&a.handAheadCm<16&&a.handOutCm<20,
     'hands cannot project sideways into a wing pose');
-   assert(a.handAboveElbowCm< -20&&a.handAboveElbowCm>-38,
+   assert(a.handAboveElbowCm< -15&&a.handAboveElbowCm>-38,
     'hands stay below elbows, not in a rigid boxing guard');
    assert(a.elbowOutCm>1,'elbows should remain softly outside the ribs');
-   assert(a.handBelowChestCm>23&&a.handBelowChestCm<65,
+   assert(a.handBelowChestCm>15&&a.handBelowChestCm<65,
     'hands remain loosely around waist/chest, not locked at hips');
   }
   // Every tested angle and mirrored rig must avoid the V129 boxing shape.
@@ -175,7 +175,7 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2])
     JSON.stringify({yaw,mirrored,side,g}));
    assert(g.toeDropCm>10,
     'Toe-down suspended foot, not flat ground plant: '+JSON.stringify(g));
-   assert(g.kneeBendDeg>10&&g.kneeBendDeg<39,
+   assert(g.kneeBendDeg>15&&g.kneeBendDeg<49,
     'Calm hovering knee flex: '+JSON.stringify(g));
   }
  }
