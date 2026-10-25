@@ -82,5 +82,9 @@ assert(boot.includes("flags.set('flightPreview','v149')"));
 assert(boot.includes("flags.set('jumpPreview','v125')"));
 assert(boot.includes("await script('js/v149-travel-performance.js?v=1490')"));
 assert(source.includes("flightVersion==='v149'"));
+assert(source.includes("if(['v148','v149'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview')))"),
+ 'V149 MUST advance the actual direction springs each WebGL frame');
+assert(source.includes('if(v148||v149){'),
+ 'V149 MUST expose direction telemetry in the real VRM capture');
 assert(source.includes("v149?'living-travel'"));
 console.log('PASS V149: real travelling knee/calf/hip/chest/wrist motion, no walk cycle, 30/60/120fps, exact approved hover and V125 jump');
