@@ -2632,7 +2632,7 @@
      // arm quaternion here, letting only the final real-world solver
      // advance those four joints with the original 5rad/s budget.
      // All other flight joints retain the historical V111 limiter.
-     if((v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     if((v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
      else{
       const maxStep=5.0*Math.max(0,dt);
       const delta=st.prev[i].angleTo(qTarget);
