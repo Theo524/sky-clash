@@ -292,7 +292,7 @@
     await script('js/v145-vertical-flight.js?v=1450');
    if(['v146','v147','v148'].includes(new URLSearchParams(location.search).get('flightPreview')))
     await script('js/v146-vertical-followthrough.js?v=1460');
-   if(new URLSearchParams(location.search).get('flightPreview')==='v147')
+   if(['v147','v148'].includes(new URLSearchParams(location.search).get('flightPreview')))
     await script('js/v147-horizontal-flight.js?v=1470');
    if(new URLSearchParams(location.search).get('flightPreview')==='v148')
     await script('js/v148-full-flight.js?v=1480');
