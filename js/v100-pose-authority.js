@@ -864,7 +864,8 @@
   const bank=clamp(pose?.bank||0,-1,1);
   // V143's independently keyed upper-chest counterbalance remains
   // anatomically vertical while still moving visibly under its pelvis.
-  const animated=pose?.profile==='V143 living hover performance';
+  const animated=pose?.profile==='V143 living hover performance'||
+   pose?.profile==='V144 relaxed floating arms';
   const goal=up.clone().addScaledVector(f,.025+.045*travel+
     (animated?(pose.chestGoalF||0):0))
    .addScaledVector(across,.030*bank+
@@ -946,7 +947,8 @@
   // V143 moves Kairo's pelvis/chest axis around a gently varying
   // world-facing target: breathing and counterweight without root bob.
   // All historical profiles use IDENTICAL old correction goals.
-  const animated=pose?.profile==='V143 living hover performance';
+  const animated=pose?.profile==='V143 living hover performance'||
+   pose?.profile==='V144 relaxed floating arms';
   const desired=up.clone()
    .addScaledVector(f,-.045+.080*travel+
     (animated?(pose.pelvisGoalF||0):0))
