@@ -22,7 +22,7 @@
    flags.set('jumpPreview','v125');
    flags.set('flightPreview','v141');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -198,6 +198,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v138')e.src+='&sereneFlight=138';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v140')e.src+='&referenceFlight=140';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v141')e.src+='&suspendedFlight=141';
+    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v142')e.src+='&authoredFlight=142';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -275,6 +276,8 @@
   // V100 unified air owner is installed LAST after every legacy layer.
   // The old wrappers yield only during natural jump/fall/landing states.
   if(new URLSearchParams(location.search).get('animator')==='unified'){
+   if(new URLSearchParams(location.search).get('flightPreview')==='v142')
+    await script('js/v142-hover-keyframes.js?v=1420');
    await script('js/v100-pose-authority.js?v=1000');
    window.SkyClashV100Animator.start(window);
   }
