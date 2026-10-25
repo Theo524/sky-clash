@@ -185,6 +185,6 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v141'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("'v140','v141','v142','v143','v144','v145','v146','v147'].includes(flags.get('flightPreview'))"));
+assert(boot.includes("'v140','v141','v142','v143','v144','v145','v146','v147','v148'].includes(flags.get('flightPreview'))"));
 assert(boot.includes("e.src+='&suspendedFlight=141'"));
 console.log('PASS V141: pelvis-balanced organic arms and leg drift at four facing angles and mirrored bones, VRM upright torso and trailing shoes, 30/60/120fps joint caps');
