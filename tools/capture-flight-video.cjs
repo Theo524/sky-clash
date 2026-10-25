@@ -366,6 +366,8 @@ async function capture(browser,preview){
       t.flightSereneSilhouette!=='RELAXED'||
       !t.leftSerene||!t.rightSerene||
       t.leftSerene.handAheadCm>=12||t.rightSerene.handAheadCm>=12||
+      t.leftToeDropCm==null||t.leftToeDropCm<11||
+      t.rightToeDropCm==null||t.rightToeDropCm<11||
       t.leftKneeBendDeg==null||t.leftKneeBendDeg>43||
       t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
       throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
