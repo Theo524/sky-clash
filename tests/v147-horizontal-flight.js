@@ -100,9 +100,9 @@ for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
 }
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  source=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("flags.set('flightPreview','v147')"));
+assert(boot.includes("'v147','v148'].includes(flags.get('flightPreview'))"));
 assert(boot.includes("flags.set('jumpPreview','v125')"));
-assert(boot.includes("const BUILD='V147'"));
+assert(boot.includes("const BUILD='V148'"));
 assert(boot.includes("await script('js/v147-horizontal-flight.js?v=1470')"));
 assert(source.includes("flightVersion==='v147'"));
 assert(source.includes("v147?'directional-flight'"));
