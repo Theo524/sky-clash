@@ -1,30 +1,26 @@
 # Sky Clash — project context for future sessions
 
-## V141 experimental flight silhouette — 2026-10-25 (NOT approved or published)
+## V141 public release — October 25, 2026 (user explicitly requested publishing)
 
-Real-Kairo V138/V140 24fps front/side/back WebGL films from PR #92 were
-manually inspected. V140 tests pass but the rendered actor still appears
-nearly standing, with shoes looking horizontal and arms near the trousers.
-Measured 20–39 degree knee bends and ~14cm toe joint drop are not adequate
-proof of a weightless silhouette; visual acceptance is a separate gate.
+The player explicitly authorized publishing V141 to the normal public game URL
+after learning that the experimental branch was not playable there. PR #93
+promotes V141 via the same existing V100 final flight pose writer; there is
+no separate preview URL required for the player. Default boot normalizes to
+`flightPreview=v141`, preserves approved `jumpPreview=v125` and V97
+ground movement, and identifies `SkyClashBuild.version='V141'`.
+Other game features (Boost, combat, Rin, grounded animations, physics) are
+unchanged. Index boot query was cache-busted for browsers and phones.
 
-V141 (`?flightPreview=v141`) experiments ONLY on normal powered flight
-using the existing V100 writer. Right knee softens, left leg remains
-asymmetric, shoes get stronger down-aim and arms softly clear the torso.
-Breathing through pelvis/spine/chest is slightly retimed. No changes to
-the approved V125 jump, V97 ground, Boost, combat, physics, visible
-VRM asset, Rin or new animation writers. V138 is the *public default*,
-and the branch explicitly reverses PR #92's premature V140 default.
-The game link retains the V138 release identity.
+The V141 flight profile aims for asymmetric suspended knee bends, stronger
+dangling-shoe pitch, and relaxed forearms with torso breathing. Five branch
+workflow suites passed before publishing: real Kairo powered-flight videos,
+hover stills, real Kairo jump captures, VRM character integration, and
+animation ownership. Passing machine tests and recording videos do NOT
+constitute manual visual approval; the player will review live game.
 
-Review: V141 world-space rig tests at 30/60/120fps plus full character
-and animation-owner checks; real Kairo 8-stage and 60-frame videos from
-front, side and back compared with V138. Reject V141 if any standing,
-pedalling, foot-flat, stiff-arm, slumped-head or transition problem
-persists in actual footage, regardless of green tests. Do not deploy
-without explicit user approval. Rollback: canonical /sky-clash/
-(V138) or explicit `?flightPreview=v138`.
-
+Historical comparison/rollback: `?flightPreview=v138` restores prior V138
+flight; `?flightPreview=v140` accesses V140. Public game:
+https://theo524.github.io/sky-clash/.
 
 **Snapshot: October 24, 2026. Recheck the live GitHub main branch and open
 pull requests before assuming this is current.**
