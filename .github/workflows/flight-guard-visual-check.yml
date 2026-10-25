@@ -6,6 +6,7 @@ on:
     paths:
       - 'js/v100-pose-authority.js'
       - 'js/v66-game-boot.js'
+      - 'js/v142-hover-keyframes.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -47,10 +48,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V138 vs V141
+      - name: Capture real Kairo hover, travel and vertical changes V141 vs V142
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v138,v141'
+          VISUAL_PREVIEWS: 'v141,v142'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -71,17 +72,17 @@ jobs:
                       '-select_streams','v:0','-show_entries','stream=nb_frames',
                       '-of','json',str(f)]))['streams'][0]
                   assert int(d['nb_frames'])==8
-              if capture['preview']=='v141':
-                  assert all(t['flightSuspendedSilhouette']=='RELAXED'
-                    and t['leftSuspended']['handAheadCm']<18
-                    and t['rightSuspended']['handAheadCm']<18
+              if capture['preview']=='v142':
+                  assert all(t['flightAuthoredClip']=='V142 4.6s keyed hover'
+                    and t['leftAuthored']['handAheadCm']<18
+                    and t['rightAuthored']['handAheadCm']<18
                    for t in capture['timeline'])
-          print('PASS actual Kairo V138 vs V141 natural levitation gallery')
+          print('PASS actual Kairo V141 vs V142 natural levitation gallery')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v141-suspended-silhouette-review
+          name: real-kairo-v142-authored-hover-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn

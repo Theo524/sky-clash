@@ -1,5 +1,28 @@
 # Sky Clash — project context for future sessions
 
+## V142 public release — October 25, 2026 (explicit player request)
+
+The player said they should always be able to **play the actual game** with
+animation changes and explicitly requested: "just upload and give game link
+with all changes". Accordingly V142 was promoted to the normal GitHub Pages
+game URL (no debug query parameters needed); default `flightPreview=v142`,
+`SkyClashBuild.version=V142`, and an updated HTML boot cache key. The
+approved V125 jump, V97 ground, Boost/combat, gameplay physics and Rin are
+unchanged. Historical rollback `?flightPreview=v141` remains available.
+
+V142 is a **4.6-second, 9-pose authored skeletal motion** with periodic cubic
+interpolation across 25+ pelvis, torso, arm, leg and foot parameters. The
+pre-release actual Kairo WebGL review found the initial V142 too crouched;
+the subsequent revision uses one lifted/folded thigh and a longer hanging leg.
+Front/side Kairo VRM recordings of that correction were inspected. The
+player wants to PLAY the release and judge further improvements in game,
+rather than approving mockups or a non-public branch. Numeric tests are not
+final aesthetic approval. Continue to accept gameplay feedback and refine.
+
+Playable: https://theo524.github.io/sky-clash/
+Fallback: https://theo524.github.io/sky-clash/?flightPreview=v141
+PR: https://github.com/Theo524/sky-clash/pull/94
+
 ## V141 public release — October 25, 2026 (user explicitly requested publishing)
 
 The player explicitly authorized publishing V141 to the normal public game URL
