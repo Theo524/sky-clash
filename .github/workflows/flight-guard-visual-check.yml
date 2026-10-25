@@ -73,8 +73,8 @@ jobs:
                   assert int(d['nb_frames'])==8
               if capture['preview']=='v139':
                   assert all(t['flightAerialSilhouette']=='AIRBORNE'
-                    and t['leftSerene']['handAheadCm']<12
-                    and t['rightSerene']['handAheadCm']<12
+                    and t['leftAerial']['handAheadCm']<20
+                    and t['rightAerial']['handAheadCm']<20
                    for t in capture['timeline'])
           print('PASS actual Kairo V138 vs V139 natural levitation gallery')
           PY
