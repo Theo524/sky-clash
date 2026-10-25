@@ -42,7 +42,7 @@ for(const [name,value] of Object.entries({
 }))assert.equal(run.flags.get(name),value,'Default '+name);
 assert.equal(run.urls.length,1,'Rewrite defaults without page reload');
 // Historical V115 defaults are retained for explicit comparison URLs.
-// The normal game URL now integrates approved V125 jump + V147 directional forward/back flight.
+// The normal game URL now integrates approved V125 jump + V148 full-body flight.
 const jumpDefaults={
  airLab:'jump',animator:'unified',jumpArms:'compact',airLegs:'steady',
  movingJump:'carry',landingLab:'contact',landingFeet:'plant',
@@ -51,13 +51,13 @@ const jumpDefaults={
 };
 for(const [name,value] of Object.entries({...jumpDefaults,jumpKnees:'anatomic',
  flightLab:'blend',flightStyle:'airborne',
- jumpPreview:'v125',flightPreview:'v147'}))
- assert.equal(run.flags.get(name),value,'V147 integrated public default: '+name);
+ jumpPreview:'v125',flightPreview:'v148'}))
+ assert.equal(run.flags.get(name),value,'V148 integrated public default: '+name);
 // Scene/custom gameplay URL parameters must not remove the unified default.
 const integratedScene=simulate('?scene=dojo');
 assert.equal(integratedScene.flags.get('scene'),'dojo');
 assert.equal(integratedScene.flags.get('jumpPreview'),'v125');
-assert.equal(integratedScene.flags.get('flightPreview'),'v147');
+assert.equal(integratedScene.flags.get('flightPreview'),'v148');
 run=simulate('?flightPreview=v130');
 assert.equal(run.flags.get('jumpPreview'),'v125');
 assert.equal(run.flags.get('flightLab'),'blend');
@@ -192,18 +192,19 @@ assert.equal(run.flags.has('stance'),false);
 
 assert(index.includes('js/v66-game-boot.js?v=820&fix=116&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
-assert(boot.includes("const BUILD='V147'"), 'Public release must identify V147');
+assert(boot.includes("const BUILD='V148'"), 'Public release must identify V148');
 assert(boot.includes("&suspendedFlight=141"), 'V141 rollback must remain available');
 assert(boot.includes("&authoredFlight=142"), 'V142 rollback cache key must be available');
 assert(boot.includes("&livingFlight=143"), 'V143 rollback remains available');
 assert(boot.includes("&naturalArms=144"), 'V144 natural arm fallback must remain available');
 assert(boot.includes("&verticalFlight=145"), 'V145 fallback retains its cache key');
 assert(boot.includes("&verticalFollow=146"), 'V146 rollback retained');
-assert(boot.includes("&directionalFlight=147"), 'V147 new directional animation cache key');
+assert(boot.includes("&directionalFlight=147"), 'V147 flight fallback retained');
+assert(boot.includes("&allFlight=148"), 'V148 all-direction flight code loaded');
 assert(boot.includes("&referenceFlight=140"));
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
 assert(boot.includes("new URLSearchParams(location.search).get('animator')==='unified'"),
  'Keep V100 conditional; jump default intentionally enables it but flight remains optional');
 
-console.log('PASS unified public URL: approved V97 ground + V125 jump + V147 directional flight, explicit A/B/legacy rollbacks.');
+console.log('PASS unified public URL: approved V97 ground + V125 jump + V148 full-body flight, explicit A/B/legacy rollbacks.');
