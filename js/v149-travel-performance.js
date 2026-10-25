@@ -100,10 +100,11 @@ function performance(state,age){
   const g=group(k),weight=g==='legs'?frontLeg+backLeg:
    g==='arms'?frontArm+backArm:front+back;
   const backwards=g==='torso'&&(/bodyF|chestF|hipsX|spineX|chestX/.test(k));
-  // Forearms follow farther behind the chest: the real Kairo render
-  // showed subtle wrist keys disappearing into the existing V148 pose.
+  // Forward travel hands follow the chest; retreating hands float in
+  // front for balance, NOT a reversed film of the forward pose.
+  const retreatArm=g==='arms'&&/(ElbowF|HandF)$/.test(k)&&backArm>frontArm;
   out[k]=p[k]*weight*(g==='arms'?1.46:1)*
-   (backwards&&back>front?-.75:1);
+   (backwards&&back>front?-.75:retreatArm?-.80:1);
  }
  // Backward retreat: lead with hips, keep a loose, open opposite arm;
  // this is NOT playing a forward stroke in reverse.
