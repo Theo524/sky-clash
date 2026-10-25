@@ -1,5 +1,22 @@
 # Sky Clash — project context for future sessions
 
+## V147 — authored forward/back powered flight (2026-10-25)
+
+Player requested forward and backward next, then remaining basics. V147
+adds distinct forward and backward 4.6-second authored performance loops,
+with staggered critically damped torso/leg/arm follow-through driven by
+SIGNED CHARACTER-FACING horizontal velocity. Local forward is
+`vel.x*sin(facing)+vel.z*cos(facing)`, so retreat does not incorrectly
+play forward flight and sideways strafe does not force forward flight.
+Forward leads chest modestly with gently trailing wrists; retreat shifts
+body back to brake while hands naturally float ahead for balance.
+Exact zero-forward movement preserves V146 up/down/hover in addition to
+V144's approved relaxed arms, V125 jump and V97 ground/walk/run. No
+world-root, flight physics, combat, Boost or Rin changes. All inside V100
+single final pose owner. Public normal game URL on promotion; rollback
+`?flightPreview=v146`. Next basic pass: sideways strafe, turning,
+Boost/acceleration transitions, mixed directional blend/stop polish.
+
 ## V146 — smoother, more expressive flight rise/descent (2026-10-25)
 
 Player said V145's going up/down was "not bad" but requested noticeably
