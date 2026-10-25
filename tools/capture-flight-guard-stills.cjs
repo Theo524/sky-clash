@@ -17,7 +17,7 @@ const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
 if(!Number.isInteger(fps)||fps<12||fps>30)
  throw new Error('Capture fps must be 12–30');
-const versions=(process.env.VISUAL_PREVIEWS||'v138,v140').split(',')
+const versions=(process.env.VISUAL_PREVIEWS||'v138,v141').split(',')
  .map(s=>s.trim()).filter(Boolean);
 if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
@@ -208,6 +208,9 @@ async function capture(browser,preview){
      flightHolisticSilhouette:owner.flightHolisticSilhouette||'not-tested',
      flightSereneSilhouette:owner.flightSereneSilhouette||'not-tested',
      flightReferenceSilhouette:owner.flightReferenceSilhouette||'not-tested',
+     flightSuspendedSilhouette:owner.flightSuspendedSilhouette||'not-tested',
+     leftSuspended:owner.flightSuspendedWorld?.left||null,
+     rightSuspended:owner.flightSuspendedWorld?.right||null,
      leftReference:owner.flightReferenceWorld?.left||null,
      rightReference:owner.flightReferenceWorld?.right||null,
      leftSerene:owner.flightSereneWorld?.left||null,
@@ -404,6 +407,16 @@ async function capture(browser,preview){
        t.leftKneeBendDeg>43||t.rightKneeBendDeg>43)
      throw Error('V138 actual Kairo failed reference-like serene hover: '+
        JSON.stringify(t));
+   }
+  }
+  if(preview==='v141'){
+   for(const m of timeline){
+    if(m.flightSuspendedSilhouette!=='RELAXED'||
+       !m.leftSuspended||!m.rightSuspended||
+       m.leftKneeBendDeg<19||m.leftKneeBendDeg>53||
+       m.rightKneeBendDeg<18||m.rightKneeBendDeg>53||
+       m.leftToeDropCm<10||m.rightToeDropCm<10)
+      throw Error('V141 real Kairo geometry failed; visual art review still required: '+JSON.stringify(m));
    }
   }
   if(preview==='v140'){
