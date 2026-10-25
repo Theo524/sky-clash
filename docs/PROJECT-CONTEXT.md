@@ -1,5 +1,27 @@
 # Sky Clash — project context for future sessions
 
+## V141 public release — October 25, 2026 (user explicitly requested publishing)
+
+The player explicitly authorized publishing V141 to the normal public game URL
+after learning that the experimental branch was not playable there. PR #93
+promotes V141 via the same existing V100 final flight pose writer; there is
+no separate preview URL required for the player. Default boot normalizes to
+`flightPreview=v141`, preserves approved `jumpPreview=v125` and V97
+ground movement, and identifies `SkyClashBuild.version='V141'`.
+Other game features (Boost, combat, Rin, grounded animations, physics) are
+unchanged. Index boot query was cache-busted for browsers and phones.
+
+The V141 flight profile aims for asymmetric suspended knee bends, stronger
+dangling-shoe pitch, and relaxed forearms with torso breathing. Five branch
+workflow suites passed before publishing: real Kairo powered-flight videos,
+hover stills, real Kairo jump captures, VRM character integration, and
+animation ownership. Passing machine tests and recording videos do NOT
+constitute manual visual approval; the player will review live game.
+
+Historical comparison/rollback: `?flightPreview=v138` restores prior V138
+flight; `?flightPreview=v140` accesses V140. Public game:
+https://theo524.github.io/sky-clash/.
+
 **Snapshot: October 24, 2026. Recheck the live GitHub main branch and open
 pull requests before assuming this is current.**
 

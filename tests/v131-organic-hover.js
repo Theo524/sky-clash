@@ -101,6 +101,7 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v131'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138']"));
+const flightVersions=boot.match(/const flightShortcut=\[([^\]]+)\]\.includes/)?.[1]||'';
+assert(flightVersions.split(',').map(s=>s.trim()).includes("'v131'"),'legacy V131 preview must remain selectable');
 assert(boot.includes("e.src+='&organicFlight=131'"));
 console.log('PASS V131: organic bent lower arms and floating sway at four facing angles and mirrored bones, V128 body continuity, 30/60/120fps joint caps');

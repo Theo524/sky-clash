@@ -186,6 +186,7 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(file.includes("flightVersion==='v137'"));
 assert(file.includes('v129CorrectFlightGuard(THREE,rig,forward,flightControl,'));
 assert(file.includes('v128CorrectFlightLegs(THREE,rig,forward,flightControl,'));
-assert(boot.includes("['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138']"));
+const flightVersions=boot.match(/const flightShortcut=\[([^\]]+)\]\.includes/)?.[1]||'';
+assert(flightVersions.split(',').map(s=>s.trim()).includes("'v137'"),'legacy V137 preview must remain selectable');
 assert(boot.includes("e.src+='&balancedFlight=137'"));
 console.log('PASS V137: pelvis-balanced organic arms and leg drift at four facing angles and mirrored bones, VRM upright torso and trailing shoes, 30/60/120fps joint caps');

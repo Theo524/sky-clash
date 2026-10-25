@@ -228,6 +228,8 @@ jobs:
       - run: node tests/v136-whole-body-hover.js
       - run: node tests/v137-balanced-freeflight.js
       - run: node tests/v138-reference-levitation.js
+      - run: node tests/v140-reference-balanced-hover.js
+      - run: node tests/v141-suspended-silhouette.js
       - name: Publish rebuilt game bundle
         if: github.event_name == 'push'
         run: |
