@@ -132,7 +132,7 @@ function torsoRig(yaw){
 for(const yaw of [0,Math.PI/2,Math.PI,-Math.PI/2]){
  const {root,rig}=torsoRig(yaw),status={};
  const forward=new THREE.Vector3(0,0,1).applyQuaternion(root.quaternion);
- const pelvis=V100.v138CorrectPelvisBalance(THREE,rig,forward,pose(.4,0,0,.6),
+ const pelvis=V100.v137CorrectPelvisBalance(THREE,rig,forward,pose(.4,0,0,.6),
   1,null,1/60,status);
  assert(pelvis.initialTiltDeg>8,
   'Actual pelvis-to-neck axis must show source hunch');
