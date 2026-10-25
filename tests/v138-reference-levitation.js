@@ -104,8 +104,9 @@ for(const fps of [30,60,120]){
 const h=pose(0,0,0,.3),later=pose(0,0,0,3.3);
 const cruise=pose(.95,0,0,.3),str=pose(.45,0,6,.3),
  ascend=pose(.45,7,0,.3),descend=pose(.45,-7,0,.3);
-assert(Math.abs(h.spineX-later.spineX)>.003,
- 'Breathing must visibly change the torso over a hover cycle');
+assert(Math.abs(h.hipsX-later.hipsX)>.003&&
+ Math.abs(h.chestX-later.chestX)>.003,
+ 'Slow floating breath should originate at pelvis and move through chest');
 assert(Math.abs(h.spineX-cruise.spineX)>.012,
  'Cruising must shift torso inclination noticeably');
 assert(Math.abs(str.spineZ-h.spineZ)>.018,
