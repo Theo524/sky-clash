@@ -28,7 +28,7 @@ const keys=[
   hipsZ:-.022,spineZ:.025,chestZ:.016,
   leftElbowF:.012,rightElbowF:-.040,leftElbowO:.033,rightElbowO:-.016,
   leftHandF:.025,rightHandF:-.078,leftHandO:-.035,rightHandO:.020},
- {t:1.24,      leftKnee:.260,rightKnee:.145,leftShin:.175,rightShin:.165,
+ {t:1.24,      leftKnee:.190,rightKnee:.145,leftShin:.175,rightShin:.165,
   hipsX:.052,spineX:.038,chestX:.025,neckX:-.014,
   bodyF:.065,chestF:.035,bodyS:-.030,chestS:.005,
   hipsZ:-.014,spineZ:.008,chestZ:.002,
