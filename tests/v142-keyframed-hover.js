@@ -43,6 +43,18 @@ assert(Math.abs(still.spineX-cruising.spineX)>.012,'travel torso pitch is preser
 assert(Math.abs(rise.hipsX-drop.hipsX)>.012,'vertical travel modifier preserved');
 assert(Math.abs(strafe.spineZ-still.spineZ)>.018,'turn/strafe bank still responds');
 assert.notEqual(still.keys.leftKnee,still.keys.rightKnee,'leg asymmetry');
+// Actual VRM side films revealed V142's two similarly bent thighs still
+// drew a planted crouch. Demand one clearly lifted knee and a second
+// extended hanging thigh throughout the ENTIRE authored loop.
+for(let frame=0;frame<240;frame++){
+ const k=sample(frame*duration/240);
+ assert(k.leftKnee>.9&&k.rightKnee<.15,
+  'authored pose must reject twin-knee standing silhouette');
+ assert(k.leftShin>1.05&&k.rightShin<.34,
+  'raised calf folds deeply behind; trailing leg hangs loose');
+ assert(k.leftToe>=3.8&&k.rightToe>=3.7,
+  'both shoes hang toe-down rather than forming floor contact');
+}
 const prior=old(0,0,0,.6);
 assert.notEqual(still.profile,prior.profile,'V142 must not alias old profile');
 
