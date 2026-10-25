@@ -285,8 +285,8 @@
    // visibly higher left knee and loose trailing right leg separate
    // the ankles without mimicking a walking stride or chair crouch.
    const forwardKnee=aerial?
-    (side==='left'?.63+.10*sway+.045*flow:
-     .31+.065*sway+.020*flow):
+    (side==='left'?.70+.095*sway+.05*flow:
+     -.10+.07*sway+.015*flow):
     serene?
     (side==='left'?.13+.034*sway+.026*flow:
      .065+.026*sway+.010*flow):
@@ -309,7 +309,7 @@
     natural?(side==='left'?1.92+.045*sway:.38+.025*sway):
     (side==='left'?.86:.38)+.042*sway;
    const foldBack=aerial?
-    (side==='left'?.46+.055*sway:.39+.048*sway):
+    (side==='left'?.40+.04*sway:.56+.055*sway):
     serene?
     (side==='left'?.25+.026*sway:
      .24+.026*sway):
@@ -982,9 +982,9 @@
   const p=v138FlightPose(mix,vertical,lateral,age);
   const slow=Math.sin(Math.max(0,age)*1.18+.2);
   return {...p,profile:'V139 reference-informed aerial pose',
-   hipsX:.010+.017*(p.mix||0)-.018*(p.rise||0)+
-    .018*(p.descend||0)+.010*slow,
-   spineX:-.020+.026*(p.mix||0)+.011*Math.sin(age*1.18-.4),
+   hipsX:-.024+.018*(p.mix||0)-.020*(p.rise||0)+
+    .015*(p.descend||0)+.014*slow,
+   spineX:-.038+.042*(p.mix||0)+.014*Math.sin(age*1.18-.4),
    chestX:-.020+.018*(p.mix||0)+.008*Math.sin(age*1.18-1.0),
    neckX:.014-.012*(p.mix||0)};
  }
