@@ -246,7 +246,7 @@
    const index=side==='left'?14:17;
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
-   const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight'].includes(pose?.profile)&&pose.keys;
+   const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight','V146 expressive vertical follow-through'].includes(pose?.profile)&&pose.keys;
    const suspended=pose?.profile==='V141 suspended silhouette';
    const reference=pose?.profile==='V140 reference-balanced hover';
    const serene=pose?.profile==='V138 calm anime levitation';
@@ -486,7 +486,7 @@
   const serene=style==='serene-hover';
   const reference=style==='reference-hover';
   const suspended=style==='suspended-hover';
-  const keyed=(style==='authored-hover'||style==='living-hover'||style==='natural-arms'||style==='vertical-flight')&&pose?.keys;
+  const keyed=(style==='authored-hover'||style==='living-hover'||style==='natural-arms'||style==='vertical-flight'||style==='expressive-vertical')&&pose?.keys;
   const time=Math.max(0,pose?.age||0);
   for(const side of ['left','right']){
    const left=side==='left',out=across.clone().multiplyScalar(left?1:-1);
@@ -642,7 +642,8 @@
   if(status){
    if(keyed){
     status.flightAuthoredWorld=result;
-    status.flightAuthoredClip=style==='vertical-flight'?'V145 upward and downward keyed flight':
+    status.flightAuthoredClip=style==='expressive-vertical'?'V146 expressive vertical follow-through':
+     style==='vertical-flight'?'V145 upward and downward keyed flight':
      style==='natural-arms'?'V144 natural floating forearms':
      style==='living-hover'?'V143 4.6s living hover':'V142 4.6s keyed hover';
     status.flightAuthoredPhase=+(pose.authoredClock||0).toFixed(3);
@@ -867,7 +868,8 @@
   // anatomically vertical while still moving visibly under its pelvis.
   const animated=pose?.profile==='V143 living hover performance'||
    pose?.profile==='V144 relaxed floating arms'||
-   pose?.profile==='V145 directed vertical flight';
+   pose?.profile==='V145 directed vertical flight'||
+   pose?.profile==='V146 expressive vertical follow-through';
   const goal=up.clone().addScaledVector(f,.025+.045*travel+
     (animated?(pose.chestGoalF||0):0))
    .addScaledVector(across,.030*bank+
@@ -951,7 +953,8 @@
   // All historical profiles use IDENTICAL old correction goals.
   const animated=pose?.profile==='V143 living hover performance'||
    pose?.profile==='V144 relaxed floating arms'||
-   pose?.profile==='V145 directed vertical flight';
+   pose?.profile==='V145 directed vertical flight'||
+   pose?.profile==='V146 expressive vertical follow-through';
   const desired=up.clone()
    .addScaledVector(f,-.045+.080*travel+
     (animated?(pose.pelvisGoalF||0):0))
