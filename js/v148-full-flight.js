@@ -106,6 +106,7 @@
    s[part]={f:0,b:0,l:0,r:0,turn:0,fast:0,
     fV:0,bV:0,lV:0,rV:0,turnV:0,fastV:0};
   return {parts:s,lastYaw:null,velocityForward:0,velocitySide:0,
+   velocityForwardV:0,velocitySideV:0,
    launch:0,brake:0,launchV:0,brakeV:0,turnRate:0,signedForward:0,
    signedSide:0,worldSpeed:0};
  }
@@ -140,14 +141,17 @@
   // Body anticipates speeding up, arms ease out of braking and fast
   // flight without any root motion/velocity changes.
   const prevSpeed=Math.hypot(s.velocityForward,s.velocitySide),
+   opposing=f*s.velocityForward+side*s.velocitySide< -1,
    speedDelta=clamp((speed-prevSpeed)/Math.max(h,.0001)/16,-1,1);
   [s.launch,s.launchV]=springSource.spring(s.launch,s.launchV,
    Math.max(0,speedDelta),h,10);
   [s.brake,s.brakeV]=springSource.spring(s.brake,s.brakeV,
-   Math.max(0,-speedDelta),h,8);
+   Math.max(0,-speedDelta,opposing?1:0),h,8);
   // Velocity memory is filtered for visual response only.
-  [s.velocityForward]=springSource.spring(s.velocityForward,0,f,h,18);
-  [s.velocitySide]=springSource.spring(s.velocitySide,0,side,h,18);
+  [s.velocityForward,s.velocityForwardV]=springSource.spring(
+   s.velocityForward,s.velocityForwardV,f,h,18);
+  [s.velocitySide,s.velocitySideV]=springSource.spring(
+   s.velocitySide,s.velocitySideV,side,h,18);
   s.signedForward=f;s.signedSide=side;s.worldSpeed=speed;s.turnRate=turn;
   return s;
  }
