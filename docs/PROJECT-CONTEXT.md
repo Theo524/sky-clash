@@ -1,5 +1,45 @@
 # Sky Clash — project context for future sessions
 
+## V150 — joystick-driven flight lean and lock-on-aware retreat (candidate, 2026-10-25)
+
+**STATUS: experimental draft, not approved for main or the normal Pages game.**
+V149 remains the public default; V150 is opt-in on branch
+`feature/v150-joystick-lean-lockon`. Do not call V150 published or visually
+accepted until a successful real-Kairo WebGL review and player approval.
+On a branch-hosted copy use `?flightPreview=v150`; after merge, that query
+would enable the candidate on Pages. **Rollback:** `?flightPreview=v149`;
+the plain link still selects V149, and Boost's old pose is retained unless
+the V150 flight module is loaded.
+
+Player feedback after V149: ordinary joystick flight should clearly LEAN
+into movement (roughly 10–15 degrees at strong input), with animated hips,
+chest, knees, shins, shoulders, arms and delayed recovery; stronger but NOT
+horizontal "Superman" Boost (roughly 20–28-degree design target).
+Backward and sideways combat flight make sense when opponent lock-on is
+actually active. In free camera, Kairo already turns to travel heading;
+a backwards stick must not request the locked-on retreat pose.
+
+Implementation: `js/v150-joystick-flight.js` samples Kairo's existing
+character/world-space `moveIntent`, projects it into his facing axes and
+filters torso, legs and arms at staggered rates; applies authored additives
+to V149's constantly moving skeletal travel **inside the sole V100 final
+flight pose writer**, not a new Fighter.animate layer. No physics, collision,
+camera root or input mapping change. The V150 overlay is exactly zero at
+neutral input so approved V144 hover and V149 stationary stance are intact.
+Existing free-camera facing and `CameraRig.isLockActive()` determine when
+retreat/strafe is appropriate. V150 preview also gives Kairo-only legacy
+Boost a moderately stronger pitch plus drifting suspended limbs; Boost
+speed, camera suspend, fighting actions, ground walking and Rin unchanged.
+V149's V146 vertical follow-through state update had been omitted from a
+runtime condition; the candidate fixes that for V149 and V150.
+
+New `tests/v150-joystick-flight.js` checks full/partial joystick,
+free-vs-locked retreat, oscillating suspended limbs, approved idle exactness,
+frame-rate smoothing at 30/60/120fps and production boot/owner integration.
+Existing character and animation ownership CI is configured to include
+the new test. **No claims of passing CI, real WebGL film inspection or player
+visual approval until those are separately verified.**
+
 ## V149 — living forward and backward flight rather than static legs (2026-10-25)
 
 Player rejected V148 forward/back as still too stiff, especially legs and
