@@ -1,5 +1,21 @@
 # Sky Clash — project context for future sessions
 
+## V145 — authored rise/descent flight (2026-10-25)
+
+The player asked to work on **going up and down**, after liking V143
+body motion and V144 natural arms. V145 retains all of V144's stationary
+hover keyframes and world-space Kairo silhouette **bit-for-bit** when
+vertical speed is zero. Two five-key 4.6s vertical performance loops,
+`js/v145-vertical-flight.js`, are blended into the same V100 final
+animation owner using its existing smoothed physical vertical velocity.
+On ascent Kairo gathers his knees slightly, raises his shoulders and
+leans his chest subtly back; on descent the hanging leg extends, forearms
+open for balance and the chest shifts forward. There is NO world-root
+translation, new input, new physics, or modification to V125 jump/V97
+ground, walking/running, Boost, combat or Rin. V144 remains explicitly
+selectable through `?flightPreview=v144`. Player specifically expects
+the **normal playable game URL** after every published iteration.
+
 ## V144 — natural relaxed flight arms (2026-10-25)
 
 Player LOVES V143's newly living hover body and V142's flight stance, but
