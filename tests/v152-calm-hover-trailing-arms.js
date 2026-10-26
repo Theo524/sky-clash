@@ -98,7 +98,7 @@ assert(boot.includes("flags.set('flightPreview','v156')"));
 assert(boot.includes("const BUILD='V156'"));
 assert(boot.includes("await script('js/v152-flight-silhouette.js?v=1520')"));
 assert(boot.includes("await script('js/v150-joystick-flight.js?v=1500')"));
-assert(index.includes('release=153'));
+assert(index.includes('release=156'));
 assert(pose.includes("v152?v152FlightPose(")&&
  pose.includes("st.v152Motion=clip.step(")&&
  pose.includes("v152?'quiet-travel'"),

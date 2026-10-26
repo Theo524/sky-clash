@@ -81,6 +81,6 @@ assert(source.includes('v153?v153FlightPose(')&&
 assert(boot.includes("flags.set('flightPreview','v156')"));
 assert(boot.includes("const BUILD='V156'"));
 assert(boot.includes("await script('js/v153-streamlined-flight.js?v=1530')"));
-assert(index.includes('release=153'));
+assert(index.includes('release=156'));
 assert(!source.includes('root.position.y+='));
 console.log('PASS V153: hovering calm, 62deg strong flight body tilt, trailing legs, guarded lock-on, 30/60/120fps');
