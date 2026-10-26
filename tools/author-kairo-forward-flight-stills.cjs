@@ -27,8 +27,34 @@ const candidates=[
    [.38,-.20,-.96],[-.35,-.30,-.92],
    [.56,-.77,-.28],[-.52,-.80,-.31],
    [.29,-.36,-.88],[-.29,-.33,-.91]
+  ]},
+ // Compact elbow hinge: shoulder->elbow trails, elbow->wrist folds
+ // forward toward the hips. This is NOT a reversed rearward forearm.
+ // Athletic/skydive REFERENCES for flow only; humanoid directions are
+ // authored and verified on Kairo's actual normalized model.
+ {id:'o-elbow-corrected',body:46,upper:-11,neck:-38,head:-13,
+  elbowForward:true,limbAims:[
+   [.15,-.94,-.72],[-.13,-.88,-.76],
+   [.12,-.24,-.95],[-.12,-.29,-.94],
+   [.20,-.85,-.47],[-.21,-.85,-.46],
+   [.07,-.91,.18],[-.07,-.88,.18]
+  ]},
+ {id:'p-compact-power',body:49,upper:-10,neck:-44,head:-11,
+  elbowForward:true,limbAims:[
+   [.18,-1.0,-.67],[-.16,-.92,-.73],
+   [.10,-.17,-.94],[-.09,-.26,-.93],
+   [.24,-.86,-.43],[-.23,-.87,-.42],
+   [.05,-.92,.17],[-.04,-.92,.17]
   ]}
 ];
+// CI can capture just the comparison set while keeping historical studies
+// reproducible. Missing or invalid IDs should fail, never silently skip.
+const requested=(process.env.VISUAL_CANDIDATES||'').split(',').map(s=>s.trim()).filter(Boolean);
+const studyCandidates=requested.length?candidates.filter(c=>requested.includes(c.id)):candidates;
+if(requested.length && (studyCandidates.length!==requested.length ||
+ new Set(requested).size!==requested.length)){
+ throw Error('Unknown or duplicate VISUAL_CANDIDATES selector');
+}
 (async()=>{
  const browser=await chromium.launch({headless:true,args:[
   '--use-gl=angle','--use-angle=swiftshader-webgl','--enable-webgl'
@@ -56,7 +82,7 @@ const candidates=[
    await page.locator('#modelView').screenshot({path:path.join(out,'v152-hover-'+side+'.png'),animations:'disabled'});
   }
   const reports=[];
-  for(const a of candidates){
+  for(const a of studyCandidates){
    const rotations=[
     {bone:'hips',axis:'right',degrees:a.body},
     {bone:'spine',axis:'right',degrees:a.upper*.52},
@@ -125,6 +151,22 @@ const candidates=[
     assert(m.limbSpacing?.ankle>0.12,'Candidate feet still overlap');
     assert(m.limbSpacing?.wrist>0.20,'Candidate wrists still cross');
     assert(m.leftElbow>15&&m.rightElbow>15,'Arms must have visible elbow bend');
+    if(a.elbowForward){
+     // +Z is independently calibrated as forward for this exact VRM.
+     // The old candidate had wrist BEHIND elbow, visually reversed.
+     for(const side of ['left','right']){
+      const elbow=m.limbLandmarks[side+'LowerArm'];
+      const wrist=m.limbLandmarks[side+'Hand'];
+      assert(elbow&&wrist&&wrist[2]>elbow[2]+.035,
+       side+' wrist must fold forward from elbow, not hinge backward');
+      assert(m[side+'Elbow']>=29&&m[side+'Elbow']<=48,
+       side+' elbow should be softly articulated');
+     }
+     assert(m.limbSpacing.ankle<.60,'Legs spread too wide');
+     assert(m.limbSpacing.wrist<.68,'Arms are too widely flared');
+     assert(m.limbSpacing.wrist>.23,'Arms disappeared into torso');
+     assert(m.leftKnee>20&&m.rightKnee>20,'Legs lost bend');
+    }
    }
   }
   assert.equal(errs.length,0,'Browser errors: '+errs.join('; '));
@@ -132,7 +174,7 @@ const candidates=[
    JSON.stringify({baseline:base,source:'actual Kairo VRM0 / actual V152 captured hover',
     candidates:reports,visuallyApproved:false,gameChanged:false},null,2));
   const count=fs.readdirSync(out).filter(x=>x.endsWith('.png')).length;
-  assert.equal(count,3*(candidates.length+1));
+  assert.equal(count,3*(studyCandidates.length+1));
   console.log('PASS Kairo real-VRM authored head/chest/leg candidates',JSON.stringify({
    headMetrics:reports.map(x=>({id:x.id,headVsTorso:x.metrics.headVsTorsoAngle,
     trunk:x.metrics.trunkPitch,face:x.metrics.facialAxisToHorizontal})),
