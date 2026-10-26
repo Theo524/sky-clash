@@ -18,6 +18,14 @@
   const w=clamp(weight,0,1),phase=Number.isFinite(time)?time:0,
    left=Math.sin(phase*1.13+.5),right=Math.sin(phase*.91+1.85);
   const source=pose?.keys||{},keys={...source};
+  // Exact quiet-hover preservation: do not add even default limb channels
+  // while blend weight is zero (otherwise the old clip's geometry changes).
+  if(w===0)return {...pose,keys,
+   profile:'V155 arched organic forward flight',
+   streamlineWeight:0,flightCurve:0,
+   flightCurvePelvisAngle:arch.pelvisRadians,
+   flightCurveChestAngle:arch.spineRadians,
+   streamlineDegrees:0,flightKneeStyle:'original'};
   // Arms follow the swept-back motion, but NOT as parallel rigid rods.
   // Elbows drop by the rib cage and forearms bend further down/back.
   const arm={
