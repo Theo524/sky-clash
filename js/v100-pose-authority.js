@@ -2196,7 +2196,8 @@
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
    }
    if(next==='flight'){
-    st.v150Motion=null;
+    st.v151Arms=null;
+     st.v150Motion=null;
     st.v148Motion=null;
     st.v147Motion=null;
     st.v146Motion=null;
@@ -3119,8 +3120,8 @@
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
       }
-      if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v150'){
-       const omni=root.SkyClashV148AllFlight,input=root.SkyClashV150Flight;
+      if(['v150','v151'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
+        const omni=root.SkyClashV148AllFlight,input=root.SkyClashV150Flight;
        if(!omni||!input)throw Error('V150 sources not loaded');
        st.v148Motion=omni.step(st.v148Motion,this.vel?.x||0,
         this.vel?.z||0,yaw,safe,this.sprinting);
@@ -3132,6 +3133,11 @@
         this.vel?.x||0,this.vel?.z||0,yaw,locked,safe);
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
+        if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v151'){
+         const arms=root.SkyClashV151TravelArms;
+         if(!arms)throw Error('V151 authored travel-arm clip unavailable');
+         st.v151Arms=arms.step(st.v151Arms,st.v150Motion,safe);
+        }
       }
      }
      const choice=new URLSearchParams(root.location?.search||'')
