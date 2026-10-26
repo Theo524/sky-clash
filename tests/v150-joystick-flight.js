@@ -61,9 +61,9 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  authority=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  src=fs.readFileSync('src/45-fighter-controller.js','utf8'),
  built=fs.readFileSync('js/game.js','utf8');
-assert(boot.includes("const BUILD='V150'"),'V150 release becomes the default for plain URL');
-assert(boot.includes("flags.set('flightPreview','v150')"),
- 'plain playable Sky Clash URL must activate V150');
+assert(boot.includes("const BUILD='V151'"),'V151 release includes the V150 body system');
+assert(boot.includes("flags.set('flightPreview','v151')"),
+ 'plain playable Sky Clash URL advances to V151 with V150 body underneath');
 assert(boot.includes("await script('js/v150-joystick-flight.js?v=1500')"),
  'opt-in V150 loader present');
 assert(authority.includes("if(['v146','v147','v148','v149','v150'].includes"),
