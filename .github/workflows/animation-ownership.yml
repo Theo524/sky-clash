@@ -73,6 +73,7 @@ jobs:
           node tests/v157-flight-banking.js
           node tests/v158-flight-banking-and-pose.js
           node tests/v159-vertical-flight.js
+          node tests/v160-vertical-followthrough.js
       - name: Verify generated game bundle matches editable source
         run: |
           python tools/build.py

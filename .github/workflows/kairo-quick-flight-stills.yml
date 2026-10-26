@@ -17,7 +17,7 @@ on:
       previews:
         description: 'Real Kairo previews (e.g. v156,v159)'
         required: false
-        default: 'v156,v159'
+        default: 'v156,v160'
 permissions:
   contents: read
 jobs:
@@ -58,7 +58,8 @@ jobs:
       - name: Render 9 real-game poses from three cameras per preview
         env:
           VISUAL_CAPTURE_MODE: stills
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v156,v159' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v156,v160' }}
+          VISUAL_VERTICAL_QA: '1'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Validate the complete real VRM timeline and PNG contact sheets
