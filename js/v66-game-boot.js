@@ -22,7 +22,7 @@
    flags.set('jumpPreview','v125');
    flags.set('flightPreview','v153');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151','v152','v153'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151','v152','v153','v155'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -67,10 +67,11 @@
  // revisions, NOT the currently deployed game build number.
  const BUILD='V153';
   // V149 and earlier remain explicit flightPreview rollback modes.
-  const modernFlight=['v150','v151','v152','v153'].includes(new URLSearchParams(location.search).get('flightPreview'));
+  const modernFlight=['v150','v151','v152','v153','v155'].includes(new URLSearchParams(location.search).get('flightPreview'));
   const v151Preview=new URLSearchParams(location.search).get('flightPreview')==='v151';
   const v152Preview=new URLSearchParams(location.search).get('flightPreview')==='v152';
   const v153Preview=new URLSearchParams(location.search).get('flightPreview')==='v153';
+  const v155Preview=new URLSearchParams(location.search).get('flightPreview')==='v155';
  window.SkyClashBuild=Object.freeze({version:BUILD,number:153,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
@@ -213,8 +214,8 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v149')e.src+='&livingTravel=149';
     if(src.includes('v100-pose-authority')&&modernFlight)e.src+='&joystickFlight=150';
     if(src.includes('v100-pose-authority')&&v151Preview)e.src+='&freeTravelArms=151';
-    if(src.includes('v100-pose-authority')&&(v152Preview||v153Preview))e.src+='&quietHover=152';
-    if(src.includes('v100-pose-authority')&&v153Preview)e.src+='&streamlined=153';
+    if(src.includes('v100-pose-authority')&&(v152Preview||v153Preview||v155Preview))e.src+='&quietHover=152';
+    if(src.includes('v100-pose-authority')&&(v153Preview||v155Preview))e.src+='&streamlined=153';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -273,9 +274,13 @@
   }
   // V154 is an opt-in Kairo Boost *motion data* overlay; V72 remains
   // the sole visible Boost action writer. V153 old Boost stays selectable.
-  const boostPreview=new URLSearchParams(location.search).get('boostPreview')==='v154';
-  if(boostPreview)await script('js/v154-boost-performance.js?v=1540');
-  await script('js/v72-published-actions.js?v=820'+(boostPreview?'&boostMotion=154':''));
+  const boostMode=new URLSearchParams(location.search).get('boostPreview');
+  if(boostMode==='v154')await script('js/v154-boost-performance.js?v=1540');
+  // Shared V155 authored shape feeds either existing owner, never both.
+  if(v155Preview||boostMode==='v155')
+   await script('js/v155-organic-flight.js?v=1550');
+  await script('js/v72-published-actions.js?v=820'+
+   (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':''));
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
@@ -316,9 +321,9 @@
     await script('js/v150-joystick-flight.js?v=1500');
    if(v151Preview)
     await script('js/v151-travel-arms.js?v=1510');
-   if(v152Preview||v153Preview)
+   if(v152Preview||v153Preview||v155Preview)
     await script('js/v152-flight-silhouette.js?v=1520');
-   if(v153Preview)
+   if(v153Preview||v155Preview)
     await script('js/v153-streamlined-flight.js?v=1530');
    await script('js/v100-pose-authority.js?v=1530');
    window.SkyClashV100Animator.start(window);

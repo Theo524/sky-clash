@@ -216,9 +216,10 @@
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     // V154 reuses this EXISTING V72 final Boost writer; no new animation
     // wrapper and no gameplay root/velocity changes. Kairo preview only.
-    const boostClip=!options.choose&&this.characterId==='kairo_venn'&&
-      new URLSearchParams(root.location?.search||'').get('boostPreview')==='v154'?
-      root.SkyClashV154Boost:null;
+    const boostMode=new URLSearchParams(root.location?.search||'').get('boostPreview');
+    const boostClip=!options.choose&&this.characterId==='kairo_venn'?
+      boostMode==='v155'?root.SkyClashV155Organic:
+      boostMode==='v154'?root.SkyClashV154Boost:null:null;
     if(boostClip)state.v154Motion=boostClip.step(state.v154Motion,this,dt);
     // V78: this layer is drawn AFTER V76's idle->walk pose. Previously an
     // idle-only pack was removed in ONE FRAME as soon as speed exceeded .75:
@@ -326,7 +327,8 @@
       run.sample(phase*dstSpan,state.v154Run,true);
       const blend=boostClip.groundMix(state.v154Motion);
       for(let i=0;i<BONES.length;i++){
-       const influence=i>=14?blend:i<=5?blend*.58:blend*.43;
+       const influence=boostMode==='v155'?blend:
+        i>=14?blend:i<=5?blend*.58:blend*.43;
        state.samples[i].slerp(state.v154Run[i],influence).normalize();
       }
      }
@@ -386,14 +388,17 @@
       owner.v136CorrectSuspendedTorso(THREE,rig,forward,pose,strength);
       owner.v128CorrectFlightLegs(THREE,rig,forward,pose,strength);
       owner.v129CorrectFlightGuard(THREE,rig,forward,pose,strength,
-        null,Math.max(0,dt),null,'streamlined');
+        null,Math.max(0,dt),null,boostMode==='v155'?'organic-flight':'streamlined');
      }
     }
     if(boostClip){
      status.v154GroundMix=+boostClip.groundMix(state.v154Motion).toFixed(3);
      status.v154AirStreamline=+(state.v154Motion?.air||0).toFixed(3);
-     status.v154Source=slot==='boost'?'baked-boost + approved-run blended':
-       this.sprinting&&this.flying?'baked-flight + authored streamline':'none';
+     status.v154Source=slot==='boost'?(boostMode==='v155'?
+        'approved Standard Run entirely, athletic Boost cadence':
+        'baked-boost + approved-run blended'):
+       this.sprinting&&this.flying?(boostMode==='v155'?
+        'arched bent-body flight with folded knees':'baked-flight + authored streamline'):'none';
     }
     state.rig.vrm.update(0);
     state.frames++;

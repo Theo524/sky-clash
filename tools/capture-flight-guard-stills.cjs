@@ -29,7 +29,7 @@ const count=13;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+(BOOST_REVIEW?'v153':preview)+
- (BOOST_REVIEW&&preview==='v154'?'&boostPreview=v154':'');
+ (BOOST_REVIEW&&['v154','v155'].includes(preview)?'&boostPreview='+preview:'');
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -221,10 +221,21 @@ async function capture(browser,preview){
      neck=h.getNormalizedBoneNode('neck')?.getWorldPosition(new window.THREE.Vector3());
     const wholeBodyPitch=hip&&neck?Math.atan2(neck.z-hip.z,
       neck.y-hip.y)*180/Math.PI:null;
+    const bend=side=>{
+     const thigh=point(side+'UpperLeg'),knee=point(side+'LowerLeg'),
+      ankle=point(side+'Foot');
+     if(!thigh||!knee||!ankle)return null;
+     const a=thigh.map((v,i)=>knee[i]-v),
+      b=knee.map((v,i)=>ankle[i]-v),
+      dot=a.reduce((x,v,i)=>x+v*b[i],0),
+      norm=Math.hypot(...a)*Math.hypot(...b);
+     return norm>.001?+(Math.acos(Math.max(-1,Math.min(1,dot/norm)))*180/Math.PI).toFixed(1):null;
+    };
     return {frame:i,stage:stage.name,elapsed:stage.elapsed,
      boosted:!!p.sprinting,wholeBodyPitch:wholeBodyPitch===null?null:+wholeBodyPitch.toFixed(1),
-     boostGroundMix:boost.v154GroundMix??0,
-     boostAirStreamline:boost.v154AirStreamline??0,
+     leftActualKneeBend:bend('left'),rightActualKneeBend:bend('right'),
+     boostGroundMix:p.sprinting?(boost.v154GroundMix??0):0,
+     boostAirStreamline:p.sprinting?(boost.v154AirStreamline??0):0,
      boostAction:boost.active||null,
      horizontalSpeed:Math.hypot(p.vel.x,p.vel.z),
      verticalSpeed:p.vel.y,lateralSpeed:p.vel.x,
