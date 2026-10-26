@@ -1,5 +1,34 @@
 # Sky Clash — project context for future sessions
 
+## V151 — natural free-forward travel arms with combat guard preserved (2026-10-26)
+
+Player feedback after V150: while flying forward, Kairo keeps his hands and
+elbows in a combat guard, which looks wrong alongside his smooth full-body
+lean and buoyant motion. The requested animation is an authored, softly
+eased lower/trailing arm silhouette in ordinary **free forward** travel,
+with natural moving elbows/wrists and return to guard when opponent-locked.
+
+Implementation: `js/v151-travel-arms.js` authors a loop-safe 4.6-second
+seven-pose performance with independent left/right world-space elbow and hand
+directions (F/O/Y), no stiff two-fist stance, no airplane wings. Its
+`step()` uses the existing, filtered V150 input data to blend upper arms
+at 4.8/s and hands more slowly at 3.25/s; opponent lock-on swiftly restores
+the V150 arms. A diagonal gets only a portion of travel relaxation. No
+input = **exact V150 hover**. Locked forward/retreat/strafe = **exact V150
+combat guard**. Only the twelve elbow/hand world-direction channels change,
+composed by existing `js/v100-pose-authority.js` under single final VRM pose
+ownership. Kairo's torso, legs, V125 jump, V97 ground, Boost legacy path,
+Rin, collision, facing, camera and physics are not modified.
+
+V151 candidate on `feature/v151-relaxed-travel-arms` starts the normal
+playable URL at V151 **after merge/deployment**. Until then main remains V150.
+Explicit A/B: `?flightPreview=v150` restores the full V150 animation,
+`?flightPreview=v149` restores V149. `tests/v151-relaxed-travel-arms.js`
+checks 30/60/120fps spring blending, authored time variation, exact
+lock-on/hover fallbacks and pose changes isolated to the arms. Real Kairo
+WebGL front/side/back V150-vs-V151 video/gallery workflows are required
+to judge the aesthetic silhouette; unit tests do not replace that review.
+
 ## V150 — joystick-driven flight lean and lock-on-aware retreat (public promotion requested, 2026-10-26)
 
 **PUBLIC RELEASE APPROVED BY USER:** The player specifically requested

@@ -88,6 +88,6 @@ assert(owner.includes("['guided','forward'].includes("));
 assert(boot.includes("e.src+='&forward=115'"));
 assert(boot.includes('prepKneeDirections'));
 assert(html.includes('SKY CLASH · BUILD V115'));
-assert(html.includes('js/v66-game-boot.js?v=820&fix=116'));
+assert(html.includes('js/v66-game-boot.js?v=1510&fix=116'));
 assert(read('animation-studio.html').includes('BUILD V115'));
 console.log('PASS V115: anatomical knee bend direction measured in actual world geometry over 12 normal and mirrored VRM orientations; no sign guesses, no prep knee IK, preserved facing and physics');

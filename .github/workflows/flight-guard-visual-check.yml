@@ -15,6 +15,7 @@ on:
       - 'js/v148-full-flight.js'
       - 'js/v149-travel-performance.js'
       - 'js/v150-joystick-flight.js'
+      - 'js/v151-travel-arms.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -56,10 +57,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo hover, travel and vertical changes V149 vs V150
+      - name: Capture real Kairo free-travel arm relaxation V150 vs V151
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v149,v150'
+          VISUAL_PREVIEWS: 'v150,v151'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -119,12 +120,28 @@ jobs:
                   assert states['backward']['signedForward']< -5
                   assert states['ascend']['verticalPoseMode']=='ascending'
                   assert states['descend']['verticalPoseMode']=='descending'
-          print('PASS actual Kairo V149 vs V150 joystick and locked retreat gallery')
+              if capture['preview']=='v151':
+                  states={t['stage']:t for t in capture['timeline']}
+                  assert all(t['flightAuthoredClip']=='V151 relaxed authored travel arms'
+                    for t in capture['timeline'])
+                  assert states['cruise']['travelArmBlend']>.85
+                  assert states['cruise']['travelHandBlend']>.75
+                  assert states['cruise']['travelArmMode']=='relaxed-forward'
+                  assert states['hover']['travelArmBlend']<.05
+                  assert states['backward']['lockedRetreat'] is True
+                  assert states['backward']['travelArmBlend']<.05
+                  assert states['strafe-left']['travelArmBlend']<.05
+                  assert states['strafe-right']['travelArmBlend']<.05
+                  assert states['fast']['travelArmBlend']>.75
+                  assert states['cruise']['leftAuthored']['handAboveElbowCm'] < -5
+                  assert states['cruise']['rightAuthored']['handAboveElbowCm'] < -5
+              assert set(t['stage'] for t in capture['timeline']) >= {'hover','cruise','backward','strafe-left','strafe-right'}
+          print('PASS real Kairo V150 vs V151 low loose forward travel arms and guarded lock-on comparison')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v150-joystick-flight-review
+          name: real-kairo-v151-travel-arms-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
