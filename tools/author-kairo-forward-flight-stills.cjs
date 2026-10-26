@@ -51,12 +51,12 @@ const candidates=[
    const aims=[
     aim('leftUpperLeg','leftLowerLeg',a.thighDown,.88,-.05),
     aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,.84,.05),
-    aim('leftLowerLeg','leftFoot',a.shinDown,.97),
-    aim('rightLowerLeg','rightFoot',a.shinDown+.05,.96),
-    aim('leftUpperArm','leftLowerArm',a.armDown,.86,-.14),
-    aim('rightUpperArm','rightLowerArm',a.armDown+.04,.83,.14),
-    aim('leftLowerArm','leftHand',a.forearmDown,.36,-.08),
-    aim('rightLowerArm','rightHand',a.forearmDown+.02,.30,.08)
+    aim('leftLowerLeg','leftFoot',Math.max(.06,a.shinDown-.12),.98),
+    aim('rightLowerLeg','rightFoot',Math.max(.09,a.shinDown-.06),.98),
+    aim('leftUpperArm','leftLowerArm',a.armDown+.18,.43,-.49),
+    aim('rightUpperArm','rightLowerArm',a.armDown+.20,.43,.49),
+    aim('leftLowerArm','leftHand',a.forearmDown-.14,.62,-.07),
+    aim('rightLowerArm','rightHand',a.forearmDown-.12,.61,.07)
    ];
    const result=await page.evaluate(({id,rotations,aims})=>
     window.SkyClashPoseLab.authorWorldPose({
