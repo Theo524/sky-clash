@@ -1378,3 +1378,8 @@ Read AGENTS.md and docs/ANIMATION-OWNERSHIP-CONTRACT.md before starting.
 Source entry points include js/v100-pose-authority.js,
 src/30-character-models.js, src/45-fighter-controller.js,
 js/v66-game-boot.js and tests/v100-single-pose-authority.js.
+
+
+## 2026-10-26 — Player-requested V156 real-VRM authored normal flight
+
+The player explicitly requested corrected elbow poses be **in the game** and said they would watch GitHub Actions / Pages deployment themselves rather than require an assistant confirmation. PR #113's calibrated Q pose (`q-trailing-athlete`) is derived from actual real-Kairo normalized VRM0 snapshots and the exact V152 baseline model hash `775b8d8…`. Its elbow signed hinge and real front/side/back browser capture passed in workflow 40332032470. Only the Kairo V100 normal-flight final pose owner consumes this new authored clip; there is no new fighter.animate wrapper or game physics adjustment. V100 blends hover→cruise according to **forward** travel, and eases flight entry over approximately 0.72 s. Explicit `?flightPreview=v153` restores historical V153, and `?flightPreview=v152` is the captured hover reference. New real-*game* 24fps A/B footage and regression checks remain a post-integration verification gate; green editor tests are not proof of live animation quality. Ground V97, jump V125, Rin, combat and V72 Boost are untouched. Player can access the game at https://theo524.github.io/sky-clash/ and the Actions indicators at https://github.com/Theo524/sky-clash/actions .
