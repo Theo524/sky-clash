@@ -38,4 +38,29 @@ assert(source.includes("bankMode==='v158'?23:13"),'larger banking needs clear pl
 assert(source.includes("get('flightPreview')==='v156'"),'bank layers accepted exact V156 pose only');
 assert(boot.includes("e.src+='&bank=158'"),'cache bust for new V158 preview');
 assert(boot.includes("flags.set('flightPreview','v156')"),'original game default unchanged');
+assert(boot.includes("await script('js/v158-real-vrm-flight.js?v=1580')"),
+ 'the exact V158 pose clip must load only on requested preview');
+require('../js/v156-real-vrm-flight.js');
+require('../js/v158-real-vrm-flight.js');
+const original=globalThis.SkyClashV156AuthoredFlight;
+const improved=globalThis.SkyClashV158AuthoredFlight;
+assert(original&&improved&&original.modelSha256===improved.modelSha256,
+ 'baked exact VRM0 model identity');
+assert.equal(improved.id,'u-balanced-trail');
+assert.deepEqual(improved.bones,original.bones);
+assert.deepEqual(improved.hover,original.hover,'original V152 hover remains EXACT');
+assert.equal(improved.cruise.length,20);
+for(let i=0;i<20;i++){
+ const q=improved.cruise[i];
+ assert(q.length===4&&Math.abs(q.reduce((n,v)=>n+v*v,0)-1)<.003,
+  'real normalized Kairo quaternion '+improved.bones[i]);
+ if(i<=6||i===9||i===10||i===13||i===16||i===19)
+  assert.deepEqual(q,original.cruise[i],
+   'preserve accepted Q torso/head/shoulder/wrist/shoes '+improved.bones[i]);
+}
+assert.notDeepEqual(improved.cruise[7],original.cruise[7],'left upper arm must improve');
+assert.notDeepEqual(improved.cruise[8],original.cruise[8],'left forearm must improve');
+assert.notDeepEqual(improved.cruise[14],original.cruise[14],'left thigh separation must change');
+assert(!boot.includes("flags.set('flightPreview','v158')"),
+ 'new limbs are not allowed as an unreviewed default');
 console.log('PASS V158: player-visible symmetric bank, 30/60/120 fps smooth reversals, untouched Q cruise and default');
