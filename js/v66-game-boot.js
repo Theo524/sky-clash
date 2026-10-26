@@ -12,17 +12,17 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V153 public release: V97 ground, V125 jump, calm V152 hover,
-  // trailing arms, and stronger forward-pressure whole-body flight tilt.
+  // V156 public release: unchanged V97 ground + V125 jump; replace only
+  // normal Kairo flight with baked 20-joint real-VRM Q cruise and hover.
   // Explicit historical animation comparisons still opt out of promotion.
   const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
    'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v153');
+   flags.set('flightPreview','v156');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151','v152','v153','v155'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151','v152','v153','v155','v156'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -49,7 +49,7 @@
    for(const [name,value] of Object.entries(jumpDefaults))
     flags.set(name,value);
   }
-  // V153 is default for the plain link; past flight preview URLs stay
+  // V156 is default for the plain link; past flight preview URLs stay
   // available as independent comparisons with the same V125 jump.
   if(flightShortcut){
    if(!flags.has('flightLab'))flags.set('flightLab','blend');
@@ -65,14 +65,14 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V153';
+ const BUILD='V156';
   // V149 and earlier remain explicit flightPreview rollback modes.
   const modernFlight=['v150','v151','v152','v153','v155'].includes(new URLSearchParams(location.search).get('flightPreview'));
   const v151Preview=new URLSearchParams(location.search).get('flightPreview')==='v151';
   const v152Preview=new URLSearchParams(location.search).get('flightPreview')==='v152';
   const v153Preview=new URLSearchParams(location.search).get('flightPreview')==='v153';
   const v155Preview=new URLSearchParams(location.search).get('flightPreview')==='v155';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:153,
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:156,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -325,7 +325,9 @@
     await script('js/v152-flight-silhouette.js?v=1520');
    if(v153Preview||v155Preview)
     await script('js/v153-streamlined-flight.js?v=1530');
-   await script('js/v100-pose-authority.js?v=1530');
+   if(new URLSearchParams(location.search).get('flightPreview')==='v156')
+    await script('js/v156-real-vrm-flight.js?v=1560');
+   await script('js/v100-pose-authority.js?v=1560');
    window.SkyClashV100Animator.start(window);
   }
   // Release the model/recording startup barrier ONLY after all wrappers
