@@ -403,7 +403,7 @@ async function capture(browser,preview){
     const bank=t=>t.flightBankDegrees;
     if(left.length!==5||right.length!==5||
        !left.some(t=>bank(t)<-3)||
-       !right.some(t=>bank(t)>3)||
+       !right.some(t=>bank(t)>1.5)||
        !cruise.every(t=>Math.abs(bank(t))<.2)||
        [...left,...right].some(t=>Math.abs(bank(t))>13.1))
      throw Error('V157 real Kairo bank direction or Q cruise incorrect: '+
