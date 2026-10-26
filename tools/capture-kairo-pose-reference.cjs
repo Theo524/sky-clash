@@ -42,8 +42,8 @@ const names=['hips','spine','chest','upperChest','neck','head',
        .dot(ankle.clone().sub(k).normalize()),-1,1))*180/Math.PI:null;
    };
    return {bones,quaternions,
-    sourcePose:s.SkyClashPoseAuthority?.flightAuthoredClip||null,
-    sourceState:s.SkyClashPoseAuthority?.active||null,
+    sourcePose:window.SkyClashPoseAuthority?.flightAuthoredClip||null,
+    sourceState:window.SkyClashPoseAuthority?.active||null,
     leftKnee:knee('left'),rightKnee:knee('right')};
   },names);
   if(result.sourceState!=='flight'||result.bones.length!==20||
