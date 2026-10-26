@@ -203,6 +203,28 @@ function authorWorldPose(spec){
   node.quaternion.premultiply(localDelta).normalize();
   model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
  }
+ // Author anatomical segment DIRECTIONS on the actual VRM once,
+ // then bake their final local quaternions into a keyframe. No animation
+ // loop and no gameplay writer: this is deterministic offline rigging.
+ const aims=spec?.aims||[];
+ if(!Array.isArray(aims)||aims.length>15||
+  aims.some(o=>!nodes.some(n=>n.name===o.bone)||!nodes.some(n=>n.name===o.child)||
+   !Array.isArray(o.worldDirection)||o.worldDirection.length!==3||
+   o.worldDirection.some(v=>!Number.isFinite(v))||
+   Math.hypot(...o.worldDirection)<.01))
+  throw Error('Invalid world-space anatomical aim request');
+ for(const o of aims){
+  const n=getNode(o.bone),child=getNode(o.child);
+  const current=child.getWorldPosition(new T.Vector3())
+   .sub(n.getWorldPosition(new T.Vector3())).normalize();
+  const desired=new T.Vector3(...o.worldDirection).normalize();
+  if(current.lengthSq()<.9)throw Error('Missing measured VRM segment '+o.bone);
+  const correction=new T.Quaternion().setFromUnitVectors(current,desired);
+  const parentW=n.parent.getWorldQuaternion(new T.Quaternion());
+  const localDelta=parentW.clone().invert().multiply(correction).multiply(parentW);
+  n.quaternion.premultiply(localDelta).normalize();
+  model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
+ }
  time=t;
  const frame=rawFrame(name);
  // Keep exact V152 starting key; replace only authoring candidates at t.
