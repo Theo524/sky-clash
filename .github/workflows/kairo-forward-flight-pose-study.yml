@@ -31,7 +31,9 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:8765/assets/animations/reference/kairo-v152-hover.pose.json >/dev/null
-      - name: Generate 4 exact skeleton keyframe candidates and 3-view evidence
+      - name: Capture real-Kairo previous vs corrected elbow poses in three views
+        env:
+          VISUAL_CANDIDATES: n-open-power,o-elbow-corrected,p-compact-power
         run: node tools/author-kairo-forward-flight-stills.cjs
       - uses: actions/upload-artifact@v4
         if: always()
