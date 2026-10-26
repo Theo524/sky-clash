@@ -47,6 +47,7 @@ jobs:
         env:
           VISUAL_PREVIEWS: v156,v157
           VISUAL_VIDEO_FPS: '24'
+          VISUAL_BANK_TURN_QA: '1'
         run: node tools/capture-flight-video.cjs
       - name: Check real VRM turning silhouette data and H.264 videos
         run: |
@@ -70,6 +71,10 @@ jobs:
           left=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-left']
           right=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-right']
           assert min(left)<-3 and max(right)>1.5,(left,right)
+          turns=[x for x in data['v157']['timeline'] if x['stage'] in ('turn-left','turn-right')]
+          assert len(turns)==16
+          assert min(x['flightBankDegrees'] for x in turns if x['stage']=='turn-left')<-1.2
+          assert max(x['flightBankDegrees'] for x in turns if x['stage']=='turn-right')>1.2
           assert max(map(abs,left+right))<=13.1
           print('PASS Kairo real VRM 3-view V156 vs V157 bank',{'left':left,'right':right})
           PY
