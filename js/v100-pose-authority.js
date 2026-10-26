@@ -2276,6 +2276,80 @@
   return {joints,pelvis:pelvis*w,torso:torso*w,
    arms:upper*w,legs:knee*w,feet:foot*w};
  }
+ // V162 research-led vertical flight: altitude changes do not demand
+ // a Superman dive tilt. Keep the accepted V156 Q torso mostly upright;
+ // make direction readable through arms/forearms, thighs, knees and feet.
+ // Unlike V161's serial lag chain, every limb responds to the PLAYER'S
+ // vertical intent quickly and overlaps the body's remaining momentum.
+ function v162VerticalFlow(previous,drive,dt){
+  const p=previous||{},goal=clamp(Number.isFinite(drive)?drive:0,-1,1);
+  const lead=v160VerticalStep(p.lead,goal,dt,18);
+  const spine=v160VerticalStep(p.spine,.6*lead.value+.4*goal,dt,16);
+  const shoulders=v160VerticalStep(p.shoulders,
+   .55*spine.value+.45*goal,dt,17);
+  const arms=v160VerticalStep(p.arms,
+   .55*shoulders.value+.45*goal,dt,18);
+  const legs=v160VerticalStep(p.legs,
+   .45*lead.value+.55*goal,dt,17);
+  const feet=v160VerticalStep(p.feet,
+   .5*legs.value+.5*goal,dt,16);
+  return {lead,spine,shoulders,arms,legs,feet};
+ }
+ function v162UprightVerticalPose(flow,seconds,weight=1){
+  const w=clamp(Number.isFinite(weight)?weight:0,0,1);
+  const value=n=>clamp(Number.isFinite(flow?.[n]?.value)?
+   flow[n].value:0,-1,1);
+  const split=n=>[Math.max(0,value(n)),Math.max(0,-value(n))];
+  const [pu,pd]=split('lead'),[su,sd]=split('spine'),
+   [hu,hd]=split('shoulders'),[au,ad]=split('arms'),
+   [lu,ld]=split('legs'),[fu,fd]=split('feet');
+  const armsLag=clamp(value('lead')-value('arms'),-1,1);
+  const legsLag=clamp(value('lead')-value('legs'),-1,1);
+  const time=Math.max(0,Number.isFinite(seconds)?seconds:0);
+  const action=Math.max(au,ad);
+  const drift=(phase,amount)=>Math.sin(time*2.65+phase)*amount*action;
+  const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
+  const set=(i,x,z=0)=>{joints[i]={x:x*w,z:z*w};};
+  // UP and DOWN keep near-vertical facing. Added total pelvis-to-chest
+  // pitch < 5.3 degrees even at maximum effort, versus V161's ~30.
+  // Rotation in accepted V156 forward-cruise clip is not touched.
+  set(0,-2.6*pu+2.4*pd);
+  set(1,-1.1*su+1.0*sd);
+  set(2,-.8*su+.7*sd);
+  set(3,-.45*su+.4*sd);
+  set(4,.75*su-.65*sd);
+  set(5,1.4*pu-1.3*pd+.55*su-.5*sd);
+  // Bigger directional silhouette, not a wholesale body tilt. Rise:
+  // arms hang back/out while forearms follow. Descent: elbows lift out
+  // into a controlled airborne brake, with hands continuing the arc.
+  const shoulder=-9*hu+8*hd;
+  const upper=-34*au+29*ad-8*armsLag;
+  const elbow=17*au-16*ad+5*armsLag;
+  const wrist=-10*au+9*ad;
+  set(6,shoulder,9*hu-6*hd);
+  set(10,shoulder*.92,-9*hu+6*hd);
+  set(7,upper+drift(.30,2.4),14*au-11*ad);
+  set(11,upper*.90+drift(1.5,2),-14*au+11*ad);
+  set(8,elbow+drift(1.10,2.6),-6*au+4*ad);
+  set(12,elbow*.94+drift(2.1,2.3),6*au-4*ad);
+  set(9,wrist+drift(1.8,1.6));
+  set(13,wrist*.93+drift(2.7,1.4));
+  // Legs actively fold/extend to show rising vs lowering in silhouette.
+  // Both knees bend but asymmetrically; toes lag through reversal.
+  const thigh=-21*lu+15*ld-6*legsLag;
+  const knee=30*lu-21*ld+7*legsLag;
+  const ankle=-16*fu+13*fd;
+  set(14,thigh+drift(.45,2),5*lu-3*ld);
+  set(17,thigh*.84+drift(1.6,1.7),-5*lu+3*ld);
+  set(15,knee+drift(1,2.2));
+  set(18,knee*.87+drift(2.0,2));
+  set(16,ankle+drift(1.8,1.7));
+  set(19,ankle*.92+drift(2.8,1.6));
+  const bodyLeanDeg=Math.abs(joints[0].x+joints[1].x+
+   joints[2].x+joints[3].x);
+  return {joints,bodyLeanDeg,arms:upper*w,legs:knee*w,
+   feet:ankle*w,control:value('lead')};
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2303,7 +2377,7 @@
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
     v157Bank:0,v157Facing:null,v159Vertical:0,
-    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null};
+    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null,v162Flow:null};
   const axisBank=new THREE.Vector3(0,0,1),
     axisPitch=new THREE.Vector3(1,0,0),
     flowEuler=new THREE.Euler(0,0,0,'XYZ');
@@ -2343,7 +2417,7 @@
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
    st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
-   st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;
+   st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2415,7 +2489,7 @@
      (fighter.vel?.z||0)*Math.sin(yaw);
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
     st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
-    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;
+    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -3165,6 +3239,30 @@
     status.flightVerticalTarget=+drive.toFixed(3);
     status.flightVerticalControl=+(f.vert||0).toFixed(3);
     status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
+   }else if(new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v162'){
+    // The V156 20-bone authored pose is restored above EVERY tick.
+    // Apply an opt-in upright full-body overlay only to normal Kairo
+    // flight; V72 Boost, combat, jump and ground keep their sole owners.
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v162Flow=v162VerticalFlow(st.v162Flow,drive,dt);
+    const pose=v162UprightVerticalPose(st.v162Flow,st.elapsed,entry);
+    const r=Math.PI/180;
+    for(let i=0;i<BONES.length;i++){
+     const joint=pose.joints[i];
+     if(Math.abs(joint.x)+Math.abs(joint.z)<.00001)continue;
+     qTarget.setFromEuler(flowEuler.set(joint.x*r,0,joint.z*r,'XYZ'));
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    }
+    status.flightVerticalDegrees=+pose.bodyLeanDeg.toFixed(2);
+    status.flightVerticalBodyLeanDeg=+pose.bodyLeanDeg.toFixed(2);
+    status.flightVerticalArms=+pose.arms.toFixed(2);
+    status.flightVerticalLegs=+pose.legs.toFixed(2);
+    status.flightVerticalFeet=+pose.feet.toFixed(2);
+    status.flightVerticalFlowBones=BONES.length;
+    status.flightVerticalTarget=+drive.toFixed(3);
+    status.flightVerticalControl=+(f.vert||0).toFixed(3);
+    status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
    }else{
     status.flightVerticalDegrees=0;
     status.flightVerticalTarget=0;
@@ -3186,6 +3284,9 @@
      (bankEnabled?' + banking':'');
    if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v161')
     status.flightStyle='V161 full-body climb/dive flow'+
+     (bankEnabled?' + banking':'');
+   if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v162')
+    status.flightStyle='V162 upright, visibly articulated vertical flight'+
      (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){
@@ -3752,7 +3853,7 @@
     flightVerticalControl:0,flightVerticalVelocity:0,
     flightVerticalTorso:0,flightVerticalLimbs:0,
     flightVerticalArms:0,flightVerticalLegs:0,flightVerticalFeet:0,
-    flightVerticalFlowBones:0,
+    flightVerticalFlowBones:0,flightVerticalBodyLeanDeg:0,
     flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
@@ -3779,6 +3880,7 @@
     v157BankIntent,v157BankStep,v158BankIntent,v158BankStep,
     v159VerticalIntent,v159VerticalStep,v160VerticalStep,
     v161VerticalFlow,v161VerticalPose,
+    v162VerticalFlow,v162UprightVerticalPose,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,

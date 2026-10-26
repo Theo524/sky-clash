@@ -38,7 +38,8 @@ const uri=preview=>'http://127.0.0.1:'+port+
      preview==='v158'?'v156&flightBank=v158&flightPose=v158':
     preview==='v159'?'v156&flightVertical=v159':
      preview==='v160'?'v156&flightVertical=v160':
-     preview==='v161'?'v156&flightVertical=v161':preview);
+     preview==='v161'?'v156&flightVertical=v161':
+     preview==='v162'?'v156&flightVertical=v162':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -252,6 +253,7 @@ async function capture(browser,preview){
       flightVerticalLegs:owner.flightVerticalLegs??0,
       flightVerticalFeet:owner.flightVerticalFeet??0,
       flightVerticalFlowBones:owner.flightVerticalFlowBones??0,
+      flightVerticalBodyLeanDeg:owner.flightVerticalBodyLeanDeg??0,
      flightBankTarget:owner.flightBankTarget??0,
      flightBankLateral:owner.flightBankLateral??0,
      flightBankTurnRate:owner.flightBankTurnRate??0,

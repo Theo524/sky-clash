@@ -17,7 +17,7 @@ on:
       previews:
         description: 'Real Kairo previews (e.g. v156,v159)'
         required: false
-        default: 'v156,v161'
+        default: 'v161,v162'
 permissions:
   contents: read
 jobs:
@@ -58,7 +58,7 @@ jobs:
       - name: Render 9 real-game poses from three cameras per preview
         env:
           VISUAL_CAPTURE_MODE: stills
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v156,v161' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v161,v162' }}
           VISUAL_VERTICAL_QA: '1'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
@@ -89,6 +89,16 @@ jobs:
                   assert max(abs(x['flightVerticalArms']) for x in rows)>2,stage+' arms stiff'
                   assert max(abs(x['flightVerticalLegs']) for x in rows)>3,stage+' legs stiff'
                   assert max(abs(x['flightVerticalFeet']) for x in rows)>.5,stage+' shoes stiff'
+          if 'v162' in by_preview:
+              t=by_preview['v162']['timeline']
+              assert any(x['flightVerticalFlowBones']==20 for x in t if x['stage']=='ascend')
+              for stage in ('ascend','descend'):
+                  rows=[x for x in t if x['stage']==stage]
+                  assert rows, 'missing '+stage
+                  assert max(x['flightVerticalBodyLeanDeg'] for x in rows)<5.4,stage+' tilted too far'
+                  assert max(abs(x['flightVerticalArms']) for x in rows)>10,stage+' arms unreadable'
+                  assert max(abs(x['flightVerticalLegs']) for x in rows)>11,stage+' legs unreadable'
+                  assert max(abs(x['flightVerticalFeet']) for x in rows)>5,stage+' ankles unreadable'
           for view in ('front','side','back'):
               assert (root/f'comparison-{view}.png').stat().st_size>10000
           assert not list(root.glob('*.mp4'))

@@ -64,5 +64,6 @@ assert(boot.includes("flags.set('flightPreview','v156')"));
 assert(!boot.includes("flags.set('flightVertical','v161')"));
 assert(boot.includes("e.src+='&vertical=161'")&&index.includes('verticalBodyFlowReady=161'));
 assert(capture.includes("preview==='v161'?'v156&flightVertical=v161'"));
-assert(gallery.includes("v156,v161")&&gallery.includes("VISUAL_VERTICAL_QA: '1'"));
+assert(capture.includes("preview==='v161'")&&
+ gallery.includes("VISUAL_VERTICAL_QA: '1'"));
 console.log('PASS V161: 20 real-VRM flight joints, ascent/dive, reversals and neutral at 30/60/120fps');
