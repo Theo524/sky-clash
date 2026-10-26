@@ -11,21 +11,22 @@ const candidates=[
  // Stronger articulated silhouettes. V152 and i/j remain the unchanged comparison.
  {id:'k-gaze-led-cruise',body:45,upper:-12,neck:-36,head:-17,thighDown:.92,thighBack:.75,shinDown:.16,armDown:.76,armBack:.36,forearmDown:.46,forearmBack:.89},
  {id:'l-forward-power',body:50,upper:-10,neck:-45,head:-11,thighDown:1.08,thighBack:.67,shinDown:.12,armDown:.80,armBack:.27,forearmDown:.38,forearmBack:.91},
+ // Actual front-view anatomy: Kairo's LEFT normalized joints are at +X.
  // Independent left/right anatomical segment aims: a wider, readable
  // front/back silhouette without twisting the hips or shoulders.
  {id:'m-spaced-athlete',body:46,upper:-11,neck:-38,head:-13,
   limbAims:[
-   [-.27,-.93,-.72],[.25,-.87,-.76], // hips -> knees
-   [-.33,-.30,-.94],[.31,-.36,-.92], // knees -> feet
-   [-.49,-.77,-.34],[.50,-.79,-.34], // shoulders -> elbows
-   [-.27,-.41,-.86],[.27,-.35,-.91]  // elbows -> hands
+   [.27,-.93,-.72],[-.25,-.87,-.76], // hips -> knees
+   [.33,-.30,-.94],[-.31,-.36,-.92], // knees -> feet
+   [.49,-.77,-.34],[-.50,-.79,-.34], // shoulders -> elbows
+   [.27,-.41,-.86],[-.27,-.35,-.91]  // elbows -> hands
   ]},
  {id:'n-open-power',body:49,upper:-10,neck:-44,head:-11,
   limbAims:[
-   [-.33,-1.02,-.67],[.29,-.90,-.77],
-   [-.38,-.20,-.96],[.35,-.30,-.92],
-   [-.56,-.77,-.28],[.52,-.80,-.31],
-   [-.29,-.36,-.88],[.29,-.33,-.91]
+   [.33,-1.02,-.67],[-.29,-.90,-.77],
+   [.38,-.20,-.96],[-.35,-.30,-.92],
+   [.56,-.77,-.28],[-.52,-.80,-.31],
+   [.29,-.36,-.88],[-.29,-.33,-.91]
   ]}
 ];
 (async()=>{
