@@ -115,6 +115,12 @@ const candidates=[
     quats20:result.data.bones.length});
    if(a.limbAims){
     const m=result.metrics;
+    console.log('REAL_KAIRO_LIMB_QA '+JSON.stringify({
+      id:a.id,spacing:m.limbSpacing,leftElbow:m.leftElbow,
+      rightElbow:m.rightElbow,knees:[m.leftKnee,m.rightKnee],
+      ankles:[m.limbLandmarks?.leftFoot,m.limbLandmarks?.rightFoot],
+      hands:[m.limbLandmarks?.leftHand,m.limbLandmarks?.rightHand]
+    }));
     assert(m.limbSpacing?.knee>0.10,'Candidate must have visible knee separation');
     assert(m.limbSpacing?.ankle>0.12,'Candidate feet still overlap');
     assert(m.limbSpacing?.wrist>0.20,'Candidate wrists still cross');
