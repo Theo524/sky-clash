@@ -335,6 +335,8 @@
     await script('js/v153-streamlined-flight.js?v=1530');
    if(new URLSearchParams(location.search).get('flightPreview')==='v156')
     await script('js/v156-real-vrm-flight.js?v=1560');
+   if(new URLSearchParams(location.search).get('flightPose')==='v158')
+    await script('js/v158-real-vrm-flight.js?v=1580');
    await script('js/v100-pose-authority.js?v=1560');
    window.SkyClashV100Animator.start(window);
   }
