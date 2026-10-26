@@ -6,10 +6,14 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 const candidates=[
- {id:'a-soft-gaze',body:37,upper:-7,neck:-15,head:-11,leftKnee:9,rightKnee:6},
- {id:'b-natural-gaze',body:43,upper:-10,neck:-23,head:-12,leftKnee:13,rightKnee:8},
- {id:'c-more-chest-shape',body:47,upper:-13,neck:-25,head:-10,leftKnee:17,rightKnee:10},
- {id:'d-raised-gaze',body:40,upper:-8,neck:-27,head:-17,leftKnee:11,rightKnee:8}
+ {id:'e-uncurl-knee',body:39,upper:-9,neck:-32,head:-7,
+  leftThigh:-28,leftKnee:-56,rightThigh:-8,rightKnee:6,leftArm:-34,rightArm:-31,leftElbow:12,rightElbow:14},
+ {id:'f-athletic-flight',body:45,upper:-10,neck:-33,head:-11,
+  leftThigh:-38,leftKnee:-59,rightThigh:-12,rightKnee:7,leftArm:-47,rightArm:-38,leftElbow:15,rightElbow:19},
+ {id:'g-strong-head-up',body:43,upper:-13,neck:-41,head:-4,
+  leftThigh:-36,leftKnee:-62,rightThigh:-14,rightKnee:9,leftArm:-41,rightArm:-36,leftElbow:11,rightElbow:15},
+ {id:'h-low-straight-cruise',body:48,upper:-9,neck:-38,head:-13,
+  leftThigh:-40,leftKnee:-64,rightThigh:-10,rightKnee:5,leftArm:-43,rightArm:-29,leftElbow:17,rightElbow:12}
 ];
 (async()=>{
  const browser=await chromium.launch({headless:true,args:[
@@ -41,8 +45,18 @@ const candidates=[
     // intentional pose, not a vertical continuation of Kairo's torso.
     {bone:'neck',axis:'right',degrees:a.neck},
     {bone:'head',axis:'right',degrees:a.head},
+    // The V152 hover's left knee is already deeply tucked (~96 degrees).
+    // Untuck the *existing* hover skeleton instead of bending it further.
+    {bone:'leftUpperLeg',axis:'right',degrees:a.leftThigh},
     {bone:'leftLowerLeg',axis:'right',degrees:a.leftKnee},
-    {bone:'rightLowerLeg',axis:'right',degrees:a.rightKnee}
+    {bone:'rightUpperLeg',axis:'right',degrees:a.rightThigh},
+    {bone:'rightLowerLeg',axis:'right',degrees:a.rightKnee},
+    // Arms must sweep behind the ribs rather than hang vertically,
+    // with forearms articulated separately from upper arms.
+    {bone:'leftUpperArm',axis:'right',degrees:a.leftArm},
+    {bone:'rightUpperArm',axis:'right',degrees:a.rightArm},
+    {bone:'leftLowerArm',axis:'right',degrees:a.leftElbow},
+    {bone:'rightLowerArm',axis:'right',degrees:a.rightElbow}
    ];
    const result=await page.evaluate(({id,rotations})=>
     window.SkyClashPoseLab.authorWorldPose({
