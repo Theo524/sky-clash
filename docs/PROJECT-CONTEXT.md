@@ -1,5 +1,7 @@
 # Sky Clash — project context for future sessions
 
+> **Historical record; not canonical current status.** New assistants must start with [Assistant Current State](ASSISTANT-CURRENT-STATE.md) and [Assistant Runbook](ASSISTANT-RUNBOOK.md) and run `node tools/assistant-checkup.cjs --strict` or inspect its GitHub Actions artifact. The history below includes stale earlier snapshots (such as saying the V152 pose reference wasn't yet captured). The human user explicitly does **not** want to operate Pose Lab or developer tools. Use GitHub and Playwright tooling autonomously. New-flight/Boost V153/V154/V155 were all rejected by the player, irrespective of green code tests. Verify the current repo/CI/Pages before making further claims.
+
 ## Critical 2026-10-26 user feedback: rejected flight and real VRM Pose Lab foundation
 
 User says V155 ruined flight further and twisted the character, following earlier rejections of V153 stick/plank flying and both old/V154 Boost animations. This is **not a request to increase lean or add V156 corrective geometry**. The player explicitly wants a better authoring process: one that builds actual keyframe motion on the real character, not automatic solver guesses. Admit that `js/v142-hover-keyframes.js` etc stored parametric targets that still depended on V100 world-bone correction; it was NOT a full rig manual editor.
