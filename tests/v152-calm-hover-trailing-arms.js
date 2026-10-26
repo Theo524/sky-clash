@@ -53,7 +53,7 @@ for(const k of ['leftKnee','leftShin','leftHandF','rightHandY']){
    Math.abs(beforeLate.keys[k]-baseHover.keys[k])*.085+.0002,
    'idle knee/arm keys should hold still instead of swinging wildly: '+k);
 }
-const oldF=owner.v150FlightPose(.8,0,0,1.3,v,h,forward.v150);
+const oldF=owner.v150FlightPose(.72,0,0,1.3,v,h,forward.v150);
 const newF=testPose(1.3,forward);
 for(const k of ['hipsX','spineX','chestX','neckX','hipsZ','spineZ','chestZ',
  'pelvisGoalF','pelvisGoalS','chestGoalF','chestGoalS',
@@ -71,7 +71,7 @@ for(const side of ['left','right']){
  assert(newF.keys[side+'ElbowO']<.52,'no outstretched airplane wings');
 }
 for(const opts of [lock,retreat,side]){
- const original=owner.v150FlightPose(.8,0,0,1.3,v,h,opts.v150);
+ const original=owner.v150FlightPose(.72,0,0,1.3,v,h,opts.v150);
  const now=testPose(1.3,opts);
  for(const k of Object.keys(original.keys))
   assert.equal(now.keys[k],original.keys[k],'locked flight retains V150 guard '+k);
