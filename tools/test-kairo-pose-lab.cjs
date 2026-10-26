@@ -72,6 +72,20 @@ const assert=require('node:assert/strict');
   const png=fs.readFileSync(path.join(saved,'kairo-pose-view.png'));
   assert(png.length>10000&&png[0]===137&&png[1]===80,'Real WebGL preview screenshot must be a PNG');
   await page.screenshot({path:path.join(saved,'pose-lab-screen.png'),animations:'disabled'});
+  // V152 reference must be the same real game pose (not rest T-pose),
+  // portable only for the exact unchanged SHA-256 Kairo model.
+  await page.click('#loadHover');
+  await page.waitForFunction(()=>document.getElementById('status')?.textContent.includes('Loaded exact V152'));
+  const originalPose=await page.evaluate(()=>window.SkyClashPoseLab.motion);
+  const resp=await page.request.get('http://127.0.0.1:'+(process.env.VISUAL_PORT||'8765')+
+   '/assets/animations/reference/kairo-v152-hover.pose.json');
+  assert(resp.ok(),'Real V152 reference must actually exist in checked-out game');
+  const published=await resp.json();
+  assert.deepEqual(originalPose.keyframes[0].quaternions,published.keyframes[0].quaternions);
+  assert.equal(originalPose.modelSha256,first.sha);
+  await page.click('[data-view="side"]');
+  await page.locator('#showJoints').uncheck();
+  await page.screenshot({path:path.join(saved,'v152-captured-pose-side.png'),animations:'disabled'});
   assert.equal(failures.length,0,'Unexpected browser errors: '+failures.join('\n'));
   fs.writeFileSync(path.join(saved,'results.json'),JSON.stringify({
    modelSha256:first.sha,bones:first.count,
