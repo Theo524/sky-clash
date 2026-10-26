@@ -2160,7 +2160,9 @@
  function v157BankStep(current,target,dt){
   const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
   const goal=clamp(Number.isFinite(target)?target:0,-1,1);
-  const tau=Math.abs(goal)>Math.abs(current)?.15:.24;
+  // Crossing through zero is slower than leaning farther in one direction.
+  // This keeps a 180-degree left/right input reversal below ~3 deg/frame.
+  const tau=current*goal<0?.27:Math.abs(goal)>Math.abs(current)?.16:.24;
   return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
  }
  function isPreview(context=root){
