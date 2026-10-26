@@ -12,15 +12,15 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V149 unified public release: plain /sky-clash/ includes the best
-  // grounded V97, V125 jump and V149 flowing full-body flight.
+  // V150 public release: plain /sky-clash/ includes approved
+  // V97 ground, V125 jump and input-responsive full-body V150 flight.
   // Explicit historical animation comparisons still opt out of promotion.
   const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
    'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v149');
+   flags.set('flightPreview','v150');
   }
   const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||flags.get('flightPreview')==='v150';
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
@@ -65,10 +65,10 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V149';
-  // Preview only: V149 remains the release and rollback baseline.
+ const BUILD='V150';
+  // V149 and earlier remain explicit flightPreview rollback modes.
   const v150Preview=new URLSearchParams(location.search).get('flightPreview')==='v150';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:149,
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:150,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -243,7 +243,7 @@
   // finish loading. Keep Kairo's VRM meshes hidden until fully composed.
   window.SKY_V104_STARTUP_GATE=true;
   window.SKY_V104_ANIMATIONS_READY=false;
-  await script('js/game.js?v=820&startup=104');
+  await script('js/game.js?v=1500&startup=104');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
