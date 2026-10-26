@@ -2165,6 +2165,22 @@
   const tau=current*goal<0?.27:Math.abs(goal)>Math.abs(current)?.16:.24;
   return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
  }
+ // V158 responsive banking: the original V157 was almost invisible in
+ // player gameplay despite showing ~6 degrees on automated strafe clips.
+ // Raw joystick intent leads, then actual sideways motion and turn rate
+ // confirm the bank; all values are character-relative and signed.
+ function v158BankIntent(intentSide,velocitySide,yawRate){
+  const joy=clamp(Number.isFinite(intentSide)?intentSide:0,-1,1);
+  const slide=clamp((Number.isFinite(velocitySide)?velocitySide:0)/5,-1,1);
+  const turn=clamp((Number.isFinite(yawRate)?yawRate:0)/1.9,-1,1);
+  return clamp(joy*.78+slide*.64+turn*.75,-1,1);
+ }
+ function v158BankStep(current,target,dt){
+  const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
+  const goal=clamp(Number.isFinite(target)?target:0,-1,1);
+  const tau=current*goal<0?.24:Math.abs(goal)>Math.abs(current)?.13:.20;
+  return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2887,7 +2903,12 @@
   // Kairo VRM. Executed ONLY inside the existing V100 final flight owner,
   // after its old retarget, never as an extra Fighter.animate wrapper.
   function applyAuthoredCruise(dt){
-   const clip=root.SkyClashV156AuthoredFlight;
+   const limbPreview=new URLSearchParams(root.location?.search||'')
+    .get('flightPose')==='v158';
+   // Select one complete authored normalized VRM snapshot, not additive
+   // limb-Euler corrections over another skeleton writer.
+   const clip=limbPreview?
+    root.SkyClashV158AuthoredFlight:root.SkyClashV156AuthoredFlight;
    if(!clip||clip.modelSha256!==
       '775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72'||
       clip.bones?.join('|')!==BONES.join('|')||
@@ -2915,8 +2936,9 @@
    // V157 optional bank, inside the SAME V100 final VRM pose owner.
    // Hips roll the complete authored Q silhouette; the head counters
    // just enough to keep Kairo's travel gaze. Elbows/knees stay authored.
-   const bankEnabled=new URLSearchParams(root.location?.search||'')
-    .get('flightBank')==='v157';
+   const bankMode=new URLSearchParams(root.location?.search||'')
+    .get('flightBank');
+   const bankEnabled=bankMode==='v157'||bankMode==='v158';
    if(bankEnabled){
     const x=f.vel?.x||0,z=f.vel?.z||0;
     const side=x*Math.cos(yaw)-z*Math.sin(yaw);
@@ -2925,10 +2947,18 @@
       Math.atan2(Math.sin(yaw-previous),Math.cos(yaw-previous));
     if(Math.abs(delta)>.65)delta=0; // lock-on snap is not steering
     const yawRate=dt>0?clamp(delta/dt,-4,4):0;
-    const drive=v157BankIntent(side,yawRate,signedForward);
-    st.v157Bank=v157BankStep(st.v157Bank,drive,dt);
+    const intentX=f.moveIntent?.x||0,intentZ=f.moveIntent?.z||0;
+    const inputSide=intentX*Math.cos(yaw)-intentZ*Math.sin(yaw);
+    const drive=bankMode==='v158'?
+     v158BankIntent(inputSide,side,yawRate):
+     v157BankIntent(side,yawRate,signedForward);
+    st.v157Bank=bankMode==='v158'?
+     v158BankStep(st.v157Bank,drive,dt):
+     v157BankStep(st.v157Bank,drive,dt);
     st.v157Facing=yaw;
-    const bankDeg=13*st.v157Bank*entry;
+    // 23 degrees is intentional: at the normal gameplay camera distance
+    // V157's 6-7 degree left bank was not perceptible to the player.
+    const bankDeg=(bankMode==='v158'?23:13)*st.v157Bank*entry;
     const roll=(i,degrees)=>{
      if(Math.abs(degrees)<.00001)return;
      qTarget.setFromAxisAngle(axisBank,degrees*Math.PI/180);
@@ -2948,10 +2978,14 @@
    }
    st.rig.vrm.update(0);
    status.flightStyle=bankEnabled?
-    'V157 V156 flight with responsive bank':'V156 real-VRM authored Q forward flight';
+    (bankMode==='v158'?'V158 visible responsive flight banking':
+     'V157 V156 flight with responsive bank'):
+    limbPreview?'V158 real-VRM lifted hands / separated knees':
+    'V156 real-VRM authored Q forward flight';
    status.flightAuthoredBlend=+entry.toFixed(3);
    status.flightAuthoredTravel=+travel.toFixed(3);
    status.flightAuthoredBones=BONES.length;
+   status.flightAuthoredVariant=clip.id;
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -3536,7 +3570,7 @@
   return status;
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
-    v157BankIntent,v157BankStep,
+    v157BankIntent,v157BankStep,v158BankIntent,v158BankStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,

@@ -1,8 +1,10 @@
-name: V157 Real Kairo Banking Flight A/B
+name: V158 Real Kairo Flight Banking and Limb Pose A/B
 on:
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
+      - 'js/v158-real-vrm-flight.js'
+      - 'tests/v158-flight-banking-and-pose.js'
       - 'js/v66-game-boot.js'
       - 'index.html'
       - 'tools/capture-flight-video.cjs'
@@ -20,11 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: V157 owner and 30/60/120fps bank safety tests
+      - name: V157 rollback and V158 bank/pose 30-60-120fps owner checks
         run: |
           node --check js/v100-pose-authority.js
           node --check tools/capture-flight-video.cjs
           node tests/v157-flight-banking.js
+          node tests/v158-flight-banking-and-pose.js
           node tests/approved-ground-default.js
           node tests/v155-organic-flight-and-boost.js
       - name: Install Chromium and H.264 encoder
@@ -43,9 +46,10 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:8765/js/v156-real-vrm-flight.js >/dev/null
-      - name: Capture real Kairo V156 against V157 banking at front side and back
+          curl -fsS http://127.0.0.1:8765/js/v158-real-vrm-flight.js >/dev/null
+      - name: Capture real Kairo V156 against V158 banking and corrected limbs
         env:
-          VISUAL_PREVIEWS: v156,v157
+          VISUAL_PREVIEWS: v156,v158
           VISUAL_VIDEO_FPS: '24'
           VISUAL_BANK_TURN_QA: '1'
         run: node tools/capture-flight-video.cjs
@@ -56,7 +60,7 @@ jobs:
           root=pathlib.Path('visual-review-output/flight-videos')
           report=json.loads((root/'motion-metrics.json').read_text())
           data={c['preview']:c for c in report['captures']}
-          assert set(data)=={'v156','v157'}
+          assert set(data)=={'v156','v158'}
           for version,c in data.items():
               assert c['frames']==60 and c['frameRate']==24
               assert all(x['pose']=='flight' for x in c['timeline'] if x['stage'] not in ('ground','boost'))
@@ -68,19 +72,19 @@ jobs:
                   assert info['r_frame_rate']=='24/1' and int(info['nb_frames'])==60
           flat=lambda name:[x for x in data[name]['timeline'] if x['stage'] in ('strafe-left','strafe-right')]
           assert all(abs(x['flightBankDegrees'])<.02 for x in flat('v156'))
-          left=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-left']
-          right=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-right']
+          left=[x['flightBankDegrees'] for x in flat('v158') if x['stage']=='strafe-left']
+          right=[x['flightBankDegrees'] for x in flat('v158') if x['stage']=='strafe-right']
           assert min(left)<-3 and max(right)>1.5,(left,right)
-          turns=[x for x in data['v157']['timeline'] if x['stage'] in ('turn-left','turn-right')]
+          turns=[x for x in data['v158']['timeline'] if x['stage'] in ('turn-left','turn-right')]
           assert len(turns)==16
           assert min(x['flightBankDegrees'] for x in turns if x['stage']=='turn-left')<-1.2
           assert max(x['flightBankDegrees'] for x in turns if x['stage']=='turn-right')>1.2
-          assert max(map(abs,left+right))<=13.1
-          print('PASS Kairo real VRM 3-view V156 vs V157 bank',{'left':left,'right':right})
+          assert max(map(abs,left+right))<=23.1
+          print('PASS Kairo real VRM 3-view V156 vs V158 bank+limbs',{'left':left,'right':right})
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: kairo-v157-real-vrm-banking-videos
+          name: kairo-v158-real-vrm-banking-and-limbs
           path: visual-review-output/flight-videos/
           retention-days: 21

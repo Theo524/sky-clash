@@ -62,6 +62,23 @@ const candidates=[
    [.10,-.17,-.94],[-.09,-.26,-.93],
    [.20,-.62,-.79],[-.18,-.63,-.79],
    [.05,-.95,-.29],[-.05,-.94,-.30]
+  ]},
+ // Player feedback on real in-game film: Q arms droop and the two legs
+ // appear almost stacked. These replace only arms/legs on the established
+ // Q torso/head, with the elbow hinge direction preserved.
+ {id:'s-lifted-athlete',body:46,upper:-11,neck:-38,head:-13,
+  naturalElbow:true,limbAims:[
+   [.16,-.90,-.59],[-.15,-.89,-.65],
+   [.15,-.14,-.98],[-.14,-.20,-.95],
+   [.23,-.42,-.91],[-.21,-.40,-.90],
+   [.06,-.89,-.37],[-.07,-.86,-.40]
+  ]},
+ {id:'t-swept-cruise',body:46,upper:-11,neck:-38,head:-13,
+  naturalElbow:true,limbAims:[
+   [.17,-.96,-.53],[-.16,-.87,-.65],
+   [.16,-.11,-.98],[-.14,-.17,-.97],
+   [.24,-.50,-.83],[-.23,-.45,-.87],
+   [.06,-.86,-.24],[-.06,-.87,-.30]
   ]}
 ];
 // CI can capture just the comparison set while keeping historical studies
