@@ -54,7 +54,7 @@ function armAims(phase,s){
    await hover();
    const r=await page.evaluate(aims=>
     window.SkyClashPoseLab.authorWorldPose({
-     name:'Selected B arms '+phase,time:.9,aims}),armAims(phase,amount));
+     name:'Selected B arms pose',time:.9,aims}),armAims(phase,amount));
    return {pose:r.data.keyframes.at(-1).quaternions,metrics:r.metrics};
   }
   const anchor=await bake('base',1);
