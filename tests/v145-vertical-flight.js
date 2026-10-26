@@ -118,7 +118,7 @@ const authority=fs.readFileSync('js/v100-pose-authority.js','utf8');
 const main=fs.readFileSync('js/animation-studio.js','utf8');
 assert(boot.includes("'v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))"),'V145 vertical playback retained as rollback');
 assert(boot.includes("flags.set('jumpPreview','v125')"),'approved V125 jump kept');
-assert(boot.includes("const BUILD='V149'"));
+assert(boot.includes("const BUILD='V151'"));
 assert(boot.includes("await script('js/v145-vertical-flight.js?v=1450')"));
 assert(authority.includes("flightVersion==='v145'"));
 assert(authority.includes("v145?'vertical-flight'"));
