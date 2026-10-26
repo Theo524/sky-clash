@@ -61,6 +61,6 @@ const source=fs.readFileSync('js/v100-pose-authority.js','utf8'),
 assert(source.includes("flightVersion==='v135'"));
 // V135 remains a deliberately selectable historical A/B comparison;
  // the plain public link must now open the V149 authored release.
-assert(boot.includes("flags.set('flightPreview','v151')"));
+assert(boot.includes("flags.set('flightPreview','v152'"));
 assert(boot.includes("e.src+='&softKneeFlight=135'"));
 console.log('PASS V135: all yaw/mirror cases visibly soften only the trailing knee while V134 arms, torso and lead leg remain unchanged');

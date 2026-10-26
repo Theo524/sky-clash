@@ -133,7 +133,7 @@ try{
  assert(boot.includes("e.src+='&arm=97'"));
  assert(boot.includes("e.src+='&fix=94'"));
  assert(boot.includes('js/v95-joystick-radius.js?v=950'));
- assert(/js[/]v66-game-boot[.]js[?]v=820&fix=([0-9]+)/.test(read('index.html')),
+ assert(/js[/]v66-game-boot[.]js[?]v=1520&fix=([0-9]+)/.test(read('index.html')),
   'the boot cache revision may advance without invalidating V99');
  console.log('PASS V99: real Kairo V76/V72/V81 jump and fall keep native fingers and bounded wrists; approved arms/landing/guard intact');
 }finally{

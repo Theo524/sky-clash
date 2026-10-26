@@ -79,6 +79,8 @@ jobs:
         run: node tests/v150-joystick-flight.js
       - name: Verify V151 authored relaxed flight arms and combat re-guard at 30 60 120 fps
         run: node tests/v151-relaxed-travel-arms.js
+      - name: Check V152 calm hover and truly trailing travel arms at 30 60 120 fps
+        run: node tests/v152-calm-hover-trailing-arms.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'

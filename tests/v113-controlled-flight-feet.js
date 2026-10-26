@@ -60,6 +60,6 @@ assert(owner.includes('if(st.pushReleaseHipXZ){'));
 assert(boot.includes("e.src+='&controlled=113'"));
 assert(boot.includes('shoe shift '));
 assert(/SKY CLASH · BUILD V11[3-5]/.test(html));
-assert(/js\/v66-game-boot\.js\?v=820&fix=11[4-6]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=1520&fix=11[4-6]/.test(html));
 assert(/BUILD V11[3-5]/.test(read('animation-studio.html')));
 console.log('PASS V113: 30/60/120fps controlled combat hover, forward travel, ascend, descend, subtle lateral turn; optional double-foot hold and smooth XZ takeoff release');

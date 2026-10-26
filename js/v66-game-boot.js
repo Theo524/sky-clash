@@ -12,17 +12,17 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V151 public release: V97 ground, V125 jump, V150 full-body flight
-  // and V151 natural free-travel arms on the ordinary playable URL.
+  // V152 public release: V97 ground, V125 jump, V150 full-body flight,
+  // calmer hover and distinct trailing free-travel arms.
   // Explicit historical animation comparisons still opt out of promotion.
   const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
    'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v151');
+   flags.set('flightPreview','v152');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151'].includes(flags.get('flightPreview'));
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151','v152'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -65,11 +65,12 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V151';
+ const BUILD='V152';
   // V149 and earlier remain explicit flightPreview rollback modes.
-  const modernFlight=['v150','v151'].includes(new URLSearchParams(location.search).get('flightPreview'));
+  const modernFlight=['v150','v151','v152'].includes(new URLSearchParams(location.search).get('flightPreview'));
   const v151Preview=new URLSearchParams(location.search).get('flightPreview')==='v151';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:151,
+  const v152Preview=new URLSearchParams(location.search).get('flightPreview')==='v152';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:152,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -211,6 +212,7 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v149')e.src+='&livingTravel=149';
     if(src.includes('v100-pose-authority')&&modernFlight)e.src+='&joystickFlight=150';
     if(src.includes('v100-pose-authority')&&v151Preview)e.src+='&freeTravelArms=151';
+    if(src.includes('v100-pose-authority')&&v152Preview)e.src+='&quietHover=152';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -245,7 +247,7 @@
   // finish loading. Keep Kairo's VRM meshes hidden until fully composed.
   window.SKY_V104_STARTUP_GATE=true;
   window.SKY_V104_ANIMATIONS_READY=false;
-  await script('js/game.js?v=1510&startup=104');
+  await script('js/game.js?v=1520&startup=104');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
@@ -308,7 +310,9 @@
     await script('js/v150-joystick-flight.js?v=1500');
    if(v151Preview)
     await script('js/v151-travel-arms.js?v=1510');
-   await script('js/v100-pose-authority.js?v=1510');
+   if(v152Preview)
+    await script('js/v152-flight-silhouette.js?v=1520');
+   await script('js/v100-pose-authority.js?v=1520');
    window.SkyClashV100Animator.start(window);
   }
   // Release the model/recording startup barrier ONLY after all wrappers
