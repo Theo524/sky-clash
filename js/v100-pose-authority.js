@@ -2204,8 +2204,15 @@
   const omega=clamp(Number.isFinite(frequency)?frequency:16,1,24);
   const distance=value-goal,rate=velocity+omega*distance;
   const decay=Math.exp(-omega*age);
-  const next=clamp(goal+(distance+rate*age)*decay,-1,1);
-  let nextVelocity=(velocity-omega*rate*age)*decay;
+  // Hard control reversals must not whip the pelvis through 6+ degrees
+  // in one 30fps tick. Velocity limiting is in units/second, not per frame.
+  const proposed=goal+(distance+rate*age)*decay;
+  const maxSpeed=4.3,maxStep=maxSpeed*age;
+  const next=clamp(proposed,Math.max(-1,value-maxStep),
+   Math.min(1,value+maxStep));
+  let nextVelocity=proposed!==next?(next-value)/age:
+   (velocity-omega*rate*age)*decay;
+  nextVelocity=clamp(nextVelocity,-maxSpeed,maxSpeed);
   if((next===1&&nextVelocity>0)||(next===-1&&nextVelocity<0))
    nextVelocity=0;
   return {value:next,velocity:nextVelocity};

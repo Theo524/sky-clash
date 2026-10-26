@@ -21,7 +21,7 @@ for(const fps of [30,60,120]){
     assert(Number.isFinite(p.value)&&Number.isFinite(p.velocity),
       'finite spring '+fps);
     assert(Math.abs(p.value)<=1.00001,'bounded pose '+fps);
-    assert(Math.abs(p.value-before[index])<.20,
+    assert(Math.abs(p.value-before[index])<.16,
       'no 30/60/120fps pitch or joint popping '+fps);
    }
   }
@@ -32,7 +32,7 @@ for(const fps of [30,60,120]){
  assert(lead.value>torso.value&&torso.value>limbs.value,
   'hips must lead body, arms and legs '+fps);
  move(intent(-1,-8),.8);
- assert(lead.value<-.98&&torso.value<-.97&&limbs.value<-.88,
+ assert(lead.value<-.98&&torso.value<-.94&&limbs.value<-.70,
   'fluid dive reversal '+fps);
  move(0,1.5);
  assert(Math.max(Math.abs(lead.value),Math.abs(torso.value),
