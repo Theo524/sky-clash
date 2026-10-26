@@ -1,5 +1,13 @@
 # Sky Clash — project context for future sessions
 
+## Character and combat north star — agreed direction (2026-10-26)
+
+The player strongly liked the **diverse, visually distinctive original-fighter universe** concept, inspired by One-Punch-Man-like variety and the intensity of airborne anime martial-arts fighting. Their question about comedy was clarified: this is **a fighting game, not a comedy/Netflix show**. Personality contrasts and surprising fighter silhouettes are welcome, but brutal martial arts and cinematic gameplay remain serious.
+
+**Read `docs/CHARACTER-BIBLE.md`** for two existing playable fighters (Kairo Venn, Rin Sable) and four optional proposed archetypes (Dagan Voss heavy grappler, Veyra gravity controller, Rook-09 cyborg bruiser, Mop unconventional staff counterfighter). **Do not pretend these four have models or registrations in code.** Candidate names/lore/visuals are not locked, while strong archetype diversity is the direction.
+
+**Read `docs/KAIRO-COMBAT-V1.md`** for proposed first choreography upgrade. Existing `src/60-combat.js` already has four Kairo melee beats, manual launcher and uppercut/meteor/falling fist follow-ups, plus distinct Rin four-beat melee. First next implementation milestone: standalone, opt-in real-VRM0 **Kairo lead jab animation** with body mechanics and impact timing, independently filmed and tested, before editing the complete chain or combat architecture. No gameplay changes were made by this design-planning pass. Keep one visible pose writer; no new Fighter.animate wrapper.
+
 ## V153 — stronger whole-body flight streamline with forward pressure (2026-10-26)
 
 Player asks that **at harder forward flight Kairo's WHOLE BODY move toward horizontal**,
