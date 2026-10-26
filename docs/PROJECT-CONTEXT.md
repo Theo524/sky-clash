@@ -1,5 +1,43 @@
 # Sky Clash — project context for future sessions
 
+## V152 — calm hover and clearly trailing free-flight arms (2026-10-26)
+
+Player visually rejected V151: the **normal airborne stance moves far too much
+and appears glitchy**, while forward arms remain visually too similar to the
+combat/hover stance despite V151's numerically successful tweaks. Real Kairo
+V150-V151 VRM front/side comparison confirmed: elbows and hands lowered by
+only a few centimetres, yielding essentially the same side silhouette.
+
+V152 candidate `feature/v152-calm-hover-real-trailing-arms` reauthors this
+rather than stacking a second pose writer. `js/v152-flight-silhouette.js`:
+
+- At actual no-input/no-velocity hover, gently blends **93% toward a fixed
+  V144-approved asymmetric suspended hover frame**, retaining 7% of existing
+  slow motion; 4/s ease into hover, 9/s release. Both arm and entire torso/leg
+  keyed movement calm together rather than only suppressing wrists. This
+  preserves one tucked floating knee and one dangling leg, not standing.
+- Free, forward joystick travel gets an entirely different 4.6s seven-key
+  **backward-trailing** elbow/hand shape (world-facing elbow F about -0.5 to
+  -0.65 and hand F about -0.6 to -0.73). Upper arms still slant down, elbows
+  remain naturally bent and slightly separated, no T-pose or horizontal
+  Superman dive. Hands follow later than shoulders.
+- The opponent lock-on guard remains **exact V150** in all directions, with
+  no authored arm overlay. The existing V150 lean/legs/chest are also
+  unchanged during movement; old explicit V151/V150/V149 preview URLs remain.
+  V152 does NOT invoke V151's subtly lowered arm clip.
+- Only one existing `js/v100-pose-authority.js` final VRM0 pose writer.
+  No Fighter.animate wrapper, gameplay root, camera, movement, collision,
+  velocity, boost, attack, V97 ground or V125 jump modifications.
+- New 30/60/120 fps `tests/v152-calm-hover-trailing-arms.js`, V151-vs-V152
+  real Kairo WebGL 3-view video/still A/B, plus correcting the stale V80
+  bundle-version assertion that made the earlier V151 CI red even after
+  deployment.
+
+**Release:** branch candidate pending code and VRM WebGL review. V151 main
+remains public until merged; when published the plain game URL will load
+V152. Explicit `?flightPreview=v151` / `?flightPreview=v150` preserve both
+rollbacks. Unit targets alone do not prove a visually accepted animation.
+
 ## V151 — natural free-forward travel arms with combat guard preserved (2026-10-26)
 
 Player feedback after V150: while flying forward, Kairo keeps his hands and
