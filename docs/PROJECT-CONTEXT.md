@@ -1,15 +1,18 @@
 # Sky Clash — project context for future sessions
 
-## V150 — joystick-driven flight lean and lock-on-aware retreat (candidate, 2026-10-25)
+## V150 — joystick-driven flight lean and lock-on-aware retreat (public promotion requested, 2026-10-26)
 
-**STATUS: experimental draft, not approved for main or the normal Pages game.**
-V149 remains the public default; V150 is opt-in on branch
-`feature/v150-joystick-lean-lockon`. Do not call V150 published or visually
-accepted until a successful real-Kairo WebGL review and player approval.
-On a branch-hosted copy use `?flightPreview=v150`; after merge, that query
-would enable the candidate on Pages. **Rollback:** `?flightPreview=v149`;
-the plain link still selects V149, and Boost's old pose is retained unless
-the V150 flight module is loaded.
+**PUBLIC RELEASE APPROVED BY USER:** The player specifically requested
+"how can i see if not published, lol publish it", overriding the prior
+draft-only release gate. Promote V150 to the normal public Pages URL by
+merging PR #102 after code tests; do not claim complete deployment until
+the site is actually verified. The plain URL selects `flightPreview=v150`,
+`SkyClashBuild.version='V150'`, plus the preserved V97 ground and V125 jump.
+**Rollback:** `?flightPreview=v149` restores the prior V149 travel and
+Boost behavior, independent of V150's new clip. Historical versions remain
+available. User wants to play V150 to judge animation aesthetics directly;
+publishing on their request is not a claim of artistic approval.
+CI and real-Kairo WebGL validation are separate checks.
 
 Player feedback after V149: ordinary joystick flight should clearly LEAN
 into movement (roughly 10–15 degrees at strong input), with animated hips,
