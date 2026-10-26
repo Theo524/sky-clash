@@ -244,6 +244,8 @@
    const toe=hum.getNormalizedBoneNode(side+'Toes');
    if(!thigh||!shin||!ankle)continue;
    const index=side==='left'?14:17;
+   // V153: keep knees and ankles BEHIND the torso when pitching forward.
+   const streamline=clamp(pose?.streamlineWeight||0,0,1);
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
    const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight','V146 expressive vertical follow-through','V147 directional forward/back flight','V148 full-body omni flight','V149 living forward/back flight','V150 joystick-responsive flight',
@@ -341,8 +343,8 @@
    const rise=pose?.rise||0,drop=pose?.descend||0;
    // Distinct thigh and shin target directions produce a knee genuinely
    // FRONT of the hip-to-ankle support line on either mirrored leg.
-   target.copy(down).addScaledVector(f,
-      forwardKnee+.06*rise-.03*drop)
+   target.copy(down).multiplyScalar(1-.72*streamline).addScaledVector(f,
+      (forwardKnee+.06*rise-.03*drop)*(1-streamline)-.95*streamline)
     .addScaledVector(right,sign*(keyed?.065:(suspended||reference||serene)?
       .045+.018*Math.sin(Math.max(0,pose.age)*1.0+
        (side==='left'?0:1.6)):
@@ -356,15 +358,15 @@
       weightless?
       .10+.055*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
       (buoyant||natural)?.035:.075)).normalize();
-   aim(thigh,shin,target,.85,index);
-   target.copy(down).addScaledVector(f,
-      -foldBack+.025*rise-.04*drop)
+   aim(thigh,shin,target,streamline>.01?1.52:.85,index);
+   target.copy(down).multiplyScalar(1-.68*streamline).addScaledVector(f,
+      -foldBack+.025*rise-.04*drop-1.10*streamline)
     .addScaledVector(right,-sign*(keyed?.015:(suspended||reference||serene)?.012:
       holistic?.015:fullHover?.018:
       (softTrailingKnee||naturalHover)?.025:
       weightless?.045:
       (buoyant||natural)?.015:.018)).normalize();
-   aim(shin,ankle,target,1.13,index+1);
+   aim(shin,ankle,target,streamline>.01?1.52:1.13,index+1);
    // Toe-down relative to its EXISTING world horizontal heading:
    // don't force an unverified VRM0 shoe yaw to gameplay +Z.
    if(toe){
@@ -887,8 +889,12 @@
      pose?.profile==='V151 natural free-flight arms'||
      pose?.profile==='V152 calm hover and trailing travel arms'||
       pose?.profile==='V153 streamlined whole-body forward flight');
-  const goal=up.clone().addScaledVector(f,.025+.045*travel+
-    (animated?(pose.chestGoalF||0):0))
+  const streamline=clamp(pose?.streamlineWeight||0,0,1),
+   normalForward=.025+.045*travel+(animated?(pose.chestGoalF||0):0),
+   // Head slightly raised relative to chest, even when fully streamlined.
+   chestForward=Math.tan(Math.atan(normalForward)+streamline*
+    (1.00-Math.atan(normalForward)));
+  const goal=up.clone().addScaledVector(f,chestForward)
    .addScaledVector(across,.030*bank+
     (animated?(pose.chestGoalS||0):0)).normalize();
   scene.updateMatrixWorld(true);
@@ -903,7 +909,7 @@
    const world=spine.getWorldQuaternion(new THREE.Quaternion());
    cross.applyQuaternion(world.invert()).normalize();
    spine.quaternion.multiply(q.setFromAxisAngle(cross,
-    Math.min(raw,.42)*clamp(strength,0,1))).normalize();
+    Math.min(raw,streamline>.001?1.45:.42)*clamp(strength,0,1))).normalize();
    if(previous?.[1]&&dt>0){
     const maxStep=5*Math.max(0,dt);
     const dist=previous[1].angleTo(spine.quaternion);
@@ -979,9 +985,13 @@
      pose?.profile==='V151 natural free-flight arms'||
      pose?.profile==='V152 calm hover and trailing travel arms'||
       pose?.profile==='V153 streamlined whole-body forward flight');
+  const streamline=clamp(pose?.streamlineWeight||0,0,1),
+   normalForward=-.045+.080*travel+(animated?(pose.pelvisGoalF||0):0),
+   // 62deg from vertical at hard forward input, root/collision unchanged.
+   pelvisForward=Math.tan(Math.atan(normalForward)+streamline*
+    (1.0821-Math.atan(normalForward)));
   const desired=up.clone()
-   .addScaledVector(f,-.045+.080*travel+
-    (animated?(pose.pelvisGoalF||0):0))
+   .addScaledVector(f,pelvisForward)
    .addScaledVector(side,.018*bank+
     (animated?(pose.pelvisGoalS||0):0)).normalize();
   scene.updateMatrixWorld(true);
@@ -995,7 +1005,7 @@
    const world=pelvis.getWorldQuaternion(new THREE.Quaternion());
    crossed.applyQuaternion(world.invert()).normalize();
    const delta=new THREE.Quaternion().setFromAxisAngle(crossed,
-    Math.min(raw,.42)*clamp(strength,0,1));
+    Math.min(raw,streamline>.001?1.50:.42)*clamp(strength,0,1));
    pelvis.quaternion.multiply(delta).normalize();
    if(previous?.[0]&&dt>0){
     const max=5*Math.max(0,dt);
