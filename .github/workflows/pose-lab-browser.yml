@@ -1,0 +1,51 @@
+name: Kairo Pose Lab Real-VRM Editor Validation
+on:
+  pull_request:
+    paths:
+      - 'pose-lab.html'
+      - 'js/kairo-pose-lab.js'
+      - 'animation-studio.html'
+      - 'tools/test-kairo-pose-lab.cjs'
+      - '.github/workflows/pose-lab-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install headless real VRM WebGL browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check js/kairo-pose-lab.js
+          node --check tools/test-kairo-pose-lab.cjs
+      - name: Serve Pose Lab and real Kairo model
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-pose-lab-server.log 2>&1 &
+          for i in $(seq 1 16); do
+            if curl --max-time 3 -fsS http://127.0.0.1:8765/pose-lab.html >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Test edit, export, import, and screenshot on real Kairo VRM0
+        env:
+          VISUAL_PORT: '8765'
+        run: node tools/test-kairo-pose-lab.cjs
+      - name: Capture V152 game-hover pose as real-Kairo editor baseline
+        run: |
+          node --check tools/capture-kairo-pose-reference.cjs
+          node tools/capture-kairo-pose-reference.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-pose-lab-acceptance
+          path: visual-review-output/
+          retention-days: 14

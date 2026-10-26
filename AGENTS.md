@@ -52,6 +52,10 @@ only a previous conversation may not have the full project context.
 - Never merge, change the visual default, or remove the rollback before
   explicit user approval.
 
+## Visual authoring tool instead of procedural flight revisions
+
+Before touching Kairo flight or Boost following the user's V153/V154/V155 rejections, read `docs/KAIRO-POSE-LAB-WORKFLOW.md`. Use the standalone `pose-lab.html` for actual real-VRM quaternion editing and manual keyframes. Do not claim previous parametric V142/V153/V155 flight targets were directly authored VRM joint clips. Do not replace game flight merely because the Pose Lab exports a JSON; baseline/transition, runtime single-owner and user visual review are still outstanding.
+
 ## Before closing an animation PR
 
 Update docs/PROJECT-CONTEXT.md with dated PR/status, affected state, flags,

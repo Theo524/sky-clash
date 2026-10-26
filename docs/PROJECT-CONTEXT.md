@@ -1,5 +1,11 @@
 # Sky Clash — project context for future sessions
 
+## Critical 2026-10-26 user feedback: rejected flight and real VRM Pose Lab foundation
+
+User says V155 ruined flight further and twisted the character, following earlier rejections of V153 stick/plank flying and both old/V154 Boost animations. This is **not a request to increase lean or add V156 corrective geometry**. The player explicitly wants a better authoring process: one that builds actual keyframe motion on the real character, not automatic solver guesses. Admit that `js/v142-hover-keyframes.js` etc stored parametric targets that still depended on V100 world-bone correction; it was NOT a full rig manual editor.
+
+**New standalone Kairo Pose Lab**: `pose-lab.html`, `js/kairo-pose-lab.js`, tests `tools/test-kairo-pose-lab.cjs`, docs `docs/KAIRO-POSE-LAB-WORKFLOW.md`. Real published Kairo normalized VRM joint manipulation, 3-camera review, manual keyframe and quaternion-slerp playback, model SHA-256 JSON import/export, measured knee/torso angles, PNG screenshot. No `js/game.js` or game animation writer changes. Pose Lab starts from actual VRM *rest*, not approved V152 runtime hover; next necessary step is importing the precise baseline/recorded game pose, then user-approved manual three-view storyboard, then single-owner runtime integration. **Don't pretend the tool itself fixed in-game flight.** Preserve current live default until validated and user approves a replacement. See workflow doc for full requirements.
+
 ## V155 feedback: both Boosts terrible and forward flight looks like a stick — 2026-10-26
 
 Player rejected **both V153 default Boost and V154 preview Boost**, and called the V153 forward flying silhouette **a stick flying**. Do NOT defend previous green test numbers or pitch angle. Real-Kairo V154 A/B WebGL capture from run 40263416673 confirms nearly straight, full-length forward leg extension (V153 ~75° whole-body incline and V154 air ~61°, with legs almost inline). Ground V154 looked similar to old awkward running. Old V154 visual workflow failed, so do not claim it passed. Side-by-side real WebGL footage and metrics can be obtained from the run's artifact.
