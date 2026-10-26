@@ -51,13 +51,13 @@ const jumpDefaults={
 };
 for(const [name,value] of Object.entries({...jumpDefaults,jumpKnees:'anatomic',
  flightLab:'blend',flightStyle:'airborne',
- jumpPreview:'v125',flightPreview:'v152'}))
- assert.equal(run.flags.get(name),value,'V152 integrated public default: '+name);
+ jumpPreview:'v125',flightPreview:'v153'}))
+ assert.equal(run.flags.get(name),value,'V153 integrated public default: '+name);
 // Scene/custom gameplay URL parameters must not remove the unified default.
 const integratedScene=simulate('?scene=dojo');
 assert.equal(integratedScene.flags.get('scene'),'dojo');
 assert.equal(integratedScene.flags.get('jumpPreview'),'v125');
-assert.equal(integratedScene.flags.get('flightPreview'),'v152');
+assert.equal(integratedScene.flags.get('flightPreview'),'v153');
 run=simulate('?flightPreview=v130');
 assert.equal(run.flags.get('jumpPreview'),'v125');
 assert.equal(run.flags.get('flightLab'),'blend');
@@ -190,9 +190,9 @@ assert.equal(run.flags.has('joystickRun'),false,
  'Old movement rollback must not turn on V95');
 assert.equal(run.flags.has('stance'),false);
 
-assert(index.includes('js/v66-game-boot.js?v=1520&fix=116&groundDefault=97&jumpDefault=125'),
+assert(index.includes('js/v66-game-boot.js?v=1530&fix=116&groundDefault=97&jumpDefault=125'),
  'Bump the boot cache key to prevent mobile devices using old jump defaults');
-assert(boot.includes("const BUILD='V152'"), 'Public release must identify V151');
+assert(boot.includes("const BUILD='V153'"), 'Public release must identify V151');
 assert(boot.includes("&suspendedFlight=141"), 'V141 rollback must remain available');
 assert(boot.includes("&authoredFlight=142"), 'V142 rollback cache key must be available');
 assert(boot.includes("&livingFlight=143"), 'V143 rollback remains available');

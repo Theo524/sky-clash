@@ -1,5 +1,38 @@
 # Sky Clash — project context for future sessions
 
+## V153 — stronger whole-body flight streamline with forward pressure (2026-10-26)
+
+Player asks that **at harder forward flight Kairo's WHOLE BODY move toward horizontal**,
+not merely lower the arms; light hover and free slow movement should stay
+upright and relaxed, with an unmistakably aerodynamic 3D side silhouette
+when pressing forward hard. Superhero flying pose examples informed this
+change but are NOT traced or imported animation assets.
+
+V153 on `feature/v153-streamlined-forward-flight` adds
+`js/v153-streamlined-flight.js` inside the existing sole V100 pose owner.
+Signed V150 joystick input and actual horizontal speed feed frame-independent
+easing (4.7/s into and 6.8/s out of pressure); only **free-forward travel**
+gets the pose. Exact V152 quiet hover and V150 lock-on guard/strafe/retreat
+are preserved. At hard input, the pelvis-to-neck axis aims **62 degrees from
+upright** and spine-neck slightly less (about 57 degrees), with Kairo looking
+ahead. Both upper thighs and shins aim BACK and become more streamlined
+rather than dangling like the ordinary slow hover. V152's authored trailing
+arms remain, and slow/partial inputs blend smoothly between upright and
+streamlined. Never modify the fighter/model gameplay root quaternion,
+velocity, collisions, physics, camera, Boost ownership, V125 jump,
+V97 ground or Rin.
+
+The legacy V137 pelvis and V136 chest world-space geometry directors had
+a `.42`rad per-frame geometric correction cap and vertical targets, hiding
+the requested full-body forward pitch. V153 alone increases its target and
+angle caps, keeping the original correction exact for all other versions.
+V153 is an experimental release candidate until real Kairo 3-view WebGL
+capture, regression tests, and player feedback. Plain Pages URL will load
+V153 **after merge**; `?flightPreview=v152` is exact prior rollback
+(with V151/V150/V149 similarly available). 30/60/120fps targeted regression
+in `tests/v153-streamlined-flight.js`; real Kairo capture workflows compare
+V152 vs V153 and assert pelvis and torso world-space geometry.
+
 ## V152 — calm hover and clearly trailing free-flight arms (2026-10-26)
 
 Player visually rejected V151: the **normal airborne stance moves far too much

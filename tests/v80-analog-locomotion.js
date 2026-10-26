@@ -91,7 +91,7 @@ assert(studio.includes('renderAllPreviews&&!visiblePage().includes(item)'),
 assert(studio.includes('previews ready')&&studio.includes('awaiting render'),
  'Explain loaded versus rendered count rather than saying clips are missing');
 const game=read('js/v66-game-boot.js');
-assert(game.includes('js/game.js?v=1520'),'Rebuilt game bundle used');
+assert(game.includes('js/game.js?v=1530'),'Rebuilt game bundle used');
 assert(game.includes('js/v72-published-actions.js?v=820'));
 assert(game.includes('js/v79-extra-actions.js?v=810'));
 console.log('PASS V80: approved idle retained; 23-frame real run on full analog stick; Boost-only grounded stop and smoke; normal landings stay upright; 230-preview backlog actionable');

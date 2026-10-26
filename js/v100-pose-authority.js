@@ -244,11 +244,14 @@
    const toe=hum.getNormalizedBoneNode(side+'Toes');
    if(!thigh||!shin||!ankle)continue;
    const index=side==='left'?14:17;
+   // V153: keep knees and ankles BEHIND the torso when pitching forward.
+   const streamline=clamp(pose?.streamlineWeight||0,0,1);
    // Slight asynchronous knee drift, only for relaxed V130; the V128
    // calibrated forward-bending anatomy and ankle heading stay intact.
    const keyed=['V142 authored skeletal hover clip','V143 living hover performance','V144 relaxed floating arms','V145 directed vertical flight','V146 expressive vertical follow-through','V147 directional forward/back flight','V148 full-body omni flight','V149 living forward/back flight','V150 joystick-responsive flight',
    'V151 natural free-flight arms',
-   'V152 calm hover and trailing travel arms'].includes(pose?.profile)&&pose.keys;
+   'V152 calm hover and trailing travel arms',
+    'V153 streamlined whole-body forward flight'].includes(pose?.profile)&&pose.keys;
    const suspended=pose?.profile==='V141 suspended silhouette';
    const reference=pose?.profile==='V140 reference-balanced hover';
    const serene=pose?.profile==='V138 calm anime levitation';
@@ -340,8 +343,8 @@
    const rise=pose?.rise||0,drop=pose?.descend||0;
    // Distinct thigh and shin target directions produce a knee genuinely
    // FRONT of the hip-to-ankle support line on either mirrored leg.
-   target.copy(down).addScaledVector(f,
-      forwardKnee+.06*rise-.03*drop)
+   target.copy(down).multiplyScalar(1-.72*streamline).addScaledVector(f,
+      (forwardKnee+.06*rise-.03*drop)*(1-streamline)-.95*streamline)
     .addScaledVector(right,sign*(keyed?.065:(suspended||reference||serene)?
       .045+.018*Math.sin(Math.max(0,pose.age)*1.0+
        (side==='left'?0:1.6)):
@@ -355,15 +358,15 @@
       weightless?
       .10+.055*Math.sin(Math.max(0,pose.age)*1.12+(side==='left'?0:2.1)):
       (buoyant||natural)?.035:.075)).normalize();
-   aim(thigh,shin,target,.85,index);
-   target.copy(down).addScaledVector(f,
-      -foldBack+.025*rise-.04*drop)
+   aim(thigh,shin,target,streamline>.01?1.52:.85,index);
+   target.copy(down).multiplyScalar(1-.68*streamline).addScaledVector(f,
+      -foldBack+.025*rise-.04*drop-1.10*streamline)
     .addScaledVector(right,-sign*(keyed?.015:(suspended||reference||serene)?.012:
       holistic?.015:fullHover?.018:
       (softTrailingKnee||naturalHover)?.025:
       weightless?.045:
       (buoyant||natural)?.015:.018)).normalize();
-   aim(shin,ankle,target,1.13,index+1);
+   aim(shin,ankle,target,streamline>.01?1.52:1.13,index+1);
    // Toe-down relative to its EXISTING world horizontal heading:
    // don't force an unverified VRM0 shoe yaw to gameplay +Z.
    if(toe){
@@ -488,7 +491,7 @@
   const serene=style==='serene-hover';
   const reference=style==='reference-hover';
   const suspended=style==='suspended-hover';
-  const keyed=(style==='authored-hover'||style==='living-hover'||style==='natural-arms'||style==='vertical-flight'||style==='expressive-vertical'||style==='directional-flight'||style==='omni-flight'||style==='living-travel'||style==='joystick-flight'||style==='soaring-arms'||style==='quiet-travel')&&pose?.keys;
+  const keyed=(style==='authored-hover'||style==='living-hover'||style==='natural-arms'||style==='vertical-flight'||style==='expressive-vertical'||style==='directional-flight'||style==='omni-flight'||style==='living-travel'||style==='joystick-flight'||style==='soaring-arms'||style==='quiet-travel'||style==='streamlined')&&pose?.keys;
   const time=Math.max(0,pose?.age||0);
   for(const side of ['left','right']){
    const left=side==='left',out=across.clone().multiplyScalar(left?1:-1);
@@ -644,7 +647,8 @@
   if(status){
    if(keyed){
     status.flightAuthoredWorld=result;
-    status.flightAuthoredClip=style==='quiet-travel'?'V152 calm hover and trailing arms':
+    status.flightAuthoredClip=style==='streamlined'?'V153 whole-body forward flight':
+      style==='quiet-travel'?'V152 calm hover and trailing arms':
      style==='soaring-arms'?'V151 relaxed authored travel arms':
       style==='joystick-flight'?'V150 joystick-responsive flight':
       style==='living-travel'?'V149 expressive moving flight legs':
@@ -883,9 +887,14 @@
    pose?.profile==='V149 living forward/back flight'||
     (pose?.profile==='V150 joystick-responsive flight'||
      pose?.profile==='V151 natural free-flight arms'||
-     pose?.profile==='V152 calm hover and trailing travel arms');
-  const goal=up.clone().addScaledVector(f,.025+.045*travel+
-    (animated?(pose.chestGoalF||0):0))
+     pose?.profile==='V152 calm hover and trailing travel arms'||
+      pose?.profile==='V153 streamlined whole-body forward flight');
+  const streamline=clamp(pose?.streamlineWeight||0,0,1),
+   normalForward=.025+.045*travel+(animated?(pose.chestGoalF||0):0),
+   // Head slightly raised relative to chest, even when fully streamlined.
+   chestForward=Math.tan(Math.atan(normalForward)+streamline*
+    (1.00-Math.atan(normalForward)));
+  const goal=up.clone().addScaledVector(f,chestForward)
    .addScaledVector(across,.030*bank+
     (animated?(pose.chestGoalS||0):0)).normalize();
   scene.updateMatrixWorld(true);
@@ -900,7 +909,7 @@
    const world=spine.getWorldQuaternion(new THREE.Quaternion());
    cross.applyQuaternion(world.invert()).normalize();
    spine.quaternion.multiply(q.setFromAxisAngle(cross,
-    Math.min(raw,.42)*clamp(strength,0,1))).normalize();
+    Math.min(raw,streamline>.001?1.45:.42)*clamp(strength,0,1))).normalize();
    if(previous?.[1]&&dt>0){
     const maxStep=5*Math.max(0,dt);
     const dist=previous[1].angleTo(spine.quaternion);
@@ -974,10 +983,15 @@
    pose?.profile==='V149 living forward/back flight'||
     (pose?.profile==='V150 joystick-responsive flight'||
      pose?.profile==='V151 natural free-flight arms'||
-     pose?.profile==='V152 calm hover and trailing travel arms');
+     pose?.profile==='V152 calm hover and trailing travel arms'||
+      pose?.profile==='V153 streamlined whole-body forward flight');
+  const streamline=clamp(pose?.streamlineWeight||0,0,1),
+   normalForward=-.045+.080*travel+(animated?(pose.pelvisGoalF||0):0),
+   // 62deg from vertical at hard forward input, root/collision unchanged.
+   pelvisForward=Math.tan(Math.atan(normalForward)+streamline*
+    (1.0821-Math.atan(normalForward)));
   const desired=up.clone()
-   .addScaledVector(f,-.045+.080*travel+
-    (animated?(pose.pelvisGoalF||0):0))
+   .addScaledVector(f,pelvisForward)
    .addScaledVector(side,.018*bank+
     (animated?(pose.pelvisGoalS||0):0)).normalize();
   scene.updateMatrixWorld(true);
@@ -991,7 +1005,7 @@
    const world=pelvis.getWorldQuaternion(new THREE.Quaternion());
    crossed.applyQuaternion(world.invert()).normalize();
    const delta=new THREE.Quaternion().setFromAxisAngle(crossed,
-    Math.min(raw,.42)*clamp(strength,0,1));
+    Math.min(raw,streamline>.001?1.50:.42)*clamp(strength,0,1));
    pelvis.quaternion.multiply(delta).normalize();
    if(previous?.[0]&&dt>0){
     const max=5*Math.max(0,dt);
@@ -1313,6 +1327,17 @@
   const p=v150FlightPose(mix,vertical,lateral,age,vMotion,hMotion,intent),
    anchor=v144FlightPose(0,0,0,0);
   return clip.compose(p,anchor,state,age);
+ }
+ // V153: joystick pressure tilts the entire free-flight silhouette.
+ // Only V100 writes visible Kairo bones; no physics or game root edits.
+ function v153FlightPose(mix,vertical=0,lateral=0,age=0,
+   vMotion=null,hMotion=null,intent=null,calm=null,stream=null){
+  const clip=root.SkyClashV153Streamline||
+   (typeof module!=='undefined'&&module.exports?
+    require('./v153-streamlined-flight.js'):null);
+  if(!clip)throw Error('V153 streamlined flight clip missing');
+  return clip.performance(v152FlightPose(mix,vertical,lateral,age,
+    vMotion,hMotion,intent,calm),stream);
  }
  // V110: source jump/fall clips have a different built-in yaw baseline
  // from the approved grounded pose. Their yaw accumulates along the
@@ -2158,7 +2183,7 @@
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
-   st.v151Arms=null;st.v152Motion=null;
+   st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
    st.prepLastHipY=null;st.pushReleaseHipY=null;st.prepFeet=[];
    st.prepHipsXZ=null;st.prepLastHipXZ=null;st.pushReleaseHipXZ=null;
@@ -2213,7 +2238,7 @@
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
    }
    if(next==='flight'){
-    st.v151Arms=null;st.v152Motion=null;
+    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
      st.v150Motion=null;
     st.v148Motion=null;
     st.v147Motion=null;
@@ -2347,6 +2372,7 @@
      params.get('flightLab')==='blend'&&
      params.get('flightStyle')==='airborne';
    const flightVersion=params.get('flightPreview');
+   const v153=airborne&&flightVersion==='v153';
    const v152=airborne&&flightVersion==='v152';
    const v151=airborne&&flightVersion==='v151';
    const v150=airborne&&flightVersion==='v150';
@@ -2373,7 +2399,10 @@
    const v128=airborne&&flightVersion==='v128';
    const v127=airborne&&flightVersion==='v127';
    const v126=airborne&&flightVersion==='v126';
-   const flightControl=v152?v152FlightPose(st.flightMix,
+   const flightControl=v153?v153FlightPose(st.flightMix,
+     st.flightVelocityY,st.flightSide,st.elapsed,
+     st.v146Motion,st.v148Motion,st.v150Motion,st.v152Motion,st.v153Motion):
+    v152?v152FlightPose(st.flightMix,
      st.flightVelocityY,st.flightSide,st.elapsed,
      st.v146Motion,st.v148Motion,st.v150Motion,st.v152Motion):
     v151?v151FlightPose(st.flightMix,
@@ -2435,10 +2464,10 @@
      controlled?controlledFlightPose(st.flightMix,f.vel?.y||0,localSide):null;
    // QA and debug HUD read the *actual* velocity-derived airborne mode.
    // This is pose telemetry only: jump and physics state remain untouched.
-   if((v145||v146||v147||v148||v149||v150||v151||v152)&&flightControl){
+   if((v145||v146||v147||v148||v149||v150||v151||v152||v153)&&flightControl){
     status.flightVerticalMode=flightControl.verticalAction;
     status.flightVerticalWeight=+flightControl.verticalActionStrength.toFixed(3);
-    if(v146||v147||v148||v149||v150||v151||v152){
+    if(v146||v147||v148||v149||v150||v151||v152||v153){
      status.flightVerticalTorso=+flightControl.verticalActionTorso.toFixed(3);
      status.flightVerticalLegs=+flightControl.verticalActionLegs.toFixed(3);
      status.flightVerticalArms=+flightControl.verticalActionArms.toFixed(3);
@@ -2460,7 +2489,7 @@
      status.flightHorizontalSide=+flightControl.omniSide.toFixed(3);
      if(v149)status.flightTravelPhase=+flightControl.travelPerformancePhase.toFixed(3);
     }
-    if(v150||v151||v152){
+    if(v150||v151||v152||v153){
      status.flightHorizontalMode=flightControl.omniMode;
      status.flightHorizontalWeight=+flightControl.omniWeight.toFixed(3);
      status.flightHorizontalTurn=+flightControl.omniTurn.toFixed(3);
@@ -2472,11 +2501,16 @@
      status.flightInputStrength=+flightControl.inputStrength.toFixed(3);
      status.flightRetreatLocked=flightControl.inputLocked;
      status.flightInputForward=+flightControl.inputForward.toFixed(3);
-      if(v152){
+      if(v152||v153){
        status.flightQuietHover=flightControl.quietFlightWeight;
        status.flightTrailingElbow=+flightControl.trailingElbowWeight.toFixed(3);
        status.flightTrailingHand=+flightControl.trailingHandWeight.toFixed(3);
        status.flightTrailingPose=flightControl.trailingPose;
+       if(v153){
+        status.flightStreamlineWeight=+flightControl.streamlineWeight.toFixed(3);
+        status.flightStreamlineTarget=+flightControl.streamlineTarget.toFixed(3);
+        status.flightStreamlineDegrees=+flightControl.streamlineDegrees.toFixed(1);
+       }
       }
       if(v151){
        status.flightTravelArmBlend=+flightControl.travelArmsElbow.toFixed(3);
@@ -2691,7 +2725,7 @@
      // arm quaternion here, letting only the final real-world solver
      // advance those four joints with the original 5rad/s budget.
      // All other flight joints retain the historical V111 limiter.
-     if((v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
+     if((v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152||v153)&&[7,8,11,12].includes(i))qTarget.copy(st.prev[i]);
      else{
       const maxStep=5.0*Math.max(0,dt);
       const delta=st.prev[i].angleTo(qTarget);
@@ -2748,19 +2782,19 @@
      status.airFacingDriftDeg+=correction.residual*180/Math.PI;
     }
    }
-   if(v128||v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152){
+   if(v128||v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152||v153){
     // Stabilized from the REAL game-model facing, including VRM0's native
     // -Z parity; no extra Fighter.animate layer or invisible guide rig.
     const forward=realKairoForward(THREE,rig,null);
-    if(v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152)v137CorrectPelvisBalance(THREE,rig,forward,flightControl,
+    if(v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152||v153)v137CorrectPelvisBalance(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.32),st.prev,dt,status);
-    if(v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152)v136CorrectSuspendedTorso(THREE,rig,forward,flightControl,
+    if(v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152||v153)v136CorrectSuspendedTorso(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.30),st.prev,dt,status);
     v128CorrectFlightLegs(THREE,rig,forward,flightControl,
      smooth(st.elapsed/.26),st.prev,dt,status);
-    if(v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
+    if(v129||v130||v131||v132||v133||v134||v135||v136||v137||v138||v140||v141||v142||v143||v144||v145||v146||v147||v148||v149||v150||v151||v152||v153)v129CorrectFlightGuard(THREE,rig,forward,flightControl,
       smooth(st.elapsed/.32),st.prev,dt,status,
-      v152?'quiet-travel':v151?'soaring-arms':v150?'joystick-flight':v149?'living-travel':v148?'omni-flight':v147?'directional-flight':v146?'expressive-vertical':v145?'vertical-flight':v144?'natural-arms':v143?'living-hover':v142?'authored-hover':v141?'suspended-hover':v140?'reference-hover':v138?'serene-hover':v137?'holistic-hover':v136?'full-hover':
+      v153?'streamlined':v152?'quiet-travel':v151?'soaring-arms':v150?'joystick-flight':v149?'living-travel':v148?'omni-flight':v147?'directional-flight':v146?'expressive-vertical':v145?'vertical-flight':v144?'natural-arms':v143?'living-hover':v142?'authored-hover':v141?'suspended-hover':v140?'reference-hover':v138?'serene-hover':v137?'holistic-hover':v136?'full-hover':
       (v135||v134)?'natural-hover':
       v133?'weightless':v132?'buoyant':v131?'organic':
       v130?'relaxed':'guard');
@@ -3117,7 +3151,7 @@
     if(state==='flight'){
      const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
      st.flightMix=flightStep(st.flightMix,flightWeight(speed),safe);
-     if(['v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149','v150','v151','v152'].includes(new URLSearchParams(root.location?.search||'')
+     if(['v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149','v150','v151','v152','v153'].includes(new URLSearchParams(root.location?.search||'')
        .get('flightPreview'))){
       const yaw=this.facing||0;
       const side=(this.vel?.x||0)*Math.cos(yaw)-
@@ -3126,7 +3160,7 @@
       st.flightSide=flightStep(st.flightSide,side,safe);
       status.flightSmoothedVertical=+st.flightVelocityY.toFixed(2);
       status.flightSmoothedLateral=+st.flightSide.toFixed(2);
-      if(['v146','v147','v148','v149','v150','v151','v152'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
+      if(['v146','v147','v148','v149','v150','v151','v152','v153'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
        const clip=root.SkyClashV146Vertical;
        if(!clip)throw Error('V146 vertical follow-through not loaded');
        st.v146Motion=clip.step(st.v146Motion,st.flightVelocityY,safe);
@@ -3147,7 +3181,7 @@
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
       }
-      if(['v150','v151','v152'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
+      if(['v150','v151','v152','v153'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
         const omni=root.SkyClashV148AllFlight,input=root.SkyClashV150Flight;
        if(!omni||!input)throw Error('V150 sources not loaded');
        st.v148Motion=omni.step(st.v148Motion,this.vel?.x||0,
@@ -3160,11 +3194,17 @@
         this.vel?.x||0,this.vel?.z||0,yaw,locked,safe);
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
-        if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v152'){
+        if(['v152','v153'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
           const clip=root.SkyClashV152Silhouette;
           if(!clip)throw Error('V152 visual flight clip unavailable');
           st.v152Motion=clip.step(st.v152Motion,st.v150Motion,
             this.vel?.y||0,Math.hypot(this.vel?.x||0,this.vel?.z||0),safe);
+          if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v153'){
+           const stream=root.SkyClashV153Streamline;
+           if(!stream)throw Error('V153 streamline clip unavailable');
+           st.v153Motion=stream.step(st.v153Motion,st.v150Motion,
+             Math.hypot(this.vel?.x||0,this.vel?.z||0),safe);
+          }
          }
          if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v151'){
          const arms=root.SkyClashV151TravelArms;
@@ -3177,6 +3217,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v153'?'V153 forceful streamlined forward flight':
+         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v152'?'V152 calm hover and clear trailing free-flight arms':
          new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v151'?'V151 relaxed travel arms and V150 full-body flight':
@@ -3333,6 +3375,7 @@
     flightTravelArmMode:'guard-or-hover',
    flightQuietHover:0,flightTrailingElbow:0,flightTrailingHand:0,
    flightTrailingPose:'calm-hover-or-guard',
+   flightStreamlineWeight:0,flightStreamlineTarget:0,flightStreamlineDegrees:0,
    flightNaturalWorld:null,
    flightNaturalSilhouette:'not-tested',flightWeightlessWorld:null,
    flightWeightlessSilhouette:'not-tested',flightBuoyantWorld:null,
@@ -3369,7 +3412,7 @@
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
     v134FlightPose,v135FlightPose,v136FlightPose,
     v136CorrectSuspendedTorso,v137FlightPose,v137CorrectPelvisBalance,
-    v138FlightPose,v140FlightPose,v141FlightPose,v142FlightPose,v143FlightPose,v144FlightPose,v145FlightPose,v146FlightPose,v147FlightPose,v148FlightPose,v149FlightPose,v150FlightPose,v151FlightPose,v152FlightPose,
+    v138FlightPose,v140FlightPose,v141FlightPose,v142FlightPose,v143FlightPose,v144FlightPose,v145FlightPose,v146FlightPose,v147FlightPose,v148FlightPose,v149FlightPose,v150FlightPose,v151FlightPose,v152FlightPose,v153FlightPose,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,

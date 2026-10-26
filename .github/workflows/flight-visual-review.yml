@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v151,v152"
+        default: "v152,v153"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -22,6 +22,7 @@ on:
       - 'js/v150-joystick-flight.js'
       - 'js/v151-travel-arms.js'
       - 'js/v152-flight-silhouette.js'
+      - 'js/v153-streamlined-flight.js'
       - 'tools/capture-flight-video.cjs'
       - '.github/workflows/flight-visual-review.yml'
 
@@ -67,7 +68,7 @@ jobs:
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v151,v152' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v152,v153' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
@@ -82,7 +83,7 @@ jobs:
               seq=c['timeline']
               assert len(seq)==60
               assert {'hover','cruise','strafe-left','strafe-right','backward','ascend','descend','boost','recover'} <= {x['stage'] for x in seq}
-              if c['preview'] in ('v150','v151','v152'):
+              if c['preview'] in ('v150','v151','v152','v153'):
                   backwards=[x for x in seq if x['stage']=='backward']
                   assert any(x['lockedRetreat'] is True for x in backwards)
                   assert any(x['inputStrength'] is not None and x['inputStrength']>.75 for x in backwards)
@@ -94,6 +95,10 @@ jobs:
                   assert max(x['trailingElbow'] or 0 for x in seq if x['stage']=='cruise')>.25
                   assert all((x['trailingElbow'] or 0)<.25 for x in seq if x['stage']=='backward')
                   assert max(x['quietHover'] or 0 for x in seq if x['stage']=='hover')>.70
+              if c['preview']=='v153':
+                  assert max(x['streamlineDegrees'] or 0 for x in seq if x['stage']=='cruise')>12
+                  assert all((x['streamlineDegrees'] or 0)<3 for x in seq if x['stage']=='backward')
+                  assert all((x['streamlineDegrees'] or 0)<3 for x in seq if x['stage']=='hover')
               assert all(x['pose']=='flight' for x in seq if x['stage'] not in ('ground','boost'))
               assert all(x['pose']!='flight' for x in seq if x['stage']=='boost')
               assert max(x['flightBlend'] for x in seq)>90
@@ -105,7 +110,7 @@ jobs:
                       '-show_entries','stream=r_frame_rate,nb_frames',
                       '-of','json',str(video)]))['streams'][0]
                   assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
-          print('PASS: real Kairo 24fps three-view V151 vs V152 natural hover and trailing arms')
+          print('PASS: real Kairo 24fps three-view V152 vs V153 aerodynamic whole-body flying A/B')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
