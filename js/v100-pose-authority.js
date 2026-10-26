@@ -3184,11 +3184,17 @@
         this.vel?.x||0,this.vel?.z||0,yaw,locked,safe);
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
-        if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v152'){
+        if(['v152','v153'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
           const clip=root.SkyClashV152Silhouette;
           if(!clip)throw Error('V152 visual flight clip unavailable');
           st.v152Motion=clip.step(st.v152Motion,st.v150Motion,
             this.vel?.y||0,Math.hypot(this.vel?.x||0,this.vel?.z||0),safe);
+          if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v153'){
+           const stream=root.SkyClashV153Streamline;
+           if(!stream)throw Error('V153 streamline clip unavailable');
+           st.v153Motion=stream.step(st.v153Motion,st.v150Motion,
+             Math.hypot(this.vel?.x||0,this.vel?.z||0),safe);
+          }
          }
          if(new URLSearchParams(root.location?.search||'').get('flightPreview')==='v151'){
          const arms=root.SkyClashV151TravelArms;
@@ -3201,6 +3207,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v153'?'V153 forceful streamlined forward flight':
+         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v152'?'V152 calm hover and clear trailing free-flight arms':
          new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v151'?'V151 relaxed travel arms and V150 full-body flight':
@@ -3357,6 +3365,7 @@
     flightTravelArmMode:'guard-or-hover',
    flightQuietHover:0,flightTrailingElbow:0,flightTrailingHand:0,
    flightTrailingPose:'calm-hover-or-guard',
+   flightStreamlineWeight:0,flightStreamlineTarget:0,flightStreamlineDegrees:0,
    flightNaturalWorld:null,
    flightNaturalSilhouette:'not-tested',flightWeightlessWorld:null,
    flightWeightlessSilhouette:'not-tested',flightBuoyantWorld:null,
@@ -3393,7 +3402,7 @@
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
     v134FlightPose,v135FlightPose,v136FlightPose,
     v136CorrectSuspendedTorso,v137FlightPose,v137CorrectPelvisBalance,
-    v138FlightPose,v140FlightPose,v141FlightPose,v142FlightPose,v143FlightPose,v144FlightPose,v145FlightPose,v146FlightPose,v147FlightPose,v148FlightPose,v149FlightPose,v150FlightPose,v151FlightPose,v152FlightPose,
+    v138FlightPose,v140FlightPose,v141FlightPose,v142FlightPose,v143FlightPose,v144FlightPose,v145FlightPose,v146FlightPose,v147FlightPose,v148FlightPose,v149FlightPose,v150FlightPose,v151FlightPose,v152FlightPose,v153FlightPose,
     guidedPrepFeet,forwardKneeAxes,
     realKairoForward,worldStandingPrepLegs,worldStandingPrepTorso,
     v119Spring,softPrepToes,v121LaunchStance,v121OutwardThighs,
