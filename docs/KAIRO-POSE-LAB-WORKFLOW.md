@@ -23,10 +23,13 @@ New **standalone authoring tool**, isolated from live game code; it is deliberat
 
 ### Important limits of v1
 
-- The initial reference is Kairo's **actual normalized model rest pose**, not a baked snapshot of the V152 game pose. Do not claim that Pose Lab's idle/rest exactly matches the shipped standing or hover animation. Before replacing powered flight, add a **real V152 pose import / pose snapshot** or use a deliberately authored base clip, and verify pose-to-game transition.
+- A new blank clip starts at Kairo's **actual normalized model rest pose**, which is a T-pose, not gameplay hover. The **Start from V152 hover** button instead loads a captured, genuine V100 runtime normalized-bone snapshot: `assets/animations/reference/kairo-v152-hover.pose.json`, created by `tools/capture-kairo-pose-reference.cjs` against the real game/VRM. Use that as the practical starting stance, but still verify **pose-to-game transition** after authoring new keyframes.
 - Sliders expose local normalized-bone axes with explicit relative-to-rest rotations. A rotated limb can still twist unnaturally if authored poorly; the editor makes that visible and fixable, not impossible.
 - Currently has manual quaternion keyframes and slerp; **not** full motion-graph features, inverse-kinematics foot locking, contact-driven animation, or Blender-level rig manipulation.
 - Review in the browser from three directions first. An exported JSON is an **authored draft**, not shipped animation. Real in-game integration must respect attack/guard/jump priorities, be gated, be filmed on actual VRM and explicitly approved before making default.
+
+
+- The V152 runtime reference is bound to SHA-256 `775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72` of the actual published Kairo file; when the character model changes, the editor rightly rejects the old pose file until a new reference is captured.
 
 ## Suggested process from now on
 
