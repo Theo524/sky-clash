@@ -2217,6 +2217,65 @@
    nextVelocity=0;
   return {value:next,velocity:nextVelocity};
  }
+ // V161: motion propagates from Kairo's pelvis to the whole body.
+ // These are continuous, frame-rate-independent followers of real vertical
+ // intent, not extra pose controllers and not edits to V156 authored clips.
+ function v161VerticalFlow(previous,drive,dt){
+  const p=previous||{};
+  const lead=v160VerticalStep(p.lead,drive,dt,15);
+  const spine=v160VerticalStep(p.spine,lead.value,dt,13);
+  const shoulders=v160VerticalStep(p.shoulders,spine.value,dt,14);
+  const arms=v160VerticalStep(p.arms,shoulders.value,dt,12.5);
+  const legs=v160VerticalStep(p.legs,lead.value,dt,13.5);
+  const feet=v160VerticalStep(p.feet,legs.value,dt,11.5);
+  return {lead,spine,shoulders,arms,legs,feet};
+ }
+ // Small real VRM joint rotations on TOP OF original V156 Q. Climb
+ // gathers knees/opens arms; dive extends shins/trails hands. The soft
+ // airflow phase disappears exactly at neutral; no permanent rest drift.
+ function v161VerticalPose(flow,seconds,weight=1){
+  const w=clamp(Number.isFinite(weight)?weight:0,0,1);
+  const value=name=>clamp(Number.isFinite(flow?.[name]?.value)?
+   flow[name].value:0,-1,1);
+  const signed=name=>[Math.max(0,value(name)),Math.max(0,-value(name))];
+  const [up,down]=signed('lead'),[su,sd]=signed('spine'),
+   [hu,hd]=signed('shoulders'),[au,ad]=signed('arms'),
+   [lu,ld]=signed('legs'),[fu,fd]=signed('feet');
+  const pelvis=16*up-14*down,torso=18*su-16*sd;
+  const time=Math.max(0,Number.isFinite(seconds)?seconds:0);
+  const breath=Math.max(au,ad);
+  const sway=(phase,amount)=>Math.sin(time*2.05+phase)*amount*breath;
+  const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
+  const set=(i,x,z=0)=>{joints[i]={x:x*w,z:z*w};};
+  // Pelvis starts; lumbar -> chest -> upper chest ease along a curve.
+  // Neck and head compensate to keep Kairo's gaze independent.
+  set(0,-pelvis);set(1,-torso*.35);set(2,-torso*.30);
+  set(3,-torso*.16);set(4,torso*.26);
+  set(5,pelvis*.42+torso*.21);
+  const shoulder=5.5*hu-4.5*hd;
+  const upper=20*au-15*ad,lower=-13*au+10*ad;
+  // Arms open on ascent, sweep back on descent. Different tiny phase
+  // delays stop both arms moving as a mirrored mechanical lever.
+  set(6,shoulder,5*hu-2*hd);
+  set(10,shoulder*.95,-5*hu+2*hd);
+  set(7,upper+sway(.25,1.35),9*au-4*ad);
+  set(11,upper*.92+sway(1.4,1.1),-9*au+4*ad);
+  set(8,lower+sway(1.1,2.0),-3.5*au+2*ad);
+  set(12,lower*.94+sway(2,1.8),3.5*au-2*ad);
+  set(9,4*au-5.5*ad+sway(1.7,.8));
+  set(13,3.8*au-5.2*ad+sway(2.6,.8));
+  const thigh=-18*lu+9*ld,knee=24*lu-13*ld,foot=-9*fu+8*fd;
+  // Thighs respond to the pelvis; knees and feet respond later.
+  // Deliberate asymmetry avoids a cycling/walking pair of legs.
+  set(14,thigh+sway(.1,1.5),3.2*lu-1.5*ld);
+  set(17,thigh*.88+sway(1.9,1.2),-3.2*lu+1.5*ld);
+  set(15,knee+sway(1,1.7));
+  set(18,knee*.86+sway(2,1.4));
+  set(16,foot+sway(2,1));
+  set(19,foot*.94+sway(2.9,.9));
+  return {joints,pelvis:pelvis*w,torso:torso*w,
+   arms:upper*w,legs:knee*w,feet:foot*w};
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2244,9 +2303,10 @@
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
     v157Bank:0,v157Facing:null,v159Vertical:0,
-    v160Lead:null,v160Torso:null,v160Limbs:null};
+    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null};
   const axisBank=new THREE.Vector3(0,0,1),
-    axisPitch=new THREE.Vector3(1,0,0);
+    axisPitch=new THREE.Vector3(1,0,0),
+    flowEuler=new THREE.Euler(0,0,0,'XYZ');
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -2283,7 +2343,7 @@
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
    st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
-   st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;
+   st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2355,7 +2415,7 @@
      (fighter.vel?.z||0)*Math.sin(yaw);
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
     st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
-    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;
+    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -3079,6 +3139,32 @@
     status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
     status.flightVerticalTorso=+torso.toFixed(2);
     status.flightVerticalLimbs=+limbs.toFixed(2);
+   }else if(new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v161'){
+    // Every frame begins from the accepted 20-bone Q quaternions above.
+    // V100 alone writes this masked overlay, so no accumulating limb
+    // twists or conflicts with jump, combat or the V72 Boost owner.
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v161Flow=v161VerticalFlow(st.v161Flow,drive,dt);
+    const pose=v161VerticalPose(st.v161Flow,st.elapsed,entry);
+    const radians=Math.PI/180;
+    for(let i=0;i<BONES.length;i++){
+     const joint=pose.joints[i];
+     if(Math.abs(joint.x)+Math.abs(joint.z)<.00001)continue;
+     qTarget.setFromEuler(flowEuler.set(joint.x*radians,0,
+      joint.z*radians,'XYZ'));
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    }
+    status.flightVerticalDegrees=+pose.pelvis.toFixed(2);
+    status.flightVerticalTorso=+pose.torso.toFixed(2);
+    status.flightVerticalArms=+pose.arms.toFixed(2);
+    status.flightVerticalLegs=+pose.legs.toFixed(2);
+    status.flightVerticalFeet=+pose.feet.toFixed(2);
+    status.flightVerticalLimbs=+pose.legs.toFixed(2);
+    status.flightVerticalFlowBones=BONES.length;
+    status.flightVerticalTarget=+drive.toFixed(3);
+    status.flightVerticalControl=+(f.vert||0).toFixed(3);
+    status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
    }else{
     status.flightVerticalDegrees=0;
     status.flightVerticalTarget=0;
@@ -3097,6 +3183,9 @@
     (bankEnabled?' + banking':'');
    if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v160')
     status.flightStyle='V160 smooth climb/dive with articulated follow-through'+
+     (bankEnabled?' + banking':'');
+   if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v161')
+    status.flightStyle='V161 full-body climb/dive flow'+
      (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){
@@ -3662,6 +3751,8 @@
     flightVerticalDegrees:0,flightVerticalTarget:0,
     flightVerticalControl:0,flightVerticalVelocity:0,
     flightVerticalTorso:0,flightVerticalLimbs:0,
+    flightVerticalArms:0,flightVerticalLegs:0,flightVerticalFeet:0,
+    flightVerticalFlowBones:0,
     flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
@@ -3687,6 +3778,7 @@
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     v157BankIntent,v157BankStep,v158BankIntent,v158BankStep,
     v159VerticalIntent,v159VerticalStep,v160VerticalStep,
+    v161VerticalFlow,v161VerticalPose,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,

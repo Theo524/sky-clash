@@ -32,3 +32,19 @@ move with the pelvis rather than forming a frozen plank; head counterbalances.
 Root position, game physics, Boost, camera and jump ownership remain untouched.
 Run `node tests/v160-vertical-followthrough.js` and compare the real VRM
 3-camera climb/dive quick sheets before considering aesthetic approval.
+
+## V161 full-body vertical animation (opt-in review)
+
+Preview `?flightVertical=v161`, rollback `?flightVertical=v160`.
+V161 preserves the exact accepted V156 Q 20-bone hover and forward-flight
+quaternions, normal player default, model SHA and 0.72s blend. The ONE
+existing V100 final flight owner now propagates vertical intent through
+independently smoothed pelvis, spine, shoulders, arms, thighs, knees and feet.
+Climbs curl the legs/open the arms; dives lengthen shins/trail the hands.
+Subtle asymmetrical slow airflow drag is masked by vertical effort, so
+neutral remains the original authored pose. Head counterbalances torso pitch.
+
+No new pose writer, physics, Boost, jumps, attacks, ground, camera or Rin
+changes. CI checks frame-rate-safe 20-bone flow and the real Kairo VRM
+front/side/back 60-tick vertical comparison `v156,v161`. The engineering
+and still-image tests are not player visual sign-off; V161 remains opt-in.
