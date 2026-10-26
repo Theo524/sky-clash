@@ -156,7 +156,13 @@ function numberOk(x){return typeof x==='number'&&Number.isFinite(x);}
    assert.equal(clip.modelSha256,MODEL_SHA);
    assert(clip.keyframes.every(k=>k.quaternions.length===20&&k.quaternions.every(
     q=>q.length===4&&q.every(numberOk)&&Math.abs(Math.hypot(...q)-1)<.003)));
-   assert.deepEqual(clip.keyframes[0].quaternions,baseline.keyframes[0].quaternions);
+   // Quaternions are normalized by Three.js when baked, which may
+   // shift the seventh decimal. Compare rotations, not exact text bytes.
+   for(let j=0;j<20;j++){
+    const a=clip.keyframes[0].quaternions[j],b=baseline.keyframes[0].quaternions[j];
+    const dot=Math.abs(a.reduce((sum,v,k)=>sum+v*b[k],0));
+    assert(dot>.999998,'entry pose differs from exact Q hover joint '+j);
+   }
    // True keyframed clip JSON is written for future V100 sampling.
    const fileName=candidate.id+'.pose.json';
    fs.writeFileSync(path.join(out,fileName),JSON.stringify(clip,null,2));
