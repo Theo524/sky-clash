@@ -172,6 +172,129 @@ function exportData(){
   bones:namesOf(),duration,interpolation:'quaternion-slerp',
   keyframes:clone(keys)};
 }
+/* Assistant-only authoring method: rotate normalized joints around an
+ * explicit WORLD-space axis, then bake their exact LOCAL quaternions once.
+ * Unlike gameplay's V100 solver this runs only in isolated Pose Lab and
+ * never executes on the live character.
+ */
+function authorWorldPose(spec){
+ if(!ready||!model)throw Error('Kairo VRM is not ready');
+ const t=Number(spec?.time),name=String(spec?.name||'Candidate').slice(0,55);
+ if(!Number.isFinite(t)||t<=0||t>duration)
+  throw Error('Target time must be within (0, clip duration]');
+ const reference=keys[0];
+ if(!reference?.quaternions?.length||reference.quaternions.length!==nodes.length)
+  throw Error('Load a verified real Kairo reference pose before authoring');
+ const axes={right:new T.Vector3(1,0,0),
+  up:new T.Vector3(0,1,0),forward:new T.Vector3(0,0,1)};
+ const ops=spec?.rotations||[];
+ if(!Array.isArray(ops)||ops.length>25)throw Error('Invalid joint operations');
+ if(ops.some(o=>!nodes.some(n=>n.name===o.bone)||!axes[o.axis]||
+  !Number.isFinite(o.degrees)||Math.abs(o.degrees)>90))
+  throw Error('Uncalibrated bone/axis/rotation request');
+ playing=false;compare=false;
+ nodes.forEach((b,i)=>b.node.quaternion.fromArray(reference.quaternions[i]).normalize());
+ model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
+ for(const o of ops){
+  const node=getNode(o.bone);
+  const parentW=node.parent.getWorldQuaternion(new T.Quaternion());
+  const deltaWorld=new T.Quaternion().setFromAxisAngle(axes[o.axis],o.degrees*RAD);
+  const localDelta=parentW.clone().invert().multiply(deltaWorld).multiply(parentW);
+  node.quaternion.premultiply(localDelta).normalize();
+  model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
+ }
+ // Author anatomical segment DIRECTIONS on the actual VRM once,
+ // then bake their final local quaternions into a keyframe. No animation
+ // loop and no gameplay writer: this is deterministic offline rigging.
+ const aims=spec?.aims||[];
+ if(!Array.isArray(aims)||aims.length>15||
+  aims.some(o=>!nodes.some(n=>n.name===o.bone)||!nodes.some(n=>n.name===o.child)||
+   !Array.isArray(o.worldDirection)||o.worldDirection.length!==3||
+   o.worldDirection.some(v=>!Number.isFinite(v))||
+   Math.hypot(...o.worldDirection)<.01))
+  throw Error('Invalid world-space anatomical aim request');
+ for(const o of aims){
+  const n=getNode(o.bone),child=getNode(o.child);
+  const current=child.getWorldPosition(new T.Vector3())
+   .sub(n.getWorldPosition(new T.Vector3())).normalize();
+  const desired=new T.Vector3(...o.worldDirection).normalize();
+  if(current.lengthSq()<.9)throw Error('Missing measured VRM segment '+o.bone);
+  const correction=new T.Quaternion().setFromUnitVectors(current,desired);
+  const parentW=n.parent.getWorldQuaternion(new T.Quaternion());
+  const localDelta=parentW.clone().invert().multiply(correction).multiply(parentW);
+  n.quaternion.premultiply(localDelta).normalize();
+  model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
+ }
+ time=t;
+ const frame=rawFrame(name);
+ // Keep exact V152 starting key; replace only authoring candidates at t.
+ keys=keys.filter(k=>Math.abs(k.time-t)>.001&&k.time<t-.001);
+ keys.push(frame);keys.sort((a,b)=>a.time-b.time);
+ apply(t);refreshSliders();updateTime();updateMarkers();
+ return {data:exportData(),metrics:flightGeometry(),name};
+}
+function flightGeometry(){
+ if(!ready)return null;
+ model.vrm.update(0);model.vrm.scene.updateMatrixWorld(true);
+ const point=n=>getNode(n)?.getWorldPosition(new T.Vector3())||null,
+  trunkA=point('hips'),trunkB=point('neck'),
+  neck=point('neck'),head=point('head');
+ const direction=a=>a?.lengthSq()>1e-8?a.clone().normalize():null;
+ const trunk=trunkA&&trunkB?direction(trunkB.sub(trunkA)):null;
+ const neckline=neck&&head?direction(head.clone().sub(neck)):null;
+ const headNode=getNode('head');
+ const face=headNode?
+  new T.Vector3(0,0,-1).applyQuaternion(headNode.getWorldQuaternion(new T.Quaternion())).normalize():null;
+ const deg=v=>v===null?null:+v.toFixed(2);
+ const pitch=v=>v?Math.atan2(v.z,v.y)*DEG:null;
+ // True VRM world-space elbow and left/right limb clearance.
+ // Reading anatomy, not local Euler targets: the two arms and legs must
+ // remain visually distinct in straight ahead flight.
+ const bend=(a,b,c)=>{
+  const A=point(a),B=point(b),C=point(c);
+  if(!A||!B||!C)return null;
+  const ab=B.clone().sub(A).normalize(),bc=C.clone().sub(B).normalize();
+  return deg(Math.acos(clamp(ab.dot(bc),-1,1))*DEG);
+ };
+ const spread=(a,b)=>{
+  const A=point(a),B=point(b);
+  return A&&B?deg(Math.abs(A.x-B.x)):null;
+ };
+ // Signed sagittal elbow hinge: for Kairo's calibrated +Z-facing VRM
+ // negative = forearm folds forward relative to the rearward upper arm.
+ // A large positive bend could pass the unsigned elbow flexion test yet
+ // look backwards from the side. Preserve the sign for A/B diagnosis.
+ const elbowSagittalSign=side=>{
+  const shoulder=point(side+'UpperArm'),elbow=point(side+'LowerArm'),
+   wrist=point(side+'Hand');
+  if(!shoulder||!elbow||!wrist)return null;
+  const a=elbow.clone().sub(shoulder).normalize(),
+   b=wrist.clone().sub(elbow).normalize();
+  return +(a.y*b.z-a.z*b.y).toFixed(4);
+ };
+ const limbs={};
+ for(const n of ['leftLowerLeg','rightLowerLeg','leftFoot','rightFoot',
+  'leftLowerArm','rightLowerArm','leftHand','rightHand']){
+  limbs[n]=point(n)?.toArray().map(v=>+v.toFixed(4))||null;
+ }
+ return {...angles(),
+  leftElbow:bend('leftUpperArm','leftLowerArm','leftHand'),
+  rightElbow:bend('rightUpperArm','rightLowerArm','rightHand'),
+  elbowSagittalSign:{left:elbowSagittalSign('left'),
+   right:elbowSagittalSign('right')},
+  limbSpacing:{knee:spread('leftLowerLeg','rightLowerLeg'),
+   ankle:spread('leftFoot','rightFoot'),
+   elbow:spread('leftLowerArm','rightLowerArm'),
+   wrist:spread('leftHand','rightHand')},
+  limbLandmarks:limbs,
+  trunkPitch:deg(pitch(trunk)),
+  headSegmentPitch:deg(pitch(neckline)),
+  facialAxisToHorizontal:face?deg(Math.atan2(face.y,Math.hypot(face.x,face.z))*DEG):null,
+  headVsTorsoAngle:trunk&&neckline?deg(trunk.angleTo(neckline)*DEG):null,
+  chestPosition:point('chest')?.toArray().map(v=>+v.toFixed(4)),
+  noseDirection:face?.toArray().map(v=>+v.toFixed(4))
+ };
+}
 function validFile(data){
  if(data?.schema!=='sky-clash.pose-lab.v1'||data?.version!==1||
   data.modelSha256!==sha||data.fighter!=='kairo_venn'||
@@ -279,7 +402,8 @@ async function load(){
   status('Real Kairo VRM0 loaded • '+nodes.length+' normalized bones • SHA-256 '+sha.slice(0,12)+'…');
   window.SkyClashPoseLab={get ready(){return ready;},get modelHash(){return sha;},
    get keyframeCount(){return keys.length;},get motion(){return exportData();},
-   get metrics(){return angles();},seek};
+   get metrics(){return angles();},get flightGeometry(){return flightGeometry();},
+   authorWorldPose,seek};
  }catch(err){status('Pose Lab could not load: '+(err?.message||err),true);console.error(err);}
 }
 for(const b of document.querySelectorAll('[data-view]')){

@@ -70,4 +70,4 @@ The user wants clutter removed without disrupting the game. See [repository clea
 5. `docs/PROJECT-CONTEXT.md` for **long historical background**. It is large, dated, and includes **superseded plans**. Read topical ranges only; do not quote it as the latest state.
 6. GitHub branches/PRs/CI artifact **right now**. Report clearly if visibility or verification is missing.
 
-**No live gameplay changes are authorized by this handoff.** User feedback changes design priorities, not permission to call incomplete motion fixes successful.
+**The player's 2026-10-26 explicit instruction authorizes V156 normal-flight integration**, limited to the actual Kairo VRM. No changes to Boost, combat, Rin, physics, or already approved movements are authorized.

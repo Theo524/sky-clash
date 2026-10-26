@@ -73,8 +73,8 @@ assert(adapter.includes("boostMode==='v155'?'organic-flight'"));
 assert(boot.includes("const v155Preview="));
 assert(boot.includes("await script('js/v155-organic-flight.js?v=1550')"));
 assert(boot.includes("boostMode==='v155'?'&boostMotion=155'"));
-assert(boot.includes("flags.set('flightPreview','v153')"),
- 'preview should leave previous V153 default alone');
+assert(boot.includes("flags.set('flightPreview','v156')"),
+ 'preview should leave new V156 authored default alone');
 assert(!/\.animate\s*=/.test(moduleSrc.replace(/\/\*[\s\S]*?\*\//g,'')),
  'V155 module may not add a competing animation writer');
 assert(!/\b(?:root|model)\.position\s*=/.test(moduleSrc));

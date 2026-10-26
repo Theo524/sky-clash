@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v152,v153"
+        default: "v152,v156"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -23,6 +23,7 @@ on:
       - 'js/v151-travel-arms.js'
       - 'js/v152-flight-silhouette.js'
       - 'js/v153-streamlined-flight.js'
+      - 'js/v156-real-vrm-flight.js'
       - 'tools/capture-flight-video.cjs'
       - '.github/workflows/flight-visual-review.yml'
 
@@ -68,7 +69,7 @@ jobs:
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v152,v153' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v152,v156' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
@@ -78,6 +79,7 @@ jobs:
           p=pathlib.Path('visual-review-output/flight-videos')
           report=json.loads((p/'motion-metrics.json').read_text())
           assert len(report['captures'])==2
+          assert {c['preview'] for c in report['captures']}=={'v152','v156'}
           for c in report['captures']:
               assert c['frames']==60 and c['frameRate']==24
               seq=c['timeline']
@@ -110,7 +112,7 @@ jobs:
                       '-show_entries','stream=r_frame_rate,nb_frames',
                       '-of','json',str(video)]))['streams'][0]
                   assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
-          print('PASS: real Kairo 24fps three-view V152 vs V153 aerodynamic whole-body flying A/B')
+          print('PASS: real Kairo 24fps three-view V152 vs V156 authored VRM flight A/B')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
