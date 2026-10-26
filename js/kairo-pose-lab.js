@@ -244,7 +244,7 @@ function flightGeometry(){
  const neckline=neck&&head?direction(head.clone().sub(neck)):null;
  const headNode=getNode('head');
  const face=headNode?
-  new T.Vector3(0,0,1).applyQuaternion(headNode.getWorldQuaternion(new T.Quaternion())).normalize():null;
+  new T.Vector3(0,0,-1).applyQuaternion(headNode.getWorldQuaternion(new T.Quaternion())).normalize():null;
  const deg=v=>v===null?null:+v.toFixed(2);
  const pitch=v=>v?Math.atan2(v.z,v.y)*DEG:null;
  return {...angles(),
