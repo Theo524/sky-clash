@@ -2,6 +2,10 @@
 
 **For the assistant, not an assignment for the player.** The player wants us to use developer tools ourselves, not make them pose bones, run scripts or upload screenshots. This repository is the cross-chat external memory. The GitHub connection is the available interface in ChatGPT; a new chat may need to connect/access GitHub before the tools work.
 
+## Latest real-VRM animation/tool audit
+
+See [the 2026-10-26 repository-wide animation and tools audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) before another Kairo climb/dive revision. The player rejected V160–V162 on visual grounds. Use assistant-operated `tools/author-kairo-forward-flight-stills.cjs` / Pose Lab real-keyframe authoring and physically inspect the saved 3-view images; the current flight visual fixture wrongly combines forward speed with most vertical stages. Also inspect existing UE5 30fps `floating`/`flying` clips as possible references, not default motion. Do not treat numeric overlay angles as world-space character lean or passing screenshot-file-size checks as aesthetic proof.
+
 ## Fast implementation & CI workflow (2026-10-26)
 
 The player authorized process improvement to make GitHub interaction and actual Kairo animation production quicker, without asking them to manage tools.

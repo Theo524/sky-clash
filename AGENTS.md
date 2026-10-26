@@ -8,6 +8,8 @@ This repo is the cross-chat technical memory. **First read `docs/ASSISTANT-CURRE
 
 **Latest player verdict:** standard/V154 Boost remain rejected; V153 was a rigid stick and V155 twisted. On 2026-10-26 the player explicitly requested the corrected real-VRM flight pose be put **in the playable game**, without waiting for Pages' amber→green signal. V156 replaces only Kairo ordinary powered flight in V100; Q was authored on the actual VRM and its side/front/back stills were reviewed. Real-game animation visual validation remains important, and older preview URLs are retained for rollback. Never assume new default implies aesthetic endorsement of every detail; further player corrections may follow.
 
+**Latest vertical-flight verdict (26 October 2026):** The player rejected V160–V162 up/down results as over-tilted and barely moving. No further procedural overlay is artistically approved. **Read [the complete cross-project animation/tools audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md)** before the next flight change. The key underused assets are assistant-operated real-VRM Pose Lab keyframes, `tools/author-kairo-forward-flight-stills.cjs`, existing 30fps recorded flying/floating clips, and real WebGL captures. First author and inspect full-body **vertical keyframes**, then integrate opt-in through one V100 owner; keep accepted V156 Q forward flight unchanged. The player is not expected to drive developer tools.
+
 **Read this file before proposing or changing Sky Clash animation code.**
 This is the repository's persistent handoff between chats. An assistant reading
 only a previous conversation may not have the full project context.
