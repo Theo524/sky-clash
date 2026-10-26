@@ -2181,6 +2181,18 @@
   const tau=current*goal<0?.24:Math.abs(goal)>Math.abs(current)?.13:.20;
   return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
  }
+ // V159 up/down pose effort: true climb control + vertical velocity.
+ function v159VerticalIntent(vert,velocityY){
+  const key=clamp(Number.isFinite(vert)?vert:0,-1,1);
+  const vy=clamp((Number.isFinite(velocityY)?velocityY:0)/8,-1,1);
+  return clamp(key*.78+vy*.38,-1,1);
+ }
+ function v159VerticalStep(current,target,dt){
+  const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
+  const goal=clamp(Number.isFinite(target)?target:0,-1,1);
+  const tau=current*goal<0?.23:Math.abs(goal)>Math.abs(current)?.14:.22;
+  return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2207,8 +2219,9 @@
     prepLastHipY:null,pushReleaseHipY:null,
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
-    v157Bank:0,v157Facing:null};
-  const axisBank=new THREE.Vector3(0,0,1);
+    v157Bank:0,v157Facing:null,v159Vertical:0};
+  const axisBank=new THREE.Vector3(0,0,1),
+    axisPitch=new THREE.Vector3(1,0,0);
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -2244,7 +2257,7 @@
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
-   st.v157Bank=0;st.v157Facing=null;
+   st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2315,7 +2328,7 @@
     st.flightSide=(fighter.vel?.x||0)*Math.cos(yaw)-
      (fighter.vel?.z||0)*Math.sin(yaw);
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
-    st.v157Bank=0;st.v157Facing=yaw;
+    st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -2976,6 +2989,32 @@
     status.flightBankDegrees=0;
     status.flightBankTarget=0;
    }
+   // V159 independent vertical pose: tilt the real authored Kairo
+   // silhouette, keep Q elbow/knee hinges and counterbalance gaze.
+   const verticalEnabled=new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v159';
+   if(verticalEnabled){
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v159Vertical=v159VerticalStep(st.v159Vertical,drive,dt);
+    const pitchDeg=(18*Math.max(0,st.v159Vertical)-
+      16*Math.max(0,-st.v159Vertical))*entry;
+    const rotatePitch=(i,degrees)=>{
+     if(Math.abs(degrees)<.00001)return;
+     qTarget.setFromAxisAngle(axisPitch,degrees*Math.PI/180);
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    };
+    rotatePitch(0,-pitchDeg);      // rise nose / lower nose on descent
+    rotatePitch(2,-pitchDeg*.11);  // upper torso follow
+    rotatePitch(4,pitchDeg*.14);   // neck counterbalance
+    rotatePitch(5,pitchDeg*.22);   // head gaze remains independent
+    status.flightVerticalDegrees=+pitchDeg.toFixed(2);
+    status.flightVerticalTarget=+drive.toFixed(3);
+    status.flightVerticalControl=+(f.vert||0).toFixed(3);
+    status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
+   }else{
+    status.flightVerticalDegrees=0;
+    status.flightVerticalTarget=0;
+   }
    st.rig.vrm.update(0);
    status.flightStyle=bankEnabled?
     (bankMode==='v158'?'V158 visible responsive flight banking':
@@ -3547,6 +3586,8 @@
     flightGuardFacing:'not-tested',flightKneeWorld:null,
     flightKneeFacing:'not-tested',flightJointClamps:0,
     flightMaxStepDeg:0,flightBankDegrees:0,flightBankTarget:0,
+    flightVerticalDegrees:0,flightVerticalTarget:0,
+    flightVerticalControl:0,flightVerticalVelocity:0,
     flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
@@ -3571,6 +3612,7 @@
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     v157BankIntent,v157BankStep,v158BankIntent,v158BankStep,
+    v159VerticalIntent,v159VerticalStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
