@@ -1,6 +1,6 @@
-/* Exact 20-joint VRM0 authored flight, captured and tested on real Kairo.
- * Used ONLY by V100's final normal-flight owner. No Fighter.animate wrapper.
- * Boost, jumping, combat, Rin and physics are unchanged.
+/* GENERATED from assets/animations/kairo/flight-library.v1.json by tools/build-kairo-flight-library.cjs.
+ * Same exact real Kairo normalized 20-joint data as the original clip.
+ * Never edit by hand or introduce a new animation writer here.
  */
 (function(root){'use strict';
  const data={

@@ -66,6 +66,13 @@ jobs:
         run: node tests/ci-workflow-fanout.js
       - name: Prevent accidental all-PR video triggers
         run: node tests/ci-workflow-trigger-safety.js
+      - name: Confirm canonical Kairo real-VRM poses and exact baseline
+        run: node tests/kairo-flight-library.js
+      - name: Test optional Kairo banking and vertical previews without rerendering WebGL
+        run: |
+          node tests/v157-flight-banking.js
+          node tests/v158-flight-banking-and-pose.js
+          node tests/v159-vertical-flight.js
       - name: Verify generated game bundle matches editable source
         run: |
           python tools/build.py

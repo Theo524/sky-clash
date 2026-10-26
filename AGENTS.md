@@ -64,6 +64,10 @@ only a previous conversation may not have the full project context.
 
 Before touching Kairo flight or Boost following the user's V153/V154/V155 rejections, read `docs/KAIRO-POSE-LAB-WORKFLOW.md`. Use the standalone `pose-lab.html` for actual real-VRM quaternion editing and manual keyframes. Do not claim previous parametric V142/V153/V155 flight targets were directly authored VRM joint clips. Do not replace game flight merely because the Pose Lab exports a JSON; baseline/transition, runtime single-owner and user visual review are still outstanding.
 
+## One authored Kairo flight pose library
+
+Edit `assets/animations/kairo/flight-library.v1.json`, not generated `js/v156-real-vrm-flight.js` / `js/v158-real-vrm-flight.js`. Regenerate via `node tools/build-kairo-flight-library.cjs --write`; validate via `node tests/kairo-flight-library.js`. Preserve player-liked V156 Q forward-flight data exactly, keep V158 U experimental and retain VRM SHA and 20-bone order. See `docs/KAIRO-FLIGHT-LIBRARY.md`. Do not add another final VRM pose writer.
+
 ## Fast animation development workflow (2026-10-26)
 
 - **Batch GitHub edits:** use one `create_tree` + `create_commit` + `update_ref` when multiple files change; never send a separate update request for every source and test file if batching is possible.
