@@ -48,7 +48,8 @@ const owner=fs.readFileSync('js/v72-published-actions.js','utf8'),
  core=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  registry=fs.readFileSync('src/05-character-registry.js','utf8');
 assert(owner.includes("this.characterId==='kairo_venn'"));
-assert(owner.includes("get('boostPreview')==='v154'"));
+assert(owner.includes("boostMode==='v154'?root.SkyClashV154Boost"),
+ 'preserve explicit V154 rollback when V155 is enabled');
 assert(owner.includes('v154Run:BONES.map'));
 assert(owner.includes('run.sample(phase*dstSpan,state.v154Run,true)'));
 assert(owner.includes('owner.v137CorrectPelvisBalance(')&&
