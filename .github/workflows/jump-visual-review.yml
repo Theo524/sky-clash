@@ -17,7 +17,6 @@ on:
     paths:
       - 'tools/capture-jump-frames.cjs'
       - 'tools/capture-jump-video.cjs'
-      - '.github/workflows/jump-visual-review.yml'
 
 permissions:
   contents: read

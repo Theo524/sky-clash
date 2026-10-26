@@ -29,7 +29,6 @@ on:
       - 'js/v153-streamlined-flight.js'
       - 'js/v156-real-vrm-flight.js'
       - 'tools/capture-flight-video.cjs'
-      - '.github/workflows/flight-visual-review.yml'
 
 permissions:
   contents: read

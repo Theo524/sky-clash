@@ -23,7 +23,6 @@ on:
       - 'js/v152-flight-silhouette.js'
       - 'js/v153-streamlined-flight.js'
       - 'tools/capture-flight-guard-stills.cjs'
-      - '.github/workflows/flight-guard-visual-check.yml'
 
 permissions:
   contents: read

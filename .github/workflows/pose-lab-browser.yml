@@ -12,7 +12,6 @@ on:
       - 'js/kairo-pose-lab.js'
       - 'animation-studio.html'
       - 'tools/test-kairo-pose-lab.cjs'
-      - '.github/workflows/pose-lab-browser.yml'
   workflow_dispatch:
 permissions:
   contents: read

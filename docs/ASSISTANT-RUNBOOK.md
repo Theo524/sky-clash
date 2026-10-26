@@ -2,6 +2,17 @@
 
 **For the assistant, not an assignment for the player.** The player wants us to use developer tools ourselves, not make them pose bones, run scripts or upload screenshots. This repository is the cross-chat external memory. The GitHub connection is the available interface in ChatGPT; a new chat may need to connect/access GitHub before the tools work.
 
+## Fast implementation & CI workflow (2026-10-26)
+
+The player authorized process improvement to make GitHub interaction and actual Kairo animation production quicker, without asking them to manage tools.
+
+1. Batch files on a GitHub branch with one Git tree/commit/ref update rather than many `update_file` requests.
+2. Let fast V100 ownership and V66 70+ historical tests run automatically; they are **separate** checks. Never replay the V66 suite inside ownership.
+3. Workflow-scoped concurrency cancels superseded **PR** runs, never a main push/deployment. Don’t interpret canceled older runs as failures.
+4. The active flight WebGL A/B workflow remains automatic for V100, while old flight/Boost studies and jump reviewers are selectively triggered or dispatched when relevant. If an edit affects jumping within the shared V100 module, **manually dispatch the jump reviewer before merging**. The heavy workflow's YAML-only changes use the fast CI policy test rather than auto-rendering old motion.
+5. All browser captures pin Playwright 1.56.1, use a browser cache, and still run genuine WebGL and full video validation. No synthetic character snapshots presented as model captures.
+6. Relevant generated visual evidence is reviewed with actual Kairo three-view frames. Only the player can approve aesthetic defaults. Keep the previous accepted game version/playable URL as a rollback.
+
 ## First 3 minutes in ANY new chat
 
 1. **Open `AGENTS.md` and `docs/ASSISTANT-CURRENT-STATE.md` on the repo's current `main`**, not an old branch or a prior assistant message. Check `docs/PROJECT-CONTEXT.md` only if the task needs detailed history; it contains dated stale statements.

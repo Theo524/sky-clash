@@ -13,7 +13,6 @@ on:
       - 'index.html'
       - 'tools/capture-flight-video.cjs'
       - 'tests/v159-vertical-flight.js'
-      - '.github/workflows/kairo-v159-vertical-flight.yml'
   workflow_dispatch:
 permissions:
   contents: read

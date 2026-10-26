@@ -10,7 +10,6 @@ on:
     paths:
       - 'js/kairo-pose-lab.js'
       - 'tools/author-kairo-forward-flight-stills.cjs'
-      - '.github/workflows/kairo-forward-flight-pose-study.yml'
   workflow_dispatch:
 permissions:
   contents: read

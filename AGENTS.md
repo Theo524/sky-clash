@@ -64,6 +64,13 @@ only a previous conversation may not have the full project context.
 
 Before touching Kairo flight or Boost following the user's V153/V154/V155 rejections, read `docs/KAIRO-POSE-LAB-WORKFLOW.md`. Use the standalone `pose-lab.html` for actual real-VRM quaternion editing and manual keyframes. Do not claim previous parametric V142/V153/V155 flight targets were directly authored VRM joint clips. Do not replace game flight merely because the Pose Lab exports a JSON; baseline/transition, runtime single-owner and user visual review are still outstanding.
 
+## Fast animation development workflow (2026-10-26)
+
+- **Batch GitHub edits:** use one `create_tree` + `create_commit` + `update_ref` when multiple files change; never send a separate update request for every source and test file if batching is possible.
+- **PR CI:** superseded PR runs cancel automatically, but main-branch runs do not. The 70+ old tests run ONCE in `v66-character.yml`, not again in animation ownership. V100 owner and approved-state safety remain tested.
+- **Visual evidence:** the relevant current feature WebGL workflow stays automatic. Historic V153/V154/V155 film reviews and moving/jump variants can be run by `workflow_dispatch` only as needed. This preserves rollback comparisons without flooding Actions. If a change to V100 genuinely affects jump, **manually dispatch `jump-visual-review.yml`**; if changing only current forward flight, run the active V159/appropriate current VRM capture. Always inspect real Kairo front/side/back footage before approving a visual change.
+- **Cost control:** ten Chromium workflows pin Playwright 1.56.1 and cache its browser. A fast `tests/ci-workflow-fanout.js` test guards these policies. A green CI status is not evidence of attractive animation.
+
 ## Before closing an animation PR
 
 Update docs/PROJECT-CONTEXT.md with dated PR/status, affected state, flags,
