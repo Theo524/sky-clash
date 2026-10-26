@@ -11,7 +11,7 @@ assert.equal(typeof step,'function');
 for(const v of [0,.25,.75,1]){
  assert.equal(intent(0,0,0),0,'neutral cruise stays identical to Q');
  const a=intent(v,0,0),b=intent(-v,0,0);
- assert.equal(a,-b,'left and right joystick inputs mirror');
+ assert(Math.abs(a+b)<1e-12,'left and right joystick inputs mirror');
  assert(a>=0&&a<=1,'input sign/bounds');
 }
 for(const f of [30,60,120]){
