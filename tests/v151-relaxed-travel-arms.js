@@ -90,8 +90,8 @@ for(const side of ['left','right']){
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  authority=fs.readFileSync('js/v100-pose-authority.js','utf8'),
  index=fs.readFileSync('index.html','utf8');
-assert(boot.includes("flags.set('flightPreview','v153'"));
-assert(boot.includes("const BUILD='V153'"));
+assert(boot.includes("flags.set('flightPreview','v156'"));
+assert(boot.includes("const BUILD='V156'"));
 assert(boot.includes("await script('js/v151-travel-arms.js?v=1510')"));
 assert(boot.includes("await script('js/v150-joystick-flight.js?v=1500')"));
 assert(index.includes('release=153'));

@@ -78,7 +78,7 @@ assert(f0.rightHandF<0&&b0.rightHandF>0,
  'hands respond differently to forward and backward travel');
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 const source=fs.readFileSync('js/v100-pose-authority.js','utf8');
-assert(boot.includes("flags.set('flightPreview','v153'"),
+assert(boot.includes("flags.set('flightPreview','v156'"),
  'V149 retained by explicit flightPreview rollback after V150 release');
 assert(boot.includes("flags.set('jumpPreview','v125')"));
 assert(boot.includes("await script('js/v149-travel-performance.js?v=1490')"));
