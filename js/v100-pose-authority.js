@@ -2190,7 +2190,7 @@
  function v159VerticalStep(current,target,dt){
   const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
   const goal=clamp(Number.isFinite(target)?target:0,-1,1);
-  const tau=current*goal<0?.23:Math.abs(goal)>Math.abs(current)?.14:.22;
+  const tau=current*goal<0?.29:Math.abs(goal)>Math.abs(current)?.14:.22;
   return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
  }
  function isPreview(context=root){
@@ -3025,6 +3025,8 @@
    status.flightAuthoredTravel=+travel.toFixed(3);
    status.flightAuthoredBones=BONES.length;
    status.flightAuthoredVariant=clip.id;
+   if(verticalEnabled)status.flightStyle='V159 authored climb/dive with independent gaze'+
+    (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
