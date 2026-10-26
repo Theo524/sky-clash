@@ -8,8 +8,9 @@ const {chromium}=require('playwright');
 const candidates=[
  {id:'i-calmer-cruise',body:40,upper:-7,neck:-35,head:-9,thighDown:.67,shinDown:.32,armDown:.60,forearmDown:.88},
  {id:'j-curved-athlete',body:46,upper:-9,neck:-42,head:-12,thighDown:.57,shinDown:.23,armDown:.55,forearmDown:.88},
- {id:'k-gaze-led-cruise',body:45,upper:-12,neck:-36,head:-17,thighDown:.60,shinDown:.27,armDown:.67,forearmDown:.92},
- {id:'l-forward-power',body:50,upper:-10,neck:-45,head:-11,thighDown:.46,shinDown:.17,armDown:.55,forearmDown:.85}
+ // Stronger articulated silhouettes. V152 and i/j remain the unchanged comparison.
+ {id:'k-gaze-led-cruise',body:45,upper:-12,neck:-36,head:-17,thighDown:.92,thighBack:.75,shinDown:.16,armDown:.76,armBack:.36,forearmDown:.46,forearmBack:.89},
+ {id:'l-forward-power',body:50,upper:-10,neck:-45,head:-11,thighDown:1.08,thighBack:.67,shinDown:.12,armDown:.80,armBack:.27,forearmDown:.38,forearmBack:.91}
 ];
 (async()=>{
  const browser=await chromium.launch({headless:true,args:[
@@ -31,6 +32,12 @@ const candidates=[
    metrics:await page.evaluate(()=>window.SkyClashPoseLab.flightGeometry)};
   assert.equal(base.bones,20,'Must use actual 20-bone Kairo VRM');
   assert.equal(v152.keyframes.length,2);
+  // Save the unmodified original from identical cameras for honest A/B review.
+  for(const side of ['side','front','back']){
+   await page.click('[data-view="'+side+'"]');
+   await page.waitForTimeout(95);
+   await page.locator('#modelView').screenshot({path:path.join(out,'v152-hover-'+side+'.png'),animations:'disabled'});
+  }
   const reports=[];
   for(const a of candidates){
    const rotations=[
@@ -49,14 +56,14 @@ const candidates=[
    const aim=(bone,child,down,back,side=0)=>({
     bone,child,worldDirection:[side,-down,-back]});
    const aims=[
-    aim('leftUpperLeg','leftLowerLeg',a.thighDown,.88,-.05),
-    aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,.84,.05),
+    aim('leftUpperLeg','leftLowerLeg',a.thighDown,a.thighBack??.88,-.05),
+    aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,(a.thighBack??.88)-.04,.05),
     aim('leftLowerLeg','leftFoot',Math.max(.06,a.shinDown-.12),.98),
     aim('rightLowerLeg','rightFoot',Math.max(.09,a.shinDown-.06),.98),
-    aim('leftUpperArm','leftLowerArm',a.armDown+.18,.43,-.49),
-    aim('rightUpperArm','rightLowerArm',a.armDown+.20,.43,.49),
-    aim('leftLowerArm','leftHand',a.forearmDown-.14,.62,-.07),
-    aim('rightLowerArm','rightHand',a.forearmDown-.12,.61,.07)
+    aim('leftUpperArm','leftLowerArm',a.armDown+.18,a.armBack??.43,-.49),
+    aim('rightUpperArm','rightLowerArm',a.armDown+.20,a.armBack??.43,.49),
+    aim('leftLowerArm','leftHand',a.forearmDown-.14,a.forearmBack??.62,-.07),
+    aim('rightLowerArm','rightHand',a.forearmDown-.12,(a.forearmBack??.65)-.01,.07)
    ];
    const result=await page.evaluate(({id,rotations,aims})=>
     window.SkyClashPoseLab.authorWorldPose({
@@ -86,7 +93,7 @@ const candidates=[
    JSON.stringify({baseline:base,source:'actual Kairo VRM0 / actual V152 captured hover',
     candidates:reports,visuallyApproved:false,gameChanged:false},null,2));
   const count=fs.readdirSync(out).filter(x=>x.endsWith('.png')).length;
-  assert.equal(count,12);
+  assert.equal(count,15);
   console.log('PASS Kairo real-VRM authored head/chest/leg candidates',JSON.stringify({
    headMetrics:reports.map(x=>({id:x.id,headVsTorso:x.metrics.headVsTorsoAngle,
     trunk:x.metrics.trunkPitch,face:x.metrics.facialAxisToHorizontal})),
