@@ -55,6 +55,10 @@ assert(read('kairo-quick-flight-stills').includes("      - 'js/v100-pose-authori
  'Maintain quick WebGL contact sheets for Kairo V100 edits');
 assert(!read('kairo-v159-vertical-flight').includes("      - 'js/v100-pose-authority.js'"),
  'Full V159 MP4 should run on demand, not for every V100 edit');
+assert(!read('flight-visual-review').includes("      - 'js/v156-real-vrm-flight.js'"),
+ 'Historical full flight video must be manually dispatched for real-Q data edits');
+assert(!read('kairo-v157-flight-banking').includes("      - 'js/v158-real-vrm-flight.js'"),
+ 'Historical full V157/V158 video must not re-film every new clip migration');
 assert(read('kairo-v159-vertical-flight').includes('  workflow_dispatch:'),
  'Keep actual full-motion filming available on demand');
 console.log('PASS: '+all.length+' concurrency guards, '+heavy.length+

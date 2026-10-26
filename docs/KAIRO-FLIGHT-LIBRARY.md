@@ -18,3 +18,5 @@ Both are bound to Kairo VRM SHA256 `775b8d8dee887b686f1fbd38300bf83d438596574658
 5. Only change a locked baseline test digest with the user's explicit visual sign-off; a green test is not aesthetic approval. Keep existing versioned wrappers and URLs for rollback.
 
 **No gameplay changes from this library migration.** V100 still owns Kairo's final normal flight. V72 retains Boost; Rin, grounded movement, jump, physics, combat and camera are untouched.
+
+The `kairo-quick-flight-stills.yml` workflow is the **only default real-Kairo WebGL gallery** for current authored clips. Both historical full-video workflows remain available through `workflow_dispatch` but do not auto-run when generated V156/V158 adapters change.

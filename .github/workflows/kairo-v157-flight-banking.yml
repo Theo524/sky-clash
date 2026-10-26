@@ -8,7 +8,6 @@ concurrency:
 on:
   pull_request:
     paths:
-      - 'js/v158-real-vrm-flight.js'
       - 'tests/v158-flight-banking-and-pose.js'
       - 'tests/v157-flight-banking.js'
   workflow_dispatch:

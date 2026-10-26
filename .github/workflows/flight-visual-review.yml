@@ -27,7 +27,6 @@ on:
       - 'js/v151-travel-arms.js'
       - 'js/v152-flight-silhouette.js'
       - 'js/v153-streamlined-flight.js'
-      - 'js/v156-real-vrm-flight.js'
 
 permissions:
   contents: read
