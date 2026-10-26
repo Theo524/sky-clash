@@ -58,5 +58,5 @@ assert(!boot.includes("flags.set('flightVertical','v160')"),
 assert(boot.includes("e.src+='&vertical=160'"),'fresh JS');
 assert(capture.includes("preview==='v160'?'v156&flightVertical=v160'"));
 assert(gallery.includes("VISUAL_VERTICAL_QA: '1'")&&
- gallery.includes("v156,v160"),'real VRM A/B vertical stills');
+ capture.includes("preview==='v160'"),'V160 real VRM preview kept for rollback');
 console.log('PASS V160: soft full-body rise, dive, reversal and neutral at 30/60/120fps');

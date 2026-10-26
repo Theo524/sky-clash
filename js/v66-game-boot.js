@@ -230,6 +230,9 @@
     if(src.includes('v100-pose-authority')&&
        new URLSearchParams(location.search).get('flightVertical')==='v160')
       e.src+='&vertical=160';
+    if(src.includes('v100-pose-authority')&&
+       new URLSearchParams(location.search).get('flightVertical')==='v161')
+      e.src+='&vertical=161';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
