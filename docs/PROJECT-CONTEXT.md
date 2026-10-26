@@ -1,5 +1,15 @@
 # Sky Clash — project context for future sessions
 
+## V155 feedback: both Boosts terrible and forward flight looks like a stick — 2026-10-26
+
+Player rejected **both V153 default Boost and V154 preview Boost**, and called the V153 forward flying silhouette **a stick flying**. Do NOT defend previous green test numbers or pitch angle. Real-Kairo V154 A/B WebGL capture from run 40263416673 confirms nearly straight, full-length forward leg extension (V153 ~75° whole-body incline and V154 air ~61°, with legs almost inline). Ground V154 looked similar to old awkward running. Old V154 visual workflow failed, so do not claim it passed. Side-by-side real WebGL footage and metrics can be obtained from the run's artifact.
+
+**V155 new preview target:** `?flightPreview=v155&boostPreview=v155`; independent toggles `?flightPreview=v155` and `?boostPreview=v155`. Preserve V153 normal default and V154 rollback during first review (the user may reject another animation attempt). Implemented `js/v155-organic-flight.js`, a DATA-ONLY keyframe/performance clip. Existing V100 world-space pelvic target is ~50deg from vertical while the chest target is ~34deg: an ARCH, not a rigid straight trunk. Thigh vs shin world target vectors are deliberately ~40deg apart, both trailing backward with independent asymmetry/soft sway and curved bent elbows. Quiet hover at zero forward intent keeps the V152 keys **exactly**. Only free strong forward flight; guard/backwards untouched. V100 remains the sole normal flight pose writer, no other `Fighter.animate` wrapper.
+
+V155 Boost preview reuses V72 as sole recorded Boost pose owner, replaces the awful 18-frame recorded sprint with the full already-approved Standard Run clip at a deliberate fast phase, plus V155 arched pelvis/spine/knee/arm targets for airborne Boost. Existing V154 and V153 Boost still selectable by query; Rin unaffected. No game physics, root/camera, gameplay inputs or fighter registry changes.
+
+Test: `tests/v155-organic-flight-and-boost.js` on 30/60/120fps, V152 exact zero-intent hover key preservation, old rollback, distinct thighs/shins and arched pelvis/chest target. Real Kairo 13-stage front/side/back MP4 A/B needs to verify visually under `.github/workflows/v155-organic-boost-review.yml` BEFORE considering default promotion. Measure knee bend of true rendered normalized VRM bones and actual physical pitch, not just target value. If visually still weird, iterate with actual captures instead of merging as default. Source files and preview flag are independently reversible. Keep approved V97 ground, V125 jump, Rin, Kairo combat and non-Boost untouched.
+
 ## V154 Kairo Boost preview and per-character jump identity — October 26, 2026
 
 User feedback: Boost / sprint animations are **terrible** and should be substantially improved now that the existing authored motion/VRM system has matured. They also want a **diverse roster** of single-jump, double-jump, limited rocket-jump, vault, gravity-hover and powered-flight fighters, not universal flight/movement.
