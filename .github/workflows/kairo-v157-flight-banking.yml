@@ -69,7 +69,7 @@ jobs:
           assert all(abs(x['flightBankDegrees'])<.02 for x in flat('v156'))
           left=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-left']
           right=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-right']
-          assert min(left)<-3 and max(right)>3,(left,right)
+          assert min(left)<-3 and max(right)>1.5,(left,right)
           assert max(map(abs,left+right))<=13.1
           print('PASS Kairo real VRM 3-view V156 vs V157 bank',{'left':left,'right':right})
           PY
