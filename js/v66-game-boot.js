@@ -209,7 +209,8 @@
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v147')e.src+='&directionalFlight=147';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v148')e.src+='&allFlight=148';
     if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v149')e.src+='&livingTravel=149';
-    if(src.includes('v100-pose-authority')&&v150Preview)e.src+='&joystickFlight=150';
+    if(src.includes('v100-pose-authority')&&modernFlight)e.src+='&joystickFlight=150';
+    if(src.includes('v100-pose-authority')&&v151Preview)e.src+='&freeTravelArms=151';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
