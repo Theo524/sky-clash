@@ -18,3 +18,6 @@ Source: V152/V156 real hover, exact SHA; bone aims are rigged ON Kairo's
 VRM0 inside `SkyClashPoseLab.authorWorldPose`, not image-only mockups.
 Animation phases are baked into real local quaternions, with shoulder
 leading elbow and hand a little. Preview stays independent of V100 runtime.
+
+## Verification and player decision
+Real Pose Lab runner [40418975917](https://github.com/Theo524/sky-clash/actions/runs/40418975917) **passed**; artifact **12697736565** includes 3 authentic 20-bone Kairo pose JSON tracks (21 frames/2 seconds each), **36 actual WebGL captured frames**, original 3 looping GIFs and a 3-up GIF, geometry metrics. Arms/wrist spacing variation measured A 0.65–0.70m, B 0.63–0.72m, C 0.60–0.76m (camera-visible amplitude; NOT an aesthetic grade). All options preserve the exact same B base anchor, torso and legs. Assistant cleaned the rendered comparison locally for user presentation; editor controls removed in the chat GIF. **Awaiting user pick of A, B or C motion amplitude**. Do not assume B means motion strength B: B was previously picked as the *static stance*, and the A/B/C motion choices are a new separate decision.
