@@ -39,9 +39,13 @@ jobs:
         env:
           VISUAL_PORT: '8765'
         run: node tools/test-kairo-pose-lab.cjs
+      - name: Capture V152 game-hover pose as real-Kairo editor baseline
+        run: |
+          node --check tools/capture-kairo-pose-reference.cjs
+          node tools/capture-kairo-pose-reference.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: real-kairo-pose-lab-acceptance
-          path: visual-review-output/pose-lab/
+          path: visual-review-output/
           retention-days: 14
