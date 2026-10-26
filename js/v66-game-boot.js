@@ -12,17 +12,17 @@
  function approvedGroundQuery(search){
   const flags=new URLSearchParams(search||'');
   if(flags.has('movementLab'))return null;
-  // V150 public release: plain /sky-clash/ includes approved
-  // V97 ground, V125 jump and input-responsive full-body V150 flight.
+  // V151 public release: V97 ground, V125 jump, V150 full-body flight
+  // and V151 natural free-travel arms on the ordinary playable URL.
   // Explicit historical animation comparisons still opt out of promotion.
   const requested=['jumpPreview','flightPreview','jumpMode','jumpPrep',
    'jumpKnees','airLab','animator','flightLab','flightStyle','jumpArms',
    'airLegs','landingLab','movingJump'].some(key=>flags.has(key));
   if(!requested){
    flags.set('jumpPreview','v125');
-   flags.set('flightPreview','v150');
+   flags.set('flightPreview','v151');
   }
-  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||flags.get('flightPreview')==='v150';
+  const flightShortcut=['v114','v126','v127','v128','v129','v130','v131','v132','v133','v134','v135','v136','v137','v138','v140','v141','v142','v143','v144','v145','v146','v147','v148','v149'].includes(flags.get('flightPreview'))||['v150','v151'].includes(flags.get('flightPreview'));
   if(flightShortcut&&!flags.has('jumpPreview'))flags.set('jumpPreview','v125');
   flags.set('movementLab','step');
   if(!flags.has('stance'))flags.set('stance','handoff');
@@ -49,7 +49,7 @@
    for(const [name,value] of Object.entries(jumpDefaults))
     flags.set(name,value);
   }
-  // V130 is default for the plain link; past flight preview URLs stay
+  // V151 is default for the plain link; past flight preview URLs stay
   // available as independent comparisons with the same V125 jump.
   if(flightShortcut){
    if(!flags.has('flightLab'))flags.set('flightLab','blend');
@@ -65,10 +65,11 @@
  const store=window.SkyClashCharacterStore;
  // One public release identity. V71/V76/V97 are historical component
  // revisions, NOT the currently deployed game build number.
- const BUILD='V150';
+ const BUILD='V151';
   // V149 and earlier remain explicit flightPreview rollback modes.
-  const v150Preview=new URLSearchParams(location.search).get('flightPreview')==='v150';
- window.SkyClashBuild=Object.freeze({version:BUILD,number:150,
+  const modernFlight=['v150','v151'].includes(new URLSearchParams(location.search).get('flightPreview'));
+  const v151Preview=new URLSearchParams(location.search).get('flightPreview')==='v151';
+ window.SkyClashBuild=Object.freeze({version:BUILD,number:151,
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
@@ -243,7 +244,7 @@
   // finish loading. Keep Kairo's VRM meshes hidden until fully composed.
   window.SKY_V104_STARTUP_GATE=true;
   window.SKY_V104_ANIMATIONS_READY=false;
-  await script('js/game.js?v=1500&startup=104');
+  await script('js/game.js?v=1510&startup=104');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
@@ -286,25 +287,27 @@
   // V100 unified air owner is installed LAST after every legacy layer.
   // The old wrappers yield only during natural jump/fall/landing states.
   if(new URLSearchParams(location.search).get('animator')==='unified'){
-   if(['v142','v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v142','v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v142-hover-keyframes.js?v=1420');
-   if(['v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v143-hover-performance.js?v=1430');
-   if(['v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v144-relaxed-arms.js?v=1440');
-   if(['v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v145-vertical-flight.js?v=1450');
-   if(['v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v146-vertical-followthrough.js?v=1460');
-   if(['v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v147-horizontal-flight.js?v=1470');
-   if(['v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||v150Preview)
+   if(['v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
     await script('js/v148-full-flight.js?v=1480');
-   if(new URLSearchParams(location.search).get('flightPreview')==='v149'||v150Preview)
+   if(new URLSearchParams(location.search).get('flightPreview')==='v149'||modernFlight)
     await script('js/v149-travel-performance.js?v=1490');
-   if(v150Preview)
+   if(modernFlight)
     await script('js/v150-joystick-flight.js?v=1500');
-   await script('js/v100-pose-authority.js?v=1000');
+   if(v151Preview)
+    await script('js/v151-travel-arms.js?v=1510');
+   await script('js/v100-pose-authority.js?v=1510');
    window.SkyClashV100Animator.start(window);
   }
   // Release the model/recording startup barrier ONLY after all wrappers
