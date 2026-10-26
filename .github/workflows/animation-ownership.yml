@@ -1,5 +1,11 @@
 name: Animation Ownership Contract
 
+# Cancel superseded PR workflows without ever hiding main-branch failures.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   pull_request:
     paths:
@@ -87,26 +93,8 @@ jobs:
         run: node tests/v154-boost-performance.js
       - name: Verify V155 arched body, bent trailing knees and approved-gait Boost at 30 60 120 fps
         run: node tests/v155-organic-flight-and-boost.js
-      - name: Re-run all 70 existing V66 source and animation checks
-        run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const {execFileSync} = require('node:child_process');
-          const workflow = fs.readFileSync('.github/workflows/v66-character.yml','utf8');
-          const commands = [...workflow.matchAll(/^\s+- run: (node [^\r\n]+)$/gm)]
-            .map(m => m[1].trim());
-          if(commands.length < 70)
-            throw new Error('Legacy regression suite unexpectedly lost commands: '+commands.length);
-          for (const command of commands) {
-            const parts = command.split(/\s+/);
-            if (parts[0] !== 'node' ||
-                parts.slice(1).some(a => !/^[a-zA-Z0-9_.\/-]+$/.test(a)))
-              throw new Error('Unexpected legacy regression command: '+command);
-            console.log('> '+command);
-            execFileSync('node', parts.slice(1), {stdio:'inherit'});
-          }
-          console.log('PASS: '+commands.length+' legacy Node syntax + gameplay tests');
-          NODE
+      # All 70+ legacy source/gameplay checks run in v66-character.yml
+      # on the same runtime-affecting changes. Keep one canonical runner.
       - name: Verify approved V97 ground defaults and explicit old-mode rollback
         run: node tests/approved-ground-default.js
       - name: Block unreviewed animation wrapper registrations

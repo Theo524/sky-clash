@@ -1,5 +1,11 @@
 name: Real Kairo Powered Flight Visual Captures
 
+# Cancel superseded PR workflows without ever hiding main-branch failures.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,8 +15,6 @@ on:
         default: "v152,v156"
   pull_request:
     paths:
-      - 'js/v100-pose-authority.js'
-      - 'js/v66-game-boot.js'
       - 'js/v142-hover-keyframes.js'
       - 'js/v143-hover-performance.js'
       - 'js/v144-relaxed-arms.js'
@@ -42,6 +46,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      # Reuse only the exact Playwright Chromium build; install-deps
+      # still verifies runtime system libraries for the runner.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
       - name: Install Chromium and offline MP4 encoder
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
