@@ -48,3 +48,27 @@ No new pose writer, physics, Boost, jumps, attacks, ground, camera or Rin
 changes. CI checks frame-rate-safe 20-bone flow and the real Kairo VRM
 front/side/back 60-tick vertical comparison `v156,v161`. The engineering
 and still-image tests are not player visual sign-off; V161 remains opt-in.
+
+## V162 vertical flight — upright and visibly expressive (experimental)
+
+Review link: `?flightVertical=v162`. For comparison V161 is
+`?flightVertical=v161`; published V156 remains unchanged by default.
+
+Based on reference to Dragon Ball Z: Kakarot's separate ascent/descent
+actions and established animation principles (Adobe's follow-through,
+overlap, easing and staging), V162 **does not turn altitude movement into
+a dive/airplane torso pitch**. Total added V162 pelvis-to-upper-chest lean
+is bounded below 5.4 degrees. That does not change approved V156 forward
+travel's authored body orientation. Instead, V162 enlarges the actual
+normalized VRM 20-bone arm/shoulder, forearm, thigh, shin, hand and shoe
+motion and shortens the V161 multistage lag, so descending reads promptly
+as its own pose rather than displaying the previous ascent for half a second.
+Inertial differences create a little hand/knee follow-through at reversal.
+All temporary relative pose rotations start afresh from the V156 clip on
+each frame. No root motion, translation, acceleration or gameplay changes.
+
+Run `node tests/v162-upright-vertical-flight.js` for 30/60/120fps
+reversal, lean bound, limb readability and original-pose preservation.
+The quick actual Kairo WebGL gallery compares V161 against V162 from
+front, side and back. Technical passing is not a subjective art approval:
+the new candidate remains opt-in for feedback.
