@@ -260,6 +260,18 @@ function flightGeometry(){
   const A=point(a),B=point(b);
   return A&&B?deg(Math.abs(A.x-B.x)):null;
  };
+ // Signed sagittal elbow hinge: for Kairo's calibrated +Z-facing VRM
+ // negative = forearm folds forward relative to the rearward upper arm.
+ // A large positive bend could pass the unsigned elbow flexion test yet
+ // look backwards from the side. Preserve the sign for A/B diagnosis.
+ const elbowSagittalSign=side=>{
+  const shoulder=point(side+'UpperArm'),elbow=point(side+'LowerArm'),
+   wrist=point(side+'Hand');
+  if(!shoulder||!elbow||!wrist)return null;
+  const a=elbow.clone().sub(shoulder).normalize(),
+   b=wrist.clone().sub(elbow).normalize();
+  return +(a.y*b.z-a.z*b.y).toFixed(4);
+ };
  const limbs={};
  for(const n of ['leftLowerLeg','rightLowerLeg','leftFoot','rightFoot',
   'leftLowerArm','rightLowerArm','leftHand','rightHand']){
@@ -268,6 +280,8 @@ function flightGeometry(){
  return {...angles(),
   leftElbow:bend('leftUpperArm','leftLowerArm','leftHand'),
   rightElbow:bend('rightUpperArm','rightLowerArm','rightHand'),
+  elbowSagittalSign:{left:elbowSagittalSign('left'),
+   right:elbowSagittalSign('right')},
   limbSpacing:{knee:spread('leftLowerLeg','rightLowerLeg'),
    ankle:spread('leftFoot','rightFoot'),
    elbow:spread('leftLowerArm','rightLowerArm'),
