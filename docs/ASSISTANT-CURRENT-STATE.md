@@ -1,5 +1,10 @@
 # SKY CLASH — CURRENT STATE (assistant quick-start)
 
+## 2026-10-26 most recent: V163 playable vertical keyframes, opt-in (NOT art approved)
+
+User wants new Kairo up/down flight **uploaded for personal testing** after V160–V162 were rejected, plus full knowledge of all repo tools preserved for future chats. A real Kairo VRM0 Playwright/Pose Lab study authored four 5-keyframe 20-joint poses; successful GitHub run `40410045312` artifact `12693475823`. The playable V163 preview selects `ascending-open` and `descending-brake`, interpolates the exact authored local quaternions with one V100 final pose owner, and deliberately reduces Q cruise tilt during vertical flight. Public `?flightVertical=v163`; plain game remains approved V156 Q forward flight. **This is an unapproved user-test candidate**, not finished animation. Source 4-candidate study remains open as [draft PR #129](https://github.com/Theo524/sky-clash/pull/129). Next new chat must verify actual main/CI/Pages and read [V163 guide](KAIRO-V163-PLAYABLE-PREVIEW.md), [complete tool audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md), [runbook](ASSISTANT-RUNBOOK.md) and Pose Lab workflow. Do not repeat V160–V162 additive overlays.
+
+
 **Status as of 2026-10-26.** This is the short, canonical **handoff of user decisions and quality gates**. Do not treat it as live evidence of the latest CI/PR/deployment status. At the start of **every new chat**, verify GitHub main, open PRs, workflows and real source code using the connected GitHub tools. Run the [automated assistant checkup](../tools/assistant-checkup.cjs) in a repository checkout or use its GitHub Actions artifact.
 
 ## 2026-10-26 — Latest player verdict and deep GitHub tooling audit

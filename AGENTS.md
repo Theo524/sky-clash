@@ -1,5 +1,8 @@
 # Sky Clash — coding assistant instructions
 
+**LATEST (2026-10-26): V163 REAL KEYFRAMED UP/DOWN FLIGHT IS AN OPT-IN PLAYER TEST.** The player explicitly asked us to publish the new Pose Lab animation work **for personal testing** and store *every useful tool/workflow* in GitHub for new chats. First read [V163 preview and tool instructions](docs/KAIRO-V163-PLAYABLE-PREVIEW.md), [complete repository tool audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md), [fast runbook](docs/ASSISTANT-RUNBOOK.md), and [current state](docs/ASSISTANT-CURRENT-STATE.md). Test `https://theo524.github.io/sky-clash/?flightVertical=v163`; the default remains player-approved V156 Q forward-only. The source is genuine real-VRM Pose Lab multi-keyframes in a single V100 owner, NOT another V159–V162 Euler overlay. The 4-candidate authoring workflow is in [draft PR #129](https://github.com/Theo524/sky-clash/pull/129). Actions run `40410045312` has the full SHA-bound local quaternion tracks and three-camera screenshots. Inspect actual visuals and respect user's feedback, not just code CI. Use the GitHub connector tools directly so the player does not need to touch any development tools.
+
+
 ## MANDATORY assistant bootstrap (every new chat, any Sky Clash task)
 
 This repo is the cross-chat technical memory. **First read `docs/ASSISTANT-CURRENT-STATE.md` and `docs/ASSISTANT-RUNBOOK.md` before implementing or describing the state of the game**. The historical `docs/PROJECT-CONTEXT.md` is very long and includes superseded progress statements; use it as background, not as current truth. Verify `main`, open PRs, CI and Pages at the time of the question. Use `tools/assistant-checkup.cjs` or its GitHub Actions artifact for local code/asset consistency checks.
