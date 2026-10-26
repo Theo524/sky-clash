@@ -78,8 +78,8 @@ assert(source.includes('-.95*streamline')&&source.includes('1.10*streamline'),
 assert(source.includes('v153?v153FlightPose(')&&
  source.includes('st.v153Motion=stream.step(')&&
  source.includes("v153?'streamlined'"),'V100 sole Kairo VRM writer');
-assert(boot.includes("flags.set('flightPreview','v153')"));
-assert(boot.includes("const BUILD='V153'"));
+assert(boot.includes("flags.set('flightPreview','v156')"));
+assert(boot.includes("const BUILD='V156'"));
 assert(boot.includes("await script('js/v153-streamlined-flight.js?v=1530')"));
 assert(index.includes('release=153'));
 assert(!source.includes('root.position.y+='));

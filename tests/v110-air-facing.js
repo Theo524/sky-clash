@@ -72,6 +72,6 @@ assert(owner.includes("st.airFacingPose=[];"));
 assert(boot.includes("e.src+='&facing=110'"));
 assert(boot.includes('AIR FACING: V110 aligned'));
 assert(/SKY CLASH · BUILD V11[0-5]/.test(html));
-assert(/js\/v66-game-boot\.js\?v=1530&fix=11[1-6]/.test(html));
+assert(/js\/v66-game-boot\.js\?v=(?:1530|1560)&fix=11[1-6]/.test(html));
 assert(/BUILD V11[0-5]/.test(read('animation-studio.html')));
 console.log('PASS V110: source jump/spine yaw mismatch verified; takeoff-relative yaw correction preserves bend, lean and arbitrary player root turns');

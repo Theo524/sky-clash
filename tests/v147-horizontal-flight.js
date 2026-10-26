@@ -102,7 +102,7 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8'),
  source=fs.readFileSync('js/v100-pose-authority.js','utf8');
 assert(boot.includes("'v147','v148','v149'].includes(flags.get('flightPreview'))"));
 assert(boot.includes("flags.set('jumpPreview','v125')"));
-assert(boot.includes("const BUILD='V153'"));
+assert(boot.includes("const BUILD='V156'"));
 assert(boot.includes("await script('js/v147-horizontal-flight.js?v=1470')"));
 assert(source.includes("flightVersion==='v147'"));
 assert(source.includes("v147?'directional-flight'"));
