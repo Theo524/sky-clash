@@ -45,6 +45,23 @@ const candidates=[
    [.10,-.17,-.94],[-.09,-.26,-.93],
    [.24,-.86,-.43],[-.23,-.87,-.42],
    [.05,-.92,.17],[-.04,-.92,.17]
+  ]},
+ // Second reference-guided correction: forearms still trail behind the
+ // body, but bend FORWARD relative to rearward upper arms, avoiding both
+ // the earlier inverted hook and the first attempt's hanging hands.
+ {id:'q-trailing-athlete',body:46,upper:-11,neck:-38,head:-13,
+  naturalElbow:true,limbAims:[
+   [.15,-.94,-.72],[-.13,-.88,-.76],
+   [.12,-.24,-.95],[-.12,-.29,-.94],
+   [.18,-.59,-.83],[-.18,-.61,-.81],
+   [.08,-.95,-.28],[-.08,-.93,-.29]
+  ]},
+ {id:'r-clean-power',body:49,upper:-10,neck:-44,head:-11,
+  naturalElbow:true,limbAims:[
+   [.18,-1.0,-.67],[-.16,-.92,-.73],
+   [.10,-.17,-.94],[-.09,-.26,-.93],
+   [.20,-.62,-.79],[-.18,-.63,-.79],
+   [.05,-.95,-.29],[-.05,-.94,-.30]
   ]}
 ];
 // CI can capture just the comparison set while keeping historical studies
@@ -152,20 +169,28 @@ if(requested.length && (studyCandidates.length!==requested.length ||
     assert(m.limbSpacing?.ankle>0.12,'Candidate feet still overlap');
     assert(m.limbSpacing?.wrist>0.20,'Candidate wrists still cross');
     assert(m.leftElbow>15&&m.rightElbow>15,'Arms must have visible elbow bend');
-    if(a.elbowForward){
-     // +Z is independently calibrated as forward for this exact VRM.
-     // The old candidate had wrist BEHIND elbow, visually reversed.
+    if(a.elbowForward||a.naturalElbow){
+     // +Z is calibrated forward for the actual Kairo VRM. A natural
+     // elbow need not point the wrist fully ahead of the elbow; it must
+     // bend IN the correct sagittal direction relative to the upper arm.
      for(const side of ['left','right']){
       const elbow=m.limbLandmarks[side+'LowerArm'];
       const wrist=m.limbLandmarks[side+'Hand'];
-      assert(elbow&&wrist&&wrist[2]>elbow[2]+.035,
-       side+' wrist must fold forward from elbow, not hinge backward');
+      assert(elbow&&wrist,'Missing real Kairo elbow/wrist');
+      if(a.elbowForward){
+       assert(wrist[2]>elbow[2]+.035,
+        side+' first-pass wrist must fold forward of elbow');
+      }
+      if(a.naturalElbow){
+       assert(wrist[2]>elbow[2]-.16,
+        side+' forearm trails too far behind elbow');
+      }
       assert(m[side+'Elbow']>=29&&m[side+'Elbow']<=48,
        side+' elbow should be softly articulated');
      }
      assert(m.elbowSagittalSign.left<-.20 &&
       m.elbowSagittalSign.right<-.20,
-      'Side-view forearm hinge reverses the intended human flexion direction');
+      'Side-view forearm hinge reverses intended human flexion');
      assert(m.limbSpacing.ankle<.60,'Legs spread too wide');
      assert(m.limbSpacing.wrist<.68,'Arms are too widely flared');
      assert(m.limbSpacing.wrist>.23,'Arms disappeared into torso');
