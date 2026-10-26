@@ -102,5 +102,5 @@ assert.strictEqual(handle.slot,'idle',"Return to the user's chosen recorded idle
 const game=fs.readFileSync(path.join(root,'js/v66-game-boot.js'),'utf8');
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert(game.includes("js/v72-published-actions.js?v=820"));
-assert(html.includes('js/v66-game-boot.js?v=1510'));
+assert(html.includes('js/v66-game-boot.js?v=1520'));
 console.log('PASS: published exact 301-frame user idle, seamless 10s loop, skinned Kairo, jump/punch/block exclusion, preserved gameplay walks');
