@@ -2193,6 +2193,30 @@
   const tau=current*goal<0?.29:Math.abs(goal)>Math.abs(current)?.14:.22;
   return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
  }
+ // V160: critically damped vertical follow-through. Analytic integration
+ // preserves continuous velocity across 30/60/120fps and hard reversals.
+ function v160VerticalStep(previous,target,dt,frequency=16){
+  const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
+  const goal=clamp(Number.isFinite(target)?target:0,-1,1);
+  const value=clamp(Number.isFinite(previous?.value)?previous.value:0,-1,1);
+  const velocity=clamp(Number.isFinite(previous?.velocity)?previous.velocity:0,-20,20);
+  if(!age)return {value,velocity};
+  const omega=clamp(Number.isFinite(frequency)?frequency:16,1,24);
+  const distance=value-goal,rate=velocity+omega*distance;
+  const decay=Math.exp(-omega*age);
+  // Hard control reversals must not whip the pelvis through 6+ degrees
+  // in one 30fps tick. Velocity limiting is in units/second, not per frame.
+  const proposed=goal+(distance+rate*age)*decay;
+  const maxSpeed=4.3,maxStep=maxSpeed*age;
+  const next=clamp(proposed,Math.max(-1,value-maxStep),
+   Math.min(1,value+maxStep));
+  let nextVelocity=proposed!==next?(next-value)/age:
+   (velocity-omega*rate*age)*decay;
+  nextVelocity=clamp(nextVelocity,-maxSpeed,maxSpeed);
+  if((next===1&&nextVelocity>0)||(next===-1&&nextVelocity<0))
+   nextVelocity=0;
+  return {value:next,velocity:nextVelocity};
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2219,7 +2243,8 @@
     prepLastHipY:null,pushReleaseHipY:null,
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
-    v157Bank:0,v157Facing:null,v159Vertical:0};
+    v157Bank:0,v157Facing:null,v159Vertical:0,
+    v160Lead:null,v160Torso:null,v160Limbs:null};
   const axisBank=new THREE.Vector3(0,0,1),
     axisPitch=new THREE.Vector3(1,0,0);
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
@@ -2258,6 +2283,7 @@
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
    st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
+   st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2329,6 +2355,7 @@
      (fighter.vel?.z||0)*Math.sin(yaw);
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
     st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
+    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -3011,6 +3038,47 @@
     status.flightVerticalTarget=+drive.toFixed(3);
     status.flightVerticalControl=+(f.vert||0).toFixed(3);
     status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
+   }else if(new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v160'){
+    // V156 Q remains the immutable starting pose every frame.
+    // Leading pelvis, trailing chest and still-later knees/elbows give
+    // distinct motion arcs without accumulating quaternion rotations.
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v160Lead=v160VerticalStep(st.v160Lead,drive,dt,16);
+    st.v160Torso=v160VerticalStep(st.v160Torso,st.v160Lead.value,dt,13);
+    st.v160Limbs=v160VerticalStep(st.v160Limbs,st.v160Torso.value,dt,12);
+    const degrees=value=>(18*Math.max(0,value)-
+     16*Math.max(0,-value))*entry;
+    const pitch=degrees(st.v160Lead.value);
+    const torso=degrees(st.v160Torso.value);
+    const limbs=degrees(st.v160Limbs.value);
+    const rotate=(i,angle)=>{
+     if(Math.abs(angle)<.00001)return;
+     qTarget.setFromAxisAngle(axisPitch,angle*Math.PI/180);
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    };
+    // Spine yields, chest catches up, face counterbalances to keep
+    // Kairo's gaze from pitching down as one rigid body.
+    rotate(0,-pitch);
+    rotate(1,-torso*.09);
+    rotate(2,-torso*.15);
+    rotate(3,-torso*.04);
+    rotate(4,torso*.24);
+    rotate(5,pitch*.32+torso*.13);
+    // Bounded opposing hinge adjustments keep the authored Q silhouette
+    // but let elbows, thighs and knees follow the climb/dive believably.
+    rotate(6,limbs*.08);rotate(10,limbs*.08);
+    rotate(7,limbs*.40);rotate(11,limbs*.38);
+    rotate(8,-limbs*.23);rotate(12,-limbs*.22);
+    rotate(14,-limbs*.30);rotate(17,-limbs*.28);
+    rotate(15,limbs*.22);rotate(18,limbs*.20);
+    rotate(16,limbs*.09);rotate(19,limbs*.09);
+    status.flightVerticalDegrees=+pitch.toFixed(2);
+    status.flightVerticalTarget=+drive.toFixed(3);
+    status.flightVerticalControl=+(f.vert||0).toFixed(3);
+    status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
+    status.flightVerticalTorso=+torso.toFixed(2);
+    status.flightVerticalLimbs=+limbs.toFixed(2);
    }else{
     status.flightVerticalDegrees=0;
     status.flightVerticalTarget=0;
@@ -3027,6 +3095,9 @@
    status.flightAuthoredVariant=clip.id;
    if(verticalEnabled)status.flightStyle='V159 authored climb/dive with independent gaze'+
     (bankEnabled?' + banking':'');
+   if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v160')
+    status.flightStyle='V160 smooth climb/dive with articulated follow-through'+
+     (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -3590,6 +3661,7 @@
     flightMaxStepDeg:0,flightBankDegrees:0,flightBankTarget:0,
     flightVerticalDegrees:0,flightVerticalTarget:0,
     flightVerticalControl:0,flightVerticalVelocity:0,
+    flightVerticalTorso:0,flightVerticalLimbs:0,
     flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
@@ -3614,7 +3686,7 @@
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
     v157BankIntent,v157BankStep,v158BankIntent,v158BankStep,
-    v159VerticalIntent,v159VerticalStep,
+    v159VerticalIntent,v159VerticalStep,v160VerticalStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,

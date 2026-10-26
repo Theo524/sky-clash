@@ -20,3 +20,15 @@ Both are bound to Kairo VRM SHA256 `775b8d8dee887b686f1fbd38300bf83d438596574658
 **No gameplay changes from this library migration.** V100 still owns Kairo's final normal flight. V72 retains Boost; Rin, grounded movement, jump, physics, combat and camera are untouched.
 
 The `kairo-quick-flight-stills.yml` workflow is the **only default real-Kairo WebGL gallery** for current authored clips. Both historical full-video workflows remain available through `workflow_dispatch` but do not auto-run when generated V156/V158 adapters change.
+
+## V160 smoother climb/dive (opt-in player review)
+
+Use `?flightVertical=v160` over V156 accepted normal Kairo flight. V159
+remains `?flightVertical=v159` for comparison. V160 does not edit the locked
+20 normalized authored joint quaternions or change default gameplay.
+Its one final V100 pose writer uses a critically damped vertical leading
+channel with delayed torso/limb spring responses. Elbows, thighs and knees
+move with the pelvis rather than forming a frozen plank; head counterbalances.
+Root position, game physics, Boost, camera and jump ownership remain untouched.
+Run `node tests/v160-vertical-followthrough.js` and compare the real VRM
+3-camera climb/dive quick sheets before considering aesthetic approval.
