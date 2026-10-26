@@ -8,10 +8,6 @@ concurrency:
 on:
   pull_request:
     paths:
-      - 'js/v100-pose-authority.js'
-      - 'js/v66-game-boot.js'
-      - 'index.html'
-      - 'tools/capture-flight-video.cjs'
       - 'tests/v159-vertical-flight.js'
   workflow_dispatch:
 permissions:

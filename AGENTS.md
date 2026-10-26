@@ -71,6 +71,12 @@ Before touching Kairo flight or Boost following the user's V153/V154/V155 reject
 - **Visual evidence:** the relevant current feature WebGL workflow stays automatic. Historic V153/V154/V155 film reviews and moving/jump variants can be run by `workflow_dispatch` only as needed. This preserves rollback comparisons without flooding Actions. If a change to V100 genuinely affects jump, **manually dispatch `jump-visual-review.yml`**; if changing only current forward flight, run the active V159/appropriate current VRM capture. Always inspect real Kairo front/side/back footage before approving a visual change.
 - **Cost control:** ten Chromium workflows pin Playwright 1.56.1 and cache its browser. A fast `tests/ci-workflow-fanout.js` test guards these policies. A green CI status is not evidence of attractive animation.
 
+## Fast Kairo flight previews
+
+- On ordinary V100 flight edits, `.github/workflows/kairo-quick-flight-stills.yml` captures 9 sample frames through 3 cameras on the **real game Kairo VRM0 WebGL renderer**, plus comparison PNGs and the full 60-tick state telemetry. No H.264 encoding during this first aesthetic pass.
+- To validate fluidity, response timing, turning reversals and Boost interruptions **before promoting a motion change**, manually dispatch the appropriate complete 24fps real-game film workflow (`kairo-v159-vertical-flight.yml` or `flight-visual-review.yml`). A gallery does not prove that movement flows naturally.
+- The assistant should retrieve and inspect contact sheet artifacts, not ask the player to capture screenshots.
+
 ## Before closing an animation PR
 
 Update docs/PROJECT-CONTEXT.md with dated PR/status, affected state, flags,
