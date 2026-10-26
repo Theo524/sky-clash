@@ -43,7 +43,8 @@ const candidates=[
     {bone:'head',axis:'right',degrees:a.head},
     {bone:'upperChest',axis:'right',degrees:-2}
    ];
-   // Converted Kairo VRM0 faces world -Z; behind is world +Z.
+   // Verified by real side-view renders: Kairo visibly faces +Z in Pose Lab;
+   // therefore legs and arms must trail into -Z, not cross in front.
    // Target actual limb SEGMENTS on the true VRM, not guessed Euler axes.
    const aim=(bone,child,down,back,side=0)=>({
     bone,child,worldDirection:[side,-down,back]});
