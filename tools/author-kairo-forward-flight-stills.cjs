@@ -47,7 +47,7 @@ const candidates=[
    // therefore legs and arms must trail into -Z, not cross in front.
    // Target actual limb SEGMENTS on the true VRM, not guessed Euler axes.
    const aim=(bone,child,down,back,side=0)=>({
-    bone,child,worldDirection:[side,-down,back]});
+    bone,child,worldDirection:[side,-down,-back]});
    const aims=[
     aim('leftUpperLeg','leftLowerLeg',a.thighDown,.88,-.05),
     aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,.84,.05),
