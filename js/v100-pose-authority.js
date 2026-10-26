@@ -2149,6 +2149,22 @@
      f.flying&&!f.sprinting)return 'flight';
   return null; // A height-based 'flying' getter is NOT a jump state.
  }
+ // V157: bounded steering target + frame-rate independent easing.
+ // No model-root/physics changes and no extra animation writer.
+ function v157BankIntent(localSide,yawRate,forwardSpeed){
+  const side=clamp((Number.isFinite(localSide)?localSide:0)/5.5,-1,1);
+  const turn=(Number.isFinite(forwardSpeed)&&forwardSpeed>1.8)?
+   clamp((Number.isFinite(yawRate)?yawRate:0)/2.6,-1,1):0;
+  return clamp(side*.88+turn*.52,-1,1);
+ }
+ function v157BankStep(current,target,dt){
+  const age=clamp(Number.isFinite(dt)?dt:0,0,.065);
+  const goal=clamp(Number.isFinite(target)?target:0,-1,1);
+  // Crossing through zero is slower than leaning farther in one direction.
+  // This keeps a 180-degree left/right input reversal below ~3 deg/frame.
+  const tau=current*goal<0?.27:Math.abs(goal)>Math.abs(current)?.16:.24;
+  return clamp(current+(goal-current)*(1-Math.exp(-age/tau)),-1,1);
+ }
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
@@ -2174,7 +2190,9 @@
     flightMix:0,flightVelocityY:0,flightSide:0,flightSamples:[],
     prepLastHipY:null,pushReleaseHipY:null,
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
-    guidedLaunchLegs:[],prepForwardAxes:null};
+    guidedLaunchLegs:[],prepForwardAxes:null,
+    v157Bank:0,v157Facing:null};
+  const axisBank=new THREE.Vector3(0,0,1);
   const qScene=new THREE.Quaternion(),qInvScene=new THREE.Quaternion(),
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
@@ -2210,6 +2228,7 @@
    st.landingSupport=null;st.prepBase=[];st.prepHipsY=0;st.prepSpeed=0;
    st.movingFlow=false;st.landingDuration=.48;st.airFacingPose=[];
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
+   st.v157Bank=0;st.v157Facing=null;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2280,6 +2299,7 @@
     st.flightSide=(fighter.vel?.x||0)*Math.cos(yaw)-
      (fighter.vel?.z||0)*Math.sin(yaw);
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
+    st.v157Bank=0;st.v157Facing=yaw;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -2866,7 +2886,7 @@
   // V156: exact normalized 20-bone keyframe snapshots from the real
   // Kairo VRM. Executed ONLY inside the existing V100 final flight owner,
   // after its old retarget, never as an extra Fighter.animate wrapper.
-  function applyAuthoredCruise(){
+  function applyAuthoredCruise(dt){
    const clip=root.SkyClashV156AuthoredFlight;
    if(!clip||clip.modelSha256!==
       '775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72'||
@@ -2892,8 +2912,43 @@
     qTarget.copy(st.from[i]).slerp(qRaw,entry).normalize();
     st.nodes[i].quaternion.copy(qTarget);
    }
+   // V157 optional bank, inside the SAME V100 final VRM pose owner.
+   // Hips roll the complete authored Q silhouette; the head counters
+   // just enough to keep Kairo's travel gaze. Elbows/knees stay authored.
+   const bankEnabled=new URLSearchParams(root.location?.search||'')
+    .get('flightBank')==='v157';
+   if(bankEnabled){
+    const x=f.vel?.x||0,z=f.vel?.z||0;
+    const side=x*Math.cos(yaw)-z*Math.sin(yaw);
+    const previous=st.v157Facing;
+    let delta=previous==null?0:
+      Math.atan2(Math.sin(yaw-previous),Math.cos(yaw-previous));
+    if(Math.abs(delta)>.65)delta=0; // lock-on snap is not steering
+    const yawRate=dt>0?clamp(delta/dt,-4,4):0;
+    const drive=v157BankIntent(side,yawRate,signedForward);
+    st.v157Bank=v157BankStep(st.v157Bank,drive,dt);
+    st.v157Facing=yaw;
+    const bankDeg=13*st.v157Bank*entry;
+    const roll=(i,degrees)=>{
+     if(Math.abs(degrees)<.00001)return;
+     qTarget.setFromAxisAngle(axisBank,degrees*Math.PI/180);
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    };
+    roll(0,-bankDeg);      // right input: lower the right shoulder
+    roll(2,-bankDeg*.10);  // slight chest weight-shift
+    roll(4,bankDeg*.12);   // neck counter-rotation
+    roll(5,bankDeg*.25);   // head keeps looking toward travel
+    status.flightBankDegrees=+bankDeg.toFixed(2);
+    status.flightBankTarget=+drive.toFixed(3);
+    status.flightBankTurnRate=+yawRate.toFixed(3);
+    status.flightBankLateral=+side.toFixed(3);
+   }else{
+    status.flightBankDegrees=0;
+    status.flightBankTarget=0;
+   }
    st.rig.vrm.update(0);
-   status.flightStyle='V156 real-VRM authored Q forward flight';
+   status.flightStyle=bankEnabled?
+    'V157 V156 flight with responsive bank':'V156 real-VRM authored Q forward flight';
    status.flightAuthoredBlend=+entry.toFixed(3);
    status.flightAuthoredTravel=+travel.toFixed(3);
    status.flightAuthoredBones=BONES.length;
@@ -3371,7 +3426,7 @@
       state==='flight'?clips.flying:null);
     if(state==='flight'&&new URLSearchParams(root.location?.search||'')
        .get('flightPreview')==='v156'){
-     applyAuthoredCruise();
+     applyAuthoredCruise(safe);
     }
     if(state==='jump'&&st.pushReleaseHipY!==null){
      // Release the actual planted crouch into vertical takeoff, instead
@@ -3457,7 +3512,8 @@
     flightRelaxedSilhouette:'not-tested',flightGuardWorld:null,
     flightGuardFacing:'not-tested',flightKneeWorld:null,
     flightKneeFacing:'not-tested',flightJointClamps:0,
-    flightMaxStepDeg:0,airFacingStyle:'original recorded yaw',
+    flightMaxStepDeg:0,flightBankDegrees:0,flightBankTarget:0,
+    flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
@@ -3480,6 +3536,7 @@
   return status;
  }
  const api={version:100,BONES,clipFor,flightWeight,flightStep,
+    v157BankIntent,v157BankStep,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,

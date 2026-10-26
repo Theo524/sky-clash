@@ -27,7 +27,7 @@ const views={front:0,side:Math.PI/2,back:Math.PI};
 const count=60;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
- '/index.html?flightPreview='+preview;
+ '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -58,6 +58,16 @@ function motionDescriptor(i){
  // then Boost interrupt and settle. Only pose velocity is prescribed:
  // no animation modifies Kairo's real gameplay physics.
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
+ // In the V157-specific A/B, steer the *real rig* around its facing yaw
+ // as well as strafing it. Both previews receive IDENTICAL turn velocity;
+ // no actual physics or model translation is changed by this fixture.
+ if(process.env.VISUAL_BANK_TURN_QA==='1'&&i>=36&&i<54){
+  if(i<44)return {...common,name:'turn-left',forward:5.2,
+   heading:-(i-35)*.07};
+  if(i<52)return {...common,name:'turn-right',forward:5.2,
+   heading:-.56+(i-43)*.07};
+  return {...common,name:'recenter',forward:5.2,heading:0};
+ }
  if(i<4)return {...common,name:'ground',height:0};
  if(i<12)return {...common,name:'hover'};
  if(i<20)return {...common,name:'accelerate',forward:6.2*(i-12)/7};
@@ -172,8 +182,12 @@ async function capture(browser,preview){
    const datum=await page.evaluate(({i,stage,fps})=>{
     const g=window.SkyClash.Game,p=g.player;
     p.t=(p.t||0)+1/fps;
-    p.facing=0;p.model.root.rotation.y=0;
-    p.vel.x=stage.side;p.vel.y=stage.vertical;p.vel.z=stage.forward;
+    p.facing=stage.heading??0;p.model.root.rotation.y=p.facing;
+    p.vel.x=stage.heading==null?stage.side:
+      stage.forward*Math.sin(stage.heading);
+    p.vel.y=stage.vertical;
+    p.vel.z=stage.heading==null?stage.forward:
+      stage.forward*Math.cos(stage.heading);
     // Real camera lock decision drives V150's distinct retreat animation.
     g.lockOn=stage.name==='backward'||stage.name==='strafe-left'||
       stage.name==='strafe-right';
@@ -201,10 +215,15 @@ async function capture(browser,preview){
      return [v.x,v.y,v.z].map(x=>+x.toFixed(4));
     };
     return {frame:i,stage:stage.name,elapsed:stage.elapsed,
+     facingYaw:p.facing,
      horizontalSpeed:Math.hypot(p.vel.x,p.vel.z),
      verticalSpeed:p.vel.y,lateralSpeed:p.vel.x,
      pose:owner.active,flightStyle:owner.flightStyle,
      flightBlend:owner.flightBlend||0,
+     flightBankDegrees:owner.flightBankDegrees??0,
+     flightBankTarget:owner.flightBankTarget??0,
+     flightBankLateral:owner.flightBankLateral??0,
+     flightBankTurnRate:owner.flightBankTurnRate??0,
      inputStrength:owner.flightInputStrength??null,
      lockedRetreat:owner.flightRetreatLocked??null,
      inputForward:owner.flightInputForward??null,
@@ -392,7 +411,33 @@ async function capture(browser,preview){
       t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
       throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
   }
-  if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
+  if(preview==='v157'){
+    const left=timeline.filter(t=>t.stage==='strafe-left');
+    const right=timeline.filter(t=>t.stage==='strafe-right');
+    const cruise=timeline.filter(t=>t.stage==='cruise');
+    const bank=t=>t.flightBankDegrees;
+    if(left.length!==5||right.length!==5||
+       !left.some(t=>bank(t)<-3)||
+       !right.some(t=>bank(t)>1.5)||
+       !cruise.every(t=>Math.abs(bank(t))<.2)||
+       [...left,...right].some(t=>Math.abs(bank(t))>13.1))
+     throw Error('V157 real Kairo bank direction or Q cruise incorrect: '+
+       JSON.stringify({left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
+    if(![...left,...right].every(t=>t.flightStyle?.includes('V157')))
+     throw Error('V157 real game flight owner missing on steering frames');
+    if(process.env.VISUAL_BANK_TURN_QA==='1'){
+     const turningLeft=timeline.filter(t=>t.stage==='turn-left');
+     const turningRight=timeline.filter(t=>t.stage==='turn-right');
+     if(turningLeft.length!==8||turningRight.length!==8||
+        !turningLeft.some(t=>bank(t)<-1.2)||
+        !turningRight.some(t=>bank(t)>1.2))
+      throw Error('V157 camera/facing yaw turn does not bank Kairo in both directions: '+
+       JSON.stringify({left:turningLeft.map(bank),right:turningRight.map(bank)}));
+    }
+    console.log('REAL KAIRO V157 BANK QA',JSON.stringify({
+     left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
+   }
+   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
    encode(folder,dest);

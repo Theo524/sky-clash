@@ -1,0 +1,86 @@
+name: V157 Real Kairo Banking Flight A/B
+on:
+  pull_request:
+    paths:
+      - 'js/v100-pose-authority.js'
+      - 'js/v66-game-boot.js'
+      - 'index.html'
+      - 'tools/capture-flight-video.cjs'
+      - 'tests/v157-flight-banking.js'
+      - '.github/workflows/kairo-v157-flight-banking.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-vrm-bank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: V157 owner and 30/60/120fps bank safety tests
+        run: |
+          node --check js/v100-pose-authority.js
+          node --check tools/capture-flight-video.cjs
+          node tests/v157-flight-banking.js
+          node tests/approved-ground-default.js
+          node tests/v155-organic-flight-and-boost.js
+      - name: Install Chromium and H.264 encoder
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+      - name: Start true game WebGL server
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-v157-bank.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/js/v156-real-vrm-flight.js >/dev/null
+      - name: Capture real Kairo V156 against V157 banking at front side and back
+        env:
+          VISUAL_PREVIEWS: v156,v157
+          VISUAL_VIDEO_FPS: '24'
+          VISUAL_BANK_TURN_QA: '1'
+        run: node tools/capture-flight-video.cjs
+      - name: Check real VRM turning silhouette data and H.264 videos
+        run: |
+          python - <<'PY'
+          import json,pathlib,subprocess
+          root=pathlib.Path('visual-review-output/flight-videos')
+          report=json.loads((root/'motion-metrics.json').read_text())
+          data={c['preview']:c for c in report['captures']}
+          assert set(data)=={'v156','v157'}
+          for version,c in data.items():
+              assert c['frames']==60 and c['frameRate']==24
+              assert all(x['pose']=='flight' for x in c['timeline'] if x['stage'] not in ('ground','boost'))
+              assert all(x['pose']!='flight' for x in c['timeline'] if x['stage']=='boost')
+              for view in ('front','side','back'):
+                  p=root/f'{version}-{view}.mp4'
+                  assert p.stat().st_size>10000,p
+                  info=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=nb_frames,r_frame_rate','-of','json',str(p)]))['streams'][0]
+                  assert info['r_frame_rate']=='24/1' and int(info['nb_frames'])==60
+          flat=lambda name:[x for x in data[name]['timeline'] if x['stage'] in ('strafe-left','strafe-right')]
+          assert all(abs(x['flightBankDegrees'])<.02 for x in flat('v156'))
+          left=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-left']
+          right=[x['flightBankDegrees'] for x in flat('v157') if x['stage']=='strafe-right']
+          assert min(left)<-3 and max(right)>1.5,(left,right)
+          turns=[x for x in data['v157']['timeline'] if x['stage'] in ('turn-left','turn-right')]
+          assert len(turns)==16
+          assert min(x['flightBankDegrees'] for x in turns if x['stage']=='turn-left')<-1.2
+          assert max(x['flightBankDegrees'] for x in turns if x['stage']=='turn-right')>1.2
+          assert max(map(abs,left+right))<=13.1
+          print('PASS Kairo real VRM 3-view V156 vs V157 bank',{'left':left,'right':right})
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-v157-real-vrm-banking-videos
+          path: visual-review-output/flight-videos/
+          retention-days: 21

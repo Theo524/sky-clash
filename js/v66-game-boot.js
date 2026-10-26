@@ -216,6 +216,11 @@
     if(src.includes('v100-pose-authority')&&v151Preview)e.src+='&freeTravelArms=151';
     if(src.includes('v100-pose-authority')&&(v152Preview||v153Preview||v155Preview))e.src+='&quietHover=152';
     if(src.includes('v100-pose-authority')&&(v153Preview||v155Preview))e.src+='&streamlined=153';
+   // Only the opt-in banking preview needs the new V100 JavaScript cache.
+   // The published V156 flight version is still the unchanged default.
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('flightBank')==='v157')
+     e.src+='&bank=157';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
