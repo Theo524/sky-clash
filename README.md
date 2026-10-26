@@ -1,3 +1,17 @@
+# Sky Clash — current project entry point
+
+Sky Clash is an original 3D anime martial-arts arena fighting game. The **actual playable game** is hosted at https://theo524.github.io/sky-clash/ and the source is in this repository.
+
+**Assistant / new chat starting here?** Read [AGENTS.md](AGENTS.md), [Current State](docs/ASSISTANT-CURRENT-STATE.md), and the [Assistant Runbook](docs/ASSISTANT-RUNBOOK.md) **before making changes or claiming a visual animation is approved**. Run `node tools/assistant-checkup.cjs --strict` in a checkout or inspect the `Assistant Startup and Project Truth Check` workflow artifact for repository facts. Use GitHub tools directly; the player does **not** want to run Pose Lab or capture debugging clips.
+
+Current source registers **Kairo Venn and Rin Sable** only. Four further fighters are design ideas, not gameplay. The game's default V153 forward flight and both old/V154 Boost have been *visually rejected* by the player; V155's alternative was also rejected as twisted. A passing animation code test does not overturn that verdict. Keep gameplay stable and author/review real VRM motion before proposing any new default.
+
+### Legacy release note archive
+
+The V53 description below is historical and **not** the current status of the game.
+
+---
+
 # Sky Clash V53 — Rin Reborn
 
 This patch replaces V52 Rin's recoloured Kairo avatar with the **user-exported VRoid AvatarSample_C** (VRM 0.x, author metadata `Theo`), customised into Rin Sable.
