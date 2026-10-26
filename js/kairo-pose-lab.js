@@ -247,7 +247,32 @@ function flightGeometry(){
   new T.Vector3(0,0,-1).applyQuaternion(headNode.getWorldQuaternion(new T.Quaternion())).normalize():null;
  const deg=v=>v===null?null:+v.toFixed(2);
  const pitch=v=>v?Math.atan2(v.z,v.y)*DEG:null;
+ // True VRM world-space elbow and left/right limb clearance.
+ // Reading anatomy, not local Euler targets: the two arms and legs must
+ // remain visually distinct in straight ahead flight.
+ const bend=(a,b,c)=>{
+  const A=point(a),B=point(b),C=point(c);
+  if(!A||!B||!C)return null;
+  const ab=B.clone().sub(A).normalize(),bc=C.clone().sub(B).normalize();
+  return deg(Math.acos(clamp(ab.dot(bc),-1,1))*DEG);
+ };
+ const spread=(a,b)=>{
+  const A=point(a),B=point(b);
+  return A&&B?deg(Math.abs(A.x-B.x)):null;
+ };
+ const limbs={};
+ for(const n of ['leftLowerLeg','rightLowerLeg','leftFoot','rightFoot',
+  'leftLowerArm','rightLowerArm','leftHand','rightHand']){
+  limbs[n]=point(n)?.toArray().map(v=>+v.toFixed(4))||null;
+ }
  return {...angles(),
+  leftElbow:bend('leftUpperArm','leftLowerArm','leftHand'),
+  rightElbow:bend('rightUpperArm','rightLowerArm','rightHand'),
+  limbSpacing:{knee:spread('leftLowerLeg','rightLowerLeg'),
+   ankle:spread('leftFoot','rightFoot'),
+   elbow:spread('leftLowerArm','rightLowerArm'),
+   wrist:spread('leftHand','rightHand')},
+  limbLandmarks:limbs,
   trunkPitch:deg(pitch(trunk)),
   headSegmentPitch:deg(pitch(neckline)),
   facialAxisToHorizontal:face?deg(Math.atan2(face.y,Math.hypot(face.x,face.z))*DEG):null,
