@@ -10,7 +10,23 @@ const candidates=[
  {id:'j-curved-athlete',body:46,upper:-9,neck:-42,head:-12,thighDown:.57,shinDown:.23,armDown:.55,forearmDown:.88},
  // Stronger articulated silhouettes. V152 and i/j remain the unchanged comparison.
  {id:'k-gaze-led-cruise',body:45,upper:-12,neck:-36,head:-17,thighDown:.92,thighBack:.75,shinDown:.16,armDown:.76,armBack:.36,forearmDown:.46,forearmBack:.89},
- {id:'l-forward-power',body:50,upper:-10,neck:-45,head:-11,thighDown:1.08,thighBack:.67,shinDown:.12,armDown:.80,armBack:.27,forearmDown:.38,forearmBack:.91}
+ {id:'l-forward-power',body:50,upper:-10,neck:-45,head:-11,thighDown:1.08,thighBack:.67,shinDown:.12,armDown:.80,armBack:.27,forearmDown:.38,forearmBack:.91},
+ // Independent left/right anatomical segment aims: a wider, readable
+ // front/back silhouette without twisting the hips or shoulders.
+ {id:'m-spaced-athlete',body:46,upper:-11,neck:-38,head:-13,
+  limbAims:[
+   [-.27,-.93,-.72],[.25,-.87,-.76], // hips -> knees
+   [-.33,-.30,-.94],[.31,-.36,-.92], // knees -> feet
+   [-.49,-.77,-.34],[.50,-.79,-.34], // shoulders -> elbows
+   [-.27,-.41,-.86],[.27,-.35,-.91]  // elbows -> hands
+  ]},
+ {id:'n-open-power',body:49,upper:-10,neck:-44,head:-11,
+  limbAims:[
+   [-.33,-1.02,-.67],[.29,-.90,-.77],
+   [-.38,-.20,-.96],[.35,-.30,-.92],
+   [-.56,-.77,-.28],[.52,-.80,-.31],
+   [-.29,-.36,-.88],[.29,-.33,-.91]
+  ]}
 ];
 (async()=>{
  const browser=await chromium.launch({headless:true,args:[
@@ -55,16 +71,25 @@ const candidates=[
    // Target actual limb SEGMENTS on the true VRM, not guessed Euler axes.
    const aim=(bone,child,down,back,side=0)=>({
     bone,child,worldDirection:[side,-down,-back]});
-   const aims=[
-    aim('leftUpperLeg','leftLowerLeg',a.thighDown,a.thighBack??.88,-.05),
-    aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,(a.thighBack??.88)-.04,.05),
-    aim('leftLowerLeg','leftFoot',Math.max(.06,a.shinDown-.12),.98),
-    aim('rightLowerLeg','rightFoot',Math.max(.09,a.shinDown-.06),.98),
-    aim('leftUpperArm','leftLowerArm',a.armDown+.18,a.armBack??.43,-.49),
-    aim('rightUpperArm','rightLowerArm',a.armDown+.20,a.armBack??.43,.49),
-    aim('leftLowerArm','leftHand',a.forearmDown-.14,a.forearmBack??.62,-.07),
-    aim('rightLowerArm','rightHand',a.forearmDown-.12,(a.forearmBack??.65)-.01,.07)
+   const segmentPairs=[
+    ['leftUpperLeg','leftLowerLeg'],['rightUpperLeg','rightLowerLeg'],
+    ['leftLowerLeg','leftFoot'],['rightLowerLeg','rightFoot'],
+    ['leftUpperArm','leftLowerArm'],['rightUpperArm','rightLowerArm'],
+    ['leftLowerArm','leftHand'],['rightLowerArm','rightHand']
    ];
+   const aims=a.limbAims?
+    segmentPairs.map(([bone,child],i)=>({
+     bone,child,worldDirection:a.limbAims[i]
+    })):[
+     aim('leftUpperLeg','leftLowerLeg',a.thighDown,a.thighBack??.88,-.05),
+     aim('rightUpperLeg','rightLowerLeg',a.thighDown+.08,(a.thighBack??.88)-.04,.05),
+     aim('leftLowerLeg','leftFoot',Math.max(.06,a.shinDown-.12),.98),
+     aim('rightLowerLeg','rightFoot',Math.max(.09,a.shinDown-.06),.98),
+     aim('leftUpperArm','leftLowerArm',a.armDown+.18,a.armBack??.43,-.49),
+     aim('rightUpperArm','rightLowerArm',a.armDown+.20,a.armBack??.43,.49),
+     aim('leftLowerArm','leftHand',a.forearmDown-.14,a.forearmBack??.62,-.07),
+     aim('rightLowerArm','rightHand',a.forearmDown-.12,(a.forearmBack??.65)-.01,.07)
+    ];
    const result=await page.evaluate(({id,rotations,aims})=>
     window.SkyClashPoseLab.authorWorldPose({
      name:id+' – gaze and trailing limbs',time:1.2,rotations,aims}),{id:a.id,rotations,aims});
@@ -87,13 +112,20 @@ const candidates=[
    }
    reports.push({id:a.id,control:a,metrics:result.metrics,
     quats20:result.data.bones.length});
+   if(a.limbAims){
+    const m=result.metrics;
+    assert(m.limbSpacing?.knee>0.10,'Candidate must have visible knee separation');
+    assert(m.limbSpacing?.ankle>0.12,'Candidate feet still overlap');
+    assert(m.limbSpacing?.wrist>0.20,'Candidate wrists still cross');
+    assert(m.leftElbow>15&&m.rightElbow>15,'Arms must have visible elbow bend');
+   }
   }
   assert.equal(errs.length,0,'Browser errors: '+errs.join('; '));
   fs.writeFileSync(path.join(out,'real-vrm-measurements.json'),
    JSON.stringify({baseline:base,source:'actual Kairo VRM0 / actual V152 captured hover',
     candidates:reports,visuallyApproved:false,gameChanged:false},null,2));
   const count=fs.readdirSync(out).filter(x=>x.endsWith('.png')).length;
-  assert.equal(count,15);
+  assert.equal(count,3*(candidates.length+1));
   console.log('PASS Kairo real-VRM authored head/chest/leg candidates',JSON.stringify({
    headMetrics:reports.map(x=>({id:x.id,headVsTorso:x.metrics.headVsTorsoAngle,
     trunk:x.metrics.trunkPitch,face:x.metrics.facialAxisToHorizontal})),
