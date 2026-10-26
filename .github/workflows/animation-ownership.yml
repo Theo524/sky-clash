@@ -76,6 +76,7 @@ jobs:
           node tests/v160-vertical-followthrough.js
           node tests/v161-full-body-flight.js
           node tests/v162-upright-vertical-flight.js
+          node tests/v163-authored-vertical-keyframes.js
       - name: Verify generated game bundle matches editable source
         run: |
           python tools/build.py

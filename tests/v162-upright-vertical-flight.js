@@ -77,5 +77,6 @@ assert(boot.includes("flags.set('flightPreview','v156')")&&
 assert(boot.includes("e.src+='&vertical=162'")&&
  index.includes('verticalUprightReady=162'));
 assert(capture.includes("preview==='v162'?'v156&flightVertical=v162'"));
-assert(gallery.includes("v161,v162")&&gallery.includes('VISUAL_VERTICAL_QA'));
+assert(capture.includes("preview==='v162'")&&gallery.includes('VISUAL_VERTICAL_QA'),
+ "V162 remains selectable even when quick contact-sheet default advances");
 console.log('PASS V162: upright <5.4deg, clear arms/knees/feet, reversible 30/60/120fps, unchanged V156');

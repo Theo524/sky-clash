@@ -1,5 +1,16 @@
 # Sky Clash — assistant operations handbook
 
+## QUICK START: real-VRM keyframed up/down flight & fast tool pipeline
+
+**Latest (2026-10-26):** player requested to PLAYTEST `https://theo524.github.io/sky-clash/?flightVertical=v163` and persist tooling knowledge for new chats. Read [V163 guide](KAIRO-V163-PLAYABLE-PREVIEW.md), [tool audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) and [Pose Lab workflow](KAIRO-POSE-LAB-WORKFLOW.md) first. Only V156 Q **forward** is approved; V163 up/down remains experimental.
+
+**Author:** four candidate 20-bone 5-keyframe real Kairo animations baked with `tools/author-kairo-vertical-keyframes.cjs` in Pose Lab/Playwright from [draft PR #129](https://github.com/Theo524/sky-clash/pull/129). Success 40410045312, artifact 12693475823 stores original keyframe JSON and 3-angle render screenshots. Exact Kairo VRM SHA above. Use the editor's `authorWorldPose` / `flightGeometry` to adjust segment anatomy and get meaningful leg/arm poses; no guessed Euler runtime layers. The player should not be asked to operate dev tools.
+
+**Preview and inspect:** `js/v163-real-kairo-vertical-keyframes.js` stores source-recorded full-quaternion pose targets and exact five keyframe timing weights, and `js/v100-pose-authority.js` alone applies them when `flightVertical=v163`. Real-game `tools/capture-flight-video.cjs` has `VISUAL_V163_QA=1` for **pure** up/down and forward+up/down, neutral, Boost. `.github/workflows/kairo-quick-flight-stills.yml` runs actual model 3-view contact sheets and has automated PR triggers; full H.264 video still available. Download and visually inspect the artifacts, not just numerical checks.
+
+**Connected GitHub tools shortcut:** in `functions.exec`, discover `mcp__GitHub__*` through `ALL_TOOLS`; use `fetch_file`, `fetch` HEAD/TREE, batch `create_tree` → `create_commit` → `update_ref`/PR. After checks, `fetch_commit_workflow_runs`, `fetch_workflow_run_jobs`, `fetch_workflow_job_logs`, `fetch_workflow_run_artifacts`, `download_workflow_artifact`, then inspect PNG/JSON. Never change Q clip, Boost, jump, ground, camera, physics or Rin to solve a vertical pose.
+
+
 **For the assistant, not an assignment for the player.** The player wants us to use developer tools ourselves, not make them pose bones, run scripts or upload screenshots. This repository is the cross-chat external memory. The GitHub connection is the available interface in ChatGPT; a new chat may need to connect/access GitHub before the tools work.
 
 ## Latest real-VRM animation/tool audit
