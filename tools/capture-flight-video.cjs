@@ -517,7 +517,6 @@ async function capture(browser,preview){
  try{
   for(const preview of versions)
    reports.push(await capture(browser,preview));
- }
  if(quick){
   // Only arrange JPEGs captured from real Kairo, never draw a surrogate rig.
   for(const view of Object.keys(views)){
