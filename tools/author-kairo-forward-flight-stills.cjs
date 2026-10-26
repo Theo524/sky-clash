@@ -142,7 +142,8 @@ if(requested.length && (studyCandidates.length!==requested.length ||
    if(a.limbAims){
     const m=result.metrics;
     console.log('REAL_KAIRO_LIMB_QA '+JSON.stringify({
-      id:a.id,spacing:m.limbSpacing,leftElbow:m.leftElbow,
+      id:a.id,spacing:m.limbSpacing,signedHinge:m.elbowSagittalSign,
+      leftElbow:m.leftElbow,
       rightElbow:m.rightElbow,knees:[m.leftKnee,m.rightKnee],
       ankles:[m.limbLandmarks?.leftFoot,m.limbLandmarks?.rightFoot],
       hands:[m.limbLandmarks?.leftHand,m.limbLandmarks?.rightHand]
@@ -162,6 +163,9 @@ if(requested.length && (studyCandidates.length!==requested.length ||
       assert(m[side+'Elbow']>=29&&m[side+'Elbow']<=48,
        side+' elbow should be softly articulated');
      }
+     assert(m.elbowSagittalSign.left<-.20 &&
+      m.elbowSagittalSign.right<-.20,
+      'Side-view forearm hinge reverses the intended human flexion direction');
      assert(m.limbSpacing.ankle<.60,'Legs spread too wide');
      assert(m.limbSpacing.wrist<.68,'Arms are too widely flared');
      assert(m.limbSpacing.wrist>.23,'Arms disappeared into torso');
