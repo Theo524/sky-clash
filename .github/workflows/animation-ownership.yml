@@ -85,6 +85,8 @@ jobs:
         run: node tests/v153-streamlined-flight.js
       - name: Verify V154 Kairo ground / aerial Boost performance and 30 60 120 fps rollback
         run: node tests/v154-boost-performance.js
+      - name: Verify V155 arched body, bent trailing knees and approved-gait Boost at 30 60 120 fps
+        run: node tests/v155-organic-flight-and-boost.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'
