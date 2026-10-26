@@ -49,6 +49,10 @@
 
 The player liked a roster with One-Punch-Man-like **variety** of original fighters (humans, monsters, machines, oddballs) and high-energy Saiyan-style aerial martial-arts spectacle, **not** a TV show or comedy skits. Fighters should have different moves, jumps, double-jumps, heavy leaps, hover, thrusters or powered flight rather than all being reskins. User wants original identities and serious, impactful gameplay.
 
+## Repository cleanup audit — 2026-10-26
+
+The user wants clutter removed without disrupting the game. See [repository cleanup inventory](REPOSITORY-CLEANUP-AUDIT.md): 248 tracked files (~38.08 MB) prior to the cleanup; Kairo and Rin VRMs alone ~32.55 MB (~85.5%). Removed four superseded ZIP-install notes at the repo root (`README.txt`, `V57-INSTALL.txt`, `V58-INSTALL.txt`, `V60-INSTALL.txt`). The V142–V153 flight support files, optional V154/V155 preview files, `src/` plus deployed `js/game.js`, vendor scripts and old regression tests are **not proven safe to delete** just because they carry version numbers. Their teardown requires boot dependency analysis, a real WebGL comparison and a verified new animation architecture. This PR makes no gameplay changes.
+
 ## Source-of-truth reading order
 
 1. `AGENTS.md` **and this page**.
