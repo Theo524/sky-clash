@@ -27,7 +27,8 @@ const views={front:0,side:Math.PI/2,back:Math.PI};
 const count=60;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
- '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':preview);
+ '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':
+     preview==='v158'?'v156&flightBank=v158&flightPose=v158':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -411,7 +412,7 @@ async function capture(browser,preview){
       t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
       throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
   }
-  if(preview==='v157'){
+  if(preview==='v157'||preview==='v158'){
     const left=timeline.filter(t=>t.stage==='strafe-left');
     const right=timeline.filter(t=>t.stage==='strafe-right');
     const cruise=timeline.filter(t=>t.stage==='cruise');
@@ -420,10 +421,10 @@ async function capture(browser,preview){
        !left.some(t=>bank(t)<-3)||
        !right.some(t=>bank(t)>1.5)||
        !cruise.every(t=>Math.abs(bank(t))<.2)||
-       [...left,...right].some(t=>Math.abs(bank(t))>13.1))
+       [...left,...right].some(t=>Math.abs(bank(t))>(preview==='v158'?23.1:13.1)))
      throw Error('V157 real Kairo bank direction or Q cruise incorrect: '+
        JSON.stringify({left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
-    if(![...left,...right].every(t=>t.flightStyle?.includes('V157')))
+    if(![...left,...right].every(t=>t.flightStyle?.includes(preview==='v158'?'V158':'V157')))
      throw Error('V157 real game flight owner missing on steering frames');
     if(process.env.VISUAL_BANK_TURN_QA==='1'){
      const turningLeft=timeline.filter(t=>t.stage==='turn-left');
