@@ -9,6 +9,10 @@
 - When the user opens a new chat, the GitHub repository—not another chat's unseen context—is the persistent handoff. Read `AGENTS.md`, **this file**, `docs/ASSISTANT-RUNBOOK.md`, the ownership contract, and relevant source. Connector/tool access still requires being available/connected in that chat. Do not pretend cross-chat memory guarantees it.
 - Avoid asking the player to operate dev tools when the repo's GitHub Actions or connected tooling can capture/diagnose automatically. **Do not claim visual approval unless the user gave it.**
 
+## Kairo forward-flight authoring blueprint — 2026-10-26
+
+The player agreed to start an **exact forward-flight pose and transition specification** after rejecting stick-like V153 and twisted V155 forward flight. The new [forward-flight blueprint](KAIRO-FORWARD-FLIGHT-BLUEPRINT.md) defines creative *first-pass* visible angle ranges (not verified rig joint constraints), small chest/pelvis relative yaw/roll guards, realistic elbow/knee articulation, a 0.60–0.80 s hover-to-cruise multi-keyframe route, anti-twist/hand/foot QA, real Kairo VRM0 keyframe authoring via assistant-operated Playwright/Pose Lab and V100-only eventual integration. No gameplay code/animation was changed by this document. Future work must visually author and film **one full-body cruise pose on real Kairo first**, not produce another procedurally rotated V156. User must approve before promotion. Ground/air Boost are separate and still rejected.
+
 ## The latest decisive user feedback (highest priority)
 
 - **Both standard Boost and V154 Boost are terrible.**
