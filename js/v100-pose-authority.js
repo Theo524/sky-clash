@@ -3226,7 +3226,7 @@
         this.vel?.x||0,this.vel?.z||0,yaw,locked,safe);
        status.flightSignedForward=+st.v148Motion.signedForward.toFixed(2);
        status.flightSignedSide=+st.v148Motion.signedSide.toFixed(2);
-        if(['v152','v153'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
+        if(['v152','v153','v155'].includes(new URLSearchParams(root.location?.search||'').get('flightPreview'))){
           const clip=root.SkyClashV152Silhouette;
           if(!clip)throw Error('V152 visual flight clip unavailable');
           st.v152Motion=clip.step(st.v152Motion,st.v150Motion,
@@ -3249,6 +3249,8 @@
        .get('flightStyle');
      status.flightStyle=choice==='airborne'?
        (new URLSearchParams(root.location?.search||'')
+         .get('flightPreview')==='v155'?'V155 bent organic arched forward flight':
+         new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v153'?'V153 forceful streamlined forward flight':
          new URLSearchParams(root.location?.search||'')
          .get('flightPreview')==='v152'?'V152 calm hover and clear trailing free-flight arms':
