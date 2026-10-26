@@ -28,7 +28,8 @@ const count=60;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':
-     preview==='v158'?'v156&flightBank=v158&flightPose=v158':preview);
+     preview==='v158'?'v156&flightBank=v158&flightPose=v158':
+    preview==='v159'?'v156&flightVertical=v159':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -59,6 +60,18 @@ function motionDescriptor(i){
  // then Boost interrupt and settle. Only pose velocity is prescribed:
  // no animation modifies Kairo's real gameplay physics.
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
+ if(process.env.VISUAL_VERTICAL_QA==='1'){
+  if(i<4)return {...common,name:'ground',height:0};
+  if(i<12)return {...common,name:'hover'};
+  if(i<20)return {...common,name:'accelerate',forward:6.2*(i-12)/7};
+  if(i<26)return {...common,name:'cruise',forward:6.2};
+  if(i<36)return {...common,name:'ascend',forward:4,vertical:7};
+  if(i<46)return {...common,name:'descend',forward:4,vertical:-7};
+  if(i<50)return {...common,name:'level',forward:4};
+  if(i<54)return {...common,name:'vertical-rise',vertical:7};
+  if(i<57)return {...common,name:'boost',forward:6.2};
+  return {...common,name:'recover'};
+ }
  // In the V157-specific A/B, steer the *real rig* around its facing yaw
  // as well as strafing it. Both previews receive IDENTICAL turn velocity;
  // no actual physics or model translation is changed by this fixture.
@@ -187,6 +200,7 @@ async function capture(browser,preview){
     p.vel.x=stage.heading==null?stage.side:
       stage.forward*Math.sin(stage.heading);
     p.vel.y=stage.vertical;
+    p.vert=stage.vertical?Math.sign(stage.vertical):0;
     p.vel.z=stage.heading==null?stage.forward:
       stage.forward*Math.cos(stage.heading);
     // Real camera lock decision drives V150's distinct retreat animation.
@@ -222,6 +236,8 @@ async function capture(browser,preview){
      pose:owner.active,flightStyle:owner.flightStyle,
      flightBlend:owner.flightBlend||0,
      flightBankDegrees:owner.flightBankDegrees??0,
+     flightVerticalDegrees:owner.flightVerticalDegrees??0,
+     flightVerticalTarget:owner.flightVerticalTarget??0,
      flightBankTarget:owner.flightBankTarget??0,
      flightBankLateral:owner.flightBankLateral??0,
      flightBankTurnRate:owner.flightBankTurnRate??0,
@@ -412,7 +428,20 @@ async function capture(browser,preview){
       t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
       throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
   }
-  if(preview==='v157'||preview==='v158'){
+  if(preview==='v159'&&process.env.VISUAL_VERTICAL_QA==='1'){
+    const up=timeline.filter(t=>t.stage==='ascend'),
+     down=timeline.filter(t=>t.stage==='descend'),
+     cruise=timeline.filter(t=>t.stage==='cruise');
+    const angle=t=>t.flightVerticalDegrees;
+    if(up.length!==10||down.length!==10||
+       !up.some(t=>angle(t)>8)||!down.some(t=>angle(t)<-7)||
+       cruise.some(t=>Math.abs(angle(t))>.2))
+      throw Error('Real Kairo up/down pose did not respond: '+
+       JSON.stringify({up:up.map(angle),down:down.map(angle),cruise:cruise.map(angle)}));
+    console.log('REAL KAIRO V159 VERTICAL QA',JSON.stringify({
+      climb:up.map(angle),dive:down.map(angle)}));
+   }
+   if(preview==='v157'||preview==='v158'){
     const left=timeline.filter(t=>t.stage==='strafe-left');
     const right=timeline.filter(t=>t.stage==='strafe-right');
     const cruise=timeline.filter(t=>t.stage==='cruise');
