@@ -75,6 +75,8 @@ jobs:
         run: node tests/v148-full-flight.js
       - name: Verify V149 living whole-body travel never breaks approved hover or jump
         run: node tests/v149-living-travel.js
+      - name: Verify V150 joystick leaning and lock-on animation safety at 30 60 120 fps
+        run: node tests/v150-joystick-flight.js
       - name: Re-run all 70 existing V66 source and animation checks
         run: |
           node <<'NODE'

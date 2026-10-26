@@ -6,7 +6,7 @@ on:
       previews:
         description: "Two isolated powered flight versions"
         required: false
-        default: "v148,v149"
+        default: "v149,v150"
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
@@ -19,6 +19,7 @@ on:
       - 'js/v147-horizontal-flight.js'
       - 'js/v148-full-flight.js'
       - 'js/v149-travel-performance.js'
+      - 'js/v150-joystick-flight.js'
       - 'tools/capture-flight-video.cjs'
       - '.github/workflows/flight-visual-review.yml'
 
@@ -64,7 +65,7 @@ jobs:
       - name: Capture real Kairo WebGL front, side and back during hover, cruise, turns, rise, descent and Boost
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v148,v149' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v149,v150' }}
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real flight pose, telemetry and video frames
@@ -78,7 +79,12 @@ jobs:
               assert c['frames']==60 and c['frameRate']==24
               seq=c['timeline']
               assert len(seq)==60
-              assert {'hover','cruise','strafe-left','strafe-right','ascend','descend','boost','recover'} <= {x['stage'] for x in seq}
+              assert {'hover','cruise','strafe-left','strafe-right','backward','ascend','descend','boost','recover'} <= {x['stage'] for x in seq}
+              if c['preview']=='v150':
+                  backwards=[x for x in seq if x['stage']=='backward']
+                  assert any(x['lockedRetreat'] is True for x in backwards)
+                  assert any(x['inputStrength'] is not None and x['inputStrength']>.75 for x in backwards)
+                  assert any(x['inputForward'] is not None and x['inputForward']>.75 for x in seq if x['stage']=='cruise')
               assert all(x['pose']=='flight' for x in seq if x['stage'] not in ('ground','boost'))
               assert all(x['pose']!='flight' for x in seq if x['stage']=='boost')
               assert max(x['flightBlend'] for x in seq)>90
@@ -90,7 +96,7 @@ jobs:
                       '-show_entries','stream=r_frame_rate,nb_frames',
                       '-of','json',str(video)]))['streams'][0]
                   assert stream['r_frame_rate']=='24/1' and int(stream['nb_frames'])==60
-          print('PASS: real Kairo 24fps three-view V148 versus V149 authored hover A/B')
+          print('PASS: real Kairo 24fps three-view V149 versus V150 full-body flight A/B')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
