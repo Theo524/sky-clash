@@ -9,7 +9,11 @@
 - When the user opens a new chat, the GitHub repository—not another chat's unseen context—is the persistent handoff. Read `AGENTS.md`, **this file**, `docs/ASSISTANT-RUNBOOK.md`, the ownership contract, and relevant source. Connector/tool access still requires being available/connected in that chat. Do not pretend cross-chat memory guarantees it.
 - Avoid asking the player to operate dev tools when the repo's GitHub Actions or connected tooling can capture/diagnose automatically. **Do not claim visual approval unless the user gave it.**
 
-## Latest pose feedback — 2026-10-26
+## Latest player feedback: V156 forward flight accepted; V157 banking requested — 2026-10-26
+
+The player now says **the real playable V156 Kairo forward flight works well** and asks for the body to move naturally when **shifting left/right or turning**. This replaces earlier feedback that all forward-flight attempts looked straight. Keep the V156 Q pose and its head/elbows/legs **unchanged** as the baseline. On branch `feature/kairo-v157-banked-steering`, draft PR #118 adds an opt-in `?flightBank=v157` to Kairo's existing V100 flight owner: smoothly filtered left/right pelvis-led bank from actual relative side velocity and facing yaw rate, head/neck countermotion, with no root movement or combat/Boost/Rin/ground/jump changes. Pure 30/60/120fps checks pass on the branch; **real WebGL A/B capture is pending evaluation**. Default remains V156; do not assume player visual approval of banking just because they asked for it. Explicit rollback: `?flightPreview=v156` and historical `?flightPreview=v153`.
+
+## Historical pose feedback — superseded for the V156 default — 2026-10-26
 
 User says the forward flight is *better, but still too straight*, **including the head**. This supersedes any assumption that straightened V153 flight or an updated design document solved the on-model appearance. Prioritize real-VRM **connected pelvic/chest curve, distinct independent neck/head counter-rotation and gaze along travel**, plus bent knees/elbows, without twisting the body laterally. The actionable shot/measurement requirements are now at the top of `docs/KAIRO-FORWARD-FLIGHT-BLUEPRINT.md`. **No new in-game animation has been authored or shipped by that spec.** Do not ask the user to operate Pose Lab.
 
