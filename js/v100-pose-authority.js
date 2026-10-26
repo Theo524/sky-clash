@@ -2377,7 +2377,7 @@
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
     v157Bank:0,v157Facing:null,v159Vertical:0,
-    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null,v162Flow:null};
+    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null,v162Flow:null,v163Vertical:null,v163UpTime:0,v163DownTime:0};
   const axisBank=new THREE.Vector3(0,0,1),
     axisPitch=new THREE.Vector3(1,0,0),
     flowEuler=new THREE.Euler(0,0,0,'XYZ');
@@ -2385,7 +2385,7 @@
     qParent=new THREE.Quaternion(),qWanted=new THREE.Quaternion(),
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
     qSourceBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
-    qRaw=new THREE.Quaternion(),qTmp=new THREE.Quaternion(),
+    qRaw=new THREE.Quaternion(),qTmp=new THREE.Quaternion(),qKeyframe=new THREE.Quaternion(),
     axisY=new THREE.Vector3(0,1,0);
   function capture(rig){
    const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
@@ -2418,6 +2418,7 @@
    st.flightMix=0;st.flightVelocityY=0;st.flightSide=0;
    st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
+   st.v163Vertical=null;st.v163UpTime=0;st.v163DownTime=0;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2490,6 +2491,7 @@
     st.airFacingPose=visible.slice(0,6).map(q=>q.clone());
     st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
     st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
+   st.v163Vertical=null;st.v163UpTime=0;st.v163DownTime=0;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -3100,10 +3102,59 @@
    const yaw=f.facing||0;
    const signedForward=(f.vel?.x||0)*Math.sin(yaw)+
       (f.vel?.z||0)*Math.cos(yaw);
-   const travel=smooth(st.flightMix)*
+   // V163: use actual Pose Lab baked quaternions, not another additive
+   // pitch/roll layer. The accepted Q hover is the upright vertical base.
+   const v163=new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v163';
+   const keyframes=v163?root.SkyClashV163VerticalKeyframes:null;
+   if(v163&&(!keyframes||keyframes.modelSha256!==clip.modelSha256||
+    keyframes.bones?.join('|')!==BONES.join('|')||
+    keyframes.ascend?.length!==BONES.length||
+    keyframes.descend?.length!==BONES.length))
+    throw Error('V163 model-verified real VRM0 keyframes unavailable');
+   let upBlend=0,downBlend=0,upKeyWeight=0,downKeyWeight=0;
+   if(v163){
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v163Vertical=v160VerticalStep(st.v163Vertical,drive,dt,17);
+    // Two authored 1.2-second keyframe timelines, both continuous.
+    // Sudden reversals blend through neutral rather than changing pose.
+    st.v163UpTime=clamp(st.v163UpTime+
+     (drive>.1?dt*1.65:-dt*2.25),0,1.2);
+    st.v163DownTime=clamp(st.v163DownTime+
+     (drive<-.1?dt*1.65:-dt*2.25),0,1.2);
+    upBlend=smooth(Math.max(0,st.v163Vertical.value));
+    downBlend=smooth(Math.max(0,-st.v163Vertical.value));
+    upKeyWeight=keyframes.keyWeight(st.v163UpTime);
+    downKeyWeight=keyframes.keyWeight(st.v163DownTime);
+    status.flightVerticalKeyframeUp=+upKeyWeight.toFixed(3);
+    status.flightVerticalKeyframeDown=+downKeyWeight.toFixed(3);
+    status.flightVerticalKeyframeBlend=+Math.max(upBlend,downBlend).toFixed(3);
+    status.flightVerticalTarget=+drive.toFixed(3);
+    status.flightVerticalControl=+(f.vert||0).toFixed(3);
+    status.flightVerticalVelocity=+(f.vel?.y||0).toFixed(3);
+    status.flightVerticalFlowBones=BONES.length;
+    status.flightVerticalKeyframeSource='V163 real Kairo Pose Lab five-keyframe quaternion';
+   }
+   const originalTravel=smooth(st.flightMix)*
       smooth((signedForward-.45)/5.75);
+   // When climbing or descending, smoothly leave the forward-leaning Q
+   // cruise shape. Forward-only motion is BYTE-FOR-BYTE the old formula.
+   const travel=v163?originalTravel*(1-.995*Math.max(upBlend,downBlend)):
+    originalTravel;
    for(let i=0;i<BONES.length;i++){
     qRaw.fromArray(clip.hover[i]).slerp(qTmp.fromArray(clip.cruise[i]),travel);
+    if(v163){
+     if(upBlend>.00001){
+      qKeyframe.fromArray(clip.hover[i]).slerp(
+       qTmp.fromArray(keyframes.ascend[i]),upKeyWeight);
+      qRaw.slerp(qKeyframe,upBlend);
+     }
+     if(downBlend>.00001){
+      qKeyframe.fromArray(clip.hover[i]).slerp(
+       qTmp.fromArray(keyframes.descend[i]),downKeyWeight);
+      qRaw.slerp(qKeyframe,downBlend);
+     }
+    }
     qTarget.copy(st.from[i]).slerp(qRaw,entry).normalize();
     st.nodes[i].quaternion.copy(qTarget);
    }
@@ -3287,6 +3338,8 @@
      (bankEnabled?' + banking':'');
    if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v162')
     status.flightStyle='V162 upright, visibly articulated vertical flight'+
+     (bankEnabled?' + banking':'');
+   if(v163)status.flightStyle='V163 real Kairo upright keyframed climb/dive'+
      (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){
@@ -3854,6 +3907,8 @@
     flightVerticalTorso:0,flightVerticalLimbs:0,
     flightVerticalArms:0,flightVerticalLegs:0,flightVerticalFeet:0,
     flightVerticalFlowBones:0,flightVerticalBodyLeanDeg:0,
+    flightVerticalKeyframeUp:0,flightVerticalKeyframeDown:0,
+    flightVerticalKeyframeBlend:0,flightVerticalKeyframeSource:'none',
     flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
