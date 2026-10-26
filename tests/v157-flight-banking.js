@@ -46,8 +46,9 @@ assert.equal(step(.5,0,1/60)<.5,true,'release always moves toward neutral');
 const owner=require('node:fs').readFileSync('js/v100-pose-authority.js','utf8');
 const boot=require('node:fs').readFileSync('js/v66-game-boot.js','utf8');
 const index=require('node:fs').readFileSync('index.html','utf8');
-assert(owner.includes("get('flightBank')==='v157'"),
- 'bank must be strictly opt-in');
+assert(owner.includes("get('flightBank');")&&
+ owner.includes("bankMode==='v157'||bankMode==='v158'"),
+ 'only explicitly requested V157 or V158 should bank');
 assert(owner.includes("get('flightPreview')==='v156'"),
  'bank must operate only on accepted V156 flight');
 assert(owner.includes('roll(0,-bankDeg)')&&owner.includes('roll(5,bankDeg*.25)'),
