@@ -2879,7 +2879,14 @@
    // stance. 0.72s smooth entry; velocity produces a continuous hover ->
    // cruise blend, with no per-frame procedural bone aiming.
    const entry=smooth(st.elapsed/(clip.blendSeconds||.72));
-   const travel=smooth(st.flightMix);
+   // Only intentional FORWARD input enters the authored cruise shape.
+   // Strafing, hovering and reversing keep the V152 reference hover;
+   // Boost/combat are independently owned and always yield V100.
+   const yaw=f.facing||0;
+   const signedForward=(f.vel?.x||0)*Math.sin(yaw)+
+      (f.vel?.z||0)*Math.cos(yaw);
+   const travel=smooth(st.flightMix)*
+      smooth((signedForward-.45)/5.75);
    for(let i=0;i<BONES.length;i++){
     qRaw.fromArray(clip.hover[i]).slerp(qTmp.fromArray(clip.cruise[i]),travel);
     qTarget.copy(st.from[i]).slerp(qRaw,entry).normalize();
