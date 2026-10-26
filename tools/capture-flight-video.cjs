@@ -27,7 +27,7 @@ const views={front:0,side:Math.PI/2,back:Math.PI};
 const count=60;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
- '/index.html?flightPreview='+preview;
+ '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -205,6 +205,10 @@ async function capture(browser,preview){
      verticalSpeed:p.vel.y,lateralSpeed:p.vel.x,
      pose:owner.active,flightStyle:owner.flightStyle,
      flightBlend:owner.flightBlend||0,
+     flightBankDegrees:owner.flightBankDegrees??0,
+     flightBankTarget:owner.flightBankTarget??0,
+     flightBankLateral:owner.flightBankLateral??0,
+     flightBankTurnRate:owner.flightBankTurnRate??0,
      inputStrength:owner.flightInputStrength??null,
      lockedRetreat:owner.flightRetreatLocked??null,
      inputForward:owner.flightInputForward??null,
@@ -392,7 +396,24 @@ async function capture(browser,preview){
       t.rightKneeBendDeg==null||t.rightKneeBendDeg>43))
       throw Error('V138 filmed full-body hover must have hanging relaxed arms and softly flexed legs');
   }
-  if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
+  if(preview==='v157'){
+    const left=timeline.filter(t=>t.stage==='strafe-left');
+    const right=timeline.filter(t=>t.stage==='strafe-right');
+    const cruise=timeline.filter(t=>t.stage==='cruise');
+    const bank=t=>t.flightBankDegrees;
+    if(left.length!==5||right.length!==5||
+       !left.some(t=>bank(t)<-3)||
+       !right.some(t=>bank(t)>3)||
+       !cruise.every(t=>Math.abs(bank(t))<.2)||
+       [...left,...right].some(t=>Math.abs(bank(t))>13.1))
+     throw Error('V157 real Kairo bank direction or Q cruise incorrect: '+
+       JSON.stringify({left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
+    if(![...left,...right].every(t=>t.flightStyle?.includes('V157')))
+     throw Error('V157 real game flight owner missing on steering frames');
+    console.log('REAL KAIRO V157 BANK QA',JSON.stringify({
+     left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
+   }
+   if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
    encode(folder,dest);
