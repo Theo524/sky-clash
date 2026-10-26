@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
+      - 'assets/animations/kairo/flight-library.v1.json'
       - 'js/v156-real-vrm-flight.js'
       - 'js/v158-real-vrm-flight.js'
       - 'js/v66-game-boot.js'

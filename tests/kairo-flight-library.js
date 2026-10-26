@@ -1,0 +1,24 @@
+/* No silent changes to player-accepted real Kairo V156 or V158 draft. */
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),child=require('node:child_process');
+child.execFileSync(process.execPath,['tools/build-kairo-flight-library.cjs','--check'],{stdio:'inherit'});
+const lib=JSON.parse(fs.readFileSync('assets/animations/kairo/flight-library.v1.json','utf8'));
+require('../js/v156-real-vrm-flight.js');require('../js/v158-real-vrm-flight.js');
+const q=globalThis.SkyClashV156AuthoredFlight,u=globalThis.SkyClashV158AuthoredFlight;
+assert(q&&u&&q.id==='q-trailing-athlete'&&u.id==='u-balanced-trail');
+assert.deepEqual(q.bones,u.bones);assert.deepEqual(q.hover,u.hover);
+assert.equal(lib.acceptedForward,'v156');
+assert.equal(lib.poseVariants.v156.status,'accepted-forward-only');
+assert.equal(lib.poseVariants.v158.status,'experimental-limbs-not-player-approved');
+assert.equal(lib.poseVariants.v158.visuallyApproved,false);
+const digest=x=>{let s=JSON.stringify({hover:x.hover,cruise:x.cruise}),h=2166136261;
+ for(let i=0;i<s.length;i++)h=Math.imul(h^s.charCodeAt(i),16777619)>>>0;
+ return h.toString(16).padStart(8,'0');};
+assert.equal(digest(q),'08cfdf64','UNAPPROVED CHANGE TO ACCEPTED V156 REAL VRM POSE');
+assert.equal(digest(u),'3f40f49d','UNAPPROVED CHANGE TO V158 ORIGINAL EXPERIMENT');
+assert(Object.isFrozen(q)&&Object.isFrozen(q.bones));
+const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
+assert(boot.includes("flags.set('flightPreview','v156')"));
+assert(boot.includes("await script('js/v156-real-vrm-flight.js?v=1560')"));
+assert(boot.includes("await script('js/v158-real-vrm-flight.js?v=1580')"));
+console.log('PASS V156/Q and V158/U original exact quaternions + single canonical authoring source');
