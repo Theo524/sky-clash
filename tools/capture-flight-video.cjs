@@ -1,5 +1,5 @@
 /* V126 powered-flight visual QA using Kairo's actual VRM0/WebGL pose stack.
- * Produces repeatable 24fps front/side/back MP4s AND same-clock A/B composites.
+ * Supports fast real-VRM/WebGL 3-view still sheets or 24fps MP4 video.
  * Virtual animation time advances at fixed 1/fps while browser render
  * time is irrelevant; screenshots are source frames, ffmpeg encodes video.
  * This is an offscreen developer workflow. It never changes gameplay files.
@@ -11,7 +11,11 @@ const os=require('node:os');
 const {execFileSync}=require('node:child_process');
 const {chromium}=require('playwright');
 
-const output=path.resolve('visual-review-output','flight-videos');
+const captureMode=process.env.VISUAL_CAPTURE_MODE||'video';
+if(!['video','stills'].includes(captureMode))
+ throw Error('VISUAL_CAPTURE_MODE must be video or stills');
+const quick=captureMode==='stills';
+const output=path.resolve('visual-review-output',quick?'flight-stills':'flight-videos');
 const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'sky-clash-flight-'));
 const port=process.env.VISUAL_PORT||'8765';
 const fps=Number(process.env.VISUAL_VIDEO_FPS||'24');
@@ -25,6 +29,9 @@ if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
 
 const views={front:0,side:Math.PI/2,back:Math.PI};
 const count=60;
+// Process all 60 actual flight ticks; screenshot only nine representative moments.
+const quickFrames=Object.freeze([10,24,29,34,40,44,48,55,59]);
+const quickSet=new Set(quickFrames);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':
@@ -304,6 +311,7 @@ async function capture(browser,preview){
      leftToe:point('leftToes'),rightToe:point('rightToes')};
    },{i,stage,fps});
    timeline.push(datum);
+   if(quick&&!quickSet.has(i))continue;
    for(const [view,yaw] of Object.entries(views)){
     await page.evaluate(yaw=>window.SkyClash.Game.__videoCam(yaw),yaw);
     // Screenshot captures are expensive under SwiftShader. The game pose
@@ -311,14 +319,15 @@ async function capture(browser,preview){
     await page.evaluate(()=>new Promise(requestAnimationFrame));
     await page.screenshot({path:path.join(dirs[view],
      String(i).padStart(3,'0')+'.jpg'),type:'jpeg',
-     quality:83,animations:'disabled',timeout:30000});
+     quality:quick?77:83,animations:'disabled',timeout:30000});
    }
    if(i%12===0)console.log('FLIGHT VIDEO FRAME',preview,i,count,
     datum.stage,datum.pose,datum.flightBlend);
   }
   if(page.isClosed())throw Error('Browser closed before all motion frames');
-  if(timeline.length!==count||Object.values(dirs).some(d=>readdir(d).length!==count))
-   throw Error('Incomplete video frames');
+  if(timeline.length!==count||
+     Object.values(dirs).some(d=>readdir(d).length!==(quick?quickFrames.length:count)))
+   throw Error('Incomplete '+captureMode+' frames');
   const flight=timeline.filter(t=>t.stage!=='ground'&&t.stage!=='boost');
   if(flight.some(t=>t.pose!=='flight')||flight.length<45||
     timeline.filter(t=>t.stage==='boost').some(t=>t.pose==='flight'))
@@ -468,6 +477,23 @@ async function capture(browser,preview){
      left:left.map(bank),right:right.map(bank),cruise:cruise.map(bank)}));
    }
    if(pages.length)console.warn('FLIGHT VIDEO JS WARNINGS',preview,pages.slice(0,8));
+  if(quick){
+   const files=[];
+   for(const [view,folder] of Object.entries(dirs)){
+    for(const frame of quickFrames){
+     const stage=timeline[frame].stage;
+     const name=preview+'-'+view+'-'+String(frame).padStart(3,'0')+
+       '-'+stage+'.jpg';
+     const src=path.join(folder,String(frame).padStart(3,'0')+'.jpg');
+     if(!fs.existsSync(src)||fs.statSync(src).size<2500)
+      throw Error('Missing actual Kairo WebGL still '+src);
+     fs.copyFileSync(src,path.join(output,name));
+     files.push(name);
+    }
+   }
+   return {preview,info,frameRate:fps,frames:count,
+    sampledFrames:quickFrames,mode:'stills',timeline,files};
+  }
   for(const [view,folder] of Object.entries(dirs)){
    const dest=path.join(output,preview+'-'+view+'.mp4');
    encode(folder,dest);
@@ -491,8 +517,44 @@ async function capture(browser,preview){
  try{
   for(const preview of versions)
    reports.push(await capture(browser,preview));
- }finally{await browser.close();}
- if(versions.length===2){
+ if(quick){
+  // Only arrange JPEGs captured from real Kairo, never draw a surrogate rig.
+  for(const view of Object.keys(views)){
+   const cols=versions.length===2?4:3;
+   const tiles=[];
+   for(const frame of quickFrames){
+    for(const preview of versions){
+     const stage=reports.find(r=>r.preview===preview).timeline[frame].stage;
+     const file=preview+'-'+view+'-'+String(frame).padStart(3,'0')+
+      '-'+stage+'.jpg';
+     const data=fs.readFileSync(path.join(output,file)).toString('base64');
+     tiles.push('<figure><figcaption>'+preview+' · '+stage+
+      ' · frame '+frame+'</figcaption><img src="data:image/jpeg;base64,'+
+      data+'" alt="real Kairo"></figure>');
+    }
+   }
+   const page=await browser.newPage({viewport:{
+    width:cols*340+24,height:850},deviceScaleFactor:1});
+   try{
+    const html='<!doctype html><html><head><style>'+
+     '*{box-sizing:border-box}body{margin:0;padding:12px;'+
+     'background:#171a22;color:#fff;font-family:Arial,sans-serif}'+
+     'h1{font-size:20px;margin:0 0 10px}'+
+     '.grid{display:grid;grid-template-columns:repeat('+cols+
+     ',340px);gap:8px}figure{margin:0;border:1px solid #495465}'+
+     'figcaption{padding:5px;font-size:14px;background:#2b3340}'+
+     'img{width:100%;display:block}</style></head><body><h1>'+
+     'Actual Kairo WebGL | '+view+' | 9 sampled moments'+
+     '</h1><div class="grid">'+tiles.join('')+'</div></body></html>';
+    await page.setContent(html,{waitUntil:'load',timeout:45000});
+    const dest=path.join(output,'comparison-'+view+'.png');
+    await page.screenshot({path:dest,fullPage:true,
+     animations:'disabled',timeout:45000});
+    if(fs.statSync(dest).size<10000)
+     throw Error('Empty real Kairo WebGL contact sheet: '+dest);
+   }finally{await page.close();}
+  }
+ }else if(versions.length===2){
   for(const view of Object.keys(views)){
    compose(path.join(output,versions[0]+'-'+view+'.mp4'),
     path.join(output,versions[1]+'-'+view+'.mp4'),
@@ -502,11 +564,14 @@ async function capture(browser,preview){
  }
  fs.writeFileSync(path.join(output,'motion-metrics.json'),
   JSON.stringify({source:'real Kairo VRM WebGL pose stack',
+   captureMode,sampledFrames:quick?quickFrames:[],
    note:'deterministic powered-flight pose/velocity input, not phone gameplay',
    captures:reports},null,2));
  // Remove the 200+ intermediate JPEGs. Only small MP4s and a JSON
  // report are uploaded as GitHub Actions artifacts.
  fs.rmSync(scratch,{recursive:true,force:true});
- console.log('FLIGHT VIDEO PASS',JSON.stringify({
-  versions,fps,frames:count,outputs:readdir(output)}));
+ console.log('FLIGHT '+captureMode.toUpperCase()+' PASS',JSON.stringify({
+  versions,fps,frames:count,capturedImagesPerPreview:quick?quickFrames.length*3:count*3,
+  outputs:readdir(output)}));
+ }finally{await browser.close();}
 })().catch(e=>{console.error('FLIGHT VIDEO FAILURE',e.stack||e);process.exitCode=1});

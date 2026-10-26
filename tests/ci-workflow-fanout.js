@@ -7,8 +7,8 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const p=name=>'.github/workflows/'+name+'.yml';
 const read=name=>fs.readFileSync(p(name),'utf8');
-const all=["animation-ownership","assistant-readiness","flight-guard-visual-check","flight-visual-review","jump-visual-review","kairo-forward-flight-pose-study","kairo-v157-flight-banking","kairo-v159-vertical-flight","moving-jump-visual-review","pose-lab-browser","v154-boost-review","v155-organic-boost-review","v63-motion","v66-character"];
-const heavy=["flight-guard-visual-check","flight-visual-review","jump-visual-review","kairo-forward-flight-pose-study","kairo-v157-flight-banking","kairo-v159-vertical-flight","moving-jump-visual-review","pose-lab-browser","v154-boost-review","v155-organic-boost-review"];
+const all=["kairo-quick-flight-stills","animation-ownership","assistant-readiness","flight-guard-visual-check","flight-visual-review","jump-visual-review","kairo-forward-flight-pose-study","kairo-v157-flight-banking","kairo-v159-vertical-flight","moving-jump-visual-review","pose-lab-browser","v154-boost-review","v155-organic-boost-review","v63-motion","v66-character"];
+const heavy=["kairo-quick-flight-stills","flight-guard-visual-check","flight-visual-review","jump-visual-review","kairo-forward-flight-pose-study","kairo-v157-flight-banking","kairo-v159-vertical-flight","moving-jump-visual-review","pose-lab-browser","v154-boost-review","v155-organic-boost-review"];
 for(const name of all){
  const txt=read(name);
  assert(txt.includes('concurrency:\n')&&
@@ -51,7 +51,11 @@ assert(!ownership.includes('Re-run all 70 existing V66'),
 assert(ownership.includes('node tests/animation-ownership-contract.js')&&
  ownership.includes('node tests/v100-single-pose-authority.js'),
  'V100 pose ownership safety must remain automatic');
-assert(read('kairo-v159-vertical-flight').includes("      - 'js/v100-pose-authority.js'"),
- 'Maintain one directly relevant WebGL flight capture on new V100 work');
+assert(read('kairo-quick-flight-stills').includes("      - 'js/v100-pose-authority.js'"),
+ 'Maintain quick WebGL contact sheets for Kairo V100 edits');
+assert(!read('kairo-v159-vertical-flight').includes("      - 'js/v100-pose-authority.js'"),
+ 'Full V159 MP4 should run on demand, not for every V100 edit');
+assert(read('kairo-v159-vertical-flight').includes('  workflow_dispatch:'),
+ 'Keep actual full-motion filming available on demand');
 console.log('PASS: '+all.length+' concurrency guards, '+heavy.length+
  ' cached WebGL workflows, targeted visual fan-out, and full V66 safety retained');

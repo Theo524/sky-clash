@@ -13,6 +13,12 @@ The player authorized process improvement to make GitHub interaction and actual 
 5. All browser captures pin Playwright 1.56.1, use a browser cache, and still run genuine WebGL and full video validation. No synthetic character snapshots presented as model captures.
 6. Relevant generated visual evidence is reviewed with actual Kairo three-view frames. Only the player can approve aesthetic defaults. Keep the previous accepted game version/playable URL as a rollback.
 
+## Quick first-pass real Kairo motion gallery
+
+Use the new `kairo-quick-flight-stills.yml` GitHub Actions workflow on ordinary Kairo V100 flight edits; it runs the existing `tools/capture-flight-video.cjs` with `VISUAL_CAPTURE_MODE=stills`. The exact same 60 game-animation ticks are simulated; only nine representative moments x front/side/back are screenshotted. Artifacts include `comparison-front.png`, `comparison-side.png`, `comparison-back.png`, original JPEGs and a full `motion-metrics.json`.
+
+Use `workflow_dispatch` on `kairo-v159-vertical-flight.yml` for genuine full 24fps WebGL video when testing transitions, Boost handoff or aesthetic promotion. The full video branch of the script remains untouched by the new capture mode. The assistant retrieves and visually reviews artifacts itself. No user screenshot collection.
+
 ## First 3 minutes in ANY new chat
 
 1. **Open `AGENTS.md` and `docs/ASSISTANT-CURRENT-STATE.md` on the repo's current `main`**, not an old branch or a prior assistant message. Check `docs/PROJECT-CONTEXT.md` only if the task needs detailed history; it contains dated stale statements.

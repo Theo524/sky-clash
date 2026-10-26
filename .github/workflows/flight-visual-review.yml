@@ -28,7 +28,6 @@ on:
       - 'js/v152-flight-silhouette.js'
       - 'js/v153-streamlined-flight.js'
       - 'js/v156-real-vrm-flight.js'
-      - 'tools/capture-flight-video.cjs'
 
 permissions:
   contents: read
