@@ -1,0 +1,100 @@
+name: V155 Real Kairo Organic Flight and Rebuilt Boost Review
+on:
+  pull_request:
+    paths:
+      - 'js/v155-organic-flight.js'
+      - 'js/v100-pose-authority.js'
+      - 'js/v72-published-actions.js'
+      - 'js/v66-game-boot.js'
+      - 'tools/capture-flight-guard-stills.cjs'
+      - '.github/workflows/v155-organic-boost-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-kairo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare Kairo WebGL capture and MP4
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          node --check tools/capture-flight-guard-stills.cjs
+          node --check js/v155-organic-flight.js
+          node tests/v155-organic-flight-and-boost.js
+      - name: Serve unchanged game and real Kairo VRM0
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-v155-server.log 2>&1 &
+          for i in $(seq 1 16); do
+            if curl --max-time 3 -fsS http://127.0.0.1:8765/index.html >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/index.html >/dev/null
+      - name: V153 plank vs V155 curved flight real 3-view
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: 'v153,v155'
+          VISUAL_VIDEO_FPS: '24'
+        run: |
+          node tools/capture-flight-guard-stills.cjs
+          mv visual-review-output/flight-guard-stills visual-review-output/organic-flight
+      - name: V153 legacy Boost vs V155 ground and aerial 3-view
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: 'v153,v155'
+          VISUAL_VIDEO_FPS: '24'
+          VISUAL_BOOST_REVIEW: '1'
+        run: |
+          node tools/capture-flight-guard-stills.cjs
+          mv visual-review-output/flight-guard-stills visual-review-output/rebuilt-boost
+      - name: Measure actual full-body angle and genuinely folded knees
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path('visual-review-output')
+          normal=json.loads((p/'organic-flight/motion-metrics.json').read_text())
+          boost=json.loads((p/'rebuilt-boost/motion-metrics.json').read_text())
+          for report in (normal,boost):
+              assert len(report['captures'])==2
+              assert all(c['info']['realVRM'] and c['info']['webgl'] for c in report['captures'])
+              assert all(len(c['timeline'])==13 for c in report['captures'])
+          stage=lambda seq,n:[x for x in seq if x['stage']==n]
+          n0,n1=[c['timeline'] for c in normal['captures']]
+          c0,c1=stage(n0,'cruise')[0],stage(n1,'cruise')[0]
+          assert c1['flightAuthoredClip']=='V155 arched organic forward flight'
+          assert c1['streamlineWeight']>.9
+          assert 25<abs(c1['wholeBodyPitch'])<65,c1
+          assert c1['leftActualKneeBend']>17,c1
+          assert c1['rightActualKneeBend']>17,c1
+          assert c1['wholeBodyPitch']<c0['wholeBodyPitch']-5,(c0,c1)
+          b0,b1=[c['timeline'] for c in boost['captures']]
+          ground=stage(b1,'boost-ground');air=stage(b1,'boost-air')
+          assert min(x['boostGroundMix'] for x in ground)>.95,ground
+          assert min(x['boostAirStreamline'] for x in air)>.95,air
+          assert all(x['leftActualKneeBend']>16 for x in air),air
+          assert all(x['rightActualKneeBend']>16 for x in air),air
+          assert all(30<x['wholeBodyPitch']<65 for x in air),air
+          assert all((x['boostAirStreamline'] or 0)==0 for x in stage(b1,'hover'))
+          for review in ('organic-flight','rebuilt-boost'):
+              for v in ('front','side','back'):
+                  assert (p/review/f'v153-vs-v155-{v}.mp4').stat().st_size>4000
+          print('PASS V155 real Kairo',{'oldFlightPitch':c0['wholeBodyPitch'],'newFlightPitch':c1['wholeBodyPitch'],
+            'leftKneeBend':c1['leftActualKneeBend'],'rightKneeBend':c1['rightActualKneeBend']})
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-v155-curved-flight-and-boost
+          path: visual-review-output/
+          retention-days: 14
