@@ -17,6 +17,7 @@ on:
       - 'js/v150-joystick-flight.js'
       - 'js/v151-travel-arms.js'
       - 'js/v152-flight-silhouette.js'
+      - 'js/v153-streamlined-flight.js'
       - 'tools/capture-flight-guard-stills.cjs'
       - '.github/workflows/flight-guard-visual-check.yml'
 
@@ -58,10 +59,10 @@ jobs:
             cat /tmp/kairo-guard-server.log
             exit 1
           }
-      - name: Capture real Kairo calm hover and truly trailing arms V151 vs V152
+      - name: Capture Kairo normal V152 hover vs full-body V153 forward-lean flight
         env:
           VISUAL_PORT: '8765'
-          VISUAL_PREVIEWS: 'v151,v152'
+          VISUAL_PREVIEWS: 'v152,v153'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-guard-stills.cjs
       - name: Check actual VRM actor, hand directions and video frames
@@ -154,13 +155,26 @@ jobs:
                   assert states['cruise']['rightAuthored']['elbowAheadCm'] < 0
                   assert states['cruise']['leftAuthored']['handAheadCm'] < 2
                   assert states['cruise']['rightAuthored']['handAheadCm'] < 2
+              if capture['preview']=='v153':
+                  states={t['stage']:t for t in capture['timeline']}
+                  assert all(t['flightAuthoredClip']=='V153 whole-body forward flight'
+                    for t in capture['timeline'])
+                  assert states['cruise']['streamlineDegrees']>53
+                  assert states['cruise']['streamlineWeight']>.85
+                  assert states['hover']['streamlineDegrees']<1
+                  assert states['backward']['streamlineDegrees']<2
+                  assert states['strafe-left']['streamlineDegrees']<2
+                  assert states['cruise']['flightPelvisBalanceWorld']['pelvisNeckForwardCm']>58
+                  assert states['cruise']['flightTorsoWorld']['pitchedForwardCm']>50
+                  assert states['cruise']['leftAuthored']['handAheadCm']<3
+                  assert states['cruise']['rightAuthored']['handAheadCm']<3
               assert set(t['stage'] for t in capture['timeline']) >= {'hover','cruise','backward','strafe-left','strafe-right'}
-          print('PASS real Kairo V151 vs V152 calm hover, rearward arms, lock-on guard')
+          print('PASS real Kairo V152 vs V153 full-body pitch, trailing shins and unchanged hover/lock-on')
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: real-kairo-v152-hover-travel-review
+          name: real-kairo-v153-full-body-forward-review
           path: visual-review-output/flight-guard-stills/
           retention-days: 14
           if-no-files-found: warn
