@@ -13,8 +13,6 @@ on:
         description: "One or two jump previews for side-by-side comparison"
         required: false
         default: "v120"
-  pull_request:
-    paths:
 
 permissions:
   contents: read

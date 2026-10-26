@@ -64,6 +64,8 @@ jobs:
           python-version: '3.11'
       - name: Enforce fast CI fan-out and preserved safety checks
         run: node tests/ci-workflow-fanout.js
+      - name: Prevent accidental all-PR video triggers
+        run: node tests/ci-workflow-trigger-safety.js
       - name: Verify generated game bundle matches editable source
         run: |
           python tools/build.py
