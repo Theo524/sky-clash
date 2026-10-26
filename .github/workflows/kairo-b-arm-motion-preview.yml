@@ -1,0 +1,51 @@
+name: Kairo B-Arm Movement Visual Choices
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+on:
+  pull_request:
+    paths:
+      - 'tools/preview-kairo-b-arm-motion.cjs'
+      - 'tools/compose-kairo-b-arm-motion.py'
+      - '.github/workflows/kairo-b-arm-motion-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-vrm-motion-choices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Install browser and GIF encoder
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          python -m pip install pillow==11.3.0
+          node --check tools/preview-kairo-b-arm-motion.cjs
+      - name: Serve actual VRM0 Pose Lab
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/pose-lab-b-arms.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/pose-lab.html >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Render real Kairo B-stance motion A B C
+        env:
+          VISUAL_PORT: '8765'
+        run: node tools/preview-kairo-b-arm-motion.cjs
+      - name: Encode three looping clips and a single labeled comparison
+        run: python tools/compose-kairo-b-arm-motion.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-b-arm-motion-choice-gifs
+          path: visual-review-output/kairo-b-arm-motion/
+          retention-days: 21
