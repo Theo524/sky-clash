@@ -2903,7 +2903,12 @@
   // Kairo VRM. Executed ONLY inside the existing V100 final flight owner,
   // after its old retarget, never as an extra Fighter.animate wrapper.
   function applyAuthoredCruise(dt){
-   const clip=root.SkyClashV156AuthoredFlight;
+   const limbPreview=new URLSearchParams(root.location?.search||'')
+    .get('flightPose')==='v158';
+   // Select one complete authored normalized VRM snapshot, not additive
+   // limb-Euler corrections over another skeleton writer.
+   const clip=limbPreview?
+    root.SkyClashV158AuthoredFlight:root.SkyClashV156AuthoredFlight;
    if(!clip||clip.modelSha256!==
       '775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72'||
       clip.bones?.join('|')!==BONES.join('|')||
@@ -2975,10 +2980,12 @@
    status.flightStyle=bankEnabled?
     (bankMode==='v158'?'V158 visible responsive flight banking':
      'V157 V156 flight with responsive bank'):
+    limbPreview?'V158 real-VRM lifted hands / separated knees':
     'V156 real-VRM authored Q forward flight';
    status.flightAuthoredBlend=+entry.toFixed(3);
    status.flightAuthoredTravel=+travel.toFixed(3);
    status.flightAuthoredBones=BONES.length;
+   status.flightAuthoredVariant=clip.id;
   }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
