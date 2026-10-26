@@ -59,6 +59,6 @@ assert(boot.includes("e.src+='&anticipation=108'"),
 assert(boot.includes("V108 subtle")&&boot.includes("V109 readable"));
 assert(boot.includes("'PREP'"));
 assert(/SKY CLASH · BUILD V(10[8-9]|11[0-5])/.test(html));
-assert(/js\/v66-game-boot\.js\?v=1520&fix=(?:109|11[0-6])/.test(html));
+assert(/js\/v66-game-boot\.js\?v=1530&fix=(?:109|11[0-6])/.test(html));
 assert(/BUILD V(10[8-9]|11[0-5])/.test(read('animation-studio.html')));
 console.log('PASS V108: 30/60/120fps shallow 95ms grounded preparation, no other-character/flight effects, exact buffered original impulse and sole-grounded pose owner');
