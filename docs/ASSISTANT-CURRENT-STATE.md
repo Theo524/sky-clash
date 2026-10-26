@@ -2,6 +2,10 @@
 
 **Status as of 2026-10-26.** This is the short, canonical **handoff of user decisions and quality gates**. Do not treat it as live evidence of the latest CI/PR/deployment status. At the start of **every new chat**, verify GitHub main, open PRs, workflows and real source code using the connected GitHub tools. Run the [automated assistant checkup](../tools/assistant-checkup.cjs) in a repository checkout or use its GitHub Actions artifact.
 
+## 2026-10-26 CI performance overhaul (no gameplay changes)
+
+The player agreed to improve the entire development workflow because GitHub connector calls and many lengthy real-VRM video reviews delayed animation iterations. Branch `ops/speed-up-animation-ci` replaces per-file commits with single batched Git-tree updates, cancels superseded pull-request jobs but not main builds, removes redundant triggers for historical V153/V154/V155/moving-jump captures, pins/caches Chromium in ten browser workflows, and eliminates the duplicate 70+ legacy-node replay from Animation Ownership while the full V66 Character Integration suite remains authoritative. The current V159 flight WebGL A/B trigger is retained for V100 changes. New `tests/ci-workflow-fanout.js` enforces fan-out constraints. Historical capture jobs remain runnable manually. **No game animation, physics, or default version changes.** Check the actual PR and Actions before claiming it is merged/passing.
+
 ## Purpose and player relationship
 
 - Project: **Sky Clash**, original mobile-friendly 3D anime martial-arts arena fighter, GitHub `Theo524/sky-clash`; public site `https://theo524.github.io/sky-clash/`.

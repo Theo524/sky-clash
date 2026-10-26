@@ -1,15 +1,16 @@
 name: V158 Real Kairo Flight Banking and Limb Pose A/B
+
+# Cancel superseded PR workflows without ever hiding main-branch failures.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   pull_request:
     paths:
-      - 'js/v100-pose-authority.js'
       - 'js/v158-real-vrm-flight.js'
       - 'tests/v158-flight-banking-and-pose.js'
-      - 'js/v66-game-boot.js'
-      - 'index.html'
-      - 'tools/capture-flight-video.cjs'
       - 'tests/v157-flight-banking.js'
-      - '.github/workflows/kairo-v157-flight-banking.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -30,6 +31,12 @@ jobs:
           node tests/v158-flight-banking-and-pose.js
           node tests/approved-ground-default.js
           node tests/v155-organic-flight-and-boost.js
+      # Reuse only the exact Playwright Chromium build; install-deps
+      # still verifies runtime system libraries for the runner.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
       - name: Install Chromium and H.264 encoder
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1

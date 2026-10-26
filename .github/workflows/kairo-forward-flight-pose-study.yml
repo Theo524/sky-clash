@@ -1,10 +1,15 @@
 name: Kairo Real-VRM Head and Forward Flight Pose Study
+
+# Cancel superseded PR workflows without ever hiding main-branch failures.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 on:
   pull_request:
     paths:
       - 'js/kairo-pose-lab.js'
       - 'tools/author-kairo-forward-flight-stills.cjs'
-      - '.github/workflows/kairo-forward-flight-pose-study.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,6 +22,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # Reuse only the exact Playwright Chromium build; install-deps
+      # still verifies runtime system libraries for the runner.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
       - name: Install real VRM WebGL viewer
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
