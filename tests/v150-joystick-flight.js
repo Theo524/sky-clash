@@ -66,7 +66,7 @@ assert(boot.includes("flags.set('flightPreview','v153'"),
  'plain playable Sky Clash URL advances to V151 with V150 body underneath');
 assert(boot.includes("await script('js/v150-joystick-flight.js?v=1500')"),
  'opt-in V150 loader present');
-assert(authority.includes("if(['v146','v147','v148','v149','v150','v151','v152','v153'].includes"),
+assert(authority.includes("if(['v146','v147','v148','v149','v150','v151','v152','v153','v155'].includes"),
  'vertical follow-through must run in V149 and V150 real game loop');
 assert(authority.includes("st.v150Motion=input.step("),
  'input overlay must advance in real runtime, not only isolated unit test');
