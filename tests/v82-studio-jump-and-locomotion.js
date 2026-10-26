@@ -89,5 +89,5 @@ const boot=read('js/v66-game-boot.js'),index=read('index.html');
 assert(boot.includes('js/v71-mixamo-gameplay.js?v=820'));
 assert(boot.includes('js/v76-upper-body.js?v=820'));
 assert(boot.includes('js/v72-published-actions.js?v=820'));
-assert(index.includes('js/v66-game-boot.js?v=1520'));
+assert(index.includes('js/v66-game-boot.js?v=1530'));
 console.log('PASS V82: real Mixamo jumping up and grounded Boost stop, no competing gait, approved idle/run, quick Studio assignment');
