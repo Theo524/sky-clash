@@ -2863,6 +2863,34 @@
     }
    }
   }
+  // V156: exact normalized 20-bone keyframe snapshots from the real
+  // Kairo VRM. Executed ONLY inside the existing V100 final flight owner,
+  // after its old retarget, never as an extra Fighter.animate wrapper.
+  function applyAuthoredCruise(){
+   const clip=root.SkyClashV156AuthoredFlight;
+   if(!clip||clip.modelSha256!==
+      '775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72'||
+      clip.bones?.join('|')!==BONES.join('|')||
+      clip.hover?.length!==BONES.length||
+      clip.cruise?.length!==BONES.length){
+    throw Error('V156 authored flight requires exact Kairo VRM0 joint clip');
+   }
+   // The last actually visible pose is the entry key, not a guessed bind
+   // stance. 0.72s smooth entry; velocity produces a continuous hover ->
+   // cruise blend, with no per-frame procedural bone aiming.
+   const entry=smooth(st.elapsed/(clip.blendSeconds||.72));
+   const travel=smooth(st.flightMix);
+   for(let i=0;i<BONES.length;i++){
+    qRaw.fromArray(clip.hover[i]).slerp(qTmp.fromArray(clip.cruise[i]),travel);
+    qTarget.copy(st.from[i]).slerp(qRaw,entry).normalize();
+    st.nodes[i].quaternion.copy(qTarget);
+   }
+   st.rig.vrm.update(0);
+   status.flightStyle='V156 real-VRM authored Q forward flight';
+   status.flightAuthoredBlend=+entry.toFixed(3);
+   status.flightAuthoredTravel=+travel.toFixed(3);
+   status.flightAuthoredBones=BONES.length;
+  }
   f.animate=function(dt){
    const safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
    const before=st.rig===this.vrmRig&&st.nodes.length?
@@ -3334,6 +3362,10 @@
       contactLanding?(st.movingFlow?.055:.085):.10;
     retarget(clip,seconds,smooth(st.elapsed/blend),state,safe,
       state==='flight'?clips.flying:null);
+    if(state==='flight'&&new URLSearchParams(root.location?.search||'')
+       .get('flightPreview')==='v156'){
+     applyAuthoredCruise();
+    }
     if(state==='jump'&&st.pushReleaseHipY!==null){
      // Release the actual planted crouch into vertical takeoff, instead
      // of popping back to procedural idle hip height on frame one.
