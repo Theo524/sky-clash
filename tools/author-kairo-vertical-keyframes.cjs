@@ -23,13 +23,13 @@ const variations=[
    {bone:'head',axis:'right',degrees:1}
   ],
   aims:[
-   aiming('leftUpperArm','leftLowerArm',.47,-.80,-.15),
-   aiming('rightUpperArm','rightLowerArm',-.43,-.81,-.16),
-   aiming('leftLowerArm','leftHand',.05,-.63,.30),
-   aiming('rightLowerArm','rightHand',-.05,-.66,.28),
-   aiming('leftUpperLeg','leftLowerLeg',.19,-.67,.34),
-   aiming('rightUpperLeg','rightLowerLeg',-.17,-.81,.24),
-   aiming('leftLowerLeg','leftFoot',.08,-.82,-.40),
+   aiming('leftUpperArm','leftLowerArm',.55,-.64,-.27),
+   aiming('rightUpperArm','rightLowerArm',-.52,-.68,-.25),
+   aiming('leftLowerArm','leftHand',.09,-.60,.22),
+   aiming('rightLowerArm','rightHand',-.09,-.61,.22),
+   aiming('leftUpperLeg','leftLowerLeg',.20,-.55,.62),
+   aiming('rightUpperLeg','rightLowerLeg',-.17,-.82,.24),
+   aiming('leftLowerLeg','leftFoot',.08,-.85,-.30),
    aiming('rightLowerLeg','rightFoot',-.08,-.90,-.30)
   ]
  },
@@ -41,14 +41,14 @@ const variations=[
    {bone:'head',axis:'right',degrees:-1}
   ],
   aims:[
-   aiming('leftUpperArm','leftLowerArm',.60,-.52,.16),
-   aiming('rightUpperArm','rightLowerArm',-.56,-.54,.16),
-   aiming('leftLowerArm','leftHand',.13,-.64,.24),
-   aiming('rightLowerArm','rightHand',-.13,-.64,.24),
-   aiming('leftUpperLeg','leftLowerLeg',.17,-.94,-.12),
-   aiming('rightUpperLeg','rightLowerLeg',-.15,-.92,-.17),
-   aiming('leftLowerLeg','leftFoot',.11,-.94,-.23),
-   aiming('rightLowerLeg','rightFoot',-.09,-.95,-.20)
+   aiming('leftUpperArm','leftLowerArm',.54,-.63,.08),
+   aiming('rightUpperArm','rightLowerArm',-.52,-.64,.09),
+   aiming('leftLowerArm','leftHand',.10,-.67,.23),
+   aiming('rightLowerArm','rightHand',-.10,-.67,.23),
+   aiming('leftUpperLeg','leftLowerLeg',.19,-.80,.28),
+   aiming('rightUpperLeg','rightLowerLeg',-.18,-.82,.26),
+   aiming('leftLowerLeg','leftFoot',.10,-.94,-.25),
+   aiming('rightLowerLeg','rightFoot',-.10,-.93,-.25)
   ]
  },
  {
@@ -61,10 +61,10 @@ const variations=[
    aiming('rightUpperArm','rightLowerArm',-.59,-.69,-.18),
    aiming('leftLowerArm','leftHand',.10,-.66,.20),
    aiming('rightLowerArm','rightHand',-.10,-.64,.22),
-   aiming('leftUpperLeg','leftLowerLeg',.23,-.60,.39),
-   aiming('rightUpperLeg','rightLowerLeg',-.18,-.76,.26),
-   aiming('leftLowerLeg','leftFoot',.06,-.82,-.43),
-   aiming('rightLowerLeg','rightFoot',-.07,-.90,-.33)
+   aiming('leftUpperLeg','leftLowerLeg',.23,-.48,.65),
+   aiming('rightUpperLeg','rightLowerLeg',-.18,-.72,.29),
+   aiming('leftLowerLeg','leftFoot',.06,-.85,-.33),
+   aiming('rightLowerLeg','rightFoot',-.07,-.88,-.33)
   ]
  },
  {
@@ -77,10 +77,10 @@ const variations=[
    aiming('rightUpperArm','rightLowerArm',-.68,-.47,.13),
    aiming('leftLowerArm','leftHand',.13,-.58,.30),
    aiming('rightLowerArm','rightHand',-.13,-.58,.30),
-   aiming('leftUpperLeg','leftLowerLeg',.22,-.93,-.12),
-   aiming('rightUpperLeg','rightLowerLeg',-.19,-.91,-.17),
-   aiming('leftLowerLeg','leftFoot',.12,-.94,-.23),
-   aiming('rightLowerLeg','rightFoot',-.11,-.95,-.20)
+   aiming('leftUpperLeg','leftLowerLeg',.22,-.74,.32),
+   aiming('rightUpperLeg','rightLowerLeg',-.19,-.76,.30),
+   aiming('leftLowerLeg','leftFoot',.12,-.94,-.26),
+   aiming('rightLowerLeg','rightFoot',-.11,-.93,-.27)
   ]
  }
 ];
@@ -175,8 +175,9 @@ function numberOk(x){return typeof x==='number'&&Number.isFinite(x);}
    await page.waitForFunction(()=>document.querySelector('#status')?.textContent.includes('Imported 5'),
     null,{timeout:20000});
    const samples=[];
-   for(const [stamp,time] of [['anticipate',.16],['transition',.38],
-     ['peak',.68],['hold',1.05]]){
+   // Compare the meaningful deformation and the target hold. Other
+   // keyframes remain in the exported JSON for timeline inspection.
+   for(const [stamp,time] of [['transition',.38],['peak',.68]]){
     const sample=await page.evaluate(t=>{
      window.SkyClashPoseLab.seek(t);
      return {metrics:window.SkyClashPoseLab.flightGeometry,
@@ -212,7 +213,7 @@ function numberOk(x){return typeof x==='number'&&Number.isFinite(x);}
   report.completed=true;
   fs.writeFileSync(path.join(out,'real-kairo-vertical-pose-study.json'),JSON.stringify(report,null,2));
   const shots=fs.readdirSync(out).filter(x=>x.endsWith('.png')).length;
-  assert.equal(shots,3+variations.length*4*3,'all real-VRM views produced');
-  console.log('PASS Real Kairo 20-bone vertical keyframes, 4 candidates, 51 WebGL images '+shots);
+  assert.equal(shots,3+variations.length*2*3,'all real-VRM views produced');
+  console.log('PASS Real Kairo 20-bone vertical keyframes, 4 candidates, 27 WebGL images '+shots);
  }finally{await browser.close();}
 })().catch(err=>{console.error(err.stack||err);process.exitCode=1;});
