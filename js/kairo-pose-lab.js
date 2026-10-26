@@ -312,6 +312,18 @@ $('duration').addEventListener('change',()=>{
  remember();const ratio=seconds/duration;keys.forEach(k=>k.time=+(k.time*ratio).toFixed(4));
  time*=ratio;duration=seconds;seek(time);
 });
+$('loadHover').addEventListener('click',async()=>{
+ if(!ready)return;
+ try{
+  const response=await fetch('assets/animations/reference/kairo-v152-hover.pose.json',
+   {cache:'no-cache'});
+  if(!response.ok)throw Error('V152 captured reference not published yet (HTTP '+response.status+').');
+  const data=await response.json();validFile(data);
+  remember();keys=clone(data.keyframes);duration=data.duration;
+  $('duration').value=String(duration);seek(0);
+  status('Loaded exact V152 in-game hover joint pose. Now pose only the movement you want to change.');
+ }catch(err){status('Cannot load V152 reference: '+err.message,true);}
+});
 $('resetAll').addEventListener('click',()=>{
  if(!ready||!confirm('Clear ALL keyframes and start a blank rest-pose clip?'))return;
  remember();playing=false;compare=false;poseRest();time=0;keys=[rawFrame('Start')];
