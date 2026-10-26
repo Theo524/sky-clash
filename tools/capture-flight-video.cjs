@@ -28,7 +28,8 @@ const count=60;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
  '/index.html?flightPreview='+(preview==='v157'?'v156&flightBank=v157':
-     preview==='v158'?'v156&flightBank=v158&flightPose=v158':preview);
+     preview==='v158'?'v156&flightBank=v158&flightPose=v158':
+    preview==='v159'?'v156&flightVertical=v159':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
