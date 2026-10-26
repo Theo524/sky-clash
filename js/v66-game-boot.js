@@ -221,6 +221,9 @@
    if(src.includes('v100-pose-authority')&&
       new URLSearchParams(location.search).get('flightBank')==='v157')
      e.src+='&bank=157';
+   if(src.includes('v100-pose-authority')&&
+      new URLSearchParams(location.search).get('flightBank')==='v158')
+     e.src+='&bank=158';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
