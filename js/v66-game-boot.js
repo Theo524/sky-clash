@@ -271,7 +271,11 @@
    await script('js/v76-upper-body.js?v=820');
    await window.SkyClashV76UpperBody.start(window);
   }
-  await script('js/v72-published-actions.js?v=820');
+  // V154 is an opt-in Kairo Boost *motion data* overlay; V72 remains
+  // the sole visible Boost action writer. V153 old Boost stays selectable.
+  const boostPreview=new URLSearchParams(location.search).get('boostPreview')==='v154';
+  if(boostPreview)await script('js/v154-boost-performance.js?v=1540');
+  await script('js/v72-published-actions.js?v=820'+(boostPreview?'&boostMotion=154':''));
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);

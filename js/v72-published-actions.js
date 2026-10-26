@@ -179,7 +179,8 @@
   const old=fighter.animate;
   const state={rig:null,bones:null,bind:null,targetSide:null,slot:null,clock:0,weight:0,
     releasingIdle:false,releasingExtra:false,releaseEntry:null,
-    samples:BONES.map(()=>new THREE.Quaternion()),frames:0};
+    samples:BONES.map(()=>new THREE.Quaternion()),
+    v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
         qBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
@@ -213,6 +214,12 @@
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
     const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
+    // V154 reuses this EXISTING V72 final Boost writer; no new animation
+    // wrapper and no gameplay root/velocity changes. Kairo preview only.
+    const boostClip=!options.choose&&this.characterId==='kairo_venn'&&
+      new URLSearchParams(root.location?.search||'').get('boostPreview')==='v154'?
+      root.SkyClashV154Boost:null;
+    if(boostClip)state.v154Motion=boostClip.step(state.v154Motion,this,dt);
     // V78: this layer is drawn AFTER V76's idle->walk pose. Previously an
     // idle-only pack was removed in ONE FRAME as soon as speed exceeded .75:
     // the exposed V76 (different) idle made the arms briefly jump upwards.
@@ -300,8 +307,8 @@
          travel/(slot==='run'?2.7:2.45))):
          Math.max(.55,Math.min(1.9,travel/3.4));
       }
-      if(slot==='boost')rate*=Math.max(.8,Math.min(1.5,
-        Math.hypot(this.vel?.x||0,this.vel?.z||0)/21));
+      if(slot==='boost')rate*=boostClip?boostClip.boostRate(speed):
+        Math.max(.8,Math.min(1.5,speed/21));
       if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
       if(slot==='runStop'&&new URLSearchParams(root.location?.search||'')
         .get('animationV85')!=='legacy')
@@ -309,6 +316,20 @@
       state.clock+=elapsed*rate;
      }
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
+     if(boostClip&&slot==='boost'&&actions.run&&state.v154Motion?.ground>.001){
+      // 18-frame old sprint had frantic lower-body pedalling. Retain its
+      // real attack-speed upper-body drive but phase-align 62% of the
+      // approved Standard Run's weight-bearing footwork at full Boost.
+      const run=actions.run,srcSpan=Math.max(.05,entry.seconds-1/entry.fps),
+       dstSpan=Math.max(.05,run.seconds-1/run.fps),
+       phase=((state.clock/srcSpan)%1+1)%1;
+      run.sample(phase*dstSpan,state.v154Run,true);
+      const blend=boostClip.groundMix(state.v154Motion);
+      for(let i=0;i<BONES.length;i++){
+       const influence=i>=14?blend:i<=5?blend*.58:blend*.43;
+       state.samples[i].slerp(state.v154Run[i],influence).normalize();
+      }
+     }
     }
     const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
     const sideDst=state.targetSide;
@@ -351,6 +372,28 @@
      if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
      node.quaternion.slerp(target,state.weight);
      node.updateMatrixWorld(true);
+    }
+    if(boostClip&&this.sprinting&&this.flying&&state.v154Motion?.air>.015){
+     const owner=root.SkyClashV100Animator,rig=state.rig;
+     if(owner?.v137CorrectPelvisBalance&&owner?.v136CorrectSuspendedTorso&&
+       owner?.v128CorrectFlightLegs&&owner?.v129CorrectFlightGuard){
+      const forward=owner.realKairoForward(THREE,rig,null),
+       pose=boostClip.airPose(state.v154Motion,this),
+       strength=Math.min(1,pose.boostWeight*1.15);
+      // Visual geometry is corrected once INSIDE the existing V72
+      // Boost owner; V100 yields combat/Boost as before.
+      owner.v137CorrectPelvisBalance(THREE,rig,forward,pose,strength);
+      owner.v136CorrectSuspendedTorso(THREE,rig,forward,pose,strength);
+      owner.v128CorrectFlightLegs(THREE,rig,forward,pose,strength);
+      owner.v129CorrectFlightGuard(THREE,rig,forward,pose,strength,
+        null,Math.max(0,dt),null,'streamlined');
+     }
+    }
+    if(boostClip){
+     status.v154GroundMix=+boostClip.groundMix(state.v154Motion).toFixed(3);
+     status.v154AirStreamline=+(state.v154Motion?.air||0).toFixed(3);
+     status.v154Source=slot==='boost'?'baked-boost + approved-run blended':
+       this.sprinting&&this.flying?'baked-flight + authored streamline':'none';
     }
     state.rig.vrm.update(0);
     state.frames++;

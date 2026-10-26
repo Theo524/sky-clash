@@ -23,11 +23,13 @@ if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  ||new Set(versions).size!==versions.length)
  throw new Error('Provide 1–3 distinct safe preview IDs like v119,v120');
 
+const BOOST_REVIEW=process.env.VISUAL_BOOST_REVIEW==='1';
 const views={front:0,side:Math.PI/2,back:Math.PI};
 const count=13;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
- '/index.html?flightPreview='+preview;
+ '/index.html?flightPreview='+(BOOST_REVIEW?'v153':preview)+
+ (BOOST_REVIEW&&preview==='v154'?'&boostPreview=v154':'');
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -54,6 +56,16 @@ function compose(left,right,dest,labels){
   '-movflags','+faststart',dest);
 }
 function motionDescriptor(i){
+ if(BOOST_REVIEW){
+  const common={elapsed:i*45/fps,height:2,forward:0,side:0,vertical:0};
+  if(i===0||i===10||i===12)return {...common,name:'hover'};
+  if(i===1)return {...common,name:'cruise',forward:6.2};
+  if(i===2||i===3)return {...common,name:'boost-ground',height:.015,forward:18};
+  if(i===4||i===5||i===7||i===11)return {...common,name:'boost-air',forward:22};
+  if(i===6)return {...common,name:'boost-diagonal',forward:18,side:7};
+  if(i===8)return {...common,name:'air-recover',forward:5};
+  return {...common,name:'ground-run',height:.015,forward:5.4};
+ }
  // Pose-gallery stages: 45 fixed animation steps PER stage so
  // hands have fully settled. These 13 photos are not a continuous
  // 13-frame physics film; the normal full film remains separately tested.
@@ -183,7 +195,7 @@ async function capture(browser,preview){
     p.v89Step=p.v89Step||{mode:'idle',scale:0};
     p.v89Step.mode='idle';p.v89Step.scale=0;
     p.blockHeld=false;p.blocking=false;p.dashing=false;
-    p.sprinting=stage.name==='boost';
+    p.sprinting=stage.name==='boost'||stage.name.startsWith('boost-');
     p.jumping=false;p.dropping=false;p.v108JumpPrepT=0;p.landingMotionT=0;
     p.pos.y=p.floor+stage.height;
     p.model.root.position.y=g.__videoGroundY+stage.height;
@@ -197,6 +209,7 @@ async function capture(browser,preview){
      p.animate(1/fps);
     }
     const owner=window.SkyClashPoseAuthority;
+    const boost=window.SkyClashPublishedActions;
     const h=p.vrmRig.vrm.humanoid;
     const point=n=>{
      const b=h.getNormalizedBoneNode(n);
@@ -204,7 +217,15 @@ async function capture(browser,preview){
      const v=b.getWorldPosition(new window.THREE.Vector3());
      return [v.x,v.y,v.z].map(x=>+x.toFixed(4));
     };
+    const hip=h.getNormalizedBoneNode('hips')?.getWorldPosition(new window.THREE.Vector3()),
+     neck=h.getNormalizedBoneNode('neck')?.getWorldPosition(new window.THREE.Vector3());
+    const wholeBodyPitch=hip&&neck?Math.atan2(neck.z-hip.z,
+      neck.y-hip.y)*180/Math.PI:null;
     return {frame:i,stage:stage.name,elapsed:stage.elapsed,
+     boosted:!!p.sprinting,wholeBodyPitch:wholeBodyPitch===null?null:+wholeBodyPitch.toFixed(1),
+     boostGroundMix:boost.v154GroundMix??0,
+     boostAirStreamline:boost.v154AirStreamline??0,
+     boostAction:boost.active||null,
      horizontalSpeed:Math.hypot(p.vel.x,p.vel.z),
      verticalSpeed:p.vel.y,lateralSpeed:p.vel.x,
      pose:owner.active,flightStyle:owner.flightStyle,
@@ -315,7 +336,7 @@ async function capture(browser,preview){
   if(page.isClosed())throw Error('Browser closed before all motion frames');
   if(timeline.length!==count||Object.values(dirs).some(d=>readdir(d).length!==count))
    throw Error('Incomplete video frames');
-  if(timeline.length!==count||timeline.some(t=>t.pose!=='flight'))
+  if(!BOOST_REVIEW&&(timeline.length!==count||timeline.some(t=>t.pose!=='flight')))
    throw Error('Every quick guard photo must be real powered flight');
   if(preview==='v129'){
    for(const t of timeline){

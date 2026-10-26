@@ -141,3 +141,25 @@ Avoid a universal perk stack that erases these weaknesses. Each character still 
 ## 6. Still intentionally open
 
 The four new character **names, canonical appearances, origin stories, super move names, character order, power scaling and costumes** are not locked. The desired *diversity and combat readability* are locked as guiding principles. Choose permanent lore after visual concept reviews and playable prototype evidence rather than declaring a final canon early.
+
+## 7. Character-specific movement and jump grammar — October 26 request
+
+Player clarified that playable fighters should NOT all have the same jump and Boost mechanics. Some use one committed jump; others double-jump or perform aerial vaults; some can sustain powered flight. These mechanics contribute to each fighter's identity, not merely the skill kit.
+
+| Fighter | Ground takeoff and jumps | Air mobility | Boost / sprint design | Stage |
+|---|---|---|---|---|
+| Kairo | Single jump, plus deliberate transition to powered ascent/flight | Sustained free flight and fast directional aerial Boost | Athletic ground sprint; swept-back whole-body air acceleration | Current, V154 visual preview |
+| Rin | Genuine double jump with second midair tuck | Shadow vanish / leap interceptions, **no ordinary free flight** | Existing agile ninja sprint, preserve it | Current |
+| Dagan | **One** heavy jump, with charge/load anticipation | Powerful arc leap or ground shockwave interception | Heavy, planted forward drive; not leg-spinning at anime sprint cadence | Proposal |
+| Veyra | One takeoff; power-assisted lift | Gravity hover, horizontal vector bursts, lift/redirect, limited by resource | Smooth levitation acceleration instead of running in midair | Proposal |
+| Rook-09 | One normal jump plus **one resource-limited rocket jump** | Thruster bursts with heat cost | Piston-driven ground acceleration; jet-assisted aerial speed | Proposal |
+| Mop | One conventional jump, with a separate skill-based pole vault or wall rebound | Staff-assisted intercept and precision aerial control, not infinite flight | Quick grounded footwork / acrobatic vault | Proposal |
+
+**Implementation contract for next mobility feature:**
+- Canonical character data should eventually declare `jumpCount` (integer, minimum 1), `airMobility` (e.g. none/doubleJump/rocketJump/hover/flight/vault), `boostAnimation` (e.g. ninja/athletic/heavy/thruster/levitate), plus resource and cooldown rules.
+- **Existing bug/limitation:** Current `Fighter.tryJump()` in `src/45-fighter-controller.js` allows *two jumps for every character with `canFly=false`*, regardless of `mobility.doubleJump`. Kairo and Rin behave as expected today by coincidence; fix the branch to consult character mobility before creating new nonflying fighters. Rebuild `js/game.js` through `tools/build.py` when changing `src/` so shipped gameplay agrees with source.
+- A second jump must be intentional and visible: re-press Up during a valid airborne window, no accidental triggering from a held button, no invisible upward pop. Rocket jump spends heat/fuel; pole vault requires a viable grounded/wall/staff context; flight ascent remains distinct from a normal jump.
+- All fighters need at least one fair answer to an airborne opponent, but equal response opportunity **does not mean equal height or sustained flight**.
+- Keep movement, attack and defensive actions readable on a touch controller; character-specific movement should reuse context and dedicated gestures without overflowing the HUD.
+- **V154 Kairo Boost first-pass preview**: `?boostPreview=v154`. It phase-aligns the recorded standing-sprint and approved Standard Run on the ground, and uses a streamlined pelvis/chest/leg/arm performance in air via the existing V72 Boost owner plus V100 world-space helpers. Rin's Boost is byte-for-byte unchanged. Old Boost is available simply by omitting the query parameter. Animation visual QA is required; do not label this player-approved yet.
+

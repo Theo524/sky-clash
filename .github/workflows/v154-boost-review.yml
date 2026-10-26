@@ -1,0 +1,83 @@
+name: V154 Real Kairo Ground and Aerial Boost Review
+on:
+  pull_request:
+    paths:
+      - 'js/v154-boost-performance.js'
+      - 'js/v72-published-actions.js'
+      - 'js/v66-game-boot.js'
+      - 'tools/capture-flight-guard-stills.cjs'
+      - '.github/workflows/v154-boost-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  boost-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Prepare real Kairo browser and encoder
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+          node --check tools/capture-flight-guard-stills.cjs
+          node --check js/v154-boost-performance.js
+      - name: Serve real game locally
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-boost-server.log 2>&1 &
+          for i in $(seq 1 16); do
+            if curl --max-time 3 --fail -sSf http://127.0.0.1:8765/index.html >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail -sSf http://127.0.0.1:8765/index.html >/dev/null
+      - name: Real Kairo ground and air Boost V153 vs V154
+        env:
+          VISUAL_PORT: '8765'
+          VISUAL_PREVIEWS: 'v153,v154'
+          VISUAL_VIDEO_FPS: '24'
+          VISUAL_BOOST_REVIEW: '1'
+        run: node tools/capture-flight-guard-stills.cjs
+      - name: Assert same-model physics-safe geometry and two different performances
+        run: |
+          python - <<'PY'
+          import pathlib,json
+          p=pathlib.Path('visual-review-output/flight-guard-stills')
+          report=json.loads((p/'motion-metrics.json').read_text())
+          assert len(report['captures'])==2
+          a,b=[c['timeline'] for c in report['captures']]
+          for c in report['captures']:
+              assert c['info']['realVRM'] and c['info']['webgl']
+              assert len(c['timeline'])==13
+          stage=lambda seq,name:[x for x in seq if x['stage']==name]
+          assert len(stage(b,'boost-ground'))==2 and len(stage(b,'boost-air'))>=3
+          assert max(x['boostGroundMix'] for x in stage(b,'boost-ground'))>.48
+          assert max(x['boostAirStreamline'] for x in stage(b,'boost-air'))>.85
+          assert all(x['boostGroundMix']<.01 for x in stage(a,'boost-ground'))
+          assert all(x['boostAirStreamline']<.01 for x in stage(a,'boost-air'))
+          assert all(x['wholeBodyPitch'] is not None for x in stage(b,'boost-air'))
+          before=max(x['wholeBodyPitch'] for x in stage(a,'boost-air'))
+          after=max(x['wholeBodyPitch'] for x in stage(b,'boost-air'))
+          assert after>before+12,(before,after)
+          assert all(x['boostGroundMix']<.01 for x in stage(b,'hover'))
+          for v in ('front','side','back'):
+              assert (p/f'v153-vs-v154-{v}.mp4').stat().st_size>2000
+          print('PASS V154 REAL Kairo Boost',{'oldPitch':before,'newPitch':after})
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-v154-ground-air-boost-comparison
+          path: visual-review-output/flight-guard-stills/
+          retention-days: 14
