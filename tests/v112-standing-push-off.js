@@ -90,6 +90,6 @@ assert(rig.includes("window.location?.search?.includes('jumpPrep=push')"));
 assert(boot.includes("e.src+='&push=112'"));
 assert(boot.includes('V112 load & push'));
 assert(read('index.html').match(/SKY CLASH · BUILD V11[2-5]/));
-assert(read('index.html').match(/js\/v66-game-boot\.js\?v=1530&fix=11[3-6]/));
+assert(read('index.html').match(/js\/v66-game-boot\.js\?v=(?:1530|1560)&fix=11[3-6]/));
 assert(read('animation-studio.html').match(/BUILD V11[2-5]/));
 console.log('PASS V112: real 6cm+ stationary leg shortening, planted shoe horizontal stability, pre-jump release, unchanged V108/V109 and fast moving jump at 30/60/120fps');
