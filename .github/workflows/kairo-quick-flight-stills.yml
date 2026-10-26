@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'js/v100-pose-authority.js'
+      - 'js/v163-real-kairo-vertical-keyframes.js'
       - 'assets/animations/kairo/flight-library.v1.json'
       - 'js/v156-real-vrm-flight.js'
       - 'js/v158-real-vrm-flight.js'
@@ -17,7 +18,7 @@ on:
       previews:
         description: 'Real Kairo previews (e.g. v156,v159)'
         required: false
-        default: 'v161,v162'
+        default: 'v156,v163'
 permissions:
   contents: read
 jobs:
@@ -58,8 +59,9 @@ jobs:
       - name: Render 9 real-game poses from three cameras per preview
         env:
           VISUAL_CAPTURE_MODE: stills
-          VISUAL_PREVIEWS: ${{ inputs.previews || 'v161,v162' }}
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v156,v163' }}
           VISUAL_VERTICAL_QA: '1'
+          VISUAL_V163_QA: '1'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Validate the complete real VRM timeline and PNG contact sheets
@@ -99,6 +101,19 @@ jobs:
                   assert max(abs(x['flightVerticalArms']) for x in rows)>10,stage+' arms unreadable'
                   assert max(abs(x['flightVerticalLegs']) for x in rows)>11,stage+' legs unreadable'
                   assert max(abs(x['flightVerticalFeet']) for x in rows)>5,stage+' ankles unreadable'
+          if 'v163' in by_preview:
+              rows=by_preview['v163']['timeline']
+              for stage in ('pure-rise','pure-drop','forward-rise','forward-drop'):
+                  samples=[x for x in rows if x['stage']==stage]
+                  assert samples, 'missing '+stage
+                  assert any(x['flightVerticalFlowBones']==20 for x in samples),stage+' missing real VRM'
+                  assert any(x['flightVerticalKeyframeBlend']>.1 for x in samples),stage+' no keyframed action'
+              assert max(x['flightVerticalKeyframeUp'] for x in rows
+                         if x['stage']=='pure-rise')>.65, 'no full climbing keyframe'
+              assert max(x['flightVerticalKeyframeDown'] for x in rows
+                         if x['stage']=='pure-drop')>.35, 'no descending keyframe'
+              assert all(x['flightVerticalKeyframeBlend']<.05 for x in rows
+                         if x['stage']=='hover'), 'changed original neutral Q'
           for view in ('front','side','back'):
               assert (root/f'comparison-{view}.png').stat().st_size>10000
           assert not list(root.glob('*.mp4'))

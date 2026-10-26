@@ -39,7 +39,8 @@ const uri=preview=>'http://127.0.0.1:'+port+
     preview==='v159'?'v156&flightVertical=v159':
      preview==='v160'?'v156&flightVertical=v160':
      preview==='v161'?'v156&flightVertical=v161':
-     preview==='v162'?'v156&flightVertical=v162':preview);
+     preview==='v162'?'v156&flightVertical=v162':
+     preview==='v163'?'v156&flightVertical=v163':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){
@@ -70,6 +71,17 @@ function motionDescriptor(i){
  // then Boost interrupt and settle. Only pose velocity is prescribed:
  // no animation modifies Kairo's real gameplay physics.
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
+ if(process.env.VISUAL_V163_QA==='1'){
+  // V163 must pass PURE vertical without forward cruise masking bad poses.
+  if(i<4)return {...common,name:'ground',height:0};
+  if(i<12)return {...common,name:'hover'};
+  if(i<30)return {...common,name:'pure-rise',vertical:7};
+  if(i<42)return {...common,name:'pure-drop',vertical:-7};
+  if(i<50)return {...common,name:'forward-rise',forward:4,vertical:7};
+  if(i<57)return {...common,name:'forward-drop',forward:4,vertical:-7};
+  if(i<59)return {...common,name:'boost',forward:6.2};
+  return {...common,name:'recover'};
+ }
  if(process.env.VISUAL_VERTICAL_QA==='1'){
   if(i<4)return {...common,name:'ground',height:0};
   if(i<12)return {...common,name:'hover'};
@@ -254,6 +266,10 @@ async function capture(browser,preview){
       flightVerticalFeet:owner.flightVerticalFeet??0,
       flightVerticalFlowBones:owner.flightVerticalFlowBones??0,
       flightVerticalBodyLeanDeg:owner.flightVerticalBodyLeanDeg??0,
+       flightVerticalKeyframeUp:owner.flightVerticalKeyframeUp??0,
+       flightVerticalKeyframeDown:owner.flightVerticalKeyframeDown??0,
+       flightVerticalKeyframeBlend:owner.flightVerticalKeyframeBlend??0,
+       flightVerticalKeyframeSource:owner.flightVerticalKeyframeSource??'none',
      flightBankTarget:owner.flightBankTarget??0,
      flightBankLateral:owner.flightBankLateral??0,
      flightBankTurnRate:owner.flightBankTurnRate??0,
