@@ -25,6 +25,7 @@ jobs:
           node --check js/v100-pose-authority.js
           node --check tools/capture-flight-video.cjs
           node tests/v157-flight-banking.js
+          node tests/v158-flight-banking-and-pose.js
           node tests/approved-ground-default.js
           node tests/v155-organic-flight-and-boost.js
       - name: Install Chromium and H.264 encoder
