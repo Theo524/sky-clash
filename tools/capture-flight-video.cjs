@@ -517,7 +517,7 @@ async function capture(browser,preview){
  try{
   for(const preview of versions)
    reports.push(await capture(browser,preview));
- }finally{await browser.close();}
+ }
  if(quick){
   // Only arrange JPEGs captured from real Kairo, never draw a surrogate rig.
   for(const view of Object.keys(views)){
@@ -574,4 +574,5 @@ async function capture(browser,preview){
  console.log('FLIGHT '+captureMode.toUpperCase()+' PASS',JSON.stringify({
   versions,fps,frames:count,capturedImagesPerPreview:quick?quickFrames.length*3:count*3,
   outputs:readdir(output)}));
+ }finally{await browser.close();}
 })().catch(e=>{console.error('FLIGHT VIDEO FAILURE',e.stack||e);process.exitCode=1});
