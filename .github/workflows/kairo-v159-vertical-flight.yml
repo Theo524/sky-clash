@@ -1,0 +1,81 @@
+name: V159 Real Kairo Vertical Flight A/B
+on:
+  pull_request:
+    paths:
+      - 'js/v100-pose-authority.js'
+      - 'js/v66-game-boot.js'
+      - 'index.html'
+      - 'tools/capture-flight-video.cjs'
+      - 'tests/v159-vertical-flight.js'
+      - '.github/workflows/kairo-v159-vertical-flight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-kairo-vertical:
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify 30-60-120fps rise dive and old animation owners
+        run: |
+          node --check js/v100-pose-authority.js
+          node --check tools/capture-flight-video.cjs
+          node tests/v159-vertical-flight.js
+          node tests/v157-flight-banking.js
+          node tests/v158-flight-banking-and-pose.js
+          node tests/approved-ground-default.js
+      - name: Install real Kairo WebGL and ffmpeg
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
+      - name: Serve the actual game and VRM0
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-v159.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Capture Kairo rise dive and neutral 24fps in front side back
+        env:
+          VISUAL_PREVIEWS: v156,v159
+          VISUAL_VERTICAL_QA: '1'
+          VISUAL_VIDEO_FPS: '24'
+        run: node tools/capture-flight-video.cjs
+      - name: Verify genuine real model 3-view ascent and descent
+        run: |
+          python - <<'PY'
+          import json,pathlib,subprocess
+          root=pathlib.Path('visual-review-output/flight-videos')
+          report=json.loads((root/'motion-metrics.json').read_text())
+          data={r['preview']:r for r in report['captures']}
+          assert set(data)=={'v156','v159'}
+          for name,r in data.items():
+              assert r['frames']==60 and r['frameRate']==24
+              for view in ('front','side','back'):
+                  p=root/f'{name}-{view}.mp4'
+                  assert p.stat().st_size>10000
+                  meta=json.loads(subprocess.check_output(['ffprobe','-v','error','-select_streams','v:0','-show_entries','stream=nb_frames','-of','json',str(p)]))['streams'][0]
+                  assert int(meta['nb_frames'])==60
+          for stage,sign in (('ascend',1),('descend',-1)):
+              baseline=[t['flightVerticalDegrees'] for t in data['v156']['timeline'] if t['stage']==stage]
+              edited=[t['flightVerticalDegrees'] for t in data['v159']['timeline'] if t['stage']==stage]
+              assert len(edited)==10 and all(abs(x)<.02 for x in baseline)
+              assert max(sign*x for x in edited)>7,(stage,edited)
+          assert all(t['pose']!='flight' for t in data['v159']['timeline'] if t['stage']=='boost')
+          print('PASS Kairo actual VRM WebGL vertical 3-camera ascent dive and boost yield')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-v159-real-vrm-vertical-flight
+          path: visual-review-output/flight-videos/
+          retention-days: 21
