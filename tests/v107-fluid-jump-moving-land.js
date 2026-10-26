@@ -77,7 +77,7 @@ assert(owner.includes('plantVisibleSoles(THREE,rig,f,status)'));
 assert(boot.includes("e.src+='&performance=107'"));
 assert(boot.includes('MOVING PLANT: ')&&boot.includes('JUMP BODY: '));
 const html=read('index.html');
-assert(/SKY CLASH · BUILD V(10[7-9]|11[0-5])/.test(html));
+require('./public-game-build.cjs')(html, 107);
 assert(/js\/v66-game-boot\.js\?v=(?:1530|1560)&fix=(?:10[8-9]|11[0-6])/.test(html));
 assert(/BUILD V(10[7-9]|11[0-5])/.test(read('animation-studio.html')));
 console.log('PASS V107: fluid non-teleporting 30/60/120fps torso, stronger moving momentum, real world-space support-foot IK without changing physics or free leg');

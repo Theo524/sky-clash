@@ -60,7 +60,7 @@ assert(owner.includes("next==='flight'&&params.get('flightLab')==='blend'"));
 assert(boot.includes("e.src+='&flight=111'"));
 assert(boot.includes('FLIGHT: ')&&boot.includes('forward mix '));
 const html=read('index.html');
-assert(/SKY CLASH · BUILD V11[1-5]/.test(html));
+require('./public-game-build.cjs')(html, 111);
 assert(/js\/v66-game-boot\.js\?v=(?:1530|1560)&fix=11[2-6]/.test(html));
 assert(/BUILD V11[1-5]/.test(read('animation-studio.html')));
 console.log('PASS V111: real UE5 float/fly recordings, 30/60/120 FPS continuous weight, actual quaternion source blend, no threshold snap, independent rollback flags');
