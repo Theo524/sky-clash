@@ -17,6 +17,25 @@ A successful shot looks like an alert, athletic martial artist **actively direct
 
 These are animation goals, not a literal claim about aerodynamics or a copy of any existing anime character.
 
+## User refinement — 2026-10-26: still too straight, especially the head
+
+The player reports **a modest improvement, but the forward-flight body is still too straight and the head also too straight**. Do not call the static blueprint a shipped animation: the gameplay boot still uses the V153 forward-flight owner unless a separate implementation has since been merged. The feedback is a request for **visible curvature and independent head/neck acting**, NOT additional spine twists.
+
+### First visual correction to author and film on Kairo
+
+1. **Head must NOT simply continue the torso line.** Use the real neck and head joints with an anatomically small upward gaze/counter-rotation *relative to chest*, so his face aims along the flight path instead of matching the chest's pitched-down axis. Keep the forehead/chin natural — no extreme backward neck snap or tilted skull.
+2. **A visible profile bend rather than extra root tilt:** take the pelvis → sternum → neck → eye-line chain and show a connected, gentle sagittal arc. Preserve near-zero relative chest/pelvis **yaw** and roll, so "curvier" never means sideways twisted. The visual difference must remain obvious at thumbnail size.
+3. **Knees and elbows must break the plank silhouette:** aim for natural elbow and knee folds and non-mirrored hands/shoes. No foot or wrist inversion, no crossing body in straight flight.
+4. **One pose before any motion:** author the cruise keyframe on the actual V152-based Kairo skeleton, capture a 3-view A/B against baseline and rejected V153. Check actual face line, nose direction, shoulder shape, wrist and knee geometry. Do not implement interpolation until a plausible still exists.
+5. **No auto-approval:** pass/fail is appearance on the actual skinned model, then player's explicit reaction; numerical angles are secondary. Do not claim this document makes the live animation better.
+
+### Additional render diagnostics
+
+- Measure nose/head-forward vector (derived from the real normalized `head` bone after VRM0 calibration) versus forward travel. Compare it to pelvis→chest forward inclination, and screenshot a horizontal eye-level guide in side view.
+- Record a visibly separate **neck flexion versus head flexion**, not one large neck-only backward rotation.
+- Add front/back view torsion and visible asymmetry checks; the head should stay centered over shoulders, not roll sideways or swivel.
+- In motion, neck settles a beat after chest (subtle animation principle of follow-through), but do **not** introduce repetitive head bobbing.
+
 ## 1. Reference examples and what they actually teach
 
 The assistant may use these for movement principles and posing references, **not** copyrighted character tracing, body-template substitution or shipping visual assets.
