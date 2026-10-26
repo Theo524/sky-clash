@@ -1,0 +1,37 @@
+name: Assistant Startup and Project Truth Check
+on:
+  pull_request:
+    paths:
+      - 'AGENTS.md'
+      - 'README.md'
+      - 'docs/ASSISTANT-*.md'
+      - 'tools/assistant-checkup.cjs'
+      - 'tests/assistant-checkup.js'
+      - '.github/workflows/assistant-readiness.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  assistant-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate assistant report syntax and contract
+        run: |
+          node --check tools/assistant-checkup.cjs
+          node tests/assistant-checkup.js
+      - name: Collect real checkout facts + smoke safety tests
+        run: node tools/assistant-checkup.cjs --strict --smoke --output=assistant-readiness-output
+      - name: Save machine-readable handoff and readable summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sky-clash-assistant-readiness
+          path: assistant-readiness-output/
+          retention-days: 30

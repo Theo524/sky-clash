@@ -1,5 +1,13 @@
 # Sky Clash — coding assistant instructions
 
+## MANDATORY assistant bootstrap (every new chat, any Sky Clash task)
+
+This repo is the cross-chat technical memory. **First read `docs/ASSISTANT-CURRENT-STATE.md` and `docs/ASSISTANT-RUNBOOK.md` before implementing or describing the state of the game**. The historical `docs/PROJECT-CONTEXT.md` is very long and includes superseded progress statements; use it as background, not as current truth. Verify `main`, open PRs, CI and Pages at the time of the question. Use `tools/assistant-checkup.cjs` or its GitHub Actions artifact for local code/asset consistency checks.
+
+**User wants the assistant to operate developer tools, not the user.** Do NOT ask them to use Pose Lab, keyframe bones, capture debugging videos, export rigs, install motion packs or otherwise run development tooling when the assistant can use GitHub, scripted Playwright or CI directly. Present user with results and necessary visual approval only. If GitHub is not connected in the new chat, say so clearly and do not pretend invisible previous-chat access persists.
+
+**Latest player verdict, not overridable by unit tests:** standard/V154 Boost animations are bad; V153 forward flight was a rigid stick; V155 flight/Boost twisted and was worse. **All are visually rejected.** Default is still V153 in `js/v66-game-boot.js`, so “default” never implies “approved”. No new visual motion or default promotion without real-Kairo screenshots/video, actual direct-rotation authoring, and explicit player approval. Keep the baseline stable when building tools.
+
 **Read this file before proposing or changing Sky Clash animation code.**
 This is the repository's persistent handoff between chats. An assistant reading
 only a previous conversation may not have the full project context.
