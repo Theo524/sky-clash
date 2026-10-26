@@ -1,0 +1,85 @@
+name: Quick Real Kairo Flight Contact Sheets
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+on:
+  pull_request:
+    paths:
+      - 'js/v100-pose-authority.js'
+      - 'js/v156-real-vrm-flight.js'
+      - 'js/v158-real-vrm-flight.js'
+      - 'js/v66-game-boot.js'
+      - 'tools/capture-flight-video.cjs'
+      - 'tests/ci-quick-preview.js'
+  workflow_dispatch:
+    inputs:
+      previews:
+        description: 'Real Kairo previews (e.g. v156,v159)'
+        required: false
+        default: 'v156,v159'
+permissions:
+  contents: read
+jobs:
+  real-vrm-stills:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate fast WebGL review and existing video mode
+        run: |
+          node --check tools/capture-flight-video.cjs
+          node tests/ci-quick-preview.js
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Install Chromium for real Kairo
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Serve real game and model
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-fast.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Render 9 real-game poses from three cameras per preview
+        env:
+          VISUAL_CAPTURE_MODE: stills
+          VISUAL_PREVIEWS: ${{ inputs.previews || 'v156,v159' }}
+          VISUAL_VIDEO_FPS: '24'
+        run: node tools/capture-flight-video.cjs
+      - name: Validate the complete real VRM timeline and PNG contact sheets
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          root=pathlib.Path('visual-review-output/flight-stills')
+          report=json.loads((root/'motion-metrics.json').read_text())
+          assert report['captureMode']=='stills'
+          assert report['sampledFrames']==[10,24,29,34,40,44,48,55,59]
+          assert 1<=len(report['captures'])<=3
+          for c in report['captures']:
+              assert c['mode']=='stills' and c['frames']==60
+              assert len(c['timeline'])==60
+              assert c['info']['realVRM'] and c['info']['webgl']
+              assert len(c['files'])==27
+              assert all((root/f).stat().st_size>2500 for f in c['files'])
+              assert any(t['pose']=='flight' for t in c['timeline'])
+              assert any(t['stage']=='boost' for t in c['timeline'])
+          for view in ('front','side','back'):
+              assert (root/f'comparison-{view}.png').stat().st_size>10000
+          assert not list(root.glob('*.mp4'))
+          print('PASS 9 real Kairo WebGL moments per view; complete 60-frame metrics')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-quick-flight-contacts
+          path: visual-review-output/flight-stills/
+          retention-days: 14
+          if-no-files-found: warn
