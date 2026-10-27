@@ -3,6 +3,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const code=fs.readFileSync('tools/capture-flight-video.cjs','utf8');
 const quick=fs.readFileSync('.github/workflows/kairo-quick-flight-stills.yml','utf8');
+const current=fs.readFileSync('.github/workflows/kairo-v164-selected-flight-stills.yml','utf8');
 const full=fs.readFileSync('.github/workflows/kairo-v159-vertical-flight.yml','utf8');
 assert(code.includes("const captureMode=process.env.VISUAL_CAPTURE_MODE||'video'"));
 assert(code.includes("const quickFrames=Object.freeze([10,24,29,34,40,44,48,55,59])"));
@@ -17,8 +18,10 @@ assert(code.includes("}else if(versions.length===2)")&&
 assert(code.includes('sampledFrames:quickFrames')&&
  code.includes("if(quick){"),'Quick mode exports full manifest');
 assert(quick.includes('VISUAL_CAPTURE_MODE: stills')&&
- quick.includes("      - 'js/v100-pose-authority.js'"),
- 'Quick actual-game capture must run automatically on current V100 edits');
+ quick.includes("      - 'js/v163-real-kairo-vertical-keyframes.js'")&&
+ !quick.includes("      - 'js/v100-pose-authority.js'")&&
+ current.includes("      - 'js/v100-pose-authority.js'"),
+ 'Run V164 real-game capture automatically on V100 changes, not twice');
 assert(full.includes('  workflow_dispatch:'),'Full 24fps WebGL reviewer remains available');
 assert(code.indexOf('if(quick){')<code.indexOf('}finally{await browser.close();}'),
  'Quick contact sheets must be assembled before browser closes');
