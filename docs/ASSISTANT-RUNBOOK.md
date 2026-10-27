@@ -1,5 +1,12 @@
 # Sky Clash — assistant operations handbook
 
+For the full Storm Fist continuation, follow
+[the set author/bake/real-game commands](KAIRO-STORM-FIST-PLAYTEST.md).
+The player accepts the original published jab and authorizes the full set in
+one task plus Pages review. Preserve the jab asset exactly; extend the existing
+measured rig/V72 player. Older single-jab and private-only gates below describe
+the earlier stage.
+
 For current fighting-animation work, use the [recovered Blender-to-game route](KAIRO-COMBAT-FOUNDATION-2026-10-27.md#recovered-jab-calibrated-source-and-private-engine-playback).
 From the served checkout: capture the real idle anchor → author in Blender →
 run `tools/verify-kairo-original-jab.cjs`. This exercises the private V72 native

@@ -80,7 +80,8 @@ assert(game.includes('rig.vrm.scene.visible=true;'));
 assert(boot.includes('window.SKY_V104_STARTUP_GATE=true;'));
 assert(boot.includes('window.SKY_V104_ANIMATIONS_READY=true;'));
 assert(boot.includes('window.SkyClashLoadScreen?.animationsFinished?.();'));
-assert(boot.includes("await script('js/game.js?v=1530&startup=104');"));
+assert(/await script\('js\/game\.js\?v=\d{3,}&startup=104(?:&[A-Za-z][A-Za-z0-9]*=[A-Za-z0-9_-]+)*'\);/.test(boot),
+ 'Live game must retain the composed-animation startup gate while cache keys advance');
 assert(/js\/v66-game-boot\.js\?v=(?:1530|1560)&fix=(?:10[5-9]|11[0-6])/.test(html));
 assert(html.includes('css/game.css?v=1040'));
 require('./public-game-build.cjs')(html, 104);

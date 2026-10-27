@@ -18,6 +18,13 @@ const Combat = (() => {
     if (typeof attacker.gainAwaken === 'function') attacker.gainAwaken(Math.min(22, 5 + dmg * 1.3));
     if (typeof target.gainAwaken === 'function') target.gainAwaken(Math.min(16, 3 + dmg * 0.65));
     target.hurtT = 0;
+    // Animation-only event. Direction, severity and the shared fighter clock
+    // select a reaction inside V72 without changing damage or stun timing.
+    const reactionDirection=attacker.pos.clone().sub(target.pos).setY(0);
+    const reactionForward=target.forward();
+    const reactionSide=reactionForward.z*reactionDirection.x-reactionForward.x*reactionDirection.z;
+    target.nativeCombatReaction={at:target.t||0,serial:(target.nativeCombatReaction?.serial||0)+1,
+      clipId:heavy?'hit-heavy':Math.abs(reactionSide)>.65?(reactionSide>0?'hit-left':'hit-right'):'hit-light'};
     if (attacker === Game.player) Game.onPlayerHit(dmg);
     target.stun = heavy ? 0.52 : (kind === 'melee' ? 0.41 : 0.27); target.hitFlash = heavy ? 0.20 : 0.15;
     target.meleeQ = 0; target.meleeBuf = 0; target.combo = 0; target.comboFollow = null;
@@ -45,8 +52,10 @@ const Combat = (() => {
     if (target.blockT < target.parryOk) {
       // parry: no damage; a parried punch leaves the attacker wide open
       target.guard = Math.min(TUNING.guardMax, target.guard + 20);
+      target.nativeCombatParry={at:target.t||0,serial:(target.nativeCombatParry?.serial||0)+1};
       target.riposteT = 1.15; // player can punish with their next melee attack
       if (kind === 'melee') {
+        attacker.nativeCombatReaction={at:attacker.t||0,serial:(attacker.nativeCombatReaction?.serial||0)+1,clipId:'hit-heavy'};
         attacker.stun = TUNING.parryStun; attacker.hitFlash = 0.15; attacker.windT = 0;
         attacker.vel.copy(attacker.pos.clone().sub(target.pos).setY(0).normalize().multiplyScalar(8));
       }
@@ -60,6 +69,7 @@ const Combat = (() => {
     if (target.guard <= 0) { target.guardCounterWindow = 0;
       Sound.play('heavy');
       target.guard = 0; target.guardDelay = 1.6;
+      target.nativeCombatReaction={at:target.t||0,serial:(target.nativeCombatReaction?.serial||0)+1,clipId:'hit-heavy'};
       target.stun = TUNING.guardBreakStun; target.brokenT = TUNING.guardBreakStun; target.hitFlash = 0.2; target.blocking = false;
       target.vel.copy(knock).multiplyScalar(0.8);
       Effects.guardBreak(target); Effects.dizzy(target, TUNING.guardBreakStun); Game.hitStop(0.18); CameraRig.shake(0.65);

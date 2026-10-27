@@ -43,6 +43,8 @@ class Fighter {
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
     this.attackSerial = (this.attackSerial || 0) + 1; this.riposteT = 0; this.meleeQ = 0; this.meleeBuf = 0; this.superHitT = 0;
     this.blastT = 0; this.hitFlash = 0; this.t = Math.random() * 10;
+    this.nativeCombatReaction=null;this.nativeCombatParry=null;
+    this.nativeCombatEpoch=(this.nativeCombatEpoch||0)+1;
     this.moveIntent = new V3(); this.vert = 0; this.wasFlying = false; this.dustT = 0;
     this.lean = { pitch: 0, roll: 0 };
     this.acro = null; this.acroClock = 0; this.lastAcroAt = -20; this.landingVariant = 0;
@@ -518,7 +520,17 @@ class Fighter {
           this.attackTravel.copy(travel);
           // Close the gap before impact; match a retreating opponent within limits.
           const timeLeft = Math.max(0.11, this.kickPend.t);
-          const goal = this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 1.7 : 1.45;
+          // Only the loaded, opt-in native set uses the measured shorter
+          // striking reach. The original jab and every baseline/Rin path
+          // retain their published pursuit distance. This remains bounded
+          // velocity-driven pursuit; normal collision separation still wins.
+          const nativeApproach=!!(typeof window!=='undefined'&&
+            window.SkyClashPublishedActions?.nativeCombatSet&&
+            this.characterId==='kairo_venn'&&
+            !(this.attackKind==='punch'&&this.punchSide===1));
+          const goal = nativeApproach ?
+            (this.attackKind==='kick'||this.attackKind==='skyKick'?.82:.72):
+            this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 1.7 : 1.45;
           const closing = Math.max(0, horizontal - goal) / timeLeft * 0.86;
           const speedCap = follow ? TUNING.airFollowSpeed : this.attackAir ? TUNING.meleePursuitSpeedAir : TUNING.meleePursuitSpeedGround;
           targetH = Math.min(speedCap, Math.max(targetH * 0.45, closing));
@@ -529,7 +541,22 @@ class Fighter {
           if (this.attackAir) {
             // Fly up/down toward the opponent *during the approach*; hand/foot contact
             // remains a small 3D hit volume and won't connect from several metres away.
-            const desiredY = clamp((height + foe.vel.y * lead) / timeLeft * (follow ? 0.92 : 0.60), this.attackKind === 'fallingFist' ? -35 : follow ? -17 : -14, follow ? 22 : 16);
+            let strikeHeight=height;
+            if(nativeApproach&&this.attackKind==='fallingFist'){
+              const hand=this.vrmRig?.vrm?.humanoid?.getNormalizedBoneNode('rightHand');
+              const chest=foe.vrmRig?.vrm?.humanoid?.getNormalizedBoneNode('upperChest');
+              if(hand&&chest){
+                this.vrmRig.vrm.scene.updateMatrixWorld(true);
+                foe.vrmRig.vrm.scene.updateMatrixWorld(true);
+                const handY=hand.getWorldPosition(new V3()).y-this.pos.y;
+                const chestY=chest.getWorldPosition(new V3()).y-foe.pos.y;
+                // Follow the visible torso during the dive, including a
+                // fallen target. Limit the extra aim to seventy centimetres
+                // and retain the existing speed, floor and travel limits.
+                strikeHeight+=clamp(chestY-handY,-.70,.70);
+              }
+            }
+            const desiredY = clamp((strikeHeight + foe.vel.y * lead) / timeLeft * (follow ? 0.92 : 0.60), this.attackKind === 'fallingFist' ? -35 : follow ? -17 : -14, follow ? 22 : 16);
             this.vel.y += (desiredY - this.vel.y) * damp(14, dt);
           }
         }

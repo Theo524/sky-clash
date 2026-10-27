@@ -1435,3 +1435,38 @@ verified source/baked clip only for this flag and falls back nonfatally on a
 missing, invalid or timed-out file. V72/V81/boot cache keys are refreshed.
 Rollback annotated tag `rollback/pre-blender-jab-2026-10-27-038ac13` is saved
 on GitHub at the prior main commit. See [release record](KAIRO-JAB-PLAYTEST.md).
+
+## 2026-10-27 — coordinated original Storm Fist set (PR #141)
+
+The player accepts the published Blender jab and authorizes the whole set,
+autonomous iteration, pushed checkpoints and existing Pages review. This
+supersedes earlier single-jab/private gates. The unchanged jab is joined by
+sixteen new Blender clips: cross, hook, overhand, rising/round/side finishers,
+uppercut/meteor/free-air/falling attacks, guard, parry and four hit reactions.
+`author-kairo-storm-fist.py` reuses the recovered measured rig/pole calibration;
+`bake-kairo-storm-fist.cjs` performs the same real-VRM world-delta transfer and
+bounded target bake. No additional animate wrapper was introduced.
+
+V72/V81 own native playback, source guard connections and support correction.
+Animation-only combat event stamps select parry/reactions. Reset clears stale
+events, and directional kick selection is latched per attack. New native
+strikes approach closer inside the existing finite pursuit budget; original
+jab/default/Rin trajectories, collision separation, attack clocks and damage
+remain intact. Final Falling Fist adds a deep forward/downward hinge after
+real-model testing exposed an upright miss. Stepping and recovery contacts
+replace the initial model-planted approach.
+
+Local evidence: 17 clips/668 source frames; maximum transferred joint path
+error <0.0000041 units. Real gameplay at 30/60/120Hz connects all seven chain
+beats and tests alternate/steered finishers, guard/parry, directional damage,
+whiff, interruption, idle recovery and movement. Full three-view continuous
+capture plus per-move runtime galleries are in ignored visual-review-output;
+focused recapture covers final contact/recovery edits. Broad V66 regression
+108 commands passed after two stale boot-cache assertions were corrected;
+new native pursuit/set tests and ownership/startup checks pass separately.
+
+Review route: ?combatAnim=storm-fist-v1. Baseline combat and
+?combatAnim=blender-jab-v1 remain available. Original jab, model bytes and
+V156/V164 flight source data are unchanged. Skeleton contact distances do not
+certify exact mesh collision, zero foot sliding, all target heights or player
+approval of the new full set. See current state for live release evidence.

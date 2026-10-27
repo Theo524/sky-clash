@@ -2,6 +2,51 @@
 
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
+## Active full Storm Fist development — 2026-10-27
+
+The player says the published Blender jab looks good and explicitly authorizes
+the entire original fighting set, coordinated autonomous development, regular
+pushed checkpoints and publication for visual review after testing. This
+supersedes the older one-jab/private limits below; it does not authorize
+altering standing stance, flight, Rin or discarding the accepted jab.
+
+The continuation adds sixteen measured Blender clips around the unchanged
+jab and extends only V72/V81's existing native path. The full-set review entry
+is `?combatAnim=storm-fist-v1`; baseline and `blender-jab-v1` remain available.
+See [controls and reproduction](KAIRO-STORM-FIST-PLAYTEST.md).
+PR [#141](https://github.com/Theo524/sky-clash/pull/141) contains 17 clips
+(accepted jab plus 16 new moves), baked from Blender onto actual Kairo's
+20 normalized joints. The native player still lives inside V72/V81.
+Actual gameplay passed full seven-hit ground-to-air chains, alternative
+finishers, guard/parry, directional reactions, whiff, interruption and
+recovered idle/movement at 30/60/120Hz, including the game's 1.1-unit
+fighter separation. Three chronological camera reviews and all 17 runtime
+move galleries were generated; final contact/recovery corrections receive
+focused recapture. Source-to-VRM maximum joint-path error is 0.0000041 units.
+
+The new clips use closer bounded pursuit to match authored reach. Original
+jab/default/Rin pursuit traces remain exact in focused tests; hitboxes,
+damage, attack clocks, collision, V100, models and selected flight bytes are
+unchanged. A deep downward Falling Fist replaces the initially upright miss.
+Standing stance and the original jab asset are byte-for-byte preserved.
+
+The broad local V66 suite passed 108 commands after updating two stale cache
+URL assertions; the new pursuit test and ownership/startup checks also pass.
+Remote V66, ownership, startup, original-jab DCC/game validation and V164
+real-model review passed at checkpoint `fe5ae28`; V66, ownership, startup
+and jab validation also passed on polished source checkpoint `4932d51`.
+Verify final-head CI and
+Pages before claiming a current deployment.
+
+Remaining review limits: exact knuckle/mesh contact and every moving-target
+height are not certified by skeleton metrics. Some support correction can
+still be visible during physical pursuit. A roughly 0.12-unit support-foot
+discontinuity remains in the 60/120Hz replay, despite reachable limbs; its
+post-sample cause is not yet proven. Trace it inside the existing ownership
+chain rather than adding a compensating writer. Do not claim zero sliding
+or final player approval of the full set. The low launcher can contact an already
+airborne opponent's leg; chest-only distance is not a universal contact test.
+
 ## Authorized experimental jab publication
 
 The user explicitly requested publishing the latest working jab on the existing

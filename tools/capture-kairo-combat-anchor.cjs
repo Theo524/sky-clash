@@ -8,7 +8,8 @@ const {chromium}=require('playwright');
 const contract=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json');
 const OUT=path.resolve('visual-review-output/kairo-combat-foundation');
 async function main(){
- const browser=await chromium.launch({headless:true,args:['--no-sandbox',
+ const browser=await chromium.launch({headless:true,
+  ...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox',
   '--enable-webgl','--use-gl=angle','--use-angle=swiftshader','--ignore-gpu-blocklist']});
  try{
   const page=await browser.newPage();

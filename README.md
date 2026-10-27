@@ -2,6 +2,9 @@
 
 An original 3D anime martial-arts arena fighter with two playable characters: **Kairo Venn** and **Rin Sable**. The published game is at https://theo524.github.io/sky-clash/.
 
+Storm Fist review: https://theo524.github.io/sky-clash/?combatAnim=storm-fist-v1 .
+See [controls and authoring](docs/KAIRO-STORM-FIST-PLAYTEST.md).
+
 Assistants should first read [AGENTS.md](AGENTS.md), [current state](docs/ASSISTANT-CURRENT-STATE.md) and the [runbook](docs/ASSISTANT-RUNBOOK.md). They preserve player decisions, animation ownership and the interrupted Blender combat work.
 
 ## Development
@@ -17,7 +20,7 @@ Edit `src/*.js`, then run `python3 tools/build.py` to regenerate `js/game.js`. E
 
 ## Animation status
 
-V156 Q is the accepted default forward flight. V164's selected B/B/B/B flight remains an opt-in playtest. Rejected combat Batch A was withdrawn and original fighting/standing restored. PR #140's recovered Blender-to-VRM pipeline and original jab are offline development work; the jab remains unapproved and has not replaced playable combat. See [current state](docs/ASSISTANT-CURRENT-STATE.md) for precise scope and [rejection criteria](docs/KAIRO-BATCH-A-REJECTED-2026-10-27.md) before changing fighting animations.
+V156 Q is the accepted default forward flight. V164's selected B/B/B/B flight remains an opt-in playtest. Rejected combat Batch A stays withdrawn. The player accepts the original Blender jab; Storm Fist preserves that exact asset and adds sixteen clips using the recovered Blender-to-VRM pipeline and existing V72/V81 player. Its review link preserves baseline stance, flight and Rin. See [current state](docs/ASSISTANT-CURRENT-STATE.md) for validation and remaining limits.
 
 Passing code tests does not establish animation quality or player aesthetic approval. Preserve existing stance, flight, physics and rollback paths while reviewing continuous real-character motion.
 
