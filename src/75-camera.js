@@ -6,7 +6,7 @@
  * A dash always sets suspendT, so the camera never chases the rival mid-dash.
  */
 const CameraRig = (() => {
-  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0 };
+  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0, baseFov: null };
   const look = new V3(), desired = new V3();
   function forward() { return new V3(-Math.sin(rig.yaw), 0, -Math.cos(rig.yaw)); }
   function right() { return new V3(Math.cos(rig.yaw), 0, -Math.sin(rig.yaw)); }
@@ -63,6 +63,19 @@ const CameraRig = (() => {
     const desiredDist = presetDist * (1 - 0.16 * cinematic);
     rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
     const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
+    // V165: controlled zoom-out and slight lens widening at full aerial
+    // burst speed. Return smoothly to the original lens on release.
+    if(AnimeFeelV165.enabled&&camera?.isPerspectiveCamera){
+      if(rig.baseFov===null)rig.baseFov=camera.fov;
+      const velocity=Math.hypot(p.vel.x,p.vel.z);
+      const amount=p.sprinting&&p.flying?
+        clamp((velocity-13)/24,0,1):0;
+      const next=rig.baseFov+amount*5.5;
+      const updated=camera.fov+(next-camera.fov)*(instant?1:damp(7,dt));
+      if(Math.abs(updated-camera.fov)>.0005){
+        camera.fov=updated;camera.updateProjectionMatrix();
+      }
+    }
     const cp = Math.cos(rig.pitch);
     camera.position.set(look.x + Math.sin(rig.yaw) * cp * d, look.y + Math.sin(rig.pitch) * d, look.z + Math.cos(rig.yaw) * cp * d);
     if (camera.position.y < 0.6) camera.position.y = 0.6;

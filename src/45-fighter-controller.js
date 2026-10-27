@@ -280,6 +280,7 @@ class Fighter {
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
+    if(!this.sprinting)this._v165BoostActive=false;
     // V108 owns only the 95ms input-to-takeoff interval. The existing
     // jump physics runs unmodified after expiry. Interruptions cancel the
     // buffered jump so a stun/block/dash never causes a delayed surprise hop.
@@ -452,14 +453,26 @@ class Fighter {
     } else if (this.sprinting) {
       // steer with the stick; with no input keep going the way you face. Up/Down climbs and dives
       const dir = this.moveIntent.lengthSq() > 0.02 ? this.moveIntent.clone().setY(0).normalize() : this.forward();
-      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
+      // V165: stronger travel speed is an opt-in physical sprint/boost
+      // response, not a second animation layer or global walk-speed change.
+      const burstV165=AnimeFeelV165.enabled&&this.canFly&&this.flying;
+      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) *
+        speedMul * (burstV165?AnimeFeelV165.boostSpeedScale:1);
+      if(AnimeFeelV165.enabled&&!this._v165BoostActive){
+        this._v165BoostActive=true;
+        Spectacle.boostIgnition(this);
+      }
       const target = dir.multiplyScalar(sp); target.y = this.vert * sp * 0.75;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
-      this.vel.lerp(target, damp(TUNING.sprintTurn, dt));
+      this.vel.lerp(target,damp(TUNING.sprintTurn*
+        (burstV165?AnimeFeelV165.boostTurnScale:1),dt));
       const hv = Math.hypot(this.vel.x, this.vel.z);
       if (hv > 2) this.facing = lerpAngle(this.facing, yawFromDir(this.vel.x, this.vel.z), damp(8, dt));
       this.sprintFx -= dt;
-      if (this.sprintFx <= 0) { this.sprintFx = this.flying ? 0.07 : 0.075; this.flying ? Spectacle.flightWake(this) : Effects.dust(this.pos, 2); }
+      if (this.sprintFx <= 0) {
+        this.sprintFx = this.flying ? (burstV165?0.055:0.07) : 0.075;
+        this.flying ? Spectacle.flightWake(this) : Effects.dust(this.pos, 2);
+      }
       if (this === Game.player && this.energy > 2 && Math.hypot(this.vel.x, this.vel.z) > 18) {
         this.sprintShakeT -= dt;
         if (this.sprintShakeT <= 0) { this.sprintShakeT = 0.38; CameraRig.shake(0.035); }

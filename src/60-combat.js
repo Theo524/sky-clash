@@ -29,8 +29,10 @@ const Combat = (() => {
       knock.lengthSq()>0.001?knock.clone().normalize():attacker.forward());
     Sound.play(heavy ? 'heavy' : 'hit');
     CameraRig.shake((attacker === Game.player ? 0.25 : 0.4) * (heavy ? 1.6 : 1));
-    Game.hitStop(heavy ? 0.075 : 0.035);
+    Game.hitStop(AnimeFeelV165.enabled?AnimeFeelV165.hitStop(heavy,kind):(heavy ? 0.075 : 0.035));
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(30);
+    else if(AnimeFeelV165.enabled&&attacker===Game.player&&Settings.get('haptics')&&navigator.vibrate)
+      navigator.vibrate(heavy?[20,14,28]:14);
     return 'hit';
   }
   function blocked(attacker, target, dmg, knock, kind, floorHp) {
@@ -141,7 +143,8 @@ const Combat = (() => {
       Math.abs(rise) < TUNING.meleePursuitHeight + (attacker.attackAir ? 1.4 : 0) ? target : null;
     attacker.attackOrigin.copy(attacker.pos);
     attacker.attackTravelBudget = attacker.attackAir ? TUNING.meleePursuitAir : TUNING.meleePursuitGround;
-    attacker.attackDrive = Math.max(2.4, Math.min(8.0, Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? 2.4 : 0)));
+    attacker.attackDrive = Math.max(2.4, Math.min(AnimeFeelV165.enabled?9.5:8.0,
+      Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? (AnimeFeelV165.enabled?3.2:2.4) : 0)));
     attacker.attackMoving = attacker.attackDrive > 2.8 || attacker.moveIntent.lengthSq() > 0.12;
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
@@ -152,8 +155,12 @@ const Combat = (() => {
     const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
     // Kairo's opening jab needs an actual readable wind-up before the next strike.
     // The later kick timing is deliberately unchanged.
-    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile;
-    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile;
+    // V165: recorded strike progression is indexed by normalized attack
+    // progress in V72. Scaling recovery AND contact delay together keeps
+    // the authored wind-up -> hit -> follow-through in phase.
+    const beatScale=AnimeFeelV165.enabled?AnimeFeelV165.tempo(stage):1;
+    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile * beatScale;
+    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile * beatScale;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -165,7 +172,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.24,0.24,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.24,0.24,0.33,0.41])[stage] * agile * beatScale, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
