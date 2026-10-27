@@ -54,3 +54,27 @@ The first complete baseline workflow succeeded for real Kairo on all three frame
 Artifacts: `writer-ownership-60fps.json` gives each sampled frame's `changedByOwner`, per-joint `lastChanged` and `lastCalled` (distinct!), plus per-state totals. The unchanged existing per-frame complete quaternion recording remains available at 30/60/120fps. This is **measurement**, not a replacement animation or a gameplay flag; source production files remain untouched.
 
 **Limitations:** A last quaternion-changing call may be V81's *transition*, not V72's underlying authored pose; compare total writes and ordering rather than assuming the last caller alone generated a move. Method instrumentation doesn't observe raw scalar setters, finger joints beyond the named 20, motion through parent/root transforms or unhooked GLTF skeleton internals. Most importantly it doesn't judge animation aesthetics. Before declaring this writer map reliable, CI must exercise and pass a real WebGL run and confirm expected procedural/base and V72 changes, including while idle and fighting.
+
+## Verified live VRM0 writer map — run 40532499034 (PASSED)
+
+[Real Kairo normalized-bone capture workflow](https://github.com/Theo524/sky-clash/actions/runs/40532499034) passed after installing **instrumentation on the actual per-joint `THREE.Quaternion` instances**, with no new game animation or changed engine files. Artifact **12745789463** contains `writer-ownership-60fps.json`. Captured **47** spaced frames throughout real target-hit jab, idle, guard, four-hit whiff and transitions (full 30/60/120fps timelines remain in the same artifact).
+
+Sampled quaternion-changing API call counts, **not unique bones or animation quality scores**: game.js procedural VRM base **5,309**; V76 idle/walk upper body **342**; V72 published recordings **1,258**; V81 final transitions **785**. V100 flight owner correctly did not change any normalized bones in these fully grounded cases.
+
+| Live grounded state (observed at representative post-transition 60fps frame) | Actual last changing source for representative joint |
+|---|---|
+| Standing: hips, spine, chest, legs, feet | `v72-published-actions.js` |
+| Standing: both shoulders, upper/lower arms, wrists/hands | `v76-upper-body.js` |
+| Jab/cross/hook steady active: arms, torso | `v72-published-actions.js` |
+| Jab/cross/hook steady active: hips and both legs/feet | `game.js` procedural base (V72's intentional punch lower-body mask) |
+| Early punch transitions | `v81-pose-transitions.js` often becomes the *last modifier of all 20 bones* while blending from the prior state |
+| Guard: arms, torso | `v72-published-actions.js` |
+| Guard: support hips, legs and feet | `game.js` procedural base |
+| Rising kick: full body including support legs/feet | `v72-published-actions.js` |
+| Recovery/standing again | Returns to split V72 lower/body + V76 arms |
+
+These findings **demonstrate mixed owner behavior**, but they do not by themselves prove exactly why the rejected Batch A looked bad. That prototype was removed; its old full-body quaternion data were not playing in this capture.
+
+**Actionable architectural gate:** For any future completely new fighting clip, don't just select 20-bone quaternions in V72. First define who deliberately owns pelvis/leg support during strikes and how V81 receives blended transitions; avoid unconditional `combatReady` over the player's good standing pose. Confirm this on the *final rendered* VRM at meaningful camera distance and in uninterrupted sequence before accepting any authored move.
+
+**Automated regression:** New foundation checks now verify the above baseline's real final writers for idle, punch arm/leg split, guard, kick and V81 transition, with named bones. Their intent is to protect the understanding of the **current** game, not to mandate preserving these exact mixed masks in a future genuinely unified combat system. The resulting CI pass only proves measured engine behavior and never means an aesthetically good strike.

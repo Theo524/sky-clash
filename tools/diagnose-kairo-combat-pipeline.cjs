@@ -69,6 +69,27 @@ function verify(trace,fps){
   const idle=own.frames.filter(f=>f.stage==='pre-attack-idle');
   assert(idle.some(f=>(f.changedByOwner['v72-published-actions.js']||0)>0),
    'Capture old recorded idle owner before replacing any standing stance');
+  // A REAL FINAL-JOINT ownership contract for the EXISTING base game.
+  // These cases are drawn from the measured baseline, not guessed masks.
+  // Do not apply this as an invariant to a hypothetical new combat system.
+  const last=(stage,bone,owner)=>own.frames.some(f=>f.stage===stage&&
+   f.bones[bone]?.lastChanged===owner);
+  assert(last('pre-attack-idle','hips','v72-published-actions.js')&&
+   last('pre-attack-idle','leftHand','v76-upper-body.js'),
+   'Ground idle is split: V72 body + V76 approved hands');
+  assert(last('combo-1','leftUpperLeg','game.js')&&
+   last('combo-1','leftHand','v72-published-actions.js'),
+   'Ground punch is split: procedural weight-bearing legs + V72 attack arms');
+  assert(last('guard','leftFoot','game.js')&&
+   last('guard','leftHand','v72-published-actions.js'),
+   'Guard is split: procedural support feet + recorded upper body');
+  assert(last('combo-4','leftFoot','v72-published-actions.js')&&
+   last('combo-4','leftHand','v72-published-actions.js'),
+   'Recorded kick takes all 20 bones in the active clip');
+  assert(['jab','combo-3'].some(stage=>
+   last(stage,'leftFoot','v81-pose-transitions.js')&&
+   last(stage,'leftHand','v81-pose-transitions.js')),
+   'V81 transition can become last modifier of ALL joints on active attacks');
  }
  const guard=trace.samples.filter(x=>x.stage==='guard');
  assert(guard.some(x=>x.blocking===true),'Must activate actual guard gameplay');
