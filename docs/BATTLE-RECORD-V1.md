@@ -16,3 +16,10 @@ physics, AI, controls or project models.
 Verify with `node tests/battle-record-persistence.js` and existing V66
 character integration suite. Designed as a small complete gameplay
 feature rather than further animation micro-iterations.
+
+## Build and validation
+
+Gameplay source is compiled by `python tools/build.py`; PR #137 also fixes
+trusted feature-branch CI to synchronise `js/game.js` before running bundle
+integrity checks. Browser storage is per-device and no match result is sent to
+a server. Dojo and incomplete bouts do not affect records.
