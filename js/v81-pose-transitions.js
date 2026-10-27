@@ -112,7 +112,7 @@
     // Keep V81's fingers and exit transition, but do not time-warp that
     // full-body entry with a second blend. Normal gameplay never registers
     // this preview and takes the existing transition path unchanged.
-    const nativeAttack=next==='attack'&&this.v72StudioPack?.nativePreviewActive;
+    const nativeAttack=this.v72StudioPack?.nativePreviewActive;
     st.blend=next==='damage'||nativeAttack?1:
       clamp(st.elapsed/(next==='attack'?.075:seconds),0,1);
     const w=st.blend*st.blend*(3-2*st.blend);

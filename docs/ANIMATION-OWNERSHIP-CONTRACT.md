@@ -133,7 +133,22 @@ limb checks and explicit user visual approval of that state.
   explicit approvals in docs/PROJECT-CONTEXT.md.
 - Never confuse CI success with finished visual animation.
 
-## Recovered private Blender jab transport
+## Storm Fist full-set extension (2026-10-27)
+
+The user authorizes coordinated full-set development and Pages review and
+accepts the published jab's appearance. V72 remains the only native combat
+writer. A model/rig-validated `native-combat-set.v1` contains separately timed
+Blender clips for grounded/aerial strikes, guard, parry and directional damage.
+V72 selects them using existing attack clocks and animation-only hit/parry
+timestamps; physical launch, spike, down and super-hit tumble stay legacy.
+Ground support correction runs inside this same native branch only for new
+clips with explicit support metadata. V72 captures outgoing joints for a short
+handoff, and V81 skips duplicate entry blending while retaining finger grip
+and exit blending. The original jab is copied exactly, bypassing these new
+handoff/support changes. V100, locomotion, standing assets, flight, Rin, root
+physics, collision rules and attack clocks retain their existing ownership.
+
+## Recovered private Blender jab transport (historical foundation)
 
 The local PR #140 continuation adds **no new animate wrapper**. Explicit private
 registration on `SkyClashPublishedActions` allows one model/rig-verified native

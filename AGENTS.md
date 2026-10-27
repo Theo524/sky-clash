@@ -1,5 +1,13 @@
 # Sky Clash — assistant instructions
 
+**Current 2026-10-27 authorization:** the player says the published original
+Blender jab looks good; preserve its bytes and choreography. They authorize
+the full original Storm Fist set in one coordinated task, autonomous move
+iteration, regular pushed checkpoints and publication to existing GitHub Pages
+after integrated gameplay testing. This supersedes older single-move/private
+gates below. Keep the original game and `blender-jab-v1` rollback routes;
+the full-set review uses `combatAnim=storm-fist-v1` through the same V72 owner.
+
 **Experimental jab publication is explicitly authorized by the user.** The
 `combatAnim=blender-jab-v1` link opts into the recovered original Blender jab
 inside V72. This authorizes playtesting, not final animation approval or a new
