@@ -83,6 +83,7 @@ for(const fps of [30,60,120]){
  f.stun=.2;f.nativeCombatReaction={clipId:'hit-heavy',at:f.t,serial:1};f.animate(1/fps);
  assert.equal(f.v72StudioPack.nativeClipId,'hit-heavy');
  f.stun=0;f.animate(1/fps);assert.equal(f.v72StudioPack.nativePreviewActive,false,'Interrupted swing cannot resume');
+ assert(f.v81PoseTransitions.blend<1,'Native damage exit must blend from the last rendered reaction');
  Object.assign(f,{punchT:0,attackAir:false,flying:false,blockHeld:true,blocking:true,blockT:.2});f.animate(1/fps);
  assert.equal(f.v72StudioPack.nativeClipId,'guard');
  f.nativeCombatParry={at:f.t,serial:1};f.animate(1/fps);assert.equal(f.v72StudioPack.nativeClipId,'parry');
@@ -113,4 +114,4 @@ async function testLoader(){
  assert(!fallback.status.nativeCombatSet);
  const normal=await load('');assert(!normal.requests.some(url=>url.includes('storm-fist')));
 }
-testLoader().then(()=>console.log('PASS native Storm Fist set: atomic rig validation, preserved jab, canonical contacts, full V72/V81 sequence, guard/parry/reactions, cancellation and Rin isolation at 30/60/120Hz')).catch(e=>{console.error(e);process.exitCode=1;});
+testLoader().then(()=>console.log('PASS native Storm Fist set: atomic rig validation, explicit jab revision, canonical contacts, full V72/V81 sequence, guard/parry/reactions, cancellation and Rin isolation at 30/60/120Hz')).catch(e=>{console.error(e);process.exitCode=1;});

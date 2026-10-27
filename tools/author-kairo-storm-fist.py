@@ -81,10 +81,10 @@ def strike(name, duration, impact, side, aim, coil, yaw, hip=(.09,0,-.07),
 
 clips=[]
 clips.append(strike("original-jab",.55,.24,"left",
-    hand("left",.49,-.05,-.13),hand("left",.21,.10,-.18),-14,
+    hand("left",.585,-.05,-.13),hand("left",.21,.10,-.18),-14,
     hip=(.22,0,-.10),lean=4))
 clips.append(strike("original-cross",.55,.24,"right",
-    hand("right",.49,.09,-.15),hand("right",.13,-.12,-.31),28,
+    hand("right",.60,.09,-.15),hand("right",.13,-.12,-.31),28,
     hip=(.25,-.015,-.12),lean=5))
 clips.append(strike("original-hook",.68,.33,"left",
     hand("left",.38,-.13,-.02),hand("left",.27,.20,-.08),-25,
@@ -136,7 +136,7 @@ airkick=kick_clip("sky-kick",.63,.30,"side")
 airkick.update(grounded=False,air=True)
 clips.append(airkick)
 airstrike=strike("air-strike",.87,.41,"left",
-    hand("left",.49,-.04,-.10),hand("left",.20,.10,-.18),-21,
+    hand("left",.62,-.04,-.10),hand("left",.20,.10,-.18),-21,
     hip=(.08,0,-.025),lean=8,extra=dict(grounded=False,air=True))
 clips.append(airstrike)
 
@@ -163,12 +163,13 @@ for name,dur,yaw,lean,roll,shift in [
     ("hit-right",.38,17,-5,-9,(-.035,-.045,-.045))]:
     # Hands react with the torso without flailing; the head lags the impact.
     clips.append(dict(clipId=name,durationSeconds=dur,impactSeconds=.055,
-       grounded=True,keys=[key(0),
-         key(.055,heads["leftHand"]+offset(-.03,0,.055),
-             heads["rightHand"]+offset(-.025,0,.045),shift,yaw,lean,roll),
-         key(dur*.43,heads["leftHand"]+up*.035,heads["rightHand"]+up*.03,
+       grounded=True,keys=[key(0,guard["left"],guard["right"]),
+         key(.055,guard["left"]+offset(-.025,0,-.025),
+             guard["right"]+offset(-.02,0,-.015),shift,yaw,lean,roll),
+         key(dur*.43,guard["left"],guard["right"],
              tuple(v*.7 for v in shift),yaw*.65,lean*.7,roll*.65),
-         key(dur*.76,heads["leftHand"],heads["rightHand"],(0,0,-.02)),key(dur)]))
+         key(dur*.76,guard["left"],guard["right"],(0,0,-.02)),
+         key(dur,guard["left"],guard["right"])]))
 
 all_objects=[rig,*targets.values(),*poles.values(),*sole_controls.values(),*wrists.values()]
 results=[]

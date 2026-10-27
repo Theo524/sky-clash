@@ -468,7 +468,7 @@
      // attacks and aerial/guard entries. It ends before canonical contact.
      const historicalJab=native.clipId==='original-jab'&&!set?.reauthoredJab;
      const fade=set&&!historicalJab&&state.nativeEntry?
-      Math.min(1,state.nativeAge/(nativeMode==='damage'?.035:.065)):1;
+      Math.min(1,state.nativeAge/(nativeMode==='damage'?.080:.065)):1;
      const blend=fade*fade*(3-2*fade);
      for(let i=0;i<BONES.length;i++){
       const node=state.bones[i];if(!node)continue;

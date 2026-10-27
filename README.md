@@ -20,7 +20,7 @@ Edit `src/*.js`, then run `python3 tools/build.py` to regenerate `js/game.js`. E
 
 ## Animation status
 
-V156 Q is the accepted default forward flight. V164's selected B/B/B/B flight remains an opt-in playtest. Rejected combat Batch A stays withdrawn. The player accepts the original Blender jab; Storm Fist preserves that exact asset and adds sixteen clips using the recovered Blender-to-VRM pipeline and existing V72/V81 player. Its review link preserves baseline stance, flight and Rin. See [current state](docs/ASSISTANT-CURRENT-STATE.md) for validation and remaining limits.
+V156 Q is the accepted default forward flight. V164's selected B/B/B/B flight remains an opt-in playtest. Rejected combat Batch A stays withdrawn. The player rejected Storm Fist's arms and jab for body crossings and awkward shapes; kung-fu-v2 reauthors all 17 clips using the recovered Blender-to-VRM pipeline and existing V72/V81 player. Its review link preserves baseline stance, flight and Rin. See [current state](docs/ASSISTANT-CURRENT-STATE.md) for validation and remaining limits.
 
 Passing code tests does not establish animation quality or player aesthetic approval. Preserve existing stance, flight, physics and rollback paths while reviewing continuous real-character motion.
 

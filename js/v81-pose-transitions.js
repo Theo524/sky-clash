@@ -21,6 +21,9 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  function stateOf(f){
   if(f.hp<=0||f.downT>0||f.spiked||f.launched)return 'damage';
+  // Native reactions must have a real state boundary on stun exit. Treating
+  // them as an already-running walk exposed the legacy arms in one frame.
+  if(f.stun>0&&f.nativeCombatReaction&&f.v72StudioPack?.nativePreviewActive)return 'damage';
   if(f.punchT>0||f.blastT>0||f.superHitT>0||f.slamming)return 'attack';
   if(f.blockHeld||f.blocking)return 'guard';
   if(f.dropping)return 'fall';

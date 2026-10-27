@@ -112,7 +112,8 @@ if(gpAt>=0){
  const file=args[gpAt+1],game=JSON.parse(fs.readFileSync(file,'utf8')),fps=game.fps;
  assert([30,60,120].includes(fps));
  for(const [id,frames]of [['combo',game.combo.frames],['alternate',game.alternate.frames],
-  ['aerial',game.aerial],...game.defenses.map(d=>[d.mode,d.frames])]){
+  ['aerial',game.aerial],...game.defenses.map(d=>[d.mode,d.frames]),
+  ...(game.handoffs||[]).map(h=>['handoff-'+h.id,h.frames])]){
   reports.push(audit('gameplay-'+id,frames.map((f,i)=>({...f,time:i/fps})),1/fps));
  }
 }else if(sourceAt>=0){
