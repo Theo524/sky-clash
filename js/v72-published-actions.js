@@ -347,10 +347,11 @@
     c=foot.getWorldPosition(new THREE.Vector3());
    let contact=state.nativeFeet[side];
    if(planted){
-    if(!contact)contact=state.nativeFeet[side]={point:c.clone(),weight:1};
+    if(!contact||!contact.planted)contact=state.nativeFeet[side]={point:c.clone(),weight:1,planted:true};
     contact.weight=1;
    }else{
     if(!contact)return;
+    contact.planted=false;
     contact.weight*=Math.exp(-Math.max(0,state.nativeFrameDt||0)*45);
     if(contact.weight<.01){delete state.nativeFeet[side];return;}
    }

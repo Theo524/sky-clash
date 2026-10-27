@@ -222,6 +222,7 @@ jobs:
       - run: node tests/native-combat-private-preview.js
       - run: node tests/native-combat-playtest-loader.js
       - run: node tests/native-combat-set.js
+      - run: node tests/native-combat-pursuit.js
       - run: node tests/v88-walk-preview.js
       - run: node tests/v89-first-step.js
       - run: node tests/v90-idle-stance-match.js

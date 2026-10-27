@@ -147,6 +147,12 @@ handoff, and V81 skips duplicate entry blending while retaining finger grip
 and exit blending. The original jab is copied exactly, bypassing these new
 handoff/support changes. V100, locomotion, standing assets, flight, Rin, root
 physics, collision rules and attack clocks retain their existing ownership.
+For the opt-in native set only, the existing movement controller pursues a
+shorter measured strike gap for new moves; the published original jab and
+default/Rin distances remain unchanged. Falling Fist may add a bounded
+70cm vertical aim correction from its wrist to the target chest. Existing
+velocity caps, travel budgets, floors, collision separation, damage, hitboxes
+and contact clocks stay authoritative; animation never teleports the root.
 
 ## Recovered private Blender jab transport (historical foundation)
 

@@ -62,7 +62,7 @@ def strike(name, duration, impact, side, aim, coil, yaw, hip=(.09,0,-.07),
     keys=[key(0), key(impact*.32, guard["left"], guard["right"],
                       (-.015,0,-.025)),
           pose(impact*.64, coil, -yaw*.48, (-.035,0,-.055), -2, -roll*.5),
-          pose(impact*.84, coil.lerp(contact,.28), -yaw*.15,
+          pose(impact*.84, coil.lerp(contact,.60 if name=="sky-uppercut" else .28), -yaw*.15,
                (hip[0]*.3, hip[1]*.3, hip[2]*.7), 0,0),
           pose(impact, contact, yaw, hip, lean, roll),
           pose(impact+.025, contact-offset(.025), yaw*.92, hip, lean, roll),
@@ -76,27 +76,27 @@ def strike(name, duration, impact, side, aim, coil, yaw, hip=(.09,0,-.07),
 clips=[]
 clips.append(strike("original-cross",.55,.24,"right",
     hand("right",.49,.09,-.025),hand("right",.07,-.07,-.06),30,
-    hip=(.10,-.015,-.065),lean=5))
+    hip=(.25,-.015,-.12),lean=5))
 clips.append(strike("original-hook",.68,.33,"left",
     hand("left",.37,-.20,-.015),hand("left",.13,.17,-.11),-28,
-    hip=(.07,.025,-.09),lean=2,roll=-5))
+    hip=(.26,.025,-.14),lean=2,roll=-5))
 clips.append(strike("original-overhand",.68,.33,"right",
     hand("right",.43,.10,-.06),hand("right",.06,-.12,.16),35,
-    hip=(.12,-.025,-.12),lean=10,roll=7))
+    hip=(.28,-.025,-.15),lean=10,roll=7))
 
 def kick_clip(name,duration,impact,style):
     side="right"; start=heads[side+"Foot"]
     # The knee folds before extension and again before the sole returns.
     chamber=heads["hips"]+offset(.20,.045,-.28)
     if style=="rising":
-        contact=heads["hips"]+offset(.62,-.055,-.01)
+        contact=heads["hips"]+offset(.78,-.055,.18)
         turn=17; lean=-7; roll=-4
     elif style=="round":
         chamber=heads["hips"]+offset(.17,.25,-.34)
-        contact=heads["hips"]+offset(.60,-.14,-.02)
+        contact=heads["hips"]+offset(.74,-.14,.14)
         turn=47; lean=-8; roll=-9
     else:
-        contact=heads["hips"]+offset(.64,0,-.07)
+        contact=heads["hips"]+offset(.78,0,.09)
         turn=25; lean=-10; roll=-5
     def k(t,foot,h,y=0,le=0,ro=0):
         return key(t,guard["left"]+offset(0,-.025,.025),
@@ -118,11 +118,11 @@ clips.extend([kick_clip("rising-kick",.87,.41,"rising"),
 # Air attacks use tucked legs and torso counterbalance; flight itself retains
 # its existing owner. Root pursuit/gravity remain the gameplay controller's.
 clips.append(strike("sky-uppercut",.57,.29,"right",
-    hand("right",.30,.065,.35),hand("right",.12,-.015,-.32),23,
-    hip=(.07,0,.035),lean=-8,extra=dict(grounded=False,air=True)))
+    hand("right",.42,.065,.20),hand("right",.14,-.015,-.15),23,
+    hip=(.25,0,-.04),lean=-6,extra=dict(grounded=False,air=True)))
 clips.append(strike("falling-fist",.81,.53,"right",
-    hand("right",.42,.065,-.27),hand("right",.12,-.05,.29),20,
-    hip=(.10,0,-.08),lean=16,extra=dict(grounded=False,air=True)))
+    hand("right",.46,.065,-.34),hand("right",.12,-.05,.29),20,
+    hip=(.22,0,-.08),lean=16,extra=dict(grounded=False,air=True)))
 airkick=kick_clip("sky-kick",.63,.30,"side")
 airkick.update(grounded=False,air=True)
 clips.append(airkick)
@@ -155,15 +155,22 @@ for name,dur,yaw,lean,roll,shift in [
     # Hands react with the torso without flailing; the head lags the impact.
     clips.append(dict(clipId=name,durationSeconds=dur,impactSeconds=.055,
        grounded=True,keys=[key(0),
-         key(.055,guard["left"]+offset(-.03,0,-.04),
-             guard["right"]+offset(-.025,0,-.055),shift,yaw,lean,roll),
-         key(dur*.43,guard["left"],guard["right"],
+         key(.055,heads["leftHand"]+offset(-.03,0,.055),
+             heads["rightHand"]+offset(-.025,0,.045),shift,yaw,lean,roll),
+         key(dur*.43,heads["leftHand"]+up*.035,heads["rightHand"]+up*.03,
              tuple(v*.7 for v in shift),yaw*.65,lean*.7,roll*.65),
-         key(dur*.76,guard["left"],guard["right"],(0,0,-.02)),key(dur)]))
+         key(dur*.76,heads["leftHand"],heads["rightHand"],(0,0,-.02)),key(dur)]))
 
 all_objects=[rig,*targets.values(),*poles.values(),*sole_controls.values(),*wrists.values()]
 results=[]
 for clip in clips:
+    # Shared compact guard endpoints connect whole combinations without
+    # dropping both fists between beats. V81 restores the unchanged standing
+    # pose when combat actually ends. The accepted jab keeps its own endpoint.
+    if not clip["clipId"].startswith("hit-"):
+        for k in clip["keys"]:
+            for side in ("left","right"):
+                if k[side] is None: k[side]=guard[side]
     for ob in all_objects:
         ob.animation_data_clear()
     for bone in pb:
@@ -217,12 +224,69 @@ for clip in clips:
                 for kp in fc.keyframe_points:
                     kp.interpolation="BEZIER"
                     kp.handle_left_type=kp.handle_right_type="AUTO_CLAMPED"
+    times=sorted(set([round(n/60,9) for n in range(math.ceil(duration*60))]+
+                     [duration,clip["impactSeconds"]]))
+    # A stationary pole can cross the moving limb axis and suddenly roll a
+    # perfectly connected elbow/knee by 100 degrees. Transport the measured
+    # bend plane along each target's shortest arc instead. Dense control keys
+    # retain the same calibrated rig, target curves and anatomical bend sign.
+    for ob in poles.values(): ob.animation_data_clear()
+    for t in times:
+        frame=1+t*60
+        evaluate(frame)
+        for side in ("left","right"):
+            for kind,upper,lower,end in (
+                ("wrist",side+"UpperArm",side+"LowerArm",side+"Hand"),
+                ("ankle",side+"UpperLeg",side+"LowerLeg",side+"Foot")):
+                initial_axis=(heads[end]-heads[upper]).normalized()
+                initial_bend=heads[lower]-heads[upper]
+                initial_bend-=initial_axis*initial_bend.dot(initial_axis)
+                a=position(upper)
+                c=targets[(side,kind)].location.copy()
+                current_axis=(c-a).normalized()
+                transport=initial_axis.rotation_difference(current_axis)
+                bend=(transport@initial_bend).normalized()
+                pole=poles[(side,kind)]
+                pole.location=a+(c-a)*.45+bend*.60
+                pole.keyframe_insert("location",frame=frame)
+    for ob in poles.values():
+        for fc in ob.animation_data.action.fcurves:
+            for kp in fc.keyframe_points: kp.interpolation="LINEAR"
+    # Author a traveling lead step and rear-foot exchange around the existing
+    # physical approach. The gameplay root carries each lifted foot; adding
+    # another forward model offset would double the stride. Explicit plant
+    # windows below prevent a moving shoe from masquerading as support.
+    stepping=clip.get("grounded") and clip["clipId"] in {
+        "original-cross","original-hook","original-overhand",
+        "rising-kick","roundhouse","side-kick"}
+    def step_lift(t,side):
+        impact=clip["impactSeconds"]
+        if side=="left":
+            start,end=(0.,impact*.78)
+        elif clip.get("kickingSide"):
+            return 0.
+        else:
+            start,end=(impact*.30,impact+.055)
+        phase=(t-start)/max(.001,end-start)
+        return .095*math.sin(math.pi*phase)**2 if 0<phase<1 else 0.
+    if stepping:
+        # Cache the existing ankle curve before replacing it with dense keys.
+        foot_curves={side:[] for side in ("left","right")}
+        for t in times:
+            evaluate(1+t*60)
+            for side in foot_curves:
+                foot_curves[side].append(targets[(side,"ankle")].location.copy())
+        for side,points in foot_curves.items():
+            ob=targets[(side,"ankle")];ob.animation_data_clear()
+            for t,point in zip(times,points):
+                ob.location=point+up*step_lift(t,side)
+                ob.keyframe_insert("location",frame=1+t*60)
+            for fc in ob.animation_data.action.fcurves:
+                for kp in fc.keyframe_points: kp.interpolation="LINEAR"
     scene.frame_end=math.ceil(1+duration*60)
     evaluate(1)
     # World deltas must always use the MEASURED standing basis, including guard.
     samples=[]; max_foot=0.; max_wrist=0.
-    times=sorted(set([round(n/60,9) for n in range(math.ceil(duration*60))]+
-                     [duration,clip["impactSeconds"]]))
     for t in times:
         evaluate(1+t*60)
         deltas=[list((world_quat(n)@base_q[n].inverted()).normalized()) for n in bones]
@@ -237,9 +301,15 @@ for clip in clips:
             feet[side]={"grounded":grounded,"ankleDrift":residual,"targetGame":to_game(foot_goal)}
             # Brief support lock at contact allows the real gameplay root to
             # approach before weight settles. Kicks lock only the support side.
-            near=clip["impactSeconds"]-.045<=t<=clip["impactSeconds"]+.12
-            support[side]=bool(clip.get("grounded") and grounded and
-                               (clip["clipId"]=="guard" or near))
+            impact=clip["impactSeconds"]
+            near=impact-.045<=t<=impact+.12
+            if stepping:
+                plant=(t>=impact*.78 if side=="left" else
+                       t<=impact*.27 or (not clip.get("kickingSide") and t>=impact+.055))
+                support[side]=bool(grounded and plant)
+            else:
+                support[side]=bool(clip.get("grounded") and grounded and
+                                   (clip["clipId"]=="guard" or near))
         samples.append(dict(timeSeconds=t,deltasWXYZ=deltas,
             jointPositionsGame={n:to_game(position(n)) for n in bones},
             pelvisOffsetGame=to_game(position("hips")-base_pos["hips"]),
