@@ -22,7 +22,7 @@ jobs:
       - name: Install real Blender CLI (no game changes)
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender >/tmp/sky-clash-blender-apt.log
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender python3-numpy >/tmp/sky-clash-blender-apt.log
           blender --version | head -3
       - name: Author one test-only armature movement on the actual Kairo VRM
         run: |
