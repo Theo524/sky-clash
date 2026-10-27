@@ -13,3 +13,7 @@ Real model WebGL GitHub Actions [run #40425774416](https://github.com/Theo524/sk
 At peak, real VRM0 torso angle from upright: B base **1.16°**, A descent **1.55°**, B descent **1.97°**, C descent **2.41°**. Left/right knee measured angle from straight: baseline **95.7° / 18.6°**, A **94.1° / 17.4°**, B **92.5° / 16.1°**, C **90.7° / 14.8°**. These are slight positional/leg extensions rather than dramatic crouching. Do not claim significant bending or artistic acceptance from those metrics. Visuals show subtle settling and small controlled arm changes, preserving hover silhouette.
 
 **Await player selection of descending A/B/C.** All three earlier B choices (stance, natural sway, balanced ascent) were already selected; no new flight mode should be merged into the playable game until the descent choice and transition video inspection are complete.
+
+## Player final selection 2026-10-27
+
+**B — Natural settling** selected by player, from run #40425774416 artifact #12699498850 (`B-descend-B.pose.json`). All four visual decisions complete: **B flight stance, B arm natural sway, B balanced ascent, B natural settling descent.** The real-VRM authored pose-data must be integrated into the new opt-in flight preview, tested with in-game Kairo; no default Q promotion yet. Do not reopen the choices until player sees the full new playable build.
