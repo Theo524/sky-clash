@@ -152,6 +152,8 @@ async function main(){
   assert(upper.maxLeftFootDrift<1e-5&&upper.maxRightFootDrift<1e-5,
    'Upper-body authoring must not drag either grounded shoe');
   assert(lower.peakHipOrientationDeg>1.0,'Pelvis must genuinely articulate');
+  assert(Math.max(lower.maxLeftFootDrift,lower.maxRightFootDrift)>.005,
+   'Non-IK leg probe should expose measurable foot drift rather than conceal it');
   // LOWER PROFILE: REPORT, don't auto-approve, planting. Blender probe
   // deliberately has NO IK, therefore foot motion is expected.
   // Its sole unconditional contract is finite movement and exact recovery.
