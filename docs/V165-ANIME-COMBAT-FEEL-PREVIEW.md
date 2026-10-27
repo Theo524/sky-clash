@@ -30,3 +30,7 @@ feeling in this merged opt-in URL, then give targeted feedback. If full
 body Boost animations still look weak, next work is to author better
 recorded boost and melee assets in the existing V72 timeline, NOT merely
 increase numeric effects indefinitely.
+
+## Build verification
+
+The trusted V66 workflow rebuilt `js/game.js` automatically from the sequential source chunks after the initial PR created them. This doc update retriggers independent CI against the built asset; normal/default flight and speed remain exactly as before. The visual design remains player-review pending.
