@@ -1,0 +1,220 @@
+# Sky Clash — Kairo + Rin complete fighting-animation redesign blueprint
+**Date:** 2026-10-27  
+**Status:** AUDITED CODE + AUTHORING PLAN ONLY. No combat clips, game code, controls, physics, V164, or V165 changed.  
+**Repository baseline at audit:** main `03c83c779b774ec803fe23f8d9aff689f986b421`, no open PRs; latest V66, ownership, readiness and Pages checks were green.  
+**Read first:** [AGENTS](../AGENTS.md), [assistant current state](ASSISTANT-CURRENT-STATE.md), [assistant runbook](ASSISTANT-RUNBOOK.md), [2026-10-26 animation tools audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md), [animation ownership contract](ANIMATION-OWNERSHIP-CONTRACT.md), [older Kairo combat concept](KAIRO-COMBAT-V1.md), [character bible](CHARACTER-BIBLE.md), [V165 experiment](V165-ANIME-COMBAT-FEEL-PREVIEW.md).
+
+## 0. Scope and immutable boundaries
+
+- Redesign original playable choreography for both characters: combat-ready stance, guard/block/parry, four standard strikes, optional hook/overhand/side kick, launcher, dash/rush, grounded/air strikes, pursuit, meteor/ground follow-up, received light/heavy impact, guard break, stun, knockdown and recovery. **Not** an effects-only or tempo-only revision. Only existing inputs/actions and legitimate gameplay states are eligible for first implementation; extra variations below are marked proposed or unmapped.
+- Do not imitate, trace, export or clone licensed Dragon Ball animations. Draw on general principles of powerful rapid arena combat, not signature character sequences.
+- **Freeze** existing accepted Kairo V164 B/B/B/B four choices: original Pose Lab source assets in `assets/animations/kairo/selected/v164/` and `js/v164-selected-kairo-real-flight.js`. Preserve the opt-in `?flightVertical=v164` and V156 Q ordinary-flight default. Do not change flight motion or its approval status.
+- **Freeze** merged V165 opt-in Boost/steering/combat-feel experiment `?combatFeel=v165` and the combined `?combatFeel=v165&flightVertical=v164` URL. Its optional tempo changes are existing gameplay clocks, not a substitute for new choreography. No change to velocity, root physics, hit volumes, stamina, camera, input, abilities, guard or damage rules in this animation project.
+- Character identity: Kairo is Storm Fist, physically committed boxing/striking plus powered flight. Rin is Shade Runner, low-footwork palm/elbow/heel/rising combinations plus double jump and Shadow Step; **she does not have sustained free flight**. The two characters must not share indiscriminate retargeted final strike clips.
+- New gameplay motion must remain preview-gated and rollbackable. Do not promote as default before in-game visual and user approval. No second `Fighter.animate` wrapper and no competing final per-bone VRM writer. Edit `src/*.js` then rebuild `js/game.js` only when implementation starts.
+
+## 1. Actual existing tools and precise capabilities
+
+| Verified asset / code | What works now | Reuse / minimal improvement |
+|---|---|---|
+| `animation-studio.html` / `js/animation-studio.js` / `js/character-actions-core.js` | Existing FBX or ZIP import, indexed clip gallery, original/retargeted Kairo-or-Rin preview, play/scrub timeline, action slots, speed/yaw settings, browser-persisted assignments and original source-pack cache; action-map JSON export/import | Reuse for source discovery and before/after motion comparison. The action map saves slot **metadata only**, not baked motion or edited body poses. It is not a general freeform bone-keyframe editor. |
+| `js/v72-studio-game-export.js` | Bakes supported FBX to 30fps, 20-bone signed-int16, local data packaged as **world-bind delta quaternions**, with source/side metadata, up to 50 clips and 420 frames/14 seconds | Reuse packing and schema where compatible. FBX baking does not convert Kairo Pose Lab's absolute local normalized-bone quaternions automatically. Add small explicit offline format adapter; no runtime editor. |
+| `pose-lab.html` / `js/kairo-pose-lab.js` | Loads **real Kairo VRM0**; 20 SDK normalized joint nodes; bone rotation sliders, edit/save/undo, 1–60 time-ordered full-body quaternion keys, slerp playback, front/side/back observation, SHA256+rig+quaternion validation, `sky-clash.pose-lab.v1` import/export, `SkyClashPoseLab.authorWorldPose` for Playwright | **Primary Kairo authoring tool**. Create a real *ground combat* baseline, not the default T-pose or unrelated flight cruise. Use preserved V152/V156 hover capture only as an **aerial entrance reference**; do not overwrite flight data. Current Pose Lab is hardcoded to Kairo, not a verified Rin editor. |
+| `assets/characters/kairo.vrm`, `assets/rin.vrm` / `src/30-character-models.js` | Two actual visible VRM character assets; normalized humanoid nodes and legacy guide rig paths. Kairo Pose Lab verifies file SHA; native VRM0 orientation conversion matters. | Character-specific rig basis, rest quaternion, forward, parent mapping, joint limits, hand/finger behavior, and exact file SHA must be captured for **Rin** before authoring or export. Add a **character selector/manifest to Pose Lab**, not a second editor, only once normalized geometry and tests verify compatibility. |
+| `assets/animations/gameplay/studio-actions-v1.json` / `v81-recorded-actions.json` / `v86-ue5-converted-actions.json` | Published Kairo idle/run/jump/run-stop; other guard/Boost/landing and 16 UE5 movement/guard/air motion samples. | Retain approved noncombat movement/Boost. Review standing block / guard-start / fight idle / fall as pose references, **not assumed ready-made cohesive combat clips**. |
+| `assets/animations/gameplay/v87-recorded-combat.json` | Seven real Kairo 30fps Mixamo-derived 20-bone combat recordings (jab, jab-cross, hook, combo/overhand, elbow, roundhouse, side kick) | Archive as test/reference/rollback, **replace their selected combat choreography** after new authored clips exist. |
+| `assets/animations/gameplay/kairo-fighting-idle-v1.json` | Older 8-arm-bone, 100-frame boxing fighting idle reference | Reference, not a verified coherent current ground/flying combat stance. |
+| `src/40-recorded-animations.js` / `src/41-mixamo-animations.js` / `src/45-fighter-controller.js` | Older Mixamo/Quaternius samples and procedural attack/guard/damage pose shaping; Rin ninja attack poses; gameplay one-shot playback and contact-time mapping | Inventory and compare before selectively bypassing old combat poses for opt-in owner. Do not leave several animation layers independently altering the same final strike. Preserve fallback/default. |
+| `js/v72-published-actions.js` | Actual 20-joint quaternion sampler, world-rest retarget, Kairo action selection, mixing onto visible VRM; V87 strike override; Boost writer | **Primary candidate playback owner** for proposed combat mode. Branch through existing attachment, no new animate wrapper; add typed clip sampler for verified **local normalized** Pose Lab sources and proper per-character selection. |
+| `js/v81-pose-transitions.js` | Handoff from previous to selected state with slerp (attack ~75ms, guard ~160ms, damage prioritized) | Reuse one transition stage. Set authored transition/cancel anchors and contact-safe timing; avoid layering its smoothing over independently authored full clip easing twice. |
+| `js/v100-pose-authority.js` | Final selected Kairo jump/fall/flight owner **only for its selected states**, yields to attack/guard/Boost/damage; V164 authored flight support | Leave current flight/jump decisions intact. On combat exit, hand cleanly back to V100 without a temporary hover/fight pose override. Rin is independent. |
+| `tools/test-kairo-pose-lab.cjs`, `tools/author-kairo-forward-flight-stills.cjs`, `tools/author-kairo-vertical-keyframes.cjs` | Assistant-operated Playwright + actual VRM quaternion authoring, pose validation and still capture | Adapt *logic*, not the full expensive flight workflow, for first strike keyframing and offline checks. Do not run obsolete flight comparisons when no flight changed. |
+| `tests/v87-recorded-combat.js`, `tests/v72-studio-publishing.js`, `tests/v49-moving-melee.js`, `tests/v50-sky-combo.js`, `tests/v51-falling-fist-and-ninja.js`, `tests/v54-mixamo-combat.js`, `tests/v55-vrm0-rig.js`, `tests/v81-state-ownership.js`, `tests/animation-ownership-contract.js`, `tests/v100-single-pose-authority.js`, `tests/v165-anime-combat-feel.js` | Existing correctness guards for registered animation sources, attack selection, combo states, hitboxes, owners, movement and V165 | Run focused existing Node suites first and add contact-marker/clip-schema/transition tests. They do **not** assess visual beauty. |
+| `tools/assistant-checkup.cjs --strict`; `.github/workflows/v66-character.yml` and `animation-ownership.yml` | Consistency checks and broad game regression; previously documented Playwright browser/rendering and SHA-bound artifacts | Fast targeted tests locally/PR, no additional heavy GitHub Actions run for this blueprint. Add one **manual/on-demand** three-view real-game combat fixture when integrated batches actually need art QA. |
+
+No separate, verified "Editing Studio" free-pose application was found besides Animation Studio and the existing Pose Lab. Historical references to 230 imported FBXs do not mean 230 distributable source FBXs are committed in this repository. Source Mixamo packs may be browser cached; repo carries pre-baked clips.
+
+## 2. Current combat path: objective diagnosis (code, not yet WebGL appearance judgement)
+
+1. `src/60-combat.js` has gameplay clocks: Kairo four attacks durations **0.55 / 0.55 / 0.68 / 0.87s**, contact **0.24 / 0.24 / 0.33 / 0.41s**, 4th ground kick launches on confirmed hit. Rin attacks use raw **0.39 / 0.48 / 0.62 / 0.78s** and contacts **0.12 / 0.19 / 0.27 / 0.35s**, multiplied by existing agile scale **0.82**, giving about **0.32 / 0.39 / 0.51 / 0.64s** and contacts **0.10 / 0.16 / 0.22 / 0.29s**. With opt-in V165, all corresponding beat clocks gain respective `[.82,.84,.89,.94]` multipliers. Kairo input-confirmed air stages (actual stages 4/5/6) run **0.57/.63/.81s**, contact **.29/.30/.53s**.
+2. `assets/animations/gameplay/v87-recorded-combat.json` Kairo source windows are **about 1.16–2.08 source seconds**; `js/v72-published-actions.js` compresses each window by normalized attack progress into the much shorter gameplay durations. Every V87 entry has `attackImpact:0.35` yet this V72 sampler uses `attackStart` and `attackEnd`, not `attackImpact` as a runtime contact event. Therefore the on-screen striking limb is **not explicitly guaranteed** to intersect the enemy on `kickPend` gameplay contact.
+3. `src/40-recorded-animations.js` independently has its own attack one-shot retimer, synchronized to `f.kickPend` and a **different per-source** animation contact timestamp (e.g. Kairo jab 0.77, cross 1.02, hook 1.36), plus motion exaggeration. `src/45-fighter-controller.js` also builds procedural strike stances. These layers can disagree on gesture, pivot, recovery and instant takeover. A live per-bone final-writer attribution test must confirm their effective priority rather than assuming everything is simultaneously active.
+4. Current V72 masks **hips and both legs for most punch slots**, except kicks/side kicks. That intentionally avoids sliding feet but also suppresses authored full-body punch weight shifts. Kicks use wider body masking; mixed clipping conventions encourage uneven body weight. A new carefully designed mask/foot plant must keep support without freezing all pelvis mechanics.
+5. Current V72 pack loader filters to **`entry.character==='kairo'`**, even though Animation Studio can author/export `character:'rin'`; the runtime attachment also refers to the Kairo fighter and `Game.enemy`. **Rin-specific published gameplay mapping is unimplemented**, and the enemy retarget path warrants an explicit cross-character isolation test. Rin presently uses older ninja procedural stances plus mixed Kairo/Quaternius strike recordings (`ninjaPalm` maps to Kairo jab; `ninjaElbow` to Kairo elbow; `ninjaSpin` to a roundhouse). Her `ninjaRising` has a procedural path, not an equivalent verified published clip.
+6. `js/v81-pose-transitions.js` already blends state entry; however generic fixed-duration slerp cannot preserve important poses when new attacks start from incompatible old clips or return abruptly to idle. The new clips must share authored transition anchors, not just global smoothing.
+7. Existing hit volume is **a real distance/height/forward-arc check** in `src/60-combat.js`; launch and pursuit depend on actual hit result, not nominal animation endpoint. Preserve that gameplay truth. The redesign must make fist/heel geometry visually agree with that event at the existing contact timestamp, **not move hitboxes invisibly to fake contact**.
+8. Light/heavy hit, `brokenT` guard break, `downT` knockdown, `stun`, `launched`, `spiked`, get-up, and guard/parry are already separate gameplay states. They need a consistent *response library* just as much as attacks need a strike library.
+
+**Evidence boundary:** This is a verified source-code/metadata audit. We have **not** run a new real-game combat WebGL study for the current version, so claims about specific rendered wrist inversions or exact foot-sliding frequency are hypotheses to measure in first implementation, not already observed QA results. V87 test only proves the source clips contain rotations and selection works.
+
+### Current combat inventory and retention decision
+
+| State | Current source(s) | Decision |
+|---|---|---|
+| Kairo jab / cross / hook / overhand | V87 recordings plus older procedural/mocap attack layers | New unified full-body fighting clips; keep V87 as reference and rollback |
+| Kairo kick / air elbow, sky uppercut, sky kick, falling fist | V87 kick/elbow, procedural special stages | New authored leg and aerial choreography without changing stage/hit results |
+| Rin palm / elbow / spin / rising | Shared recorded source and character-specific procedural poses | **Replace with Rin-original native-rig clips** |
+| Guard / parry / block reaction | V81/V86 guard record and procedural positions, gameplay state timers | Retain input/logic, replace visible combat poses and reaction handoffs |
+| Light/heavy hit, guard break, stun, knockdown, get-up | Existing one-shot `hitChest`/`hitHead`/`qHitKnockback`/`guardBreak`/`getUp` and character fallback | Reauthor character-specific coordinated responses |
+| Approved idle/walk/run/Boost/jump/flight | V72/V76/V100 and stored V164 assets | **Keep intact** outside explicitly preview-gated *combat-ready* stance blending |
+| Blasts, shuriken, awakening, abilities | Current gameplay and animations | Do not break; only include transitions into/out of attack-ready animation |
+
+## 3. Professional animation principles researched, translated into Sky Clash
+
+- Strong silhouette priority. A readable coiled anticipation, one decisive contact shape and a recognisable recovery sell more power than many arbitrary intermediate rotations. Mariel Cartwright's fighting-animation GDC talk emphasizes clear key poses and constrained frame budgets: https://www.gdcvault.com/play/1020575/Animation-Bootcamp-Fluid-and-Powerful
+- Separate **anticipation / active strike / recovery** as *gameplay* information, not an evenly interpolated movement. Use directional anticipation, very fast acceleration to impact and a committed recovery that returns to ready exactly when control permits. See https://www.rivalslib.com/workshop_guide/art/anticipation_action_recovery.html
+- Make mechanics originate at feet/hips/ribcage, transfer through shoulder and elbow, terminate at fist/heel. All clips share one stance, gravity/plant logic and consistent forward axis. The supporting foot pivots when needed, and its translation belongs to gameplay or deliberate in-place footwork—not hidden root-motion teleporting.
+- Hits are a **paired choreography**: attacker contact silhouette + defender corresponding directional recoil + existing small hit-freeze, sound and effects on confirmed collision. External combat designers identify convincing reaction and held contact pose as core impact sources, not uncontrolled extra shake: https://blog.playstation.com/2022/10/04/game-developers-explain-what-makes-god-of-war-2018s-combat-tick/
+- Speed contrast: fast punch strike, slower intentional setup, 1–3 readable decisive contact frames, quick moving guard reset; heavy launchers get visibly greater coil and recovery. Preserve camera readability at distant/mobile arena framing. Add in-betweens only after core keys are strong, not 60 keys for every jab.
+- Clipped movement can cancel into a *different* clip, but should begin from actual current blended pose; use inertial/velocity-aware damping only inside the **existing** pose owner. No cumulative corrective Euler rotation overlays.
+
+## 4. Authored pose grammar — the shared choreography contract
+
+Each fighter gets distinct, verified normalized-rig pose anchors and movement arcs, with exactly five **semantic beats**, not a forced five-frame limit:
+
+- **P0 ENTRY**: actual captured visible pose when the action begins (combat idle, last strike's recovery, guard, pursuit, grounded running or airborne arrest), sampled once from current final owner rather than resetting to a static neutral.
+- **P1 ANTICIPATION**: compact load/guard/hip weight transfer; knees or hovering legs counterbalance; direction telegraphs strike; foot-plant marker.
+- **P2 CONTACT**: authored maximum line/reach/thrust/heel silhouette **at existing gameplay `kickPend` event**. For whiffs the same motion proceeds without hit effects; block/parry branches take the same gameplay collision result. Treat P2 metadata as relative to actual gameplay event under V165 scaling.
+- **P3 FOLLOW-THROUGH**: momentum travels beyond contact (or whiff) with believable opposing-arm/torso balance and motion easing. No default idle blended into the first contact frame.
+- **P4 EXIT**: purpose-built handoff to next move's P0 (combo bridge) or an authored *recovery-to-ready*. If hit, guard, vanish, airborne pursuit or recovery interrupt preempts this clip, the new state starts from the current final sampled pose.
+
+Notation below: `K_READY` is Kairo compact high boxer guard; `K_AIR` knees poised, elbows protecting torso; `R_READY` Rin lower side-on open-palm ninja guard; `R_AIR` evasive compact aerial guard; `K/R_HURT` are character-specific reaction anchors. Time labels are clip-relative seconds at **normal non-V165 tempo**, rounded artistic targets. Dash and defensive animations have event-based contacts instead of arbitrary newly invented collision timing.
+
+**Never mix schemas silently:** Pose Lab stores verified *absolute normalized-node local quaternions*. V72 studio gamepack stores *Mixamo world-rest delta samples and a source shoulder side-vector*. Author a small deterministic offline converter/clip decoder with explicit basis, source model SHA, normalized bone map and bind-rest identity. Reject an unknown Rin basis, mirrored wrist/finger issues, missing parent links or mismatch rather than hoping retargeting works.
+
+### Kairo — Storm Fist: balanced pressure / heavy completion
+
+Kairo fights left-lead from a planted, athletic, compact guard, stepping in behind the jab and transferring weight through a rear-side cross. His punches are short straight trajectories; hooks coil at the hips; kick launchers start from a chambered knee and strong plant, followed by upright powered aerial pursuit. Fists retract toward cheek-height guard between beats, not to T-pose.
+
+| Clip / existing mapping | P0 → P1 → P2 (contact) → P3 → P4; true whole-body work | Duration / contact | On confirmed hit and exit |
+|---|---|---|---|
+| **K_READY idle** (combat-ready only) | K_READY → tiny lead-foot pressure/diaphragm breath → shoulders live but steady → weight shifts back half-step → same K_READY, 2.0s loop | 2.0s loop, none | Entry from old ground idle with state-only mask; normal walk/run preserved |
+| **K_GUARD_ENTER/HOLD** (block) | K_READY or travel → chin tucks, lead hand rises → forearms shield line → knees absorb pressure → guarded ready | 0.14–0.20s in, 0.8–1.5s seamless loop, hit event external | `blockHeld/blocking` still owns gameplay, step/attack only when game allows |
+| **K_GUARD_HIT/PARRY** | Shield → braced rear heel → hands meet incoming line at confirmed block/parry → brief elbow recoil/outward brush → K_READY | 0.20–0.30s / event-driven | Same `blocked()`/`parryOk`, guard/counter window untouched |
+| **K_JAB stage 0** | K_READY → left shoulder/lead toe compress → lead fist shoots straight, offhand guards, rear heel grounded → shoulder retracts → left guard half-coil for cross | **0.55 / .24** | Small hold opponent, stage 1 queued; whiff returns to guard |
+| **K_CROSS stage 1** | Jab bridge → right heel pivots/hip winds → rear fist drives through centre line, left retract guards → chest follows just behind arm → coiled hook/overhand bridge | **0.55 / .24** | Stage 2 ready, range and stun unchanged |
+| **K_HOOK stage 2 odd** | Cross bridge → weight on lead foot/torso coil → tight lateral forearm arc with pelvis turn and chin tucked → ribs follow → chambered kick stance | **0.68 / .33** | Heavier stagger, stage 3 kick |
+| **K_OVERHAND stage 2 even** | Cross bridge → rear shoulder coils slightly higher, leg loads → downward diagonal fist with anchored opposite heel → elbow decelerates past body → chambered kick stance | **0.68 / .33** | Alternative `attackVariant` from current comboCycle, not separate button |
+| **K_RISING_HEEL stage 3 / launcher** | Kick chamber → support foot pivots, chest counterbalances → rising round/heel strike near target → knee recoils and shoulders recover → K_AIR cue only if launched, else K_READY | **0.87 / .41** | Actual hit and nonblock result alone launches and enables input-confirmed pursuit |
+| **K_SIDE_KICK alternate** (proposed/unmapped) | K_READY → hip turn and knee chamber → heel drives horizontally with counter-extended rear hand → leg decelerates → guard | 0.66 / .29 target | Not wired as a new input in first batch; retain animation asset for future routing |
+| **K_DASH_ENTRY/RUSH** (existing dash/pursuit state) | Current moving guard → forefoot load → arms streamline and hips drive along **existing physics displacement** → ready attack chamber → K_READY or next punch | 0.20–0.34 / dash-driven, no fake hit | Preserve `tryDash`, velocity/stamina and bounded pursuit; no teleport/root track |
+| **K_AIR_READY/AIR_JAB** (aerial standard punches) | K_AIR → knees/tail leg compact, left fist cocks → arm extends, torso rotates against opposite knee → fist retracts → K_AIR or next airborne punch | use current ground-chain beat timer when `attackAir`; same beat contact | Ground combo stage identity retained; no disjoint hovering T-pose |
+| **K_AIR_STRIKE stage 3** (existing `airStrike`) | K_AIR → forward knee loads, right elbow chambers → braced elbow/knee line meets target → limbs trail travel → airborne recovery | **0.87 / .41** when stage3 in air | Must preserve current stage 3 air branch behavior (do not silently create a new launcher) |
+| **K_SKY_UPPERCUT stage 4** | K_AIR or launcher chase → knee and rear fist fold low → legs drive upward with fist through opponent centre → full ribcage extension → K_AIR chase silhouette | **0.57 / .29** | Existing actual launched-target phase1 check and air-follow window |
+| **K_METEOR_KICK stage 5** | K_AIR chase → shoulders rotate, hip loads, knee retracts → descending heel drives along downward trajectory → torso counterbalances/heel trails → lower aerial chase silhouette | **0.63 / .30** | Existing spike on confirmed hit; no camera/physics root dive added |
+| **K_FALLING_FIST stage 6** | Ground follow opening → compact overhead fist coil/legs tuck → descending shoulder/fist line at contact → absorbing counterarm and planted landing line → guarded kneeling recovery | **0.81 / .53** | Preserve victim `downT/meteorSource/meteorWindow` gate and crater only on real connection |
+| **K_LIGHT_HIT / HEAVY_HIT** | current pose → weight buckles opposite impact vector → ribcage/head recoil, hands react → recover feet beneath hips → guarded hurt-ready | ~0.28–0.38 / ~0.48–0.65, collision event | `stun/hitFlash/knock` authoritative; do not invent stun duration |
+| **K_GUARD_BREAK / STUN** | shield → arms forced open and rear heel yields → exposed chest/head moment → controlled stagger/hold → counterbalance recovery | match `brokenT` / `stun`, event | Block unavailable when game says broken; no parry from visual recovery |
+| **K_LAUNCH_REACT / SPIKE / KNOCKDOWN / GET_UP** | current hit → spine curls, guard opens → airborne carry/spike pose or grounded fall → absorb with arms/knees → roll/plant to K_READY | tied to `launched/spiked/downT`; get-up ~0.55–0.90 proposal | Gameplay controls knockback, terrain landing and invulnerability; animator never drives root |
+| **K_PARRY_RIPOSTE** (reuses existing next melee) | confirmed parry guard shape → rear foot loads → same attack clip with visibly shorter in-stance bridge → authored follow → guard | existing `riposteT` and next attack clock | No free new strike; preserve counter damage/range rules |
+
+### Rin — Shade Runner: oblique, deceptive rushdown, NOT Kairo retarget
+
+Rin starts low and side-on with one open palm forward and the other near ribs. She has quicker deceptive setup, sharper leg angle, diagonal passes and a compact evasive recovery. She is not another airborne boxer and should not be granted power flight. All Rin keys require a *verified Rin-normalized VRM*, not import of Kairo local quats.
+
+| Clip / existing mapping | P0 → P1 → P2 (contact) → P3 → P4; real mechanics | Duration / contact | On confirmed hit and exit |
+|---|---|---|---|
+| **R_READY idle** | low R_READY → calf/ankle load with alternating palm lead → shallow shoulder/head feint → open hands return independently → stable low guard | 1.6–2.0s loop / none | Normal ninja sprint and approved locomotion untouched |
+| **R_GUARD_ENTER/HOLD** | sideways half-step → lead palm/forearm intercept shield, rear hand near chin → hips stay off-line → weight absorbs block → returns to low guard | .12–.18 entry / external event | Same blocking/parry counters and front-only guard hit check |
+| **R_PARRY / GUARD_HIT** | R_READY → elbow folds, palm turns → sharply redirects incoming strike beside shoulder (not Kairo cross-arm shield) → head slips → step back to R_READY | .18–.28 / event | Existing `parryOk/riposteT`, never auto-parry |
+| **R_PALM stage 0** | R_READY → lead shoulder loads subtly → open palm thrust from short side step → fingers trail forearm as arm decelerates → elbow retracts to R_ELBOW bridge | **~.32 / ~.10** | Existing `ninjaPalm` stage0, light contact/no launcher |
+| **R_ELBOW stage 1** | Palm bridge → rear heel skims in, ribs twist → rear elbow cuts tight upward/sideward → shoulder carries impact → step angle for spin | **~.39 / ~.16** | Existing `ninjaElbow` stage1, same hitbox and damage |
+| **R_TURNING_HEEL stage 2** | Elbow bridge → planted toe pivots, arms counter-sweep → whipping heel at mid-height with leg fully extended only near contact → knee recoils across centre → balanced rising-kick chamber | **~.51 / ~.22** | Existing `ninjaSpin`: disorients; **does not launch at stage 2** |
+| **R_RISING_NINJA stage 3** | Turning-heel recovery → deep single-leg coil, front palm low → sharply rising kick with torso side-on, guard palm defending face → leg recoils downward → ready/allowed pursuit anchor | **~.64 / ~.29** | Existing `ninjaRising` stage3 launcher on confirmed normal hit; no free flight |
+| **R_HOOK_PALM / OVERHAND_ELBOW** (proposed/unmapped variants) | R_READY → diagonal half-step → palm hooks around guard / chopping elbow from high coil → upper torso follows → low guard | .36/.44; contact ~.15/.21 | Assets for later context-dependent routing, **not new playable buttons in first release** |
+| **R_SWEEP/SIDE_KICK alternate** (proposed/unmapped) | low guard → deep pivot/lead hand counterbalance → foot sweeps low / heel checks side → leg retracts without invented knockdown → side-on guard | .48–.58; contact .23–.28 | Existing Studio slots are preview metadata, not yet gameplay-authorized moves |
+| **R_SHADOW_DASH / R_RUSH_PALM** | directional half-crouch → short sideways lean, arms narrow → travel on existing `dash` or `vanish` game clock → stance catches body, palm coiled → palm or R_READY | .18–.30 / travel-driven | No cosmetic teleport/reach; preserve Shadow Step input, stamina, collision |
+| **R_AIR_READY / AIR_PALM / AIR_KICK** | R_AIR with knees tucked → one palm reaches while hips counterturn / knee chambers for diagonal heel → compact recoil → R_AIR or gravity-fall anchor | map to current available airborne normal attack clock, not new airborne ability | Uses existing `attackAir` and true enemy range/height test |
+| **R_AIR_PURSUIT / R_RISING_CHASE** (where existing `comboFollow` allows) | authorized launcher follow → legs fold and side-step aerial line → upward palm/heel contact → tuck away → compact air pursuit | stage4 **.57/.29** if gameplay enables it | Style unique from Kairo, use same bound/range window; **no hover loop or unlimited flight** |
+| **R_DOWNWARD_HEEL / GROUND_FOLLOW** (only authorized stage5/6) | compact midair approach → side-on heel or palm chamber → downward strike and continued rotation → controlled absorbing shoulder → landing/recovery | stage5 **.63/.30**, stage6 **.81/.53** if current gameplay opens them | Preserve existing spike/meteor hit confirm and crater gating, no fresh ability |
+| **R_LIGHT_HIT / HEAVY_HIT** | current position → short shoulder turn and quick backward step / deeper hip corkscrew on heavy → palm tries to catch balance → low controlled stance return | .22–.34 / .43–.60, collision event | Direction-aware; game applies same `stun` and knockback |
+| **R_GUARD_BREAK / STUN** | forearm redirect fails → hands cross awkwardly/off-line → pelvis drops to exposed guarded knee → regroup low | match gameplay `brokenT/stun`, event | No invisible ability to escape stun |
+| **R_LAUNCH / SPIKE / KNOCKDOWN / GET_UP** | sharp torso twist/tuck → gravity-driven aerial posture → hands/forearm absorb landing or controlled roll → low rising step to R_READY | §`launched/spiked/downT`-bounded; get-up ~.45–.75 proposal | Preserve no-flight rule, level-ground physics/terrain collision and invulnerability |
+| **R_PARRY_RIPOSTE** | parry palm still extended → rear foot darts in, elbow chambered → use next eligible current melee strike → diagonal recovery → R_READY | existing riposte clock | Only play when gameplay authorizes next melee |
+
+**All numbers for *new* auxiliary animations are design targets, not deployed measured results.** For existing attacks/follow-ups their timings reflect the inspected main code. On V165, relative keyframe positions should follow scaled actual beat duration/event time, not remain hardcoded .24s while the hit fires earlier.
+
+## 5. Transition choreography, priority and hitbox ownership
+
+### Shared start and exit anchor matrix
+| From | To | Handoff contract |
+|---|---|---|
+| approved grounded locomotion ↔ combat-ready | Crossfade only when not running a live attack; preserve feet/hips, do not overwrite the approved normal idle/run base globally |
+| K_READY → K_JAB → K_CROSS → K_HOOK/OVERHAND → K_RISING_HEEL | Each P4 *hands and load* is already next move's P1; blend from current sample, not one generic rest pose; if combo window expires, finish recovery to K_READY |
+| R_READY → R_PALM → R_ELBOW → R_TURNING_HEEL → R_RISING_NINJA | Angled low forward movement and returning palm are shared between beats; step and pivot do not restart from two planted square feet |
+| Ground/air launcher → authorized air pursuit → downward strike → authorized ground follow | Use existing `comboFollow`, `meteorWindow`, `attackTravelBudget` and `kickPend`. Track aerial entry/exit balance without resetting to free-flight cruise or granting Rin levitation |
+| any visible clip → actual damage, parry, guard break, knockdown | Interrupt source immediately by priority; capture its current final pose; use directional matched reaction; no stale queued strike pose or duplicate hit registration |
+| attack whiff / blocked → recovery | Follow-through appropriate to missed/resisted strike; no freeze/launch or magnetized foot movement. Reset only after current recovery window |
+| guard / attack → V100 normal flight or old boost/ground | Combat owner stops, old owners resume in their established priority. No persistent additive quaternion offsets |
+| on-screen contact moment → gameplay hit | Author metadata maps action-relative contact marker to *existing* attack `kickPend` event; attacker contact and target reaction are sampled on same simulation event even with 30/60/120fps and V165 |
+
+### Proposed clip contract / player (minimal compatible extension)
+
+Create versioned authored files e.g. `assets/animations/combat/kairo/*.pose.json` and `assets/animations/combat/rin/*.pose.json`, manifest `assets/animations/combat/combat-library.v1.json`. Draft values:
+- `characterId`, `modelSha256`, normalized SDK bone list/rest signature, VRM version and forward-axis mapping, optional native finger reference.
+- `clipId` and `gameplayAttackKind/stage/variant` (or guard/reaction state); role `idle/oneshot/transition`, duration, loop flag, base pose or state entry, target anchors.
+- Time-ordered normalized quaternion keys, interpolant choice (slerp first; per-segment easing/hold **explicit**, never blind linear for attack rhythm), optional bone masks.
+- Semantic metadata `anticipationTime`, `contactTime`, `followThroughTime`, `cancelStart/end`, `recoveryEnd`, `footContacts`, `airborne`, `rootMotion:"gameplay-only"`, `hitVolumeHint`. Hitbox source stays gameplay, NEVER animation file.
+- Quantization (30fps is sufficient for export; runtime interpolation at 30/60/120fps), normalized quaternion sign continuity and model SHA checks.
+- Offline converter from Pose Lab local absolute quaternion track to new **native-rig** sampling path inside existing V72 owner, or a deterministic verified world-bind delta bake compatible with its V72 sampler. Compare imported source and exported sampled pose numerically at each semantic event on real VRM before choosing. Do NOT feed absolute local quats directly into V72's Mixamo world-delta field.
+- Per-state priority: death/down/guard-break/stun/hurt > live guard/parry > live melee > blast/ability transition > dash/pursuit > grounded combat-ready > ordinary mobility. This is a proposed deterministic visual selection; honor existing actual game control locks and V100 flight/yield. The selected combat clip owns its masked bones **in the existing final path**, not as an extra `fighter.animate` wrapper.
+
+### Foot and contact policy
+- During grounded punches, keep support foot world contact from the existing gait/ground controller or a single authoritative foot-plant stage; permit limited hips and shoulder drive even if feet held. Pivots may rotate shoes on planted axes but no accidental skate.
+- During kicks, author support-leg, hip and chest quaternions as one pose, but keep gameplay locomotion at root. Leg position reaches target at exactly registered attack contact event; check 3D attacker-to-target strike segment and gameplay ellipsoid distance.
+- During air follow, legs can trail or tuck and change pose; pursuit velocity is already owned by `src/45-fighter-controller.js`, not animation root.
+- All damage, guard-chip/parry, launch, juggle, knockback and crater effects remain gated in `src/60-combat.js` exactly as today. Animation gets event/result data, not permission to apply additional damage.
+- When hitstop occurs, maintain the true authored contact pose for the current short hitstop interval, then continue from its existing progress. Avoid desync if the gameplay timer is paused.
+
+## 6. Fastest realistic production: four batches, not per-punch PRs
+
+### Batch A — foundations and **full Kairo grounded choreography**
+- Verify real Kairo normalized skeleton/rest/forward basis and authored ground neutral anchor; check Pose Lab existing test, source V87/legacy final-writer traces and V72 import/pack semantics.
+- Extend the **existing** Pose Lab/script only for faster key creation/selection, keyframe timing and semantic markers; create offline validation/pack adapter and a single preview-only combat switch (proposed `?combatAnim=choreo-v1`; NOT implemented).
+- Author K_READY, guard entry/hold/parry block, jab, cross, hook/overhand, kick launcher, ground-to-air blend, Kairo light/heavy hit anchors. Every move gets full 20-joint keys where relevant; not retimed Mixamo gestures masquerading as new moves.
+- Build Kairo first four beats as **one cohesive chunk**, offline numerical tests first, then one manual real-game WebGL combat review. No approved state changes.
+
+### Batch B — **Rin-native rig and full four-beat Shade Chain**
+- Measure and register actual `assets/rin.vrm` normalized joint/bind map and direction, perform a few safe pose roundtrips on actual Rin. **Only after pass**, expose character selection in the existing Pose Lab instead of creating another editor; isolate Kairo model hash/asset and Rin model hash separately.
+- Implement per-character motion library choose/decode **within existing V72 path**; ensure Kairo and Rin both receive only their own clips, regardless of who is player/enemy. Keep native ninja sprint unaltered.
+- Author R_READY, guard/parry, palm, elbow, heel/spin, rising launcher, shadow-dash handoff, Rin light/heavy reactions. One integrated four-beat Rin chain, not borrowed Kairo source maps. Use same original melee state contract/target gating.
+
+### Batch C — **complete aerial, defensive and recovery sets for both**
+- Kairo air-ready, air punch/elbow, Sky Uppercut, Meteor Kick, Falling Fist; Rin airborne hand/kick and existing authorized pursuit/downward chain with **no sustained flight**.
+- Both characters' hit direction variants, heavy stun, guard break, launch/stagger, spike, knockdown, grounded get-up, attack miss/block recovery and parry riposte.
+- Wire authored contact metadata to the existing attack clock and hit result, and blend recovery/clip-to-clip transitions through existing owner without extra procedural arm writer.
+
+### Batch D — **polish, integration, acceptance, rollback**
+- Full automated small tests on both characters and the matchups Kairo vs Rin / Rin vs Kairo (with either player/enemy ordering); 30/60/120FPS deterministic sampling and combo/hit/guard/whiff tests. Use existing test suites rather than new generic CI fanout.
+- **One** opt-in real-game browser capture script reusing existing Playwright/Three.js + test fixtures. Sample combat idle, four-beat ground chain, launch→aerial→meteor, guard/parry, hit/guard-break/knockdown/get-up, dash↔attack, flight/Boost↔attack across front/side/back. Start with low-cost pose metrics/stills and inspect internally; run full film **only when temporal smoothness cannot be resolved numerically**. No unsolicited visuals sent to player.
+- Preserve V164 opt-in data exactly, V156 Q default, V165 Boost/speed opt-in, Rin sprint, approved ground/jump, hitbox/physics/abilities. Preview-gated rollout of one **complete polished animation batch**. One player acceptance pass for the complete cohesive system, not approval per elbow rotation. Keep simple rollback to old V72/V87 path.
+- Make one PR per coherent logical batch at most (or combine A+B if feasible), no PR per punch, minimal new workflows. All authored source JSON/rig manifest/build instructions and actual acceptance evidence get committed to GitHub; update current-state/runbook after implementation.
+
+### Suggested exact authoring/testing loop
+1. Read current main contract, selected user's feedback, and manifest.
+2. Script/headless Pose Lab on actual Kairo/Rin with verified rig to author P0/P1/P2/P3/P4; work at original game contact timestamps. Export **full** pose JSON (20-quat keys, not runtime procedural overlays), validate SHA/bones/times/quaternion unit/sign.
+3. Offline sweep for FK geometry (head/neck, forearm/wrist, support knee/shoe, ankle, hand/heel contact line), quaternion angular discontinuity between key intervals, hip/chest twist, loop endpoint and key P4→next P0 continuity.
+4. Decode/roundtrip through existing V72 or verified new native branch; test gameplay `attackSerial/attackElapsed/kickPend`, guards/stuns, stage 0–6, one hit per real contact, V165 multipliers, interrupted steps, misses and AI.
+5. Preview opt-in in **real game**, test slow, normal, max V165 tempo and 30/60/120FPS; inspect phone-scale read and 3 camera angles *internally*. Iterate the **same batch**, preserving prior approved presets.
+6. Commit source+manifest+adapter+fast tests together; selective existing CI and **one** relevant manual WebGL review when needed. Never launch obsolete flight film for a combat-only code change. Preserve historic paths and approvals.
+
+## 7. Definition of done / unverified blockers
+
+**Art**: Kairo four-hit chain reads jab→weight-transfer cross→rotational hook/overhand→whole-body rising heel; Rin reads low palm→close elbow→angled spinning heel→rising kick; no obvious reset, robotic shoulder, body-part teleport or wrong-foot support. Each has distinct idle, guard/parry, ground/air, recover and directional reaction identity.
+
+**Functional**: Each live attack's P2 maps to true `kickPend` frame within one rendered frame at supported rates; blocked/whiffed attacks do not fake connection or free chase, no duplicate hit, correct stage/variant/character and no arm writer fighting the selected owner. V165 timing and gameplay collision remain authoritative. For guarded/hit-stop cases paired attacker/receiver holds contact coherently.
+
+**Technical**: Character-specific exact SHA/rest/20-bone contracts, quaternion finite/unit tests, allowed clip duration and time order, reference-pose roundtrip, 30/60/120 frame-rate and state interruption checks; renderer visual/geometry QA **must** pass before aesthetic approval. Metrics are acceptance targets, not previous passing observations.
+
+**Preservation**: No diffs to V164 JSON/generated flight, V156, V165 preview, Boost controller, physics/hitbox/abilities/UI; old combat playable when preview off; boot/default unchanged until approval.
+
+**Known unknowns**:
+- Need actual Rin native normalized basis/pose-lab compatibility verification; cannot assume Kairo rig SHA or shoulder orientation.
+- Need real WebGL inspection and per-bone writer trace for both fighters to discriminate observed flaws from possible layered conflicts. No such new render was run in this documentation phase.
+- Proposed standalone side kick, overhand elbow, sweep and other optional special moves are *asset design lanes*, not automatically wired moves or promises of extra gameplay inputs.
+- Need test exact contact path under V165 optional scaling, especially V72 vs `src/40` simultaneous playback; do not assert an invented actual on-screen frame.
+- No new animation clips, runtime adapter, Rin Pose Lab mode, preview flag or automated combat capture tool are implemented **yet**.
+
+## 8. Cross-chat instructions
+
+Continue directly from this document after reading `AGENTS.md` and `docs/ASSISTANT-CURRENT-STATE.md`. **Implement Batch A before editing old live gameplay**, verify source-vs-game contact and single final pose ownership. If the exact Rin authoring basis remains unknown, do not silently reuse Kairo keys; Batch B includes that verification. Preserve V164 B/B/B/B and V165 opt-in without rerendering flight for unrelated changes. Document implemented-vs-proposed status in GitHub after each batch. Do not ask user to perform developer exports, screenshot captures or tiny approval decisions.
