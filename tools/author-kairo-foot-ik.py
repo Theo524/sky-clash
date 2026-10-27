@@ -39,6 +39,36 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
         p.rotation_mode="QUATERNION"
     scene.frame_set(1)
     bpy.context.view_layer.update()
+    # A truly straight leg has no spare reach when the pelvis rotates.
+    # Pre-flex the SOURCE Blender knees by selecting the imported bone
+    # local-axis bend that SHORTENS the hip-to-ankle distance most.
+    # Export will be relative to this posed IK reference, so it will
+    # never replace Kairo's original in-game standing pose.
+    preflex={}
+    for side in ["left","right"]:
+        shin=pb[side+"LowerLeg"]
+        thigh=pb[side+"UpperLeg"]
+        start=(rig.matrix_world @ thigh.head)
+        initial=(rig.matrix_world @ shin.tail)
+        initialDistance=(initial-start).length
+        candidates=[]
+        for axis in [(1,0,0),(0,1,0),(0,0,1)]:
+            for sign in [-1,1]:
+                shin.rotation_quaternion=Quaternion(Vector(axis),
+                   math.radians(24*sign))
+                bpy.context.view_layer.update()
+                ankle=(rig.matrix_world @ shin.tail)
+                distance=(ankle-(rig.matrix_world @ thigh.head)).length
+                candidates.append((distance,axis,24*sign))
+        distance,axis,angle=min(candidates,key=lambda v:v[0])
+        assert initialDistance-distance>0.004,(
+          "Pre-flex knee has no reachable slack: "+side+" "+str(initialDistance-distance))
+        shin.rotation_quaternion=Quaternion(Vector(axis),math.radians(angle))
+        bpy.context.view_layer.update()
+        preflex[side]={"localAxis":axis,"angleDegrees":angle,
+          "initialHipAnkleLength":initialDistance,"preflexHipAnkleLength":distance}
+    scene.frame_set(1)
+    bpy.context.view_layer.update()
     # The IK end effector is the knee/shin tail, which is the ankle joint.
     # Targets are in fixed Blender WORLD coordinates, outside the armature.
     anchors={}
@@ -78,6 +108,15 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
         upper.rotation_quaternion=Quaternion(Vector((0,0,1)),math.radians(-angle*.35))
         upper.keyframe_insert(data_path="rotation_quaternion",frame=frame)
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT/"kairo-ik-foot-lock-test-only.blend"))
+    scene.frame_set(1)
+    bpy.context.view_layer.update()
+    # Capture evaluated SOURCE reference once. Blender's authored IK can
+    # have a useful flexed rest, but frame 1 must map to Kairo's CURRENT
+    # approved game standing, not the imported VRM0 T-pose or flex rig.
+    referenceWorld={
+      name:(rig.matrix_world @ pb[name].matrix).to_quaternion().normalized()
+      for name in bones
+    }
     frames=[]
     maxSourceAnkleError=0.0
     maxSourceSoleError=0.0
@@ -88,9 +127,8 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
         deltas=[]
         for name in bones:
             p=pb[name]
-            rest=(rig.matrix_world @ p.bone.matrix_local).to_quaternion().normalized()
             posed=(rig.matrix_world @ p.matrix).to_quaternion().normalized()
-            delta=(posed @ rest.inverted()).normalized()
+            delta=(posed @ referenceWorld[name].inverted()).normalized()
             deltas.append([float(v) for v in delta])
         anchorsNow={}
         for side in ["left","right"]:
@@ -106,6 +144,9 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
         frames.append({"frame":frame,"timeSeconds":(frame-1)/60,
           "hipAuthorDegrees":angle,"deltasWXYZ":deltas,
           "blenderIK":anchorsNow})
+    assert all(abs(frames[0]["deltasWXYZ"][i][0]-1)<0.00001 and
+               max(abs(v) for v in frames[0]["deltasWXYZ"][i][1:])<0.00001
+               for i in range(len(bones))),"Source reference first pose is not neutral"
     assert maxSourceAnkleError<0.0025,(
       "Blender two-leg ankle IK failed to hold both targets: "+str(maxSourceAnkleError))
     assert maxSourceSoleError<.15,(
@@ -116,7 +157,8 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
       "status":"SOURCE_IK_ONLY_TARGET_RUNTIME_UNVERIFIED",
       "modelSha256":MODEL_SHA,"rigSignature":MANIFEST["rigSignature"],
       "blenderVersion":".".join(map(str,bpy.app.version[:3])),
-      "sourceSpace":"evaluated-Blender-world-rest-relative-WXYZ",
+      "sourceSpace":"evaluated-Blender-world-posed-reference-relative-WXYZ",
+      "preflexCalibration":preflex,
       "bones":bones,"parents":MANIFEST["parents"],
       "sourceBoneNames":[mapping[name] for name in bones],
       "constraintType":"Blender 2-leg IK, ankle world targets, foot world rotation locks",
@@ -125,6 +167,7 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
       "frames":frames,
       "limitations":[
         "Blender target locks do not automatically mean VRM normalized geometry is planted",
+        "Blender IK begins from a flexed source baseline; frame-1 relative delta must be identity",
         "Only rotational hip shift, not physical hip translation, has been authored",
         "No game clip or fighters were modified; no professional combat motion is claimed",
         "Source is glTF import of original VRM0, and game applies normalized world/rest deltas"
