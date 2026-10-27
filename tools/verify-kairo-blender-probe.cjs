@@ -51,7 +51,7 @@ async function main(){
       names.length!==20||!p.v72StudioPack||!p.v81PoseTransitions||
       !window.SkyClashV100Animator)throw Error('Wrong Kairo model or animation state');
    const canvas=document.querySelector('canvas');
-   if(!(canvas?.getContext('webgl')||canvas?.getContext('webgl2')))
+   if(!(canvas?.getContext('webgl2')||canvas?.getContext('webgl')))
     throw Error('Actual Kairo WebGL required');
    scene.updateMatrixWorld(true);
    const clonePos=n=>n.getWorldPosition(new T.Vector3());
