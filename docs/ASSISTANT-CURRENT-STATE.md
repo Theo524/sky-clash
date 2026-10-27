@@ -4,6 +4,13 @@ This is the concise handoff. Inspect the current checkout and remote status befo
 
 ## Active full Storm Fist development — 2026-10-27
 
+**Published for review:** PR #141 merged as `054f6ae` and GitHub Pages
+deployment `40587098602` succeeded. Main's V66, ownership and startup checks
+also passed. The served Storm Fist JSON was downloaded over verified HTTPS
+and matches the committed asset byte-for-byte. Gameplay/visual tests below
+ran locally on that exact build; the optional live Chromium replay was
+blocked by this environment's proxy CA trust, not a game runtime error.
+
 The player says the published Blender jab looks good and explicitly authorizes
 the entire original fighting set, coordinated autonomous development, regular
 pushed checkpoints and publication for visual review after testing. This
