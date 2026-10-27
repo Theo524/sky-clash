@@ -38,3 +38,11 @@ See [rejection](KAIRO-BATCH-A-REJECTED-2026-10-27.md), [full blueprint](KAIRO-RI
 - Current V72 slot labels are confirmed from actual full gameplay traces, but this is **not per-bone final-writer attribution**. That remains the next engineering milestone before authoring replacement motions.
 
 The fixture intentionally never loads the rejected opt-in preview, never changes normal-game code, and never publishes altered gameplay assets.
+
+## Reproducible confirmed baseline (amended diagnostic)
+
+- [Run 40531018160](https://github.com/Theo524/sky-clash/actions/runs/40531018160) **PASSED** on commit `333bb5861f785db292bb2783d490146ac1600b80`; artifact **12745733034** was downloaded and the three JSON traces inspected.
+- **30 / 60 / 120 FPS:** 222 / 441 / 883 continuous frames; on all three, V72 selected **`punch1 → punch2 → punch3 → kick`** over the complete combo. The deterministic `attackSerial=0` fixture removed the previous run's artificial seed mismatch.
+- The genuine nearby jab registered **5.22 damage** at every tested FPS (rival HP 100 → 94.78); the full four-move distant sequence registered **no damage**. The unmodified game's `idle → jab → idle → guard → idle → four strikes → idle` selection states were actually observed.
+- The existing animation and standing pose were **not edited** and remain the production source of truth. This test establishes predictable baseline *state selection* and continuous VRM pose capture. It does **not** prove artistic quality, planted feet, correct old-layer per-bone ownership, or satisfactory visual motion. Those are still necessary before any replacement or playable preview.
+
