@@ -12,27 +12,55 @@ const A=(l,r)=>[l,r];
 const BASE={
  upper:A([.24,-.64,.33],[-.24,-.64,.33]),
  fore:A([.05,.54,.66],[-.05,.54,.66]),
- thigh:A([.14,-.97,.12],[-.14,-.97,-.10]),
- shin:A([.04,-.98,-.12],[-.04,-.98,-.12]),
+ // Knees visibly absorb weight: the first pass bent the rear knee only 5.95 degrees.
+ thigh:A([.14,-.90,.27],[-.14,-.94,-.20]),
+ shin:A([.04,-.93,-.30],[-.04,-.96,.10]),
  hip:-7,chest:5,spine:1,neck:0,head:0
 };
 const P={
  ready:{},
+ readyShift:{hip:-10,chest:3,spine:1,upper:A([.23,-.60,.38],[-.25,-.65,.31]),
+  fore:A([.04,.54,.68],[-.05,.56,.66]),thigh:A([.14,-.87,.31],[-.14,-.93,-.23])},
  jabLoad:{hip:-13,chest:3,upper:A([.18,-.61,.19],[-.24,-.64,.33]),fore:A([.03,.60,.52],[-.05,.54,.66]),thigh:A([.14,-.95,.20],[-.13,-.98,-.06])},
  jabContact:{hip:-19,chest:9,upper:A([.13,-.08,1],[-.24,-.65,.32]),fore:A([.03,.02,1],[-.05,.52,.69]),thigh:A([.15,-.96,.15],[-.14,-.98,-.09])},
  jabFollow:{hip:-13,chest:5,upper:A([.18,-.31,.72],[-.23,-.65,.33]),fore:A([.04,.22,.89],[-.05,.53,.66])},
  crossLoad:{hip:-24,chest:-8,upper:A([.22,-.53,.36],[-.29,-.62,.05]),fore:A([.06,.53,.65],[-.05,.58,.42]),thigh:A([.12,-.97,.18],[-.15,-.95,-.17])},
  crossContact:{hip:22,chest:14,upper:A([.22,-.64,.33],[-.13,-.10,1]),fore:A([.05,.54,.66],[-.03,.03,1]),thigh:A([.15,-.96,.08],[-.13,-.95,.23])},
  crossFollow:{hip:13,chest:9,upper:A([.22,-.64,.33],[-.18,-.28,.84]),fore:A([.05,.54,.66],[-.04,.18,.94])},
- hookLoad:{hip:-28,chest:-13,upper:A([.17,-.35,.55],[-.27,-.57,.25]),fore:A([.28,.35,.83],[-.05,.57,.63])},
- hookContact:{hip:28,chest:22,upper:A([.20,-.30,.95],[-.24,-.61,.30]),fore:A([-.30,.05,.97],[-.07,.57,.66]),thigh:A([.16,-.97,.04],[-.13,-.95,.18])},
- hookFollow:{hip:24,chest:17,upper:A([.19,-.50,.65],[-.23,-.64,.33]),fore:A([-.30,.18,.90],[-.05,.57,.65])},
- overhandLoad:{hip:-22,chest:-15,upper:A([.20,-.63,.33],[-.38,.50,.45]),fore:A([.06,.53,.66],[-.10,.56,.60])},
- overhandContact:{hip:25,chest:18,upper:A([.20,-.59,.37],[-.20,-.31,1]),fore:A([.06,.55,.68],[-.04,-.63,.83])},
- overhandFollow:{hip:20,chest:13,upper:A([.22,-.61,.35],[-.19,-.54,.84]),fore:A([.05,.55,.66],[-.04,-.61,.68])},
- kickChamber:{hip:-21,chest:12,upper:A([.36,-.52,.28],[-.35,-.48,.34]),fore:A([.06,.58,.63],[-.08,.52,.69]),thigh:A([.16,-.16,.98],[-.13,-.96,-.18]),shin:A([.10,-.85,-.30],[-.04,-.97,-.16])},
- kickContact:{hip:25,chest:-6,upper:A([.39,-.57,.35],[-.30,-.50,.30]),fore:A([.06,.51,.73],[-.08,.60,.62]),thigh:A([.15,-.12,1],[-.13,-.96,-.17]),shin:A([.10,.14,1],[-.04,-.98,-.12])},
- kickFollow:{hip:17,chest:-3,upper:A([.32,-.64,.28],[-.32,-.62,.31]),fore:A([.07,.48,.72],[-.08,.50,.71]),thigh:A([.14,-.45,.84],[-.13,-.96,-.16]),shin:A([.06,-.52,.78],[-.04,-.97,-.12])},
+ // A physically readable compact hook: elbow stays outboard, wrist arcs
+ // inward at contact. First pass accidentally became an extended palm shove.
+ hookLoad:{hip:-30,chest:-15,upper:A([.69,-.34,.47],[-.27,-.57,.25]),
+  fore:A([-.25,.15,.82],[-.05,.57,.63]),
+  thigh:A([.15,-.86,.35],[-.13,-.93,-.21])},
+ hookContact:{hip:29,chest:24,upper:A([.89,-.22,.39],[-.24,-.61,.30]),
+  fore:A([-.73,-.08,.68],[-.07,.57,.66]),
+  thigh:A([.16,-.84,.35],[-.13,-.90,-.24])},
+ hookFollow:{hip:23,chest:18,upper:A([.69,-.38,.57],[-.23,-.64,.33]),
+  fore:A([-.61,-.05,.75],[-.05,.57,.65])},
+ // Opposite rear-side overhand: compact high elbow before descending
+ // diagonally through contact, not a second generic straight cross.
+ overhandLoad:{hip:-25,chest:-15,upper:A([.20,-.63,.33],[-.62,.65,.43]),
+  fore:A([.06,.53,.66],[.31,.47,.82]),thigh:A([.15,-.85,.31],[-.14,-.90,-.27])},
+ overhandContact:{hip:29,chest:21,upper:A([.20,-.59,.37],[-.76,.20,.65]),
+  fore:A([.06,.55,.68],[.45,-.64,.61]),
+  thigh:A([.15,-.86,.32],[-.14,-.88,-.31])},
+ overhandFollow:{hip:23,chest:15,upper:A([.22,-.61,.35],[-.58,-.38,.65]),
+  fore:A([.05,.55,.66],[.33,-.69,.63])},
+ // Lead knee first chambers tightly near centreline; at the true
+ // stage-three contact the heel rises ABOVE hip height, not just a
+ // horizontal front-kick as in the first pass. Rear leg stays loaded.
+ kickChamber:{hip:-23,chest:13,upper:A([.32,-.53,.30],[-.29,-.47,.34]),
+  fore:A([.06,.58,.63],[-.08,.52,.69]),
+  thigh:A([.14,-.32,.93],[-.13,-.85,-.29]),
+  shin:A([.09,-.87,-.18],[-.04,-.88,-.31])},
+ kickContact:{hip:29,chest:-9,upper:A([.37,-.58,.34],[-.30,-.49,.31]),
+  fore:A([.06,.51,.73],[-.08,.60,.62]),
+  thigh:A([.15,-.09,.99],[-.13,-.84,-.31]),
+  shin:A([.06,.77,.64],[-.04,-.85,-.31])},
+ kickFollow:{hip:19,chest:-4,upper:A([.29,-.63,.28],[-.31,-.60,.33]),
+  fore:A([.07,.48,.72],[-.08,.50,.71]),
+  thigh:A([.14,-.39,.89],[-.13,-.85,-.29]),
+  shin:A([.06,-.33,.85],[-.04,-.85,-.31])},
  shield:{hip:-12,chest:3,upper:A([.24,-.45,.61],[-.24,-.48,.60]),fore:A([.09,.58,.78],[-.09,.54,.75])},
  parry:{hip:-18,chest:7,upper:A([.19,-.37,.80],[-.26,-.51,.54]),fore:A([.20,.18,1],[-.08,.56,.78])},
  lightHit:{hip:15,chest:-16,upper:A([.30,-.60,.24],[-.30,-.55,.20]),fore:A([.09,.65,.46],[-.10,.65,.45]),neck:-8,head:-6},
@@ -41,7 +69,7 @@ const P={
 function merged(id){const p=P[id];assert(p,'missing pose '+id);return {...BASE,...p};}
 const clips=[
  {id:'kairo-ready',slot:'combatReady',duration:1.4,contact:null,
-  keys:[[0,'ready'],[.35,'ready'],[.76,'ready'],[1.4,'ready']]},
+  keys:[[0,'ready'],[.35,'readyShift'],[.76,'readyShift'],[1.4,'ready']]},
  {id:'kairo-guard',slot:'guard',duration:.9,contact:null,
   keys:[[0,'ready'],[.14,'shield'],[.42,'shield'],[.9,'shield']]},
  {id:'kairo-parry',slot:'parry',duration:.30,contact:null,
@@ -130,6 +158,14 @@ const makeOps=id=>{const s=merged(id);return {
   const report={modelSha256:MODEL_SHA,character:'Kairo',clips:pack.clips.length,
    originalKeyPoses:Object.keys(P).length,geometry,
    objectivePass:true,renderedContactReviewPending:true};
+  // Wide anatomical tripwires based on the actual skinned VRM joints.
+  // These are NOT visual approval; a good-looking strike needs human QA.
+  assert(geometry.ready.rightKnee>12,'Rear support knee must visibly bend');
+  assert(geometry.ready.leftKnee>15,'Front support knee must visibly bend');
+  assert(geometry.hookContact.leftElbow>35&&geometry.hookContact.leftElbow<115,
+   'Hook must have a distinct articulated elbow');
+  assert(geometry.kickContact.leftKnee<75,
+   'Rising heel must extend by contact');
   fs.writeFileSync(path.join(OUTPUT,'combat-choreography.json'),JSON.stringify(pack,null,2));
   fs.writeFileSync(path.join(OUTPUT,'metrics.json'),JSON.stringify(report,null,2));
   assert.deepEqual(errors,[]);
