@@ -61,6 +61,18 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
                 distance=(ankle-(rig.matrix_world @ thigh.head)).length
                 candidates.append((distance,axis,24*sign))
         distance,axis,angle=min(candidates,key=lambda v:v[0])
+        print("KAIRO_REAL_SOURCE_LEG_GEOMETRY "+json.dumps({
+          "side":side,"thighLength":float(thigh.bone.length),
+          "shinLength":float(shin.bone.length),
+          "footLength":float(pb[side+"Foot"].bone.length),
+          "shinHeadWorld":list(rig.matrix_world @ shin.head),
+          "shinTailWorld":list(rig.matrix_world @ shin.tail),
+          "footHeadWorld":list(rig.matrix_world @ pb[side+"Foot"].head),
+          "ankleJointOffset":float((shin.tail-pb[side+"Foot"].head).length),
+          "sourceHipAnkleLength":float(initialDistance),
+          "bestPreflexHipAnkleLength":float(distance),
+          "candidateLengthDifferences":[round(initialDistance-c[0],7) for c in candidates]
+        }))
         assert initialDistance-distance>0.004,(
           "Pre-flex knee has no reachable slack: "+side+" "+str(initialDistance-distance))
         shin.rotation_quaternion=Quaternion(Vector(axis),math.radians(angle))
