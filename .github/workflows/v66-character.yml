@@ -185,6 +185,7 @@ jobs:
       - run: node tests/v64-arm-clearance.js
       - run: node tests/v65-anime-fighter.js
       - run: node tests/v66-character-source.js
+      - run: node tests/battle-record-persistence.js
       - run: node tests/v67-vrm0-hands.js
       - run: node tests/v68-humanoid-retarget.js
       - run: node tests/v69-motion-library.js

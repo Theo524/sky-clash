@@ -65,6 +65,7 @@ const Game = {
     window.addEventListener('blur', () => { if (typeof CharacterWorkshop==='undefined' || !CharacterWorkshop.active) this.pause(); });
     if ('ontouchstart' in window) document.body.classList.add('force-touch');
     if (typeof CharacterWorkshop !== 'undefined') CharacterWorkshop.init();
+    BattleRecord.render(this.player.characterId);
   },
   selectCharacter(id) {
     if(this.state!=='title') return;
@@ -87,6 +88,7 @@ const Game = {
     document.querySelectorAll('[data-hero]').forEach(el=>{const selected=el.dataset.hero===who.id;el.classList.toggle('selected',selected);el.setAttribute('aria-pressed',String(selected));});
     const tip=$('heroTip');if(tip)tip.textContent=who.id==='rin_sable'? 'RIN · Twin jumps · Shurikens · Shadow Volley · Shadow Step · Nightveil.': 'KAIRO · Storm Fist · Aether Breaker · Flight · Vanish · Stormheart.';
     this.setLock(false,false);CameraRig.snapBehind(this.player,this.enemy);
+    BattleRecord.render(who.id);
   },
   setLock(on, notify = true) {
     this.lockOn = on;
@@ -162,6 +164,7 @@ const Game = {
     $('dojoTools').classList.add('hidden');
     Dojo.show(false);Arena.setEnvironment('highland');this.setRivalPresent(true);
     $('titleScreen').classList.add('show');$('titleScreen').setAttribute('aria-hidden','false');
+    BattleRecord.render(this.player.characterId);
     Input.reset();
   },
   // hit counter: shows the current string of hits and its total damage
@@ -226,7 +229,14 @@ const Game = {
     if (res === 'win') m.pw++; if (res === 'lose') m.ew++;
     this.renderPips();
     if (m.pw >= m.need || m.ew >= m.need) {
-      this.state = 'over'; this.showPlayUI(false); Menus.showOver(m.pw >= m.need, m.need > 1 ? m.pw + '–' + m.ew : '');
+      this.state = 'over'; this.showPlayUI(false);
+      // Record a completed full match exactly once, never individual rounds,
+      // rematch starts, training, or dojo sparring.
+      if(this.mode==='fight'){
+        BattleRecord.finish(this.player.characterId,m.pw >= m.need);
+        BattleRecord.showMatch(this.player.characterId);
+      }
+      Menus.showOver(m.pw >= m.need, m.need > 1 ? m.pw + '–' + m.ew : '');
       return;
     }
     this.state = 'between'; this.betweenT = 1.9; $('controls').classList.add('hidden');
