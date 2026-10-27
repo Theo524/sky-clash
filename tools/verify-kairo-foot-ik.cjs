@@ -216,7 +216,10 @@ async function main(){
   const plantedInGame=maxDrift.leftFoot<lockThreshold&&maxDrift.rightFoot<lockThreshold&&
    maxDrift.leftSoleAngle<2&&maxDrift.rightSoleAngle<2;
   const report={schema:'sky-clash.blender-ik-to-game-footplant.v1',
-    status:plantedInGame?'IK_TRANSFER_FOOTLOCK_MEASURED':'IK_SOURCE_LOCKED_GAME_RETARGET_NEEDS_FOOT_SOLVER',
+    status:plantedInGame?'RAW_TRANSFER_FOOTLOCK_MEASURED':
+      correctionSummary.maxResidual<lockThreshold?
+      'OFFLINE_TARGET_IK_CORRECTED_NOT_VISUALLY_APPROVED':
+      'IK_SOURCE_LOCKED_TARGET_SOLVER_NEEDS_CALIBRATION',
     blenderVersion:clip.blenderVersion,modelSha256:clip.modelSha256,
     sourceIKSuccess:sourceOK,gameFootPlantWithinThreshold:plantedInGame,
     testOnly:true,thresholdSceneUnits:lockThreshold,maxDrift,
