@@ -53,14 +53,14 @@ for side in ("left","right"):
 # torso turn degrees, hip turn degrees.
 keys=[
 (1,1.,0.,0.,1.,0.,0.,0.,0.),
-(4,.79,.09,.04,.78,.09,.04,-2.,-.7),
-(8,.74,.12,.06,.76,.11,.05,-4.,-2.),
-(11,.72,.08,.05,.76,.11,.05,-6.,-3.),
-(13,.71,.17,.06,.76,.11,.05,-1.,1.),
-(15.4,.72,.30,.07,.76,.11,.05,8.,5.5),
-(16.5,.73,.26,.065,.76,.11,.05,7.,5.),
-(20,.74,.13,.055,.76,.11,.05,3.,2.),
-(25,.79,.09,.04,.78,.09,.04,0.,0.),
+(4,.72,.12,.17,.70,.11,.20,-2.,-.7),
+(8,.65,.16,.21,.65,.15,.24,-5.,-2.),
+(11,.63,.10,.19,.65,.15,.24,-7.,-3.5),
+(13,.65,.20,.19,.65,.15,.24,-1.,1.),
+(15.4,.68,.37,.19,.65,.15,.24,9.,6.),
+(16.5,.68,.32,.19,.65,.15,.24,7.,5.),
+(20,.66,.17,.21,.65,.15,.24,3.,2.),
+(25,.72,.12,.17,.70,.11,.20,0.,0.),
 (34,1.,0.,0.,1.,0.,0.,0.,0.)
 ]
 # Preserve existing source pelvis height calibration but not the older
@@ -70,7 +70,7 @@ pelvis=legs.pose.bones["IK_PELVIS"];pelvis.rotation_mode="QUATERNION"
 pelvisAxis=pelvis.bone.matrix_local.to_quaternion().inverted() @ Vector((0,0,1))
 torso=pb["TORSO"];torso.rotation_mode="QUATERNION"
 torsoAxis=torso.bone.matrix_local.to_quaternion().inverted() @ Vector((0,0,1))
-forward=Vector((0,1,0));up=Vector((0,0,1))
+forward=Vector((0,-1,0));up=Vector((0,0,1)) # +Z in actual Kairo game is forward
 for f,ls,ld,lh,rs,rd,rh,torsoDeg,hipDeg in keys:
     for side,(scale,depth,rise) in {"left":(ls,ld,lh),"right":(rs,rd,rh)}.items():
         marker=targets[side]

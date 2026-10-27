@@ -72,7 +72,7 @@ async function main(){
    // freeze CameraRig.update above, never change shipped camera defaults.
    const cam=s.camera;
    if(!cam?.isPerspectiveCamera)throw Error('Expected real game camera');
-   cam.position.set(p.pos.x+1.6,p.pos.y+1.65,p.pos.z-3.2);
+   cam.position.set(p.pos.x+1.45,p.pos.y+1.65,p.pos.z+3.2);
    cam.lookAt(p.pos.x,p.pos.y+1.12,p.pos.z);
    cam.fov=42;cam.updateProjectionMatrix();
    // Store unmodified Game references inside private page-only test state.
