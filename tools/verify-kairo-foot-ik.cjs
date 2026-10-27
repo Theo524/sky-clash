@@ -76,6 +76,58 @@ async function main(){
     nodes.forEach((n,i)=>n.quaternion.copy(baseline[i]));
     rig.update(0);scene.updateMatrixWorld(true);
    };
+   // Disposable target-skeleton correction: the Blender IK source and
+   // Kairo VRM0 rig have different link/bind geometry. Solve the measured
+   // foot world-position anchors on Kairo's REAL normalized thigh/shin
+   // chain *after* preserving all Blender output rotations in the trace.
+   // This is never installed as a game animation owner.
+   function correctedFoot(side){
+    const foot=get(side+'Foot'),goal=anchors[side+'Foot'];
+    const originalWorldSole=foot.getWorldQuaternion(new T.Quaternion());
+    const sourceLegRot={
+     thigh:get(side+'UpperLeg').quaternion.clone(),
+     shin:get(side+'LowerLeg').quaternion.clone()
+    };
+    let worstResidual=Infinity,iterations=0;
+    const moveJoint=(joint)=>{
+     scene.updateMatrixWorld(true);
+     const pivot=joint.getWorldPosition(new T.Vector3());
+     const end=foot.getWorldPosition(new T.Vector3()).sub(pivot);
+     const desired=goal.clone().sub(pivot);
+     if(end.lengthSq()<1e-9||desired.lengthSq()<1e-9)return;
+     const delta=new T.Quaternion().setFromUnitVectors(end.normalize(),desired.normalize());
+     const angle=delta.angleTo(new T.Quaternion());
+     if(angle>.23)
+      delta.slerpQuaternions(new T.Quaternion(),delta,.23/angle).normalize();
+     const current=joint.getWorldQuaternion(new T.Quaternion());
+     const wanted=delta.multiply(current).normalize();
+     const parent=joint.parent.getWorldQuaternion(new T.Quaternion());
+     joint.quaternion.copy(parent.invert().multiply(wanted)).normalize();
+     scene.updateMatrixWorld(true);
+    };
+    for(let i=0;i<45;i++){
+     iterations=i+1;
+     const leftError=foot.getWorldPosition(new T.Vector3()).distanceTo(goal);
+     worstResidual=leftError;
+     if(leftError<.0007)break;
+     moveJoint(get(side+'LowerLeg'));
+     moveJoint(get(side+'UpperLeg'));
+    }
+    // Restore the exact source WORLD shoe orientation while keeping the
+    // corrected ankle position. Foot bone rotations do not move its head.
+    const parent=foot.parent.getWorldQuaternion(new T.Quaternion());
+    foot.quaternion.copy(parent.invert().multiply(originalWorldSole)).normalize();
+    rig.update(0);scene.updateMatrixWorld(true);
+    const error=foot.getWorldPosition(new T.Vector3()).distanceTo(goal);
+    return {error,iterations,
+     shinCorrectionDegrees:T.MathUtils.radToDeg(
+       sourceLegRot.shin.angleTo(get(side+'LowerLeg').quaternion)),
+     thighCorrectionDegrees:T.MathUtils.radToDeg(
+       sourceLegRot.thigh.angleTo(get(side+'UpperLeg').quaternion)),
+     soleRestorationDegrees:T.MathUtils.radToDeg(
+       foot.getWorldQuaternion(new T.Quaternion()).angleTo(originalWorldSole))
+    };
+   }
    const frames=[];
    let maxAngleError=0;
    try{
@@ -105,9 +157,10 @@ async function main(){
      for(const name of ['leftFoot','rightFoot'])
       soleAngle[name]=T.MathUtils.radToDeg(
        get(name).getWorldQuaternion(new T.Quaternion()).angleTo(footRotBase[name]));
+     const corrected={left:correctedFoot('left'),right:correctedFoot('right')};
      frames.push({frame:frame.frame,hipAuthorDegrees:frame.hipAuthorDegrees,
       sourceIK:frame.blenderIK,positionDrift:position,soleOrientationDriftDegrees:soleAngle,
-      worldOrientationErrorRadians:error});
+      targetIkCorrections:corrected,worldOrientationErrorRadians:error});
     }
    }finally{restore();}
    return {realVRM:true,webGL:true,frames,maxAngleError,
@@ -126,6 +179,18 @@ async function main(){
    maxDrift.leftSoleAngle=Math.max(maxDrift.leftSoleAngle,sample.soleOrientationDriftDegrees.leftFoot);
    maxDrift.rightSoleAngle=Math.max(maxDrift.rightSoleAngle,sample.soleOrientationDriftDegrees.rightFoot);
   }
+  const correctionSummary={maxResidual:0,maxThighCorrectionDegrees:0,
+    maxShinCorrectionDegrees:0,maxSoleRestorationDegrees:0};
+  for(const sample of data.frames)for(const side of ['left','right']){
+   const c=sample.targetIkCorrections[side];
+   correctionSummary.maxResidual=Math.max(correctionSummary.maxResidual,c.error);
+   correctionSummary.maxThighCorrectionDegrees=Math.max(
+    correctionSummary.maxThighCorrectionDegrees,c.thighCorrectionDegrees);
+   correctionSummary.maxShinCorrectionDegrees=Math.max(
+    correctionSummary.maxShinCorrectionDegrees,c.shinCorrectionDegrees);
+   correctionSummary.maxSoleRestorationDegrees=Math.max(
+    correctionSummary.maxSoleRestorationDegrees,c.soleRestorationDegrees);
+  }
   const errorsUnexpected=errors.filter(e=>!e.includes(
    'Sky Clash V63: leaving V62 fallback active Error: V62 native master could not be found'));
   assert.deepEqual(errorsUnexpected,[]);
@@ -140,8 +205,11 @@ async function main(){
     blenderVersion:clip.blenderVersion,modelSha256:clip.modelSha256,
     sourceIKSuccess:sourceOK,gameFootPlantWithinThreshold:plantedInGame,
     testOnly:true,thresholdSceneUnits:lockThreshold,maxDrift,
+    targetIKCorrection:correctionSummary,
+    targetIKPositionWithinThreshold:correctionSummary.maxResidual<lockThreshold,
     ...data,limitations:[
       'The Blender source feet are locked; target game anatomy may still require real-VRM positional IK after rotation retargeting',
+      'Target-position CCD is only an offline VRM quaternion bake feasibility test and is NOT part of the live game',
       'No hip/root translation, toe planting, foot contact force, or combat visuals have been validated',
       'All tests run on an isolated existing-Kairo scene and restore exact approved idle',
       'No game or animation clip changes'
@@ -150,7 +218,8 @@ async function main(){
    JSON.stringify(report,null,2));
   console.log('KAIRO_BLENDER_IK_FOOTPLANT_DIAGNOSTIC '+JSON.stringify({
    sourceMaxFootError:clip.maxSourceAnkleError,gameFootPlantWithinThreshold:plantedInGame,
-   gameDrift:maxDrift,transferError:data.maxAngleError,restored:true
+   gameDrift:maxDrift,targetIKCorrection:correctionSummary,
+   transferError:data.maxAngleError,restored:true
   }));
  }finally{await browser.close();}
 }
