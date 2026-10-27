@@ -1,0 +1,54 @@
+name: Kairo Blender to VRM0 Rig Interchange — Offline Proof
+
+on:
+  pull_request:
+    paths:
+      - 'tools/author-kairo-blender-probe.py'
+      - 'tools/verify-kairo-blender-probe.cjs'
+      - '.github/workflows/kairo-blender-vrm-interchange.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blender-rig-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install real Blender CLI (no game changes)
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender >/tmp/sky-clash-blender-apt.log
+          blender --version | head -3
+      - name: Author one test-only armature movement on the actual Kairo VRM
+        run: |
+          blender --background --factory-startup --python tools/author-kairo-blender-probe.py
+          test -s visual-review-output/kairo-combat-foundation/blender-original-rig-probe.json
+      - name: Install real WebGL browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+          node --check tools/verify-kairo-blender-probe.cjs
+      - name: Start immutable game checkout for real Kairo SDK proof
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-blender-http.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --max-time 3 -fsS http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Transfer Blender evaluated world delta onto real Kairo normalized VRM
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/verify-kairo-blender-probe.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-blender-real-vrm-interchange-proof
+          path: visual-review-output/kairo-combat-foundation/blender*
+          retention-days: 21
