@@ -151,6 +151,8 @@ async function main(){
      for(let i=0;i<nodes.length;i++)
       error=Math.max(error,nodes[i].getWorldQuaternion(new T.Quaternion()).angleTo(expected[i]));
      maxAngleError=Math.max(maxAngleError,error);
+     const hipTurnDegrees=T.MathUtils.radToDeg(
+      get('hips').getWorldQuaternion(new T.Quaternion()).angleTo(worldBase[0]));
      const position={},soleAngle={};
      for(const name of Object.keys(anchors))
       position[name]=get(name).getWorldPosition(new T.Vector3()).distanceTo(anchors[name]);
@@ -159,6 +161,7 @@ async function main(){
        get(name).getWorldQuaternion(new T.Quaternion()).angleTo(footRotBase[name]));
      const corrected={left:correctedFoot('left'),right:correctedFoot('right')};
      frames.push({frame:frame.frame,hipAuthorDegrees:frame.hipAuthorDegrees,
+      hipTurnOnGameDegrees:hipTurnDegrees,
       sourceIK:frame.blenderIK,positionDrift:position,soleOrientationDriftDegrees:soleAngle,
       targetIkCorrections:corrected,worldOrientationErrorRadians:error});
     }
@@ -191,6 +194,18 @@ async function main(){
    correctionSummary.maxSoleRestorationDegrees=Math.max(
     correctionSummary.maxSoleRestorationDegrees,c.soleRestorationDegrees);
   }
+  // A GREEN pipeline result MUST protect the true Kairo final foot locks,
+  // not just the Blender source rig or mathematically matching quaternions.
+  // Limit how much the offline solver can re-author knees to conceal errors.
+  assert(data.frames.some(f=>f.hipTurnOnGameDegrees>3.5),
+    'No nontrivial authored hip turn reached the actual Kairo game rig');
+  assert(correctionSummary.maxResidual<.004,
+    'Actual Kairo foot-world IK correction must lock both planted shoes');
+  assert(correctionSummary.maxThighCorrectionDegrees<10 &&
+    correctionSummary.maxShinCorrectionDegrees<10,
+    'Retarget correction excessive; source Blender/VRM joint alignment not acceptable');
+  assert(correctionSummary.maxSoleRestorationDegrees<.1,
+    'Foot rotation must survive IK correction without twisting');
   const errorsUnexpected=errors.filter(e=>!e.includes(
    'Sky Clash V63: leaving V62 fallback active Error: V62 native master could not be found'));
   assert.deepEqual(errorsUnexpected,[]);
@@ -206,6 +221,7 @@ async function main(){
     sourceIKSuccess:sourceOK,gameFootPlantWithinThreshold:plantedInGame,
     testOnly:true,thresholdSceneUnits:lockThreshold,maxDrift,
     targetIKCorrection:correctionSummary,
+    targetIKBudgetDegrees:10,
     targetIKPositionWithinThreshold:correctionSummary.maxResidual<lockThreshold,
     ...data,limitations:[
       'The Blender source feet are locked; target game anatomy may still require real-VRM positional IK after rotation retargeting',
