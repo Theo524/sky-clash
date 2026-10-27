@@ -305,6 +305,7 @@
     releasingIdle:false,releasingExtra:false,releaseEntry:null,
     nativePreviewActive:false,nativePreviewTime:null,nativeClipId:null,
     nativeKey:null,nativeEntry:null,nativeEntryHips:null,nativeAge:0,nativeFeet:{},
+    nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
@@ -377,6 +378,14 @@
    state.nativeSupportCorrection=Math.max(state.nativeSupportCorrection,c.distanceTo(foot.getWorldPosition(new THREE.Vector3())));
   }
   fighter.animate=function(dt){
+   // Fighter instances survive rematches/dojo resets. A reset discards old
+   // world contact anchors and animation events even if guarding resumes
+   // before another idle frame has been drawn.
+   if(state.nativeEpoch!==this.nativeCombatEpoch){
+    state.nativeEpoch=this.nativeCombatEpoch;state.nativeKey=null;
+    state.nativeFeet={};state.nativeEntry=null;state.nativeEntryHips=null;
+    state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
+   }
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
    const outgoingHips=(priorNative||status.nativeCombatSet)&&state.bones?.[0]?state.bones[0].position.clone():null;
@@ -425,7 +434,13 @@
        Math.min(native.durationSeconds,Math.max(0,this.blockT||0));
       nativeKey=isParry?'parry:'+parry.serial:'guard';
      }else if(this.punchT>0&&this.stun<=0&&!state.nativePreviewCancelled){
-      native=set.clips[nativeAttackId(this)];
+      // Choose a directional finisher once per genuine attack. Steering
+      // during its recovery must not jump to another authored clip.
+      const attackSerial=Number(this.attackSerial||0);
+      if(state.nativeAttackSerial!==attackSerial){
+       state.nativeAttackSerial=attackSerial;state.nativeAttackClip=nativeAttackId(this);
+      }
+      native=set.clips[state.nativeAttackClip];
       if(native){
        nativeTime=Math.max(0,Math.min(1,(this.attackElapsed||0)/Math.max(.001,this.attackTotal||native.durationSeconds)))*native.durationSeconds;
        nativeKey='attack:'+Number(this.attackSerial||0);

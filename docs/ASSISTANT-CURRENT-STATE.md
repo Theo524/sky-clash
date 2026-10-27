@@ -2,6 +2,21 @@
 
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
+## Active full Storm Fist development — 2026-10-27
+
+The player says the published Blender jab looks good and explicitly authorizes
+the entire original fighting set, coordinated autonomous development, regular
+pushed checkpoints and publication for visual review after testing. This
+supersedes the older one-jab/private limits below; it does not authorize
+altering standing stance, flight, Rin or discarding the accepted jab.
+
+The continuation adds sixteen measured Blender clips around the unchanged
+jab and extends only V72/V81's existing native path. The full-set review entry
+is `?combatAnim=storm-fist-v1`; baseline and `blender-jab-v1` remain available.
+See [controls and reproduction](KAIRO-STORM-FIST-PLAYTEST.md).
+Current checkpoint: authoring and native integration complete; real-model
+transfer, full gameplay validation and publication are in progress.
+
 ## Authorized experimental jab publication
 
 The user explicitly requested publishing the latest working jab on the existing

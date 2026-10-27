@@ -2018,6 +2018,8 @@ class Fighter {
     this.kickPend = null; this.punchT = 0; this.attackTotal = 0; this.attackElapsed = 0; this.punchSide = 0; this.attackKind = 'punch'; this.combo = 0; this.lastMelee = -9;
     this.attackSerial = (this.attackSerial || 0) + 1; this.riposteT = 0; this.meleeQ = 0; this.meleeBuf = 0; this.superHitT = 0;
     this.blastT = 0; this.hitFlash = 0; this.t = Math.random() * 10;
+    this.nativeCombatReaction=null;this.nativeCombatParry=null;
+    this.nativeCombatEpoch=(this.nativeCombatEpoch||0)+1;
     this.moveIntent = new V3(); this.vert = 0; this.wasFlying = false; this.dustT = 0;
     this.lean = { pitch: 0, roll: 0 };
     this.acro = null; this.acroClock = 0; this.lastAcroAt = -20; this.landingVariant = 0;

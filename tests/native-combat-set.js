@@ -8,7 +8,7 @@ const studio=require('../js/v72-published-actions.js');
 const transitions=require('../js/v81-pose-transitions.js');
 const manifest=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json');
 const jab=require('../assets/animations/kairo/original-jab-playtest.v1.json');
-const timings={'original-cross':[.55,.24],'original-hook':[.68,.33],
+const timings={'roundhouse':[.87,.41],'side-kick':[.87,.41],'original-cross':[.55,.24],'original-hook':[.68,.33],
  'original-overhand':[.68,.33],'rising-kick':[.87,.41],'air-strike':[.87,.41],
  'sky-uppercut':[.57,.29],'sky-kick':[.63,.30],'falling-fist':[.81,.53],
  guard:[.60,0],parry:[.30,.075],'hit-light':[.34,.055],'hit-heavy':[.55,.055],
@@ -70,6 +70,12 @@ for(const fps of [30,60,120]){
   assert(Math.abs(f.v72StudioPack.nativePreviewTime-clip.impactSeconds)<1e-10,'Scaled canonical contact '+id);
   assert.equal(f.v81PoseTransitions.blend,1,'No competing full-body fade '+id);
  }
+ Object.assign(f,{attackKind:'kick',punchT:.87,attackTotal:.87,attackElapsed:.2,
+  attackAir:false,flying:false,attackSerial:f.attackSerial+1,forward:()=>new THREE.Vector3(0,0,1)});
+ f.moveIntent.set(1,0,0);f.animate(1/fps);assert.equal(f.v72StudioPack.nativeClipId,'roundhouse');
+ f.moveIntent.set(0,0,1);f.attackElapsed=.41;f.animate(1/fps);
+ assert.equal(f.v72StudioPack.nativeClipId,'roundhouse','Steering must not switch an active kick');
+ f.attackSerial++;f.animate(1/fps);assert.equal(f.v72StudioPack.nativeClipId,'side-kick');
  f.stun=.2;f.nativeCombatReaction={clipId:'hit-heavy',at:f.t,serial:1};f.animate(1/fps);
  assert.equal(f.v72StudioPack.nativeClipId,'hit-heavy');
  f.stun=0;f.animate(1/fps);assert.equal(f.v72StudioPack.nativePreviewActive,false,'Interrupted swing cannot resume');

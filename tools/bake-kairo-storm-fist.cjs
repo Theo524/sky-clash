@@ -176,7 +176,7 @@ async function main(){
    assert(report.maxPathError<.004,report.clipId+': joint path mismatch '+report.maxPathError);
    assert(report.worstKneeStep<=report.expectedKneeStep+.008,report.clipId+': knee trajectory mismatch');
   }
-  const {schema,status,characterId,modelSha256,rigSignature,bones,...jabClip}=jab;
+  const jabClip=jab;
   const pack={schema:'sky-clash.native-combat-set.v1',status:'EXPERIMENTAL_PLAYTEST',
    characterId:'kairo_venn',modelSha256:modelHash,rigSignature:mf.rigSignature,bones:mf.bones,
    sourceSha256:hash(sourceBytes),preservedJabSha256:hash(fs.readFileSync('assets/animations/kairo/original-jab-playtest.v1.json')),
