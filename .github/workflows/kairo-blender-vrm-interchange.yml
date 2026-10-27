@@ -9,6 +9,8 @@ on:
       - 'tools/verify-kairo-connected-joints.cjs'
       - 'tools/author-kairo-foot-ik.py'
       - 'tools/verify-kairo-foot-ik.cjs'
+      - 'tools/author-kairo-continuous-ik.py'
+      - 'tools/verify-kairo-continuous-ik.cjs'
       - '.github/workflows/kairo-blender-vrm-interchange.yml'
   workflow_dispatch:
 
@@ -53,6 +55,10 @@ jobs:
         run: |
           blender --background --factory-startup --python tools/author-kairo-foot-ik.py
           test -s visual-review-output/kairo-combat-foundation/blender-foot-ik-source.json
+      - name: Bake continuous 25-frame real Kairo Blender foot IK motion
+        run: |
+          blender --background --factory-startup --python tools/author-kairo-continuous-ik.py
+          test -s visual-review-output/kairo-combat-foundation/blender-continuous-foot-ik-source.json
       - name: Install real WebGL browser
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
@@ -63,6 +69,7 @@ jobs:
           node --check tools/verify-kairo-blender-probe.cjs
           node --check tools/verify-kairo-connected-joints.cjs
           node --check tools/verify-kairo-foot-ik.cjs
+          node --check tools/verify-kairo-continuous-ik.cjs
       - name: Start immutable game checkout for real Kairo SDK proof
         run: |
           python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-blender-http.log 2>&1 &
@@ -79,6 +86,9 @@ jobs:
       - name: Measure whether Blender IK foot locks survive real Kairo retarget
         env: {VISUAL_PORT: '8765'}
         run: node tools/verify-kairo-foot-ik.cjs
+      - name: Verify 30 60 120fps continuous Kairo VRM IK pose interpolation
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/verify-kairo-continuous-ik.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
