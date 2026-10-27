@@ -2,7 +2,9 @@
  * changing gameplay controls, movement, Kairo/Rin animations, or dojo.
  */
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
 const module=fs.readFileSync('src/82-battle-record.js','utf8');
 const game=fs.readFileSync('src/95-game.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
