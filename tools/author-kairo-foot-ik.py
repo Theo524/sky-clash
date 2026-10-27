@@ -39,75 +39,37 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
         p.rotation_mode="QUATERNION"
     scene.frame_set(1)
     bpy.context.view_layer.update()
-    # A truly straight leg has no spare reach when the pelvis rotates.
-    # Pre-flex the SOURCE Blender knees by selecting the imported bone
-    # local-axis bend that SHORTENS the hip-to-ankle distance most.
-    # Export will be relative to this posed IK reference, so it will
-    # never replace Kairo's original in-game standing pose.
-    preflex={}
-    for side in ["left","right"]:
-        shin=pb[side+"LowerLeg"]
-        thigh=pb[side+"UpperLeg"]
-        start=(rig.matrix_world @ thigh.head)
-        initial=(rig.matrix_world @ shin.tail)
-        initialDistance=(initial-start).length
-        candidates=[]
-        for axis in [(1,0,0),(0,1,0),(0,0,1)]:
-            for sign in [-1,1]:
-                shin.rotation_quaternion=Quaternion(Vector(axis),
-                   math.radians(24*sign))
-                bpy.context.view_layer.update()
-                ankle=(rig.matrix_world @ shin.tail)
-                distance=(ankle-(rig.matrix_world @ thigh.head)).length
-                candidates.append((distance,axis,24*sign))
-        distance,axis,angle=min(candidates,key=lambda v:v[0])
-        print("KAIRO_REAL_SOURCE_LEG_GEOMETRY "+json.dumps({
-          "side":side,"thighLength":float(thigh.bone.length),
-          "shinLength":float(shin.bone.length),
-          "footLength":float(pb[side+"Foot"].bone.length),
-          "shinHeadWorld":list(rig.matrix_world @ shin.head),
-          "shinTailWorld":list(rig.matrix_world @ shin.tail),
-          "footHeadWorld":list(rig.matrix_world @ pb[side+"Foot"].head),
-          "ankleJointOffset":float((shin.tail-pb[side+"Foot"].head).length),
-          "sourceHipAnkleLength":float(initialDistance),
-          "bestPreflexHipAnkleLength":float(distance),
-          "candidateLengthDifferences":[round(initialDistance-c[0],7) for c in candidates]
-        }))
-        assert initialDistance-distance>0.004,(
-          "Pre-flex knee has no reachable slack: "+side+" "+str(initialDistance-distance))
-        shin.rotation_quaternion=Quaternion(Vector(axis),math.radians(angle))
-        bpy.context.view_layer.update()
-        preflex[side]={"localAxis":axis,"angleDegrees":angle,
-          "initialHipAnkleLength":initialDistance,"preflexHipAnkleLength":distance}
-    scene.frame_set(1)
-    bpy.context.view_layer.update()
-    # The IK end effector is the knee/shin tail, which is the ankle joint.
-    # Targets are in fixed Blender WORLD coordinates, outside the armature.
+    # IMPORTANT: the imported VRM GLB does NOT use the Blender shin.tail
+    # as its ankle! Measured shin.tail is ~0.72 units from foot.head.
+    # IK must follow the actual foot bone and pin its end-effector, while
+    # also asking the solver to preserve sole orientation.
     anchors={}
     for side in ["left","right"]:
-        lower=pb[side+"LowerLeg"]
+        shin=pb[side+"LowerLeg"]
         foot=pb[side+"Foot"]
-        ankle=(rig.matrix_world @ lower.tail).copy()
-        foot_matrix=rig.matrix_world @ foot.matrix
-        marker=bpy.data.objects.new("SKY_TEST_"+side+"_ANKLE",None)
+        ankle=(rig.matrix_world @ foot.head).copy()
+        foot_tip=(rig.matrix_world @ foot.tail).copy()
+        foot_matrix=(rig.matrix_world @ foot.matrix).copy()
+        print("KAIRO_REAL_FOOT_CHAIN_GEOMETRY "+json.dumps({
+          "side":side,
+          "thighLength":float(pb[side+"UpperLeg"].bone.length),
+          "shinLength":float(shin.bone.length),
+          "footLength":float(foot.bone.length),
+          "shinTailAnkleSeparation":float((shin.tail-foot.head).length),
+          "ankle":list(ankle),"footTip":list(foot_tip)}))
+        marker=bpy.data.objects.new("SKY_TEST_"+side+"_FOOT_END",None)
         scene.collection.objects.link(marker)
-        marker.location=ankle
-        ik=lower.constraints.new("IK")
+        marker.location=foot_tip
+        marker.rotation_mode="QUATERNION"
+        marker.rotation_quaternion=foot_matrix.to_quaternion()
+        ik=foot.constraints.new("IK")
         ik.target=marker
-        ik.chain_count=2
-        ik.iterations=80
+        ik.chain_count=3   # foot -> shin -> thigh, NOT shin.tail
+        ik.iterations=160
         ik.use_stretch=False
-        # The separate foot orientation anchor fixes the planted toe/sole.
-        orientation=bpy.data.objects.new("SKY_TEST_"+side+"_SOLE",None)
-        scene.collection.objects.link(orientation)
-        orientation.rotation_mode="QUATERNION"
-        orientation.rotation_quaternion=foot_matrix.to_quaternion()
-        orientation.location=(rig.matrix_world @ foot.head)
-        foot_rot=foot.constraints.new("COPY_ROTATION")
-        foot_rot.target=orientation
-        foot_rot.target_space="WORLD"
-        foot_rot.owner_space="WORLD"
-        anchors[side]={"ankle":ankle,"soleRotation":foot_matrix.to_quaternion()}
+        ik.use_rotation=True
+        anchors[side]={"ankle":ankle,"tip":foot_tip,
+                       "soleRotation":foot_matrix.to_quaternion()}
     bpy.context.view_layer.update()
     # Explicit hip and upper body weighting samples. No model/root translation;
     # only 20 mapped joints will travel through the future converter.
@@ -144,7 +106,7 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
             deltas.append([float(v) for v in delta])
         anchorsNow={}
         for side in ["left","right"]:
-            ankle=(rig.matrix_world @ pb[side+"LowerLeg"].tail)
+            ankle=(rig.matrix_world @ pb[side+"Foot"].head)
             err=(ankle-anchors[side]["ankle"]).length
             sole=(rig.matrix_world @ pb[side+"Foot"].matrix).to_quaternion().normalized()
             soleAngle=math.degrees(sole.rotation_difference(anchors[side]["soleRotation"]).angle)
@@ -170,19 +132,19 @@ with tempfile.TemporaryDirectory(prefix="kairo-foot-ik-") as tmp:
       "modelSha256":MODEL_SHA,"rigSignature":MANIFEST["rigSignature"],
       "blenderVersion":".".join(map(str,bpy.app.version[:3])),
       "sourceSpace":"evaluated-Blender-world-posed-reference-relative-WXYZ",
-      "preflexCalibration":preflex,
+      "ikEndEffector":"foot.tail with chain foot -> shin -> thigh",
       "bones":bones,"parents":MANIFEST["parents"],
       "sourceBoneNames":[mapping[name] for name in bones],
-      "constraintType":"Blender 2-leg IK, ankle world targets, foot world rotation locks",
+      "constraintType":"Blender 3-bone foot-tail IK with fixed world position and orientation",
       "maxSourceAnkleError":maxSourceAnkleError,
       "maxSourceSoleAngularErrorDegrees":maxSourceSoleError,
       "frames":frames,
       "limitations":[
         "Blender target locks do not automatically mean VRM normalized geometry is planted",
-        "Blender IK begins from a flexed source baseline; frame-1 relative delta must be identity",
+        "Blender IK holds actual foot end effector; frame-1 source-relative delta must be identity",
         "Only rotational hip shift, not physical hip translation, has been authored",
         "No game clip or fighters were modified; no professional combat motion is claimed",
-        "Source is glTF import of original VRM0, and game applies normalized world/rest deltas"
+        "Source is glTF import of original VRM0, and game applies normalized world baseline-relative deltas"
       ]}
     (OUT/"blender-foot-ik-source.json").write_text(json.dumps(payload,indent=2)+"\n")
     print("PASS KAIRO_BLENDER_SOURCE_ANKLE_IK "+json.dumps({
