@@ -42,9 +42,25 @@ in the 60/120Hz combo and remains unfinished. Exact fist/mesh contact
 and moving-target heights also need player review. Do not claim zero
 sliding, universal collision clearance or aesthetic approval.
 
-Review URL remains `?combatAnim=storm-fist-v1`; normal combat defaults
-are unchanged. PR #142 contains the correction. Verify final CI/Pages
-and the served pack before claiming it is published.
+**Published:** PR [#142](https://github.com/Theo524/sky-clash/pull/142)
+merged as `1c7d38edbd75fd6bb1a25ff915b8c5e137ca3f58`. Pages run
+[40601515581](https://github.com/Theo524/sky-clash/actions/runs/40601515581)
+succeeded. The served pack over verified HTTPS matches the tested asset
+byte-for-byte (SHA256 `d0bef00f029be87b21a3f93e5b74417bbb306d54a24fb99a5076b2884c4c0277`),
+and the live entry has `stormFist=2`. All four PR checks and main's
+character, ownership and startup checks passed. No new live-browser claim:
+real WebGL gameplay/visual checks ran locally on the identical code/assets.
+
+Final gameplay report `visual-review-output/kairo-kungfu-publish/summary.json`
+is PASS with zero browser errors/failures at 30/60/120Hz. It covers full
+seven-hit ground-to-air chains, alternate overhand/finishers, defense,
+directional reactions, whiff, cancellation and eight real-hit handoffs
+per rate. All three final arm audits report zero findings.
+
+Review: https://theo524.github.io/sky-clash/?combatAnim=storm-fist-v1
+Normal combat defaults are unchanged. Next action: player visual review of
+the corrected set, then targeted foot-support/contact polish; retain this
+source pipeline and do not reintroduce wrist-world locking.
 
 ## Earlier full Storm Fist publication — superseded arm verdict
 

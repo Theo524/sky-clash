@@ -37,6 +37,16 @@ knuckle contact. The existing approximately 0.12-unit support-foot jump in
 `combatAnim=storm-fist-v1`; normal stance, flight, Rin, models, hitboxes and
 attack clocks stay protected. Only the player can approve the aesthetics.
 
+Release evidence: PR #142 merged as `1c7d38edbd75fd6bb1a25ff915b8c5e137ca3f58`.
+Final real-game 30/60/120Hz replay and all three arm audits PASS. All four
+PR checks and main's character/ownership/startup checks PASS. Pages run
+40601515581 succeeded; verified-HTTPS download equals the tested 17-clip
+pack (SHA256 `d0bef00f029be87b21a3f93e5b74417bbb306d54a24fb99a5076b2884c4c0277`)
+and the live entry carries `stormFist=2`. Local WebGL used identical code
+and assets; no fresh live-browser replay is claimed. Review URL above
+remains the same; next work is player feedback and the stated foot/contact
+limits.
+
 ## Critical 2026-10-26 user feedback: rejected flight and real VRM Pose Lab foundation
 
 User says V155 ruined flight further and twisted the character, following earlier rejections of V153 stick/plank flying and both old/V154 Boost animations. This is **not a request to increase lean or add V156 corrective geometry**. The player explicitly wants a better authoring process: one that builds actual keyframe motion on the real character, not automatic solver guesses. Admit that `js/v142-hover-keyframes.js` etc stored parametric targets that still depended on V100 world-bone correction; it was NOT a full rig manual editor.
