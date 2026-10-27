@@ -68,6 +68,13 @@ async function main(){
    const basePos=Object.fromEntries(['leftFoot','rightFoot','leftHand',
     'rightHand','hips','head'].map(n=>[
       n,h.getNormalizedBoneNode(n).getWorldPosition(new T.Vector3()).toArray()]));
+   // Close, review-only camera independent of the approved camera system:
+   // freeze CameraRig.update above, never change shipped camera defaults.
+   const cam=s.camera;
+   if(!cam?.isPerspectiveCamera)throw Error('Expected real game camera');
+   cam.position.set(p.pos.x+1.6,p.pos.y+1.65,p.pos.z-3.2);
+   cam.lookAt(p.pos.x,p.pos.y+1.12,p.pos.z);
+   cam.fov=42;cam.updateProjectionMatrix();
    // Store unmodified Game references inside private page-only test state.
    window.__kairoJabProof={g,p,T,s,rig,h,scene,names,nodes,saved,world,basePos};
    const menu=document.getElementById('titleScreen');
@@ -160,7 +167,8 @@ async function main(){
    },{t,source});
   }
   const all=[];
-  for(const fps of [30,60,120]){
+  const fpsList=process.env.KAIRO_PREVIEW_ONLY==='1'?[60]:[30,60,120];
+  for(const fps of fpsList){
    const samples=[];
    for(let n=0;n<=Math.round(fps*.55);n++){
     const t=Math.min(.55,n/fps);
@@ -189,6 +197,7 @@ async function main(){
     maxLegCorrection,maxTransfer,worstKneeStep,contact,samples});
   }
   function vecInJs(x){return x;}
+  assert.deepEqual(all.map(x=>x.fps),fpsList);
   for(const pass of all){
    assert(pass.maxTransfer<1e-5);
    assert(pass.maxFootResidual<.004,'Foot IK drift too high');
@@ -209,6 +218,19 @@ async function main(){
    shots.push({phase:name,time,file,leftHandDisplacement:r.leftHandDisplacement,
     footResidual:Math.max(r.corrections.left.residual,r.corrections.right.residual)});
   }
+  // Orthogonal side camera makes elbow extension and fist direction
+  // inspectable; never alters the character pose or game camera code.
+  await apply(.24);
+  await page.evaluate(()=>{
+   const {p,s}=window.__kairoJabProof;
+   const cam=s.camera;
+   cam.position.set(p.pos.x+3.25,p.pos.y+1.65,p.pos.z+0.4);
+   cam.lookAt(p.pos.x,p.pos.y+1.12,p.pos.z);
+   cam.updateProjectionMatrix();
+  });
+  await page.waitForTimeout(90);
+  await page.screenshot({path:path.join(OUT,'kairo-jab-private-contact-side.png')});
+  shots.push({phase:'contact-side',time:.24,file:'kairo-jab-private-contact-side.png'});
   const final=await page.evaluate(()=>{
    const st=window.__kairoJabProof;
    const {rig,scene,nodes,saved,T,h,basePos}=st;
