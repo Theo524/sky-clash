@@ -28,3 +28,13 @@ Workflow: `.github/workflows/kairo-combat-foundation.yml`, scoped to the diagnos
 - Historic user feedback: the published Batch A ruined standing/fighting idle and either looked like old Mixamo or looked horrid. This is explicitly rejected; do not offer its old preview URL.
 
 See [rejection](KAIRO-BATCH-A-REJECTED-2026-10-27.md), [full blueprint](KAIRO-RIN-COMBAT-ANIMATION-REDESIGN-BLUEPRINT-2026-10-27.md), and [animation ownership rules](ANIMATION-OWNERSHIP-CONTRACT.md).
+
+## First real-game baseline evidence — 27 October 2026
+
+- **[Diagnostic GitHub Actions run 40528618132](https://github.com/Theo524/sky-clash/actions/runs/40528618132) PASSED** with real Kairo model SHA `775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72`. Captured artifact `12745034913`: full final 20-bone local quaternion and world hand/foot/hip traces at **30fps (222 frames), 60fps (441 frames), 120fps (883 frames)**, original V72/V81/V100 state labels, actual attacker/defender health, canonical Kairo contact clocks and action selections.
+- On the live targeted jab, the enemy's HP fell **100 → 94.78** at all three frame rates; after idle recovery, guard and guard release were observed. The four actual out-of-range combo attempts remained **100 HP**, proving recorded whiffs rather than damage through distance.
+- **Critical test-harness correction:** The production fighter `reset()` deliberately increments `attackSerial` rather than returning it to zero. The initial sequential 30/60/120 capture therefore used different attack-serial seeds: combo beat two was assigned `punch1` at 30/120 FPS and `punch2` at 60 FPS. **This is NOT evidence of a frame-rate bug in the game.** The fixture now explicitly seeds `attackSerial=0` and `comboCycle=0` on each scenario reset and asserts the live **punch1 → punch2 → punch3 → kick** V72 sequence after confirming an actual hit and actual whiffs. Re-run required on the amended script.
+- Initial per-frame maximum horizontal joint deltas while the physics root barely moves (under 0.015 scene units/frame) were **0.268 / 0.139 / 0.165 scene units** at 30/60/120 FPS, respectively; the peak was the **moving right foot of the kick** and is NOT proof of planted-foot sliding. The current trace lacks IK/support-foot annotations, frame-duration normalization, and joint-motion intent; no artistic or planted-foot quality claim can be made from these peak numbers.
+- Current V72 slot labels are confirmed from actual full gameplay traces, but this is **not per-bone final-writer attribution**. That remains the next engineering milestone before authoring replacement motions.
+
+The fixture intentionally never loads the rejected opt-in preview, never changes normal-game code, and never publishes altered gameplay assets.

@@ -37,6 +37,22 @@ function verify(trace,fps){
   'Jab must progress through live gameplay, not a frozen pose');
  assert(trace.samples.some(x=>x.stage==='return-to-idle'&&x.punchT<=0),
   'Full attack-to-standing recovery is mandatory');
+
+ const jab=trace.samples.filter(x=>x.stage==='jab');
+ assert(jab[0].foeHp>jab[jab.length-1].foeHp,
+  'The live grounded opening jab must actually damage the nearby rival');
+ assert(trace.samples.filter(x=>/^combo-[1-4]$/.test(x.stage))
+  .every(x=>x.foeHp===100),'The out-of-range combo must actually whiff');
+ // Verify the actual final V72 slot in continuous live gameplay, not only
+ // attackKind metadata. Using a stable attackSerial seed prevents confusing
+ // existing per-attack alternation with nondeterminism across FPS runs.
+ for(const [stage,slot] of [['combo-1','punch1'],['combo-2','punch2'],
+                            ['combo-3','punch3'],['combo-4','kick']]){
+  const selected=trace.samples.filter(x=>x.stage===stage&&
+    x.punchT>.04&&x.attackElapsed>.08).map(x=>x.v72);
+  assert(selected.includes(slot),
+   'Unexpected native legacy V72 slot for '+stage+': '+JSON.stringify([...new Set(selected)]));
+ }
  const guard=trace.samples.filter(x=>x.stage==='guard');
  assert(guard.some(x=>x.blocking===true),'Must activate actual guard gameplay');
  assert(trace.samples.every(x=>x.q.length===20&&
@@ -108,6 +124,10 @@ async function main(){
      p.stun=0;p.launched=false;p.downT=0;p.punchT=0;
      p.hp=100;e.hp=100;p.invulnT=0;e.invulnT=0;
      p.t=10;e.t=10;p.lastMelee=-20;
+     // The production reset() intentionally increments this serial. Without
+     // pinning it, running FPS scenarios one after another alternates
+     // punch1/punch2 by reset count and creates a FALSE frame-rate finding.
+     p.attackSerial=0;p.comboCycle=0;
      p.combo=0;p.meleeCd=0;p.comboFollow=null;
      game.Game.mode='dojo';game.Game.dojoRival=true;
      // Run the original game without title input and without AI randomness.
