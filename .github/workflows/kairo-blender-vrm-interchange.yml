@@ -5,6 +5,8 @@ on:
     paths:
       - 'tools/author-kairo-blender-probe.py'
       - 'tools/verify-kairo-blender-probe.cjs'
+      - 'tools/author-kairo-connected-joints.py'
+      - 'tools/verify-kairo-connected-joints.cjs'
       - '.github/workflows/kairo-blender-vrm-interchange.yml'
   workflow_dispatch:
 
@@ -41,6 +43,10 @@ jobs:
         run: |
           blender --background --factory-startup --python tools/author-kairo-blender-probe.py
           test -s visual-review-output/kairo-combat-foundation/blender-original-rig-probe.json
+      - name: Author two isolated test-only 20-joint source profiles
+        run: |
+          blender --background --factory-startup --python tools/author-kairo-connected-joints.py
+          test -s visual-review-output/kairo-combat-foundation/blender-connected-joints-source.json
       - name: Install real WebGL browser
         run: |
           npm install --no-save --no-package-lock playwright@1.56.1
@@ -49,6 +55,7 @@ jobs:
             npx playwright install-deps chromium
           fi
           node --check tools/verify-kairo-blender-probe.cjs
+          node --check tools/verify-kairo-connected-joints.cjs
       - name: Start immutable game checkout for real Kairo SDK proof
         run: |
           python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-blender-http.log 2>&1 &
@@ -59,6 +66,9 @@ jobs:
       - name: Transfer Blender evaluated world delta onto real Kairo normalized VRM
         env: {VISUAL_PORT: '8765'}
         run: node tools/verify-kairo-blender-probe.cjs
+      - name: Verify connected Blender joint transfer and measure shoe drift
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/verify-kairo-connected-joints.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
