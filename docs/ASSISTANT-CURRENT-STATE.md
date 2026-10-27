@@ -2,6 +2,43 @@
 
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
+## Storm Fist quality overhaul — active work
+
+The player rejects kung-fu-v2 for stiff punches, poor kicks, weak power/flow.
+Their latest request authorizes a coordinated full combat choreography and
+feel overhaul, original movement, autonomous iteration, preserved stance/
+flight/models/baseline controls, and a new Pages review flag plus actual
+continuous gameplay footage once ready. Numeric passes are insufficient.
+
+Base is main `50662a2`, including PR #142. Remote rollback tag
+`rollback/pre-storm-fist-v3-2026-10-27` preserves that exact baseline.
+Active branch: `feature/storm-fist-quality-v3`. Checkpoint `0c2bafa` is
+pushed, not published and not aesthetically finished. New flag is
+`?combatAnim=storm-fist-v3`; old v1/v2 and standalone jab remain intact.
+
+The existing Blender rig now supports independent pelvis/chest timing,
+explicit keyed feet, sole rotations, knee planes and shoulder protraction.
+Nineteen clips have authored anticipation/arcs/recoil: seventeen revised
+moves plus compact launch/spike victim reactions. Four ground punch
+phrases have distinct timing and hip drive; four kick phrases have explicit
+support pivots, chambers and different striking surfaces. The first actual
+review still found the roundhouse too frontal/upright; a second silhouette
+pass is in progress. Do not call this professional or complete yet.
+
+V72 remains the native owner; V81 now blends native pelvis exit and uses
+a separate incoming quaternion during v3 transitions. Existing feel systems
+have scoped faster beat timing, explicit buffered links at 78% only after
+confirmed ground hits, compact contact effects, original synthesized sound,
+small camera impulses and short frame-rate-aware hit-stop. Baseline/Rin and
+whiff recovery pass focused tests. Source first-pass native arm audit passes;
+complete current real gameplay and final visual review remain pending.
+
+Review tooling now records 30fps continuous motion (old films were only
+7.5fps), honors hit-stop, uses real input queues, and can mux actual original
+game audio. Baseline movie and first galleries live under ignored
+`visual-review-output/storm-fist-*`; source tools reproduce them. Final
+footage and release evidence must be preserved durably before closing.
+
 ## Kung fu arm correction — 2026-10-27
 
 The player rejects all fighting arms, including the jab: weird shapes and

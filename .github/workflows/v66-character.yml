@@ -18,6 +18,8 @@ on:
       - 'js/v72-*'
       - 'assets/animations/gameplay/**'
       - 'assets/animations/kairo/storm-fist.v1.json'
+      - 'assets/animations/kairo/storm-fist.v3.json'
+      - 'tests/storm-fist-feel.js'
       - 'assets/animations/reference/kairo-combat-anchor.v1.json'
       - 'tools/verify-kairo-arm-clearance.cjs'
       - 'tests/v71-*.js'
@@ -85,6 +87,8 @@ on:
       - 'js/v72-*'
       - 'assets/animations/gameplay/**'
       - 'assets/animations/kairo/storm-fist.v1.json'
+      - 'assets/animations/kairo/storm-fist.v3.json'
+      - 'tests/storm-fist-feel.js'
       - 'assets/animations/reference/kairo-combat-anchor.v1.json'
       - 'tools/verify-kairo-arm-clearance.cjs'
       - 'tests/v71-*.js'
@@ -228,6 +232,9 @@ jobs:
       - run: node tests/native-combat-private-preview.js
       - run: node tests/native-combat-playtest-loader.js
       - run: node tests/native-combat-set.js
+      - run: NATIVE_COMBAT_SET=assets/animations/kairo/storm-fist.v3.json node tests/native-combat-set.js
+      - run: node tests/storm-fist-feel.js
+      - run: node tools/verify-kairo-arm-clearance.cjs --pack assets/animations/kairo/storm-fist.v3.json --anchor assets/animations/reference/kairo-combat-anchor.v1.json
       - run: node tests/native-combat-pursuit.js
       - run: node tools/verify-kairo-arm-clearance.cjs --anchor assets/animations/reference/kairo-combat-anchor.v1.json
       - run: node tests/v88-walk-preview.js

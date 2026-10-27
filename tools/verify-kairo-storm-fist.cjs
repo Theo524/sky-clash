@@ -5,6 +5,7 @@
 'use strict';
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
+const {createHash}=require('node:crypto');
 const {execFileSync}=require('node:child_process');
 const {chromium}=require('playwright');
 const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/?$/,'/');
@@ -39,6 +40,19 @@ async function main(){
    window.SkyClashPublishedActions?.nativePlaytest?.state==='ready'&&
    window.SkyClash?.Game?.player?.vrmRig?.vrm?.humanoid&&
    window.SkyClash?.Game?.enemy?.vrmRig?.vrm?.humanoid,null,{timeout:180000});
+  const loaded=await page.evaluate(()=>({revision:window.SkyClashPublishedActions.nativeCombatSet.revision,
+   clips:Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips)}));
+  const packFile='assets/animations/kairo/'+(combatFlag==='storm-fist-v3'?'storm-fist.v3.json':'storm-fist.v1.json');
+  const sha=file=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  const localPack=JSON.parse(fs.readFileSync(packFile,'utf8'));
+  assert.equal(loaded.revision,localPack.revision,'Browser did not load the expected native revision');
+  fs.writeFileSync(path.join(output,'capture-manifest.json'),JSON.stringify({
+   recordedAt:new Date().toISOString(),base,combatFlag,revision:loaded.revision,clipIds:loaded.clips,
+   sourceSha256:localPack.sourceSha256,packSha256:sha(packFile),modelSha256:localPack.modelSha256,
+   videoFps,audio:captureAudio?'actual game synth at movie clock':'silent',
+   runtimeSha256:Object.fromEntries(['js/game.js','js/v72-published-actions.js','js/v81-pose-transitions.js']
+    .map(file=>[file,sha(file)]))},null,2));
+  console.log('Loaded actual Kairo review',loaded.revision,loaded.clips.length,'clips; source',localPack.sourceSha256);
   await page.locator('#trainBtn').click();
   await page.waitForFunction(()=>!document.getElementById('titleScreen').classList.contains('show'));
   await page.evaluate(({bones})=>{
@@ -290,7 +304,9 @@ async function main(){
    check(r.interrupted.filter(f=>f.elapsed>=.12+1/r.fps).every(f=>f.clip!=='original-jab'||!f.native),
     'Interrupted jab was resurrected');
   }
-  if(film){if(!skipSequence)await captureFilm(page);if(showcase)await captureShowcase(page);
+  if(film){
+   if(combatFlag==='storm-fist-v3'&&(!skipSequence||showcase))await verifyQueuedFilmInput(page);
+   if(!skipSequence)await captureFilm(page);if(showcase)await captureShowcase(page);
    if(captureAudio)await finishAudioCapture(page);
    if(!skipMoves)await captureMoves(page);}
   const result={status:failures.length?'FAIL':'PASS',base,combatFlag,videoFps,errors,failures,
@@ -412,13 +428,30 @@ async function filmCamera(page,view){
   if(view==='gameplay'){
    q.g.lockOn=true;s.CameraRig.rig.suspendT=0;q.cameraUpdate(dt);q.render();return;
   }
-  const directions={front:[1.5,1.6,5.8],side:[5.8,1.6,.2],back:[-1.5,1.6,-5.8]};
+  const directions={front:[3.4,1.6,4.6],side:[5.8,1.6,.2],back:[-3.4,1.6,-4.6]};
   const d=new T.Vector3(...directions[view]).normalize();
   const center=p.pos.clone().lerp(e.pos,.5);center.y+=1.05;
   const separation=p.pos.distanceTo(e.pos),distance=Math.max(5.6,3.7+separation*.65);
   cam.position.copy(center).addScaledVector(d,distance);
   cam.lookAt(center);cam.fov=43;cam.updateProjectionMatrix();q.render();
  },{view,dt:1/videoFps});
+}
+async function verifyQueuedFilmInput(page){
+ const result=await page.evaluate(()=>{
+  const q=window.__stormQA;q.reset();q.filmStarts=0;q.queuedSerial=-1;q.g.hitStopT=0;
+  const clips=new Set();let hits=0,lastHp=q.e.hp;
+  for(let n=0;n<60*8;n++){
+   q.queueBeat(7);q.filmTick(1/60,true);
+   if(q.p.v72StudioPack.nativePreviewActive)clips.add(q.p.v72StudioPack.nativeClipId);
+   if(q.e.hp<lastHp){hits++;lastHp=q.e.hp;}
+  }
+  return {starts:q.filmStarts,hits,clips:[...clips]};
+ });
+ assert.equal(result.starts,7,'Recorded J inputs did not start the full combo');
+ assert.equal(result.hits,7,'Recorded J input combo did not connect seven times');
+ for(const id of ['original-jab','original-cross','original-hook','rising-kick','sky-uppercut','sky-kick','falling-fist'])
+  assert(result.clips.includes(id),'Recorded J input combo missed '+id);
+ console.log('PASS actual J input queue: complete seven-hit ground-to-air chain');
 }
 async function captureFilm(page){
  const directory=path.join(output,'sequence-frames');fs.mkdirSync(directory,{recursive:true});
@@ -432,7 +465,7 @@ async function captureFilm(page){
  }):0;
  const views=(process.env.STORM_QA_VIDEO_VIEWS||'front,side,back').split(',');
  assert(views.every(v=>['front','side','back','gameplay'].includes(v)),'Unknown video view');
- const frames=Math.ceil(videoFps*8),timeline=[];
+ const frames=Math.ceil(videoFps*Number(process.env.STORM_QA_VIDEO_SECONDS||8)),timeline=[];
  if(process.env.STORM_QA_CLEAN_VIDEO==='1')await cleanFilmUI(page);
  for(let i=0;i<frames;i++){
   const observation=await page.evaluate(({fps})=>{
@@ -486,7 +519,7 @@ async function captureShowcase(page){
    const q=window.__stormQA,{p,e,s,T}=q;
    for(let n=0;n<60/fps;n++){
     const t=q.showcaseElapsed;
-    const phase=t<6.5?0:t<8.0?1:t<9.5?2:t<11?3:t<12.6?4:t<14.4?5:6;
+    const phase=t<5.3?0:t<6.65?1:t<8?2:t<9.35?3:t<10.9?4:t<12.6?5:6;
     if(phase!==q.showcasePhase){
      q.showcasePhase=phase;q.phaseTime=0;q.showcaseStarts=0;q.filmStarts=0;q.queuedSerial=-1;q.didIncoming=false;q.didCounter=false;
      q.reset(phase===6?2.2:1.45);q.g.hitStopT=0;
@@ -550,8 +583,8 @@ async function captureMoves(page){
  if(selectedMoves)assert(selectedMoves.every(id=>available.includes(id)),'Unknown STORM_QA_MOVES entry');
  const ids=selectedMoves?available.filter(id=>selectedMoves.includes(id)):available;
  const views=process.env.STORM_QA_ARM_CLOSEUP==='1'?
-  {front:[.75,1.65,2.45],side:[2.45,1.65,.1]}:
-  {front:[1.15,1.65,4.1],side:[4.1,1.65,.1]};
+  {front:[1.75,1.65,2.05],side:[2.65,1.65,.1]}:
+  {front:[2.9,1.65,3.25],side:[4.1,1.65,.1]};
  const all=[];
  for(const id of ids){
   const timing=await page.evaluate(id=>{

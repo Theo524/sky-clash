@@ -82,13 +82,13 @@ clips.append(attack('original-jab',.55,.24,[
        feet={'left':L(.01,0,.022)},sole={'right':(-6,-4,0)}),
  punch(.125,'left',hand('left',.20,.08,-.14),(.008,.006,-.025),1,-7,0,
        feet={'left':L(.035,0,.035)},sole={'right':(-11,-7,0)}),
- punch(.182,'left',hand('left',.36,.035,-.09),(.12,.005,-.08),-7,-12,2,
+ punch(.182,'left',hand('left',.36,.035,-.04),(.12,.005,-.08),-7,-12,2,
        pronate=20,follow=.5,feet={'left':L(.04)},shoulder=-3),
- punch(.24,'left',hand('left',.625,-.025,-.09),(.22,.008,-.09),-17,-13,4,
+ punch(.24,'left',hand('left',.625,-.025,.02),(.22,.008,-.09),-17,-13,4,
        pronate=64,follow=.02,feet={'left':L(.04)},sole={'right':(-14,-10,0)},shoulder=-8),
- punch(.263,'left',hand('left',.625,-.038,-.09),(.23,.008,-.09),-20,-14,4,
+ punch(.263,'left',hand('left',.625,-.038,.015),(.23,.008,-.09),-20,-14,4,
        pronate=66,follow=.02,feet={'left':L(.04)},sole={'right':(-14,-10,0)},shoulder=-8),
- punch(.315,'left',hand('left',.39,.045,-.11),(.14,.008,-.075),-12,-10,2,
+ punch(.315,'left',hand('left',.39,.045,-.04),(.14,.008,-.075),-12,-10,2,
        pronate=27,follow=.5,feet={'left':L(.04)},sole={'right':(-8,-6,0)},shoulder=-2),
  punch(.385,'left',guard['left'],(.018,0,-.025),-3,-2,0,feet={'left':L(.025,0,.014)}),
  key(.43,guard['left'],guard['right'],(0,0,-.012)),key(.55,guard['left'],guard['right'])]))
@@ -98,13 +98,13 @@ clips.append(attack('original-cross',.55,.24,[
        sole={'right':(-12,-10,0)}),
  punch(.13,'right',hand('right',.16,-.14,-.22),(.018,.025,-.055),-4,13,-2,
        feet={'left':L(.015,0,.012)},sole={'right':(11,-14,0)}),
- punch(.19,'right',hand('right',.40,-.025,-.10),(.17,.03,-.09),18,29,3,
+ punch(.19,'right',hand('right',.40,-.025,-.02),(.17,.03,-.09),18,29,3,
        pronate=32,follow=.35,sole={'right':(29,-18,1)},shoulder=4),
- punch(.24,'right',hand('right',.65,.065,-.11),(.26,.035,-.11),39,29,7,-3,
+ punch(.24,'right',hand('right',.65,.065,.03),(.26,.035,-.11),39,29,7,-3,
        pronate=68,follow=.02,sole={'right':(37,-19,1)},shoulder=10),
- punch(.272,'right',hand('right',.64,.085,-.105),(.27,.032,-.11),44,30,9,-4,
+ punch(.272,'right',hand('right',.64,.085,.02),(.27,.032,-.11),44,30,9,-4,
        pronate=69,follow=.02,sole={'right':(39,-18,1)},shoulder=10),
- punch(.33,'right',hand('right',.34,-.025,-.15),(.16,.025,-.08),26,20,4,-1,
+ punch(.33,'right',hand('right',.34,-.025,-.08),(.16,.025,-.08),26,20,4,-1,
        pronate=25,follow=.65,sole={'right':(24,-12,0)}),
  punch(.405,'right',guard['right'],(.018,.008,-.02),4,6,0,sole={'right':(6,-4,0)}),
  key(.445,guard['left'],guard['right']),key(.55,guard['left'],guard['right'])]))
@@ -116,13 +116,13 @@ clips.append(attack('original-hook',.68,.33,[
        sole={'right':(9,-6,0)}),
  punch(.17,'left',hand('left',.25,.255,-.015),(.0,-.01,-.06),14,-8,-1,2,
        feet={'left':L(.015,0,.02)},sole={'right':(-8,-8,0)}),
- punch(.255,'left',hand('left',.41,.21,.005),(.14,.012,-.085),-7,-24,2,-3,
+ punch(.255,'left',hand('left',.41,.21,.09),(.14,.012,-.085),-7,-24,2,-3,
        pronate=12,follow=.2,sole={'left':(-12,0,-1),'right':(-18,-12,0)},shoulder=-3),
- punch(.33,'left',hand('left',.49,-.135,-.015),(.23,.03,-.11),-39,-28,3,-8,
+ punch(.33,'left',hand('left',.49,-.135,.12),(.23,.03,-.11),-39,-28,3,-8,
        pronate=28,follow=.04,sole={'left':(-25,0,-1),'right':(-28,-13,0)},shoulder=-8),
- punch(.365,'left',hand('left',.44,-.19,-.04),(.23,.03,-.105),-46,-30,4,-9,
+ punch(.365,'left',hand('left',.44,-.19,.08),(.23,.03,-.105),-46,-30,4,-9,
        pronate=30,follow=.15,sole={'left':(-29,0,-1),'right':(-30,-13,0)},shoulder=-8),
- punch(.435,'left',hand('left',.31,-.02,-.13),(.12,.015,-.07),-20,-16,1,-3,
+ punch(.435,'left',hand('left',.31,-.02,-.07),(.12,.015,-.07),-20,-16,1,-3,
        pronate=12,follow=.75,sole={'left':(-16,0,0),'right':(-17,-8,0)}),
  key(.51,guard['left'],guard['right'],(.01,0,-.025),-3,0,0,hips_yaw=-4),
  key(.57,guard['left'],guard['right']),key(.68,guard['left'],guard['right'])]))
@@ -134,11 +134,11 @@ clips.append(attack('original-overhand',.68,.33,[
        sole={'right':(-12,-8,0)}),
  punch(.195,'right',hand('right',.22,-.205,.12),(.005,.01,-.045),-2,12,-2,-6,
        follow=.8,sole={'right':(10,-12,0)},shoulder=3),
- punch(.275,'right',hand('right',.46,-.09,.11),(.15,.03,-.09),22,25,5,2,
+ punch(.275,'right',hand('right',.46,-.09,.18),(.15,.03,-.09),22,25,5,2,
        pronate=12,follow=.2,sole={'right':(26,-15,0)},shoulder=7),
- punch(.33,'right',hand('right',.59,.09,-.13),(.25,.04,-.14),38,28,14,9,
+ punch(.33,'right',hand('right',.59,.09,.07),(.25,.04,-.14),38,28,14,9,
        pronate=38,follow=.03,sole={'right':(34,-18,0)},shoulder=10),
- punch(.38,'right',hand('right',.51,.14,-.235),(.24,.04,-.16),43,30,16,10,
+ punch(.38,'right',hand('right',.51,.14,-.08),(.24,.04,-.16),43,30,16,10,
        pronate=40,follow=.12,sole={'right':(36,-16,0)},shoulder=7),
  punch(.455,'right',hand('right',.25,-.06,-.255),(.10,.015,-.08),19,16,6,3,
        pronate=12,sole={'right':(18,-9,0)}),
@@ -376,6 +376,7 @@ for clip in clips:
     # bend plane along each target's shortest arc instead. Dense control keys
     # retain the same calibrated rig, target curves and anatomical bend sign.
     for ob in poles.values(): ob.animation_data_clear()
+    pole_planes={}
     for t in times:
         frame=1+t*60
         evaluate(frame)
@@ -401,18 +402,39 @@ for clip in clips:
                     if hint is None:
                         hint=body_delta@(outward*(.14+.15*reach+clearance)-
                                           forward*(.16-.08*reach)-up*(.34-.08*reach))
+                    else:
+                        hint=body_delta@hint
                     bend=hint-current_axis*hint.dot(current_axis)
                     if bend.length<.01: bend=outward
                     bend.normalize()
                 else:
+                    previous_axis,previous_bend=pole_planes.get((side,kind),
+                        (initial_axis,initial_bend.normalized()))
+                    transported=previous_axis.rotation_difference(current_axis)@previous_bend
+                    transported-=current_axis*transported.dot(current_axis)
+                    transported.normalize()
                     hint=hint_at('knees',side,t)
                     if hint is None:
-                        transport=initial_axis.rotation_difference(current_axis)
-                        bend=(transport@initial_bend).normalized()
+                        # Closed, non-kicking foot paths retain their measured
+                        # initial bend reference, avoiding parallel-transport
+                        # drift on a complete pelvis/foot loop.
+                        bend=(initial_axis.rotation_difference(current_axis)@initial_bend).normalized()
                     else:
-                        bend=hint-current_axis*hint.dot(current_axis)
-                        if bend.length<.01: bend=initial_bend.copy()
-                        bend.normalize()
+                        projected=hint-current_axis*hint.dot(current_axis)
+                        strength=projected.length/max(.001,hint.length)
+                        if projected.length<1e-6:
+                            bend=transported
+                        else:
+                            projected.normalize()
+                            # A pole hint crossing the straight leg axis has
+                            # two equivalent signs. Preserve the continuous
+                            # anatomical bend hemisphere, rather than rolling
+                            # the thigh and shoe through 180 degrees.
+                            if projected.dot(transported)<0: projected.negate()
+                            weight=min(1,strength/.22)
+                            weight=weight*weight*(3-2*weight)
+                            bend=transported.lerp(projected,weight).normalized()
+                    pole_planes[(side,kind)]=(current_axis.copy(),bend.copy())
                 pole=poles[(side,kind)]
                 pole.location=a+(c-a)*.45+bend*.60
                 pole.keyframe_insert("location",frame=frame)
