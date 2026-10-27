@@ -274,6 +274,19 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+/* V165 opt-in: one coherent burst-speed and strike-rhythm profile.
+ * Animations remain owned by existing V72/V100. No new bone writers.
+ * Enable only with ?combatFeel=v165; default release is unchanged.
+ */
+const AnimeFeelV165 = Object.freeze({
+  enabled:typeof window!=='undefined'&&
+    new URLSearchParams(window.location?.search||'').get('combatFeel')==='v165',
+  boostSpeedScale:1.24,
+  boostTurnScale:1.38,
+  // Different strike tempo per beat, but no auto-combo or hitbox reach changes.
+  tempo:stage=>[.82,.84,.89,.94][Math.max(0,Math.min(3,stage))]||1,
+  hitStop:(heavy,kind)=>heavy?.085:kind==='melee'?.043:.035
+});
 /* ---------------- Arena ----------------
  * Central stone tournament stage, grass valley, rock mesas with crystals,
  * trees, boulders, grass tufts, floating islands, clouds and a boundary barrier.
@@ -2242,6 +2255,7 @@ class Fighter {
   windUp(target, len) { if (!target || this.pos.distanceTo(target.pos) > TUNING.meleeRange + 0.25 || this.windT > 0 || this.meleeCd > 0 || this.stun > 0) return; this.windT = this.windLen = len; this.windTarget = target; }
   update(dt) {
     this.t += dt;
+    if(!this.sprinting)this._v165BoostActive=false;
     // V108 owns only the 95ms input-to-takeoff interval. The existing
     // jump physics runs unmodified after expiry. Interruptions cancel the
     // buffered jump so a stun/block/dash never causes a delayed surprise hop.
@@ -2414,14 +2428,26 @@ class Fighter {
     } else if (this.sprinting) {
       // steer with the stick; with no input keep going the way you face. Up/Down climbs and dives
       const dir = this.moveIntent.lengthSq() > 0.02 ? this.moveIntent.clone().setY(0).normalize() : this.forward();
-      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) * speedMul;
+      // V165: stronger travel speed is an opt-in physical sprint/boost
+      // response, not a second animation layer or global walk-speed change.
+      const burstV165=AnimeFeelV165.enabled&&this.canFly&&this.flying;
+      const sp = (this.canFly && (this.flying || this.vert) ? TUNING.flySprintSpeed : TUNING.sprintSpeed) *
+        speedMul * (burstV165?AnimeFeelV165.boostSpeedScale:1);
+      if(AnimeFeelV165.enabled&&!this._v165BoostActive){
+        this._v165BoostActive=true;
+        Spectacle.boostIgnition(this);
+      }
       const target = dir.multiplyScalar(sp); target.y = this.vert * sp * 0.75;
       if (!this.canFly) { this.vel.y -= TUNING.gravity * dt; target.y = this.vel.y; }
-      this.vel.lerp(target, damp(TUNING.sprintTurn, dt));
+      this.vel.lerp(target,damp(TUNING.sprintTurn*
+        (burstV165?AnimeFeelV165.boostTurnScale:1),dt));
       const hv = Math.hypot(this.vel.x, this.vel.z);
       if (hv > 2) this.facing = lerpAngle(this.facing, yawFromDir(this.vel.x, this.vel.z), damp(8, dt));
       this.sprintFx -= dt;
-      if (this.sprintFx <= 0) { this.sprintFx = this.flying ? 0.07 : 0.075; this.flying ? Spectacle.flightWake(this) : Effects.dust(this.pos, 2); }
+      if (this.sprintFx <= 0) {
+        this.sprintFx = this.flying ? (burstV165?0.055:0.07) : 0.075;
+        this.flying ? Spectacle.flightWake(this) : Effects.dust(this.pos, 2);
+      }
       if (this === Game.player && this.energy > 2 && Math.hypot(this.vel.x, this.vel.z) > 18) {
         this.sprintShakeT -= dt;
         if (this.sprintShakeT <= 0) { this.sprintShakeT = 0.38; CameraRig.shake(0.035); }
@@ -3795,7 +3821,9 @@ const Spectacle = (() => {
     const point = target.center.clone().addScaledVector(dir, -0.55);
     point.y += stage === 3 ? -0.18 : stage === 2 ? 0.1 : 0;
     const color = f.awakened ? f.pal.aura : stage === 3 ? 0xffd166 : f.pal.ki;
-    const count = Settings.get('quality') === 'low' ? 3 : stage === 3 ? 10 : stage === 2 ? 7 : 4;
+    const count = Settings.get('quality') === 'low' ? 3 :
+      AnimeFeelV165.enabled ? (stage===3?12:stage===2?9:6) :
+      stage === 3 ? 10 : stage === 2 ? 7 : 4;
     for(let k=0; k<count; k++) {
       const angle = (k / count) * TAU + stage;
       const spread = new V3(Math.cos(angle)*0.9,Math.sin(angle)*0.7,0).applyAxisAngle(UP,f.facing);
@@ -3839,6 +3867,21 @@ const Spectacle = (() => {
     const waist=anchor(f,'hips',c.clone().add(new V3(0,-0.58,0))).addScaledVector(d,-0.24);
     ribbon(waist,waist.clone().addScaledVector(d,-(f.flying?1.95:1.45)),col,0.02,0.14,0.39);
   }
+  // V165: a short, directional air-pressure snap ONLY on the first
+  // frame of a held boost. No giant aura shells or full-screen blast.
+  function boostIgnition(f){
+    if(!AnimeFeelV165.enabled||!quality()||f!==Game.player)return;
+    const direction=f.vel.lengthSq()>2?f.vel.clone().normalize():f.forward();
+    const c=f.center.clone(),side=new V3(-direction.z,0,direction.x);
+    const color=f.awakened?f.pal.aura:0xa3e7ff;
+    for(const sign of [-1,1]){
+      const a=c.clone().addScaledVector(side,sign*.45).addScaledVector(direction,-.12);
+      const b=a.clone().addScaledVector(direction,-2.9);
+      ribbon(a,b,sign<0?0xffffff:color,.035,.19,.60);
+    }
+    circle(c.clone().addScaledVector(direction,-.42),direction,.45,color,.12,TAU,.27);
+    CameraRig.shake(.08);
+  }
   function flightWake(f) {
     if(!quality() || !f.flying || !f.sprinting || f.dashing) return;
     const d=f.vel.lengthSq()>0.5?f.vel.clone().normalize():f.forward();
@@ -3847,7 +3890,9 @@ const Spectacle = (() => {
     for(const i of [-1,1]) {
       const start=anchor(f,i<0?'rightUpperArm':'leftUpperArm',p.clone().addScaledVector(side,i*0.34));
       start.addScaledVector(d,-0.25);
-      ribbon(start,start.clone().addScaledVector(d,-1.65),col,0.019,0.14,0.36);
+      const fast=AnimeFeelV165.enabled&&f===Game.player;
+      ribbon(start,start.clone().addScaledVector(d,fast?-2.5:-1.65),
+        col,fast?.023:.019,fast?.17:.14,fast?.48:.36);
     }
   }
   function muzzle(pos, dir, color, level) {
@@ -3900,7 +3945,7 @@ const Spectacle = (() => {
     if(x.mesh.material) x.mesh.material.dispose();
   }
   function clear() {live.forEach(dispose);live.length=0;}
-  return {swing,contact,dashStart,dashWake,flightWake,muzzle,wake,explosion,update,clear};
+  return {swing,contact,dashStart,dashWake,boostIgnition,flightWake,muzzle,wake,explosion,update,clear};
 })();
 /* ---------------- Lightweight combat audio (procedural/offline) ---------------- */
 const Sound = (() => {
@@ -3972,8 +4017,10 @@ const Combat = (() => {
       knock.lengthSq()>0.001?knock.clone().normalize():attacker.forward());
     Sound.play(heavy ? 'heavy' : 'hit');
     CameraRig.shake((attacker === Game.player ? 0.25 : 0.4) * (heavy ? 1.6 : 1));
-    Game.hitStop(heavy ? 0.075 : 0.035);
+    Game.hitStop(AnimeFeelV165.enabled?AnimeFeelV165.hitStop(heavy,kind):(heavy ? 0.075 : 0.035));
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(30);
+    else if(AnimeFeelV165.enabled&&attacker===Game.player&&Settings.get('haptics')&&navigator.vibrate)
+      navigator.vibrate(heavy?[20,14,28]:14);
     return 'hit';
   }
   function blocked(attacker, target, dmg, knock, kind, floorHp) {
@@ -4084,7 +4131,8 @@ const Combat = (() => {
       Math.abs(rise) < TUNING.meleePursuitHeight + (attacker.attackAir ? 1.4 : 0) ? target : null;
     attacker.attackOrigin.copy(attacker.pos);
     attacker.attackTravelBudget = attacker.attackAir ? TUNING.meleePursuitAir : TUNING.meleePursuitGround;
-    attacker.attackDrive = Math.max(2.4, Math.min(8.0, Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? 2.4 : 0)));
+    attacker.attackDrive = Math.max(2.4, Math.min(AnimeFeelV165.enabled?9.5:8.0,
+      Math.hypot(attacker.vel.x, attacker.vel.z) + (attacker.sprintHeld ? (AnimeFeelV165.enabled?3.2:2.4) : 0)));
     attacker.attackMoving = attacker.attackDrive > 2.8 || attacker.moveIntent.lengthSq() > 0.12;
     // Once the finisher is started, do not automatically spin a buffered press
     // into the next opening jab. A fresh input can start a new combo afterward.
@@ -4095,8 +4143,12 @@ const Combat = (() => {
     const agile = attacker.characterId === 'rin_sable' ? 0.82 : 1;
     // Kairo's opening jab needs an actual readable wind-up before the next strike.
     // The later kick timing is deliberately unchanged.
-    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile;
-    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile;
+    // V165: recorded strike progression is indexed by normalized attack
+    // progress in V72. Scaling recovery AND contact delay together keeps
+    // the authored wind-up -> hit -> follow-through in phase.
+    const beatScale=AnimeFeelV165.enabled?AnimeFeelV165.tempo(stage):1;
+    const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile * beatScale;
+    const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile * beatScale;
     attacker.meleeCd = cd; attacker.punchT = anim;
     attacker.attackTotal = anim; attacker.attackElapsed = 0;
     attacker.punchSide = stage === 0 || stage === 2 ? 1 : 0;
@@ -4108,7 +4160,7 @@ const Combat = (() => {
       attacker.facing = lerpAngle(attacker.facing, to, dist < 3.5 ? 0.8 : 0.5);
     }
     // Wind-up/contact/recovery are distinct. Chaining doesn't duplicate a queued hit.
-    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.24,0.24,0.33,0.41])[stage] * agile, kick, stage, counter, swingPlayed: false };
+    attacker.kickPend = { target, t: (ninja ? [0.12,0.19,0.27,0.35] : [0.24,0.24,0.33,0.41])[stage] * agile * beatScale, kick, stage, counter, swingPlayed: false };
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
@@ -4552,7 +4604,7 @@ const Input = (() => {
  * A dash always sets suspendT, so the camera never chases the rival mid-dash.
  */
 const CameraRig = (() => {
-  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0 };
+  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0, baseFov: null };
   const look = new V3(), desired = new V3();
   function forward() { return new V3(-Math.sin(rig.yaw), 0, -Math.cos(rig.yaw)); }
   function right() { return new V3(Math.cos(rig.yaw), 0, -Math.sin(rig.yaw)); }
@@ -4609,6 +4661,19 @@ const CameraRig = (() => {
     const desiredDist = presetDist * (1 - 0.16 * cinematic);
     rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
     const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
+    // V165: controlled zoom-out and slight lens widening at full aerial
+    // burst speed. Return smoothly to the original lens on release.
+    if(AnimeFeelV165.enabled&&camera?.isPerspectiveCamera){
+      if(rig.baseFov===null)rig.baseFov=camera.fov;
+      const velocity=Math.hypot(p.vel.x,p.vel.z);
+      const amount=p.sprinting&&p.flying?
+        clamp((velocity-13)/24,0,1):0;
+      const next=rig.baseFov+amount*5.5;
+      const updated=camera.fov+(next-camera.fov)*(instant?1:damp(7,dt));
+      if(Math.abs(updated-camera.fov)>.0005){
+        camera.fov=updated;camera.updateProjectionMatrix();
+      }
+    }
     const cp = Math.cos(rig.pitch);
     camera.position.set(look.x + Math.sin(rig.yaw) * cp * d, look.y + Math.sin(rig.pitch) * d, look.z + Math.cos(rig.yaw) * cp * d);
     if (camera.position.y < 0.6) camera.position.y = 0.6;

@@ -79,7 +79,9 @@ const Spectacle = (() => {
     const point = target.center.clone().addScaledVector(dir, -0.55);
     point.y += stage === 3 ? -0.18 : stage === 2 ? 0.1 : 0;
     const color = f.awakened ? f.pal.aura : stage === 3 ? 0xffd166 : f.pal.ki;
-    const count = Settings.get('quality') === 'low' ? 3 : stage === 3 ? 10 : stage === 2 ? 7 : 4;
+    const count = Settings.get('quality') === 'low' ? 3 :
+      AnimeFeelV165.enabled ? (stage===3?12:stage===2?9:6) :
+      stage === 3 ? 10 : stage === 2 ? 7 : 4;
     for(let k=0; k<count; k++) {
       const angle = (k / count) * TAU + stage;
       const spread = new V3(Math.cos(angle)*0.9,Math.sin(angle)*0.7,0).applyAxisAngle(UP,f.facing);
@@ -123,6 +125,21 @@ const Spectacle = (() => {
     const waist=anchor(f,'hips',c.clone().add(new V3(0,-0.58,0))).addScaledVector(d,-0.24);
     ribbon(waist,waist.clone().addScaledVector(d,-(f.flying?1.95:1.45)),col,0.02,0.14,0.39);
   }
+  // V165: a short, directional air-pressure snap ONLY on the first
+  // frame of a held boost. No giant aura shells or full-screen blast.
+  function boostIgnition(f){
+    if(!AnimeFeelV165.enabled||!quality()||f!==Game.player)return;
+    const direction=f.vel.lengthSq()>2?f.vel.clone().normalize():f.forward();
+    const c=f.center.clone(),side=new V3(-direction.z,0,direction.x);
+    const color=f.awakened?f.pal.aura:0xa3e7ff;
+    for(const sign of [-1,1]){
+      const a=c.clone().addScaledVector(side,sign*.45).addScaledVector(direction,-.12);
+      const b=a.clone().addScaledVector(direction,-2.9);
+      ribbon(a,b,sign<0?0xffffff:color,.035,.19,.60);
+    }
+    circle(c.clone().addScaledVector(direction,-.42),direction,.45,color,.12,TAU,.27);
+    CameraRig.shake(.08);
+  }
   function flightWake(f) {
     if(!quality() || !f.flying || !f.sprinting || f.dashing) return;
     const d=f.vel.lengthSq()>0.5?f.vel.clone().normalize():f.forward();
@@ -131,7 +148,9 @@ const Spectacle = (() => {
     for(const i of [-1,1]) {
       const start=anchor(f,i<0?'rightUpperArm':'leftUpperArm',p.clone().addScaledVector(side,i*0.34));
       start.addScaledVector(d,-0.25);
-      ribbon(start,start.clone().addScaledVector(d,-1.65),col,0.019,0.14,0.36);
+      const fast=AnimeFeelV165.enabled&&f===Game.player;
+      ribbon(start,start.clone().addScaledVector(d,fast?-2.5:-1.65),
+        col,fast?.023:.019,fast?.17:.14,fast?.48:.36);
     }
   }
   function muzzle(pos, dir, color, level) {
@@ -184,5 +203,5 @@ const Spectacle = (() => {
     if(x.mesh.material) x.mesh.material.dispose();
   }
   function clear() {live.forEach(dispose);live.length=0;}
-  return {swing,contact,dashStart,dashWake,flightWake,muzzle,wake,explosion,update,clear};
+  return {swing,contact,dashStart,dashWake,boostIgnition,flightWake,muzzle,wake,explosion,update,clear};
 })();
