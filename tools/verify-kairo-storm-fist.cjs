@@ -10,6 +10,8 @@ const {chromium}=require('playwright');
 const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/?$/,'/');
 const output=path.resolve(process.env.STORM_QA_OUTPUT||'visual-review-output/kairo-storm-fist');
 const film=process.env.STORM_QA_FILM!=='0';
+const skipSequence=process.env.STORM_QA_SKIP_SEQUENCE==='1';
+const selectedMoves=process.env.STORM_QA_MOVES?.split(',').map(x=>x.trim()).filter(Boolean)||null;
 const bones=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json').bones;
 
 async function main(){
@@ -206,7 +208,7 @@ async function main(){
    check(r.interrupted.filter(f=>f.elapsed>=.12+1/r.fps).every(f=>f.clip!=='original-jab'||!f.native),
     'Interrupted jab was resurrected');
   }
-  if(film){await captureFilm(page);await captureMoves(page);}
+  if(film){if(!skipSequence)await captureFilm(page);await captureMoves(page);}
   const result={status:failures.length?'FAIL':'PASS',base,errors,failures,
    reports:reports.map(r=>({fps:r.fps,starts:r.combo.starts,
     clips:[...new Set(r.combo.frames.filter(f=>f.native).map(f=>f.clip))],
@@ -297,7 +299,9 @@ async function captureFilm(page){
 
 async function captureMoves(page){
  const dir=path.join(output,'move-frames');fs.mkdirSync(dir,{recursive:true});
- const ids=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
+ const available=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
+ if(selectedMoves)assert(selectedMoves.every(id=>available.includes(id)),'Unknown STORM_QA_MOVES entry');
+ const ids=selectedMoves?available.filter(id=>selectedMoves.includes(id)):available;
  const views={front:[1.15,1.65,4.1],side:[4.1,1.65,.1]};
  const all=[];
  for(const id of ids){
@@ -372,9 +376,9 @@ async function captureMoves(page){
  for(const view of Object.keys(views)){
   execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-framerate','1',
    '-i',path.join(dir,`contact-${view}-%02d.jpg`),'-vf','scale=320:240,tile=6x3',
-   '-frames:v','1',path.join(output,`all-moves-contact-${view}.png`)]);
+   '-frames:v','1',path.join(output,`${selectedMoves?'selected':'all'}-moves-contact-${view}.png`)]);
  }
- fs.writeFileSync(path.join(output,'all-move-gallery.json'),JSON.stringify(all,null,2));
+ fs.writeFileSync(path.join(output,selectedMoves?'selected-move-gallery.json':'all-move-gallery.json'),JSON.stringify(all,null,2));
  await page.evaluate(()=>document.getElementById('stormQaLabel')?.remove());
  fs.rmSync(dir,{recursive:true,force:true});
  console.log('Captured all '+ids.length+' Storm Fist clips through actual gameplay owners');

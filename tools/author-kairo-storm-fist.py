@@ -108,7 +108,7 @@ def kick_clip(name,duration,impact,style):
           k(impact,contact,(.055,-.08,-.06),turn,lean,roll),
           k(impact+.025,contact-offset(.025),(.055,-.08,-.06),turn,lean,roll),
           k(impact+(duration-impact)*.43,chamber,(.015,-.06,-.08),turn*.35,-2),
-          k(duration*.86,start+offset(.025,0,.07),(0,-.02,-.05),0),key(duration)]
+          k(duration*.86,start+offset(.025,0,0),(0,-.02,-.05),0),key(duration)]
     return dict(clipId=name,durationSeconds=duration,impactSeconds=impact,
         keys=keys,grounded=True,kickingSide=side)
 clips.extend([kick_clip("rising-kick",.87,.41,"rising"),
@@ -121,8 +121,8 @@ clips.append(strike("sky-uppercut",.57,.29,"right",
     hand("right",.42,.065,.20),hand("right",.14,-.015,-.15),23,
     hip=(.25,0,-.04),lean=-6,extra=dict(grounded=False,air=True)))
 clips.append(strike("falling-fist",.81,.53,"right",
-    hand("right",.46,.065,-.34),hand("right",.12,-.05,.29),20,
-    hip=(.22,0,-.08),lean=16,extra=dict(grounded=False,air=True)))
+    hand("right",.50,.065,-.48),hand("right",.12,-.05,.29),20,
+    hip=(.55,0,-.52),lean=40,extra=dict(grounded=False,air=True)))
 airkick=kick_clip("sky-kick",.63,.30,"side")
 airkick.update(grounded=False,air=True)
 clips.append(airkick)
@@ -261,6 +261,14 @@ for clip in clips:
         "rising-kick","roundhouse","side-kick"}
     def step_lift(t,side):
         impact=clip["impactSeconds"]
+        if clip.get("kickingSide"):
+            recover_start,recover_end=(duration*.88,duration*.99)
+        else:
+            recover_start,recover_end=((duration*.78,duration*.98) if side=="left"
+                                      else (duration*.68,duration*.91))
+        recovery=(t-recover_start)/max(.001,recover_end-recover_start)
+        if side!=clip.get("kickingSide") and 0<recovery<1:
+            return .055*math.sin(math.pi*recovery)**2
         if side=="left":
             start,end=(0.,impact*.78)
         elif clip.get("kickingSide"):
@@ -306,6 +314,13 @@ for clip in clips:
             if stepping:
                 plant=(t>=impact*.78 if side=="left" else
                        t<=impact*.27 or (not clip.get("kickingSide") and t>=impact+.055))
+                if clip.get("kickingSide"):
+                    if side=="right": plant=t<=impact*.27 or t>=duration*.86
+                    elif duration*.88<t<duration*.99: plant=False
+                elif side=="left" and duration*.78<t<duration*.98:
+                    plant=False
+                elif side=="right" and duration*.68<t<duration*.91:
+                    plant=False
                 support[side]=bool(grounded and plant)
             else:
                 support[side]=bool(clip.get("grounded") and grounded and
