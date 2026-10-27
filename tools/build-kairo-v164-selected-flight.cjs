@@ -1,11 +1,11 @@
-/* Assemble EXACT source-approved Pose Lab keyframes from completed
- * GitHub Action artifacts, no pose interpolation or Euler recalculation.
- * Run via CI on the internal feature branch after downloading three
- * original model-verified B/B/B/B selection archives.
+/* Rebuild the player-selected V164 Kairo asset from PERMANENT
+ * repository-local Pose Lab keyframes, not expiring Action artifacts.
+ * All 71 quaternion/time keys were verified against the deployed
+ * V164 module before being archived; metadata labels were recreated.
  */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
-const root=process.env.KAIRO_SELECTED_SOURCE||'visual-review-output/v164-source';
+const root=process.env.KAIRO_SELECTED_SOURCE||'assets/animations/kairo/selected/v164';
 const output='js/v164-selected-kairo-real-flight.js';
 const expectedSha='775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72';
 const refs=[
@@ -55,7 +55,8 @@ const asset={
 };
 const source=`/* Generated from three EXACT original real Kairo Pose Lab clip JSON files.
  * PLAYER CHOSE B stance + B arm movement + B rise + B fall.
- * Archived Github runs: 40418975917, 40421353502, 40425774416.
+ * Repository-local real-Kairo source projects are under assets/animations/kairo/selected/v164.
+ * Original archived authoring runs: 40418975917, 40421353502, 40425774416.
  * Do not hand-edit these model-bound complete normalized quaternion keys.
  * Select via ?flightVertical=v164 only; no default change.
  */
