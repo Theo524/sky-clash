@@ -1,57 +1,26 @@
-name: Generate Selected Real-Kairo V164 Clips
+name: Validate Permanent Kairo V164 Source Clips
 on:
   pull_request:
     paths:
+      - 'assets/animations/kairo/selected/v164/**'
+      - 'js/v164-selected-kairo-real-flight.js'
       - 'tools/build-kairo-v164-selected-flight.cjs'
       - '.github/workflows/kairo-v164-generate-selected-clips.yml'
 permissions:
-  contents: write
-  actions: read
+  contents: read
 jobs:
-  import-three-player-approved-real-vrm-clips:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+  verify-selected-vrm0-source:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          persist-credentials: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Download the three ACTUAL player-selected Kairo pose projects
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p visual-review-output/v164-source/{arm,ascending,descending}
-          gh run download 40418975917 -R Theo524/sky-clash -n kairo-b-arm-motion-choice-gifs -D visual-review-output/v164-source/arm
-          gh run download 40421353502 -R Theo524/sky-clash -n kairo-b-ascending-motion-choice -D visual-review-output/v164-source/ascending
-          gh run download 40425774416 -R Theo524/sky-clash -n kairo-b-descending-motion-choice -D visual-review-output/v164-source/descending
-          test -s visual-review-output/v164-source/arm/B-B-animation.pose.json
-          test -s visual-review-output/v164-source/ascending/B-ascend-B.pose.json
-          test -s visual-review-output/v164-source/descending/B-descend-B.pose.json
-      - name: Validate VRM SHA, preserve and generate ALL 71 authored keyframes
+      - name: Validate Kairo original selected quaternions against shipped V164
+        run: node tests/v164-selected-kairo-real-flight.js
+      - name: Confirm sources can recreate the module without old Actions ZIPs
         run: |
           node tools/build-kairo-v164-selected-flight.cjs
           node --check js/v164-selected-kairo-real-flight.js
           node tests/v164-selected-kairo-real-flight.js
-      - name: Save generated exact source-backed module into this PR branch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add js/v164-selected-kairo-real-flight.js
-          if ! git diff --cached --quiet; then
-            git commit -m "Generate exact player-chosen B/B/B/B 71-frame real VRM0 motion data"
-            git push origin "HEAD:${{ github.head_ref }}"
-          fi
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: v164-player-selected-quaternion-clips
-          path: |
-            js/v164-selected-kairo-real-flight.js
-            visual-review-output/v164-source/arm/B-B-animation.pose.json
-            visual-review-output/v164-source/ascending/B-ascend-B.pose.json
-            visual-review-output/v164-source/descending/B-descend-B.pose.json
-          retention-days: 21

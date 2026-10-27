@@ -51,8 +51,9 @@ assert(!ownership.includes('Re-run all 70 existing V66'),
 assert(ownership.includes('node tests/animation-ownership-contract.js')&&
  ownership.includes('node tests/v100-single-pose-authority.js'),
  'V100 pose ownership safety must remain automatic');
-assert(read('kairo-quick-flight-stills').includes("      - 'js/v100-pose-authority.js'"),
- 'Maintain quick WebGL contact sheets for Kairo V100 edits');
+assert(!read('kairo-quick-flight-stills').includes("      - 'js/v100-pose-authority.js'")&&
+ read('kairo-v164-selected-flight-stills').includes("      - 'js/v100-pose-authority.js'"),
+ 'Only current V164 WebGL checks should run for shared V100 animation edits');
 assert(!read('kairo-v159-vertical-flight').includes("      - 'js/v100-pose-authority.js'"),
  'Full V159 MP4 should run on demand, not for every V100 edit');
 assert(!read('flight-visual-review').includes("      - 'js/v156-real-vrm-flight.js'"),

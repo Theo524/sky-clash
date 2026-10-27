@@ -33,4 +33,24 @@ a(pose.includes('SkyClashV164SelectedFlight'),'full real VRM track owner');
 a(boot.includes('js/v164-selected-kairo-real-flight.js?v=1640'));
 a(boot.includes("flags.set('flightPreview','v156')"),'approved default Q');
 a(!boot.includes("flags.set('flightVertical','v164')"),'no automatic activation');
+// Provenance is now permanent: no CI job needs expiring Actions artifacts.
+for(const [clip,localFile] of [
+ ['arms','arm/B-B-animation.pose.json'],
+ ['ascending','ascending/B-ascend-B.pose.json'],
+ ['descending','descending/B-descend-B.pose.json']
+]){
+ const file='assets/animations/kairo/selected/v164/'+localFile;
+ a(fs.existsSync(file),'permanent player-selected B source missing: '+file);
+ const original=JSON.parse(fs.readFileSync(file,'utf8'));
+ a.equal(original.schema,'sky-clash.pose-lab.v1');
+ a.equal(original.modelSha256,data.modelSha256);
+ a.deepEqual(original.bones,data.bones);
+ a.equal(original.duration,data.duration);
+ a.equal(original.keyframes.length,k[clip].frames.length);
+ for(let i=0;i<original.keyframes.length;i++){
+  a.equal(original.keyframes[i].time,k[clip].frames[i].time);
+  a.deepEqual(original.keyframes[i].quaternions,k[clip].frames[i].quaternions,
+   clip+' selected original keyframe '+i+' diverged from approved V164');
+ }
+}
 console.log('PASS selected B/B/B/B real-Kairo 71 exact keyframes; sole V100 opt-in owner');
