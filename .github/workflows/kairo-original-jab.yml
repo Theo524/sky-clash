@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'tools/author-kairo-original-jab.py'
+      - 'tools/verify-kairo-original-jab.cjs'
       - '.github/workflows/kairo-original-jab.yml'
   workflow_dispatch:
 permissions:
@@ -16,6 +17,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/blender-4.5.15-linux-x64.tar.xz
@@ -40,6 +44,26 @@ jobs:
         run: |
           blender --background --factory-startup --python tools/author-kairo-original-jab.py
           test -s visual-review-output/kairo-combat-foundation/blender-original-jab-blockout.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: kairo-jab-chromium-1.56.1-x64-v1
+      - name: Prepare cached Chromium for REAL Kairo preview
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          node --check tools/verify-kairo-original-jab.cjs
+      - name: Start existing game read-only localhost for private WebGL test
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-jab-http.log 2>&1 &
+          for i in $(seq 1 15); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Render offline jab poses at 30 60 120fps and review screenshots
+        env:
+          VISUAL_PORT: '8765'
+        run: node tools/verify-kairo-original-jab.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -47,4 +71,6 @@ jobs:
           path: |
             visual-review-output/kairo-combat-foundation/blender-original-jab-blockout.json
             visual-review-output/kairo-combat-foundation/kairo-original-jab-review-only.blend
+            visual-review-output/kairo-combat-foundation/kairo-jab-private-*.png
+            visual-review-output/kairo-combat-foundation/kairo-jab-private-real-webgl-review.json
           retention-days: 21
