@@ -141,6 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.head_ref || github.ref }}
           persist-credentials: true
       - uses: actions/setup-node@v4
         with:
@@ -149,6 +150,19 @@ jobs:
         with:
           python-version: '3.11'
       - run: python tools/build.py
+      # Source chunks must publish an exact built game.js on same-repo PRs.
+      # This is done BEFORE tests because bundle-integrity CI validates
+      # checked-in game.js against the editable src/ chunks.
+      - name: Keep playable game bundle in sync for the PR
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if ! git diff --quiet -- js/game.js; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add js/game.js
+            git commit -m "Build updated playable game bundle from source"
+            git push origin "HEAD:${{ github.head_ref }}"
+          fi
       - run: node --check js/game.js
       - run: node --check js/v66-character-source.js
       - run: node --check js/v66-game-boot.js
