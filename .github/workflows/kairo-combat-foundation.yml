@@ -1,0 +1,45 @@
+name: Kairo Ground Combat Baseline — Diagnostic Only
+
+on:
+  pull_request:
+    paths:
+      - 'tools/diagnose-kairo-combat-pipeline.cjs'
+      - '.github/workflows/kairo-combat-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: chromium-kairo-foundation-1.56.1
+      - name: Install focused real-VRM test browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check tools/diagnose-kairo-combat-pipeline.cjs
+      - name: Serve immutable game checkout
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-foundation-http.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --max-time 3 -fsS http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Capture original idle jab guard four-beat motion across frame rates
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/diagnose-kairo-combat-pipeline.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-kairo-combat-baseline-telemetry
+          path: visual-review-output/kairo-combat-foundation/
+          retention-days: 21

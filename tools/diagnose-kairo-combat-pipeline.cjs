@@ -1,0 +1,213 @@
+/* Sky Clash: genuine final-pose / gameplay combat baseline DIAGNOSTIC.
+ * Not an authoring system, animation writer, preview, or aesthetic approval.
+ * Use the existing LIVE Fighter.update -> V72/V81/V100 stack, real Kairo VRM,
+ * real Combat.melee and real game physics. Produce JSON, NOT videos/stills.
+ */
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const {chromium}=require('playwright');
+const OUT=path.resolve('visual-review-output/kairo-combat-foundation');
+const fpsList=[30,60,120];
+const NAMES=['hips','spine','chest','upperChest','neck','head',
+ 'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+ 'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+ 'leftUpperLeg','leftLowerLeg','leftFoot',
+ 'rightUpperLeg','rightLowerLeg','rightFoot'];
+fs.mkdirSync(OUT,{recursive:true});
+const SHA=crypto.createHash('sha256').update(
+ fs.readFileSync('assets/characters/kairo.vrm')).digest('hex');
+
+function verify(trace,fps){
+ assert.equal(trace.setup.realVRM,true,'Never test placeholder Kairo');
+ assert.equal(trace.setup.webGL,true,'Real WebGL renderer required');
+ assert.equal(trace.setup.rigBones,20,'Normalized real Kairo VRM rig required');
+ assert.equal(trace.setup.characterId,'kairo_venn');
+ assert.equal(trace.setup.modelSha256,SHA);
+ assert.equal(trace.setup.published,true,'Existing V72 motion writer must be active');
+ assert.equal(trace.setup.v81,true,'Existing V81 transition must be active');
+ assert.equal(trace.setup.airOwner,true,'Existing air owner must be available');
+ assert(trace.samples.length>fps*3,'Must capture a continuous multi-second timeline');
+ assert.equal(trace.attacks.length,5,'Jab and 4 uninterrupted whiff beats');
+ assert.equal(trace.attacks[0].duration,.55);
+ assert(Math.abs(trace.attacks[0].contact-.24)<1e-7);
+ assert.deepEqual(trace.attacks.slice(1).map(x=>x.kind),
+  ['punch','punch','hook','kick'],'Live four-stage gameplay must be distinct');
+ assert(trace.samples.some(x=>x.stage==='jab'&&x.attackElapsed>.2),
+  'Jab must progress through live gameplay, not a frozen pose');
+ assert(trace.samples.some(x=>x.stage==='return-to-idle'&&x.punchT<=0),
+  'Full attack-to-standing recovery is mandatory');
+ const guard=trace.samples.filter(x=>x.stage==='guard');
+ assert(guard.some(x=>x.blocking===true),'Must activate actual guard gameplay');
+ assert(trace.samples.every(x=>x.q.length===20&&
+   x.q.every(q=>q.length===4&&q.every(Number.isFinite)&&
+    Math.abs(Math.hypot(...q)-1)<.008)),
+ 'Every FINAL real-VRM joint quaternion must be unit and finite');
+ assert(trace.samples.every(x=>[...x.hips,...x.leftFoot,...x.rightFoot,...x.pos]
+  .every(Number.isFinite)), 'Kairo actual physical positions must be finite');
+ const bad=trace.errors.filter(x=>!x.includes(
+  'Sky Clash V63: leaving V62 fallback active Error: V62 native master could not be found'));
+ assert.deepEqual(bad,[],'Unexpected browser errors, including real animation failures');
+}
+async function main(){
+ const browser=await chromium.launch({headless:true,args:[
+  '--enable-webgl','--use-gl=angle','--use-angle=swiftshader',
+  '--ignore-gpu-blocklist','--disable-dev-shm-usage','--no-sandbox'
+ ]});
+ const page=await browser.newPage({viewport:{width:960,height:640},
+  deviceScaleFactor:1});
+ const errors=[];
+ page.on('pageerror',e=>errors.push('pageerror '+String(e)));
+ page.on('console',m=>{if(m.type()==='error')errors.push(m.text().slice(0,900));});
+ try{
+  const origin='http://127.0.0.1:'+(process.env.VISUAL_PORT||'8765');
+  await page.goto(origin+'/index.html',
+   {waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForFunction(()=>window.SKY_V104_ANIMATIONS_READY&&
+   window.SkyClashPublishedActions?.ready&&
+   window.SkyClashPoseTransitions?.characters&&
+   window.SkyClash?.Game?.player?.vrmRig?.vrm?.humanoid,
+    null,{timeout:180000});
+  // Freeze ONLY the test page's asynchronous RAF gameplay updates.
+  // The fixture itself now executes real Fighter.update and Combat.melee.
+  const setup=await page.evaluate((names)=>{
+   const g=window.SkyClash.Game,s=window.SkyClash;
+   g.enterDojo();g.introT=0;
+   for(const n of document.querySelectorAll('#titleScreen,.title-screen,.menu-overlay,.loading-overlay'))
+    n.style.setProperty('display','none','important');
+   g.update=()=>{};s.CameraRig.update=()=>{};
+   const p=g.player,vrm=p.vrmRig.vrm;
+   const cv=document.querySelector('canvas'),gl=cv?.getContext('webgl2')||cv?.getContext('webgl');
+   const all=names.every(n=>!!vrm.humanoid.getNormalizedBoneNode(n));
+   return {characterId:p.characterId,realVRM:all&&!!vrm.scene,
+    webGL:!!gl,rigBones:all?names.length:0,
+    published:!!window.SkyClashPublishedActions?.ready,
+    v81:!!p.v81PoseTransitions,airOwner:!!window.SkyClashV100Animator,
+    modelSha256:null}; // Node fingerprints the exact bytes checked out in CI
+  },NAMES);
+  setup.modelSha256=SHA;
+  assert(setup.realVRM&&setup.webGL,
+   'Must not silently fall back to the procedural avatar');
+  const traces=[];
+  for(const fps of fpsList){
+   const trace=await page.evaluate(({fps,names})=>{
+    const game=window.SkyClash,p=game.Game.player,e=game.Game.enemy;
+    const h=p.vrmRig.vrm.humanoid,THREE=window.THREE,dt=1/fps;
+    const point=name=>h.getNormalizedBoneNode(name)
+      .getWorldPosition(new THREE.Vector3()).toArray();
+    // Use a disposable actual game world. Never replace any animation owner.
+    const reset=(targetZ)=>{
+     p.reset();e.reset();
+     p.spawn.set(0,p.floor,0);p.pos.set(0,p.floor,0);
+     e.spawn.set(0,e.floor,targetZ);e.pos.set(0,e.floor,targetZ);
+     p.vel.set(0,0,0);e.vel.set(0,0,0);
+     p.moveIntent.set(0,0,0);e.moveIntent.set(0,0,0);
+     p.facing=0;e.facing=Math.PI;
+     p.blockHeld=false;p.blocking=false;
+     p.jumping=false;p.flying=false;p.sprinting=false;
+     p.stun=0;p.launched=false;p.downT=0;p.punchT=0;
+     p.hp=100;e.hp=100;p.invulnT=0;e.invulnT=0;
+     p.t=10;e.t=10;p.lastMelee=-20;
+     p.combo=0;p.meleeCd=0;p.comboFollow=null;
+     game.Game.mode='dojo';game.Game.dojoRival=true;
+     // Run the original game without title input and without AI randomness.
+     p.animate(dt);e.animate(dt);
+    };
+    const samples=[],attacks=[];
+    let frame=0,stage='starting';
+    const observe=()=>{
+     p.vrmRig.vrm.scene.updateMatrixWorld(true);
+     samples.push({frame:frame++,time:+(frame*dt).toFixed(5),stage,
+      attackElapsed:+(p.attackElapsed||0).toFixed(5),
+      punchT:+p.punchT.toFixed(5),attackKind:p.attackKind,
+      attackVariant:p.attackVariant||null,
+      blocking:!!p.blocking,stun:+p.stun.toFixed(5),
+      hp:p.hp,foeHp:e.hp,combo:p.combo,attackAir:!!p.attackAir,
+      v72:p.v72StudioPack?.slot||null,
+      v81:p.v81PoseTransitions?.mode||null,
+      v100:window.SkyClashPoseAuthority?.active||null,
+      pos:p.pos.toArray(),hips:point('hips'),
+      leftFoot:point('leftFoot'),rightFoot:point('rightFoot'),
+      leftHand:point('leftHand'),rightHand:point('rightHand'),
+      q:names.map(n=>h.getNormalizedBoneNode(n)
+       .quaternion.toArray().map(q=>+q.toFixed(8)))});
+    };
+    const tick=(seconds)=>{
+     const n=Math.round(seconds*fps);
+     for(let i=0;i<n;i++){
+      p.update(dt);
+      // The defender is stationary: it still has real health and receives
+      // game hit rules, but doesn't trigger AI attacks back at the camera.
+      observe();
+     }
+    };
+    reset(2.2);
+    stage='pre-attack-idle';tick(1.0);
+    game.Combat.melee(p,e);
+    attacks.push({kind:p.attackKind,variant:p.attackVariant,
+     duration:p.attackTotal,contact:p.kickPend?.t,
+     attackAir:!!p.attackAir,stage:0});
+    stage='jab';tick(.82);
+    stage='return-to-idle';tick(.75);
+    stage='guard';p.blockHeld=true;tick(.38);
+    stage='guard-release';p.blockHeld=false;tick(.5);
+    // A separate *continuous* four-press whiff sequence:
+    // retain Kairo's movement, timers and natural pose owner. Position the
+    // foe out of reach; the real attack physics still runs on every frame.
+    reset(20);
+    stage='combo-entry';tick(.25);
+    for(let i=0;i<4;i++){
+     game.Combat.melee(p,e);
+     attacks.push({kind:p.attackKind,variant:p.attackVariant,
+      duration:p.attackTotal,contact:p.kickPend?.t,
+      attackAir:!!p.attackAir,stage:i});
+     stage='combo-'+(i+1);
+     tick((p.attackTotal||.55)+.09);
+    }
+    stage='combo-exit-to-idle';tick(.65);
+    return {fps,samples,attacks};
+   },{fps,names:NAMES});
+   trace.setup=setup;trace.errors=[...errors];
+   verify(trace,fps);
+   fs.writeFileSync(path.join(OUT,'continuous-'+fps+'fps.json'),
+    JSON.stringify(trace));
+   const first=trace.samples.find(x=>x.stage==='pre-attack-idle');
+   const last=trace.samples.findLast(x=>x.stage==='combo-exit-to-idle');
+   // Measure, do NOT auto-approve foot planting. Only compare successive
+   // frames when the simulated physical root hardly moved.
+   let maxStationaryRootFootDeltaPerFrame=0;
+   for(let i=1;i<trace.samples.length;i++){
+    const a=trace.samples[i-1],b=trace.samples[i];
+    if(a.stage!==b.stage||
+       Math.hypot(b.pos[0]-a.pos[0],b.pos[2]-a.pos[2])>=.015)continue;
+    for(const foot of ['leftFoot','rightFoot']){
+     const p=a[foot],q=b[foot];
+     maxStationaryRootFootDeltaPerFrame=Math.max(
+      maxStationaryRootFootDeltaPerFrame,
+      Math.hypot(q[0]-p[0],q[2]-p[2]));
+    }
+   }
+   traces.push({fps,frames:trace.samples.length,
+    attacks:trace.attacks.map(({kind,variant,contact,duration})=>
+     ({kind,variant,contact,duration})),
+    startPose:first?.v72,endPose:last?.v72,
+    hasRealGuard:trace.samples.some(x=>x.blocking),
+    maxStationaryRootFootDeltaPerFrame:
+      +maxStationaryRootFootDeltaPerFrame.toFixed(5)});
+  }
+  const report={status:'CAPTURED_NOT_VISUALLY_APPROVED',
+   intent:'Baseline existing actual game, never a new animation',
+   modelSha256:SHA,realVRM:true,scriptNotLoadedInGame:true,
+   fps:fpsList,results:traces,limitations:[
+    'This captures complete existing final-pose frames and gameplay clocks, not aesthetics',
+    'State labels identify owners but do not prove per-joint write attribution',
+    'Targeted jab uses real melee and defender; combo deliberately whiffs',
+    'No actual new artwork has been produced'
+   ]};
+  fs.writeFileSync(path.join(OUT,'readme-report.json'),JSON.stringify(report,null,2));
+  console.log('PASS KAIRO_REAL_GAME_FOUNDATION '+JSON.stringify({
+   modelSha256:SHA,frames:traces.map(t=>t.frames),fps:fpsList,
+   note:'baseline telemetry only; not visual approval'}));
+ }finally{await browser.close();}
+}
+main().catch(err=>{console.error(err.stack||String(err));process.exitCode=1;});
