@@ -2377,7 +2377,8 @@
     prepFeet:[],prepHipsXZ:null,prepLastHipXZ:null,pushReleaseHipXZ:null,
     guidedLaunchLegs:[],prepForwardAxes:null,
     v157Bank:0,v157Facing:null,v159Vertical:0,
-    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null,v162Flow:null,v163Vertical:null,v163UpTime:0,v163DownTime:0};
+    v160Lead:null,v160Torso:null,v160Limbs:null,v161Flow:null,v162Flow:null,v163Vertical:null,v163UpTime:0,v163DownTime:0,
+    v164Vertical:null,v164Clock:0,v164UpTime:0,v164DownTime:0};
   const axisBank=new THREE.Vector3(0,0,1),
     axisPitch=new THREE.Vector3(1,0,0),
     flowEuler=new THREE.Euler(0,0,0,'XYZ');
@@ -2386,6 +2387,9 @@
     qTarget=new THREE.Quaternion(),qMapped=new THREE.Quaternion(),
     qSourceBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
     qRaw=new THREE.Quaternion(),qTmp=new THREE.Quaternion(),qKeyframe=new THREE.Quaternion(),
+    q164Arm=new THREE.Quaternion(),q164Target=new THREE.Quaternion(),
+    q164Ref=new THREE.Quaternion(),q164Delta=new THREE.Quaternion(),
+    q164Hi=new THREE.Quaternion(),q164HoverInv=new THREE.Quaternion(),
     axisY=new THREE.Vector3(0,1,0);
   function capture(rig){
    const scene=rig.vrm.scene,hum=rig.vrm.humanoid;
@@ -2419,6 +2423,7 @@
    st.v157Bank=0;st.v157Facing=null;st.v159Vertical=0;
    st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
    st.v163Vertical=null;st.v163UpTime=0;st.v163DownTime=0;
+   st.v164Vertical=null;st.v164Clock=0;st.v164UpTime=0;st.v164DownTime=0;
    st.v146Motion=null;st.v147Motion=null;st.v148Motion=null;st.v150Motion=null;
    st.v151Arms=null;st.v152Motion=null;st.v153Motion=null;
    st.flightSamples=BONES.map(()=>new THREE.Quaternion());
@@ -2492,6 +2497,7 @@
     st.v157Bank=0;st.v157Facing=yaw;st.v159Vertical=0;
     st.v160Lead=null;st.v160Torso=null;st.v160Limbs=null;st.v161Flow=null;st.v162Flow=null;
    st.v163Vertical=null;st.v163UpTime=0;st.v163DownTime=0;
+   st.v164Vertical=null;st.v164Clock=0;st.v164UpTime=0;st.v164DownTime=0;
    }
    if(next==='prep'){
     st.prepBase=visible.map(q=>q.clone());
@@ -3106,6 +3112,44 @@
    // pitch/roll layer. The accepted Q hover is the upright vertical base.
    const v163=new URLSearchParams(root.location?.search||'')
     .get('flightVertical')==='v163';
+   // V164 uses THREE unmodified 20-bone clip sets from exact Kairo
+   // Pose Lab authored files chosen by the player (B/B/B/B).
+   const v164=new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v164';
+   const selected=v164?root.SkyClashV164SelectedFlight:null;
+   if(v164&&(!selected||selected.modelSha256!==clip.modelSha256||
+    selected.bones?.join('|')!==BONES.join('|')||
+    selected.clips?.arms?.frames?.length!==21||
+    selected.clips?.ascending?.frames?.length!==25||
+    selected.clips?.descending?.frames?.length!==25))
+    throw Error('V164 requires three model-verified player-chosen B pose clips');
+   function v164Sample(which,time,bone,out){
+    const frames=selected.clips[which].frames;
+    const t=clamp(time,0,frames[frames.length-1].time);
+    let hi=1;
+    while(hi<frames.length-1&&frames[hi].time<t)hi++;
+    const lo=frames[hi-1],next=frames[hi];
+    return out.fromArray(lo.quaternions[bone])
+     .slerp(q164Hi.fromArray(next.quaternions[bone]),
+      clamp((t-lo.time)/(next.time-lo.time||1),0,1)).normalize();
+   }
+   const armsB=[7,8,9,11,12,13];
+   let v164Up=0,v164Down=0;
+   if(v164){
+    const drive=v159VerticalIntent(f.vert||0,f.vel?.y||0);
+    st.v164Clock=(st.v164Clock+Math.max(0,dt))%2;
+    st.v164Vertical=v160VerticalStep(st.v164Vertical,drive,dt,17);
+    st.v164UpTime=clamp(st.v164UpTime+(drive>.10?dt*1.5:-dt*2.3),0,1.2);
+    st.v164DownTime=clamp(st.v164DownTime+(drive<-.10?dt*1.5:-dt*2.3),0,1.2);
+    v164Up=smooth(Math.max(0,st.v164Vertical.value));
+    v164Down=smooth(Math.max(0,-st.v164Vertical.value));
+    status.flightVerticalFlowBones=20;
+    status.flightVerticalKeyframeUp=+(st.v164UpTime/1.2).toFixed(3);
+    status.flightVerticalKeyframeDown=+(st.v164DownTime/1.2).toFixed(3);
+    status.flightVerticalKeyframeBlend=+Math.max(v164Up,v164Down).toFixed(3);
+    status.flightVerticalKeyframeSource='V164 selected B stance, B arms, B rise, B settle';
+    status.flightVerticalTarget=+drive.toFixed(3);
+   }
    const keyframes=v163?root.SkyClashV163VerticalKeyframes:null;
    if(v163&&(!keyframes||keyframes.modelSha256!==clip.modelSha256||
     keyframes.bones?.join('|')!==BONES.join('|')||
@@ -3139,10 +3183,44 @@
       smooth((signedForward-.45)/5.75);
    // When climbing or descending, smoothly leave the forward-leaning Q
    // cruise shape. Forward-only motion is BYTE-FOR-BYTE the old formula.
-   const travel=v163?originalTravel*(1-.995*Math.max(upBlend,downBlend)):
+   const travel=v164?originalTravel*(1-.995*Math.max(v164Up,v164Down)):
+    v163?originalTravel*(1-.995*Math.max(upBlend,downBlend)):
     originalTravel;
    for(let i=0;i<BONES.length;i++){
     qRaw.fromArray(clip.hover[i]).slerp(qTmp.fromArray(clip.cruise[i]),travel);
+    if(v164){
+     // On Q cruise, add ONLY the player-chosen B arm clearance,
+     // preserving exactly the Q torso, legs and head. On pure hover,
+     // the same real quaternion correction yields the authored B stance.
+     const isArm=armsB.includes(i);
+     if(isArm){
+      v164Sample('arms',st.v164Clock,i,q164Arm);
+      q164HoverInv.fromArray(clip.hover[i]).invert();
+      q164Delta.copy(q164HoverInv).multiply(q164Arm);
+      qRaw.multiply(q164Delta).normalize();
+     }
+     // For vertical action, pose is the selected authored FULL 20-bone
+     // quaternion clip. Remove the clip's sampled reference arm sway,
+     // then inherit CURRENT looping B sway, so no hands freeze mid-flight.
+     if(v164Up>.00001){
+      v164Sample('ascending',st.v164UpTime,i,q164Target);
+      if(isArm){
+       v164Sample('arms',st.v164UpTime,i,q164Ref);
+       q164Delta.copy(q164Ref).invert().multiply(q164Target);
+       q164Target.copy(q164Arm).multiply(q164Delta).normalize();
+      }
+      qRaw.slerp(q164Target,v164Up);
+     }
+     if(v164Down>.00001){
+      v164Sample('descending',st.v164DownTime,i,q164Target);
+      if(isArm){
+       v164Sample('arms',st.v164DownTime,i,q164Ref);
+       q164Delta.copy(q164Ref).invert().multiply(q164Target);
+       q164Target.copy(q164Arm).multiply(q164Delta).normalize();
+      }
+      qRaw.slerp(q164Target,v164Down);
+     }
+    }
     if(v163){
      if(upBlend>.00001){
       qKeyframe.fromArray(clip.hover[i]).slerp(
@@ -3340,6 +3418,8 @@
     status.flightStyle='V162 upright, visibly articulated vertical flight'+
      (bankEnabled?' + banking':'');
    if(v163)status.flightStyle='V163 real Kairo upright keyframed climb/dive'+
+     (bankEnabled?' + banking':'');
+   if(v164)status.flightStyle='V164 player-selected B/B/B/B levitation'+
      (bankEnabled?' + banking':'');
   }
   f.animate=function(dt){

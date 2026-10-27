@@ -77,6 +77,7 @@ jobs:
           node tests/v161-full-body-flight.js
           node tests/v162-upright-vertical-flight.js
           node tests/v163-authored-vertical-keyframes.js
+          node tests/v164-selected-kairo-real-flight.js
       - name: Verify generated game bundle matches editable source
         run: |
           python tools/build.py
