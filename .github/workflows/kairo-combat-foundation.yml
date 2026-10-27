@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'tools/diagnose-kairo-combat-pipeline.cjs'
+      - 'tools/verify-kairo-rig-roundtrip.cjs'
       - '.github/workflows/kairo-combat-foundation.yml'
   workflow_dispatch:
 
@@ -32,6 +33,7 @@ jobs:
             npx playwright install-deps chromium
           fi
           node --check tools/diagnose-kairo-combat-pipeline.cjs
+          node --check tools/verify-kairo-rig-roundtrip.cjs
       - name: Serve immutable game checkout
         run: |
           python -m http.server 8765 --bind 127.0.0.1 > /tmp/kairo-foundation-http.log 2>&1 &
@@ -42,6 +44,9 @@ jobs:
       - name: Capture original idle jab guard four-beat motion across frame rates
         env: {VISUAL_PORT: '8765'}
         run: node tools/diagnose-kairo-combat-pipeline.cjs
+      - name: Verify real normalized VRM0 rig and native pose format round-trip
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/verify-kairo-rig-roundtrip.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
