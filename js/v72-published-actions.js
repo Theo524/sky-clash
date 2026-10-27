@@ -272,8 +272,13 @@
     if(state.releasingIdle&&!safeWalk){
      state.releasingIdle=false;state.weight=0;
     }
-    const entry=slot?actions[slot]:options.choose?
-      (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
+    // Batch A: select exact locally authored Kairo clips INSIDE V72's existing
+    // final combat writer. No extra fighter.animate wrapper. Other characters,
+    // airborne attacks and default game retain the original published motions.
+    const local=options.kairoCombat&&this.characterId==='kairo_venn'&&
+      !this.attackAir&&(this.punchT||0)>0?options.kairoCombat[slot]:null;
+    const entry=local||(slot?actions[slot]:options.choose?
+      (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null));
     if(!entry){state.weight=0;return;}
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     if(state.releasingIdle||state.releasingExtra){
@@ -288,8 +293,8 @@
       // V87: real punches usually include a long idle lead-in/recovery.
       // Play their *contact window* over the gameplay strike, not the
       // entire 2-3 second file squeezed into a split second.
-      const from=Number.isFinite(entry.attackStart)?entry.attackStart:0;
-      const to=Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
+      const from=entry.localAbsolute?0:Number.isFinite(entry.attackStart)?entry.attackStart:0;
+      const to=entry.localAbsolute?entry.duration:Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
       state.clock=from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
       let rate=entry.speed;
@@ -366,6 +371,14 @@
      if(unified&&!options.choose&&entry.slot==='idle'&&i>=6&&i<=13&&
         root.SkyClashUpperBody?.ready&&status.approvedIdle)continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
+     if(entry.localAbsolute){
+      // Pose Lab stores LOCAL ABSOLUTE normalized-node quaternions, unlike
+      // the V72 Mixamo world-rest deltas below. Never retarget a local
+      // quaternion a second time or compose an extra procedural offset.
+      node.quaternion.slerp(state.samples[i],state.weight).normalize();
+      node.updateMatrixWorld(true);
+      continue;
+     }
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
      node.parent.getWorldQuaternion(parentQ);
@@ -496,9 +509,22 @@
    // asset loader or another wrapper that fights over the same bones.
    status.motionClips=actions;
    if(!Object.keys(actions).length)return status;
+   // Optional preview only, decoder is pure and assets are never loaded in
+   // the public/default game. Failure retains the exact old V87 path.
+   let kairoCombat=null;
+   if(new URLSearchParams(context.location?.search||'').get('combatAnim')==='kairo-a1'){
+    try{
+     if(!context.SkyClashKairoCombatChoreo)throw Error('Kairo authored clip decoder unavailable');
+     const response=await context.fetch('assets/animations/combat/kairo/storm-fist-batch-a.pose.json',
+      {cache:'no-cache'});
+     if(!response.ok)throw Error('Authored Kairo clips HTTP '+response.status);
+     kairoCombat=context.SkyClashKairoCombatChoreo.decodePack(context.THREE,await response.json());
+     status.combatPreview='kairo-a1';
+    }catch(e){status.combatPreviewError=String(e);console.warn('Kairo authored combat preview falling back to V87',e);}
+   }
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;
-   for(const f of fighters)if(attach(context.THREE,f,actions,status))count++;
+   for(const f of fighters)if(attach(context.THREE,f,actions,status,{kairoCombat}))count++;
    if(count){status.ready=true;status.actions=Object.keys(actions);status.characters=count;}
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
