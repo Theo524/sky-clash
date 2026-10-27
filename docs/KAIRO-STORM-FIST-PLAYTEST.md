@@ -15,7 +15,10 @@ The accepted original Blender jab is copied exactly from
 same measured Blender rig, then baked to actual Kairo normalized joints.
 V72 selects them using existing gameplay clocks; V81 retains finger grip and
 exit blending. The original stance, flight, Rin, hitboxes and move rules are
-preserved. A missing/invalid set falls back to the original game.
+preserved. New clips approach nearer through the existing bounded pursuit
+controller to match their reach; collision separation and travel limits
+remain intact. The accepted jab keeps its published approach.
+A missing/invalid set falls back to the original game.
 
 Reproduce from a local HTTP server on port 8765:
 

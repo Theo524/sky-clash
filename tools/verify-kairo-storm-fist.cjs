@@ -96,7 +96,7 @@ async function main(){
    };
   },{bones});
   const reports=[];
-  for(const fps of [30,60,120]){
+  for(const fps of (process.env.STORM_QA_VISUAL_ONLY==='1'?[]:[30,60,120])){
    const report=await page.evaluate(({fps})=>{
     const q=window.__stormQA,{p,e,s,reset,observe,tick}=q,dt=1/fps;
     const chain=(cycle,distance,maximum)=>{
@@ -219,7 +219,8 @@ async function main(){
   fs.writeFileSync(path.join(output,'summary.json'),JSON.stringify(result,null,2));
   assert.deepEqual(errors,[],'Uncaught browser errors');
   assert.deepEqual(failures,[],'Storm Fist sequence failures');
-  console.log('PASS real Kairo Storm Fist sequences at 30/60/120Hz');
+  console.log(process.env.STORM_QA_VISUAL_ONLY==='1'?'PASS focused real Kairo visual recapture':
+   'PASS real Kairo Storm Fist sequences at 30/60/120Hz');
  }finally{await browser.close();}
 }
 
@@ -299,6 +300,7 @@ async function captureFilm(page){
 
 async function captureMoves(page){
  const dir=path.join(output,'move-frames');fs.mkdirSync(dir,{recursive:true});
+ await page.evaluate(()=>{const panel=document.getElementById('walkLabStatus');if(panel)panel.open=false;});
  const available=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
  if(selectedMoves)assert(selectedMoves.every(id=>available.includes(id)),'Unknown STORM_QA_MOVES entry');
  const ids=selectedMoves?available.filter(id=>selectedMoves.includes(id)):available;
