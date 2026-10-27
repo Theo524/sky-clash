@@ -5,6 +5,7 @@ on:
     paths:
       - 'tools/diagnose-kairo-combat-pipeline.cjs'
       - 'tools/verify-kairo-rig-roundtrip.cjs'
+      - 'docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json'
       - '.github/workflows/kairo-combat-foundation.yml'
   workflow_dispatch:
 

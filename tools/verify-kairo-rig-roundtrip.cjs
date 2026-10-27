@@ -7,6 +7,7 @@
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto'),fs=require('node:fs'),path=require('node:path');
 const {chromium}=require('playwright');
+const BASELINE=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json');
 const OUT=path.resolve('visual-review-output/kairo-combat-foundation');
 const BONES=['hips','spine','chest','upperChest','neck','head',
  'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
@@ -159,6 +160,21 @@ async function main(){
   assert(result.maxRoundTripError.worldPosition<1e-5);
   const signature=hash({modelSha256:SHA,bones:BONES,
    hierarchy:result.structure,rawPresence:result.rawMap.map(x=>x.rawBonePresent)});
+  // Pin the actual proven Kairo rig rather than accepting any silently
+  // changed skeleton as a new "successful" calibration. These markers
+  // deliberately do not represent a Blender bind-pose conversion.
+  assert.equal(BASELINE.schema,'sky-clash.kairo-normalized-rig-fingerprint.v1');
+  assert.equal(BASELINE.status,
+   'VERIFIED_RUNTIME_HIERARCHY_ONLY_NOT_BIND_POSE_OR_BLENDER_CONVERSION');
+  assert.equal(BASELINE.modelSha256,SHA,'Approved real model fingerprint drift');
+  assert.equal(BASELINE.rigSignature,signature,
+   'Real normalized hierarchy drift; explicitly reverify before authoring');
+  assert.deepEqual(BASELINE.bones,BONES);
+  assert.deepEqual(BASELINE.parents,result.parents);
+  assert.equal(BASELINE.normalizedFingerJointsObserved,
+   Object.keys(result.fingersFound).length);
+  assert.equal(BASELINE.rawBoneNodesObserved,
+   result.rawMap.filter(x=>x.rawBonePresent).length);
   const contract={modelSha256:SHA,rigSignature:signature,
    bones:BONES,parents:result.parents};
   const pack={...result.serializedSample,modelSha256:SHA,rigSignature:signature};
