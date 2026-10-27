@@ -21,9 +21,16 @@ jobs:
         with: {node-version: '22'}
       - name: Install real Blender CLI (no game changes)
         run: |
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender python3-numpy >/tmp/sky-clash-blender-apt.log
+          # Runner has pre-populated package indexes. Avoid a slow unconditional
+          # package-index refresh; retry an update only if direct install fails.
+          if ! timeout 420s sudo env DEBIAN_FRONTEND=noninteractive \
+              apt-get install -y --no-install-recommends blender python3-numpy; then
+            timeout 120s sudo apt-get update -qq
+            timeout 420s sudo env DEBIAN_FRONTEND=noninteractive \
+              apt-get install -y --no-install-recommends blender python3-numpy
+          fi
           blender --version | head -3
+          blender --background --python-expr 'import numpy; print("KAIRO_BLENDER_NUMPY_READY", numpy.__version__)'
       - name: Author one test-only armature movement on the actual Kairo VRM
         run: |
           blender --background --factory-startup --python tools/author-kairo-blender-probe.py
