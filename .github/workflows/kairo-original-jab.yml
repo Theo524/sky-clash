@@ -1,0 +1,50 @@
+name: Kairo Original Jab — Private DCC Blockout
+on:
+  pull_request:
+    paths:
+      - 'tools/author-kairo-original-jab.py'
+      - '.github/workflows/kairo-original-jab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: kairo-jab-private-preview-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-only-jab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/blender-4.5.15-linux-x64.tar.xz
+          key: kairo-official-blender-4.5.15-tarball-x64-v1
+      - name: Install hash-verified Blender LTS without apt
+        run: |
+          set -euo pipefail
+          archive="blender-4.5.15-linux-x64.tar.xz"
+          cd "$RUNNER_TEMP"
+          if [ ! -s "$archive" ]; then
+            curl --fail --location --retry 2 --max-time 360 \
+              "https://download.blender.org/release/Blender4.5/$archive" -o "$archive"
+          fi
+          curl --fail --location --retry 2 --max-time 90 \
+            "https://download.blender.org/release/Blender4.5/blender-4.5.15.sha256" -o checksum.txt
+          grep " $archive" checksum.txt | sha256sum --check --
+          tar -xJf "$archive"
+          echo "$RUNNER_TEMP/blender-4.5.15-linux-x64" >> "$GITHUB_PATH"
+      - name: Build original Kairo-joint head IK foot rig
+        run: blender --background --factory-startup --python tools/author-kairo-foot-ik.py
+      - name: Author one new left jab with real Blender wrist IK targets
+        run: |
+          blender --background --factory-startup --python tools/author-kairo-original-jab.py
+          test -s visual-review-output/kairo-combat-foundation/blender-original-jab-blockout.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-original-jab-blender-private-blockout
+          path: |
+            visual-review-output/kairo-combat-foundation/blender-original-jab-blockout.json
+            visual-review-output/kairo-combat-foundation/kairo-original-jab-review-only.blend
+          retention-days: 21
