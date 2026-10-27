@@ -40,7 +40,8 @@ const uri=preview=>'http://127.0.0.1:'+port+
      preview==='v160'?'v156&flightVertical=v160':
      preview==='v161'?'v156&flightVertical=v161':
      preview==='v162'?'v156&flightVertical=v162':
-     preview==='v163'?'v156&flightVertical=v163':preview);
+     preview==='v163'?'v156&flightVertical=v163':
+     preview==='v164'?'v156&flightVertical=v164':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
 function ffmpeg(...args){

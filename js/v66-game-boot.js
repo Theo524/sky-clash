@@ -239,6 +239,9 @@
     if(src.includes('v100-pose-authority')&&
        new URLSearchParams(location.search).get('flightVertical')==='v163')
       e.src+='&vertical=163';
+    if(src.includes('v100-pose-authority')&&
+       new URLSearchParams(location.search).get('flightVertical')==='v164')
+      e.src+='&vertical=164';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -354,6 +357,8 @@
     await script('js/v158-real-vrm-flight.js?v=1580');
    if(new URLSearchParams(location.search).get('flightVertical')==='v163')
     await script('js/v163-real-kairo-vertical-keyframes.js?v=1630');
+   if(new URLSearchParams(location.search).get('flightVertical')==='v164')
+    await script('js/v164-selected-kairo-real-flight.js?v=1640');
    await script('js/v100-pose-authority.js?v=1560');
    window.SkyClashV100Animator.start(window);
   }
