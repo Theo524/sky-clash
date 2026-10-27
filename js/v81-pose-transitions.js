@@ -108,7 +108,13 @@
       next==='guard'?.16:next==='boost-stop'?.14:next==='fall'?.20:.18;
     // V87: strikes should enter fast but not snap in one frame from
     // the preceding stance; damage reactions remain instantaneous.
-    st.blend=next==='damage'?1:clamp(st.elapsed/(next==='attack'?.075:seconds),0,1);
+    // The private native jab already contains its authored entry/recovery.
+    // Keep V81's fingers and exit transition, but do not time-warp that
+    // full-body entry with a second blend. Normal gameplay never registers
+    // this preview and takes the existing transition path unchanged.
+    const nativeAttack=next==='attack'&&this.v72StudioPack?.nativePreviewActive;
+    st.blend=next==='damage'||nativeAttack?1:
+      clamp(st.elapsed/(next==='attack'?.075:seconds),0,1);
     const w=st.blend*st.blend*(3-2*st.blend);
     if(w<1)for(let i=0;i<st.nodes.length;i++){
      const node=st.nodes[i];

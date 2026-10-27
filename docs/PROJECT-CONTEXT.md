@@ -1397,3 +1397,41 @@ Experimental `?flightBank=v157` implements a gently smoothed ±13° pelvis-led w
 PR #125 introduced opt-in V160 critically damped rise/dive overlay. PR #126 V161 extended that overlay to 20 bones. PR #127 V162 reduced the *additional* torso pitch while enlarging arm/knee rotations. The player inspected the real game and reported that the up/down body leans much too far and limb motion is barely noticeable: **all three vertical candidates are NOT visually approved**. Numerical and WebGL CI green did not establish artistic quality. The assistant subsequently downloaded and visually inspected the V161/V162 real-VRM 3-camera comparison; their silhouettes looked overly similar and excessively forward-leaning. The accepted V156 Q **forward-only** pose remains protected/default. No new vertical animation was approved.
 
 The player then requested true keyframes and a deep review of the full GitHub project before further animation work. The assistant inventoried the complete Git tree and inspected existing editor, keyframe, recorded-motion, gameplay and WebGL capture systems. See [full tool audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md). Important missed capability: `pose-lab.html`, `js/kairo-pose-lab.js` and `tools/author-kairo-forward-flight-stills.cjs` already support real-Kairo SHA-bound **20-bone authored quaternion poses with automatic three-view WebGL review**. `assets/animations/gameplay/v86-ue5-converted-actions.json` contains real recorded 30fps `floating` and `flying` tracks which can be reviewed as reference. The current flight library only models accepted forward hover/cruise, not actual multi-key up/down clips, and the video QA vertical stages have horizontal speed mixed in. Next work: assistant-only **static keyframe silhouette authoring** for upright pure rise/drop before new game integration; no procedural V163 guess, preserve V156 baseline and other states.
+
+## 2026-10-27 — Cloud recovery of interrupted PR #140 jab work (local, unmerged)
+
+Recovered PR head `87ef542` on `fix/combat-animation-recovery`. Consolidated stale
+handoff/README instructions, removed the unused non-reproducible V54 FBX baker,
+ignored generated outputs/caches, and narrowed historical V154/V155 workflow
+triggers. Preserved active legacy layers and all approved assets.
+
+Fixed the Blender jab's T-pose-to-game-idle mismatch and VRM0 forward-axis
+assumption using a measured actual standing anchor. Authored a full-body step-in
+with calibrated elbow/knee poles, rear support, lead step and per-frame pelvis
+translation. Added strict private native sampling inside existing V72, retained
+V81 fingers/recovery without double entry blend, and prevented canceled native
+attacks from restarting after stun. Normal gameplay registers no preview.
+
+Local validation: 109 regression commands passed; actual VRM source/bake and
+real hit/whiff/stun-interrupt/guard/idle-recovery passed at 30/60/120Hz. Three
+36-frame/24fps continuous real-renderer views and chronological sheets were
+inspected. No unsolicited visual assets, merged PR, changed default, remote CI
+claim or deployment. Full results and reproducible commands:
+[foundation report](KAIRO-COMBAT-FOUNDATION-2026-10-27.md#local-validation-of-the-recovered-implementation).
+
+Not a completed fighting remake: moving rear-foot support and actual fist/mesh
+contact still need refinement; current wrist-to-chest-center gap is 0.37–0.43
+world units in the fixed target fixture. Deep fast lunge remains artistically
+unapproved. Complete this jab before expanding to full Kairo/Rin combinations.
+
+
+## 2026-10-27 — User authorizes experimental Pages jab playtest
+
+The user explicitly requested publication on the existing Pages game, rollback
+preservation, existing fixes only and a playable load check. This is visual
+playtest authorization, **not final animation approval**. The isolated entry is
+`?combatAnim=blender-jab-v1`; normal URLs retain original combat. V72 loads the
+verified source/baked clip only for this flag and falls back nonfatally on a
+missing, invalid or timed-out file. V72/V81/boot cache keys are refreshed.
+Rollback annotated tag `rollback/pre-blender-jab-2026-10-27-038ac13` is saved
+on GitHub at the prior main commit. See [release record](KAIRO-JAB-PLAYTEST.md).

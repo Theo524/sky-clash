@@ -9,7 +9,6 @@ on:
   pull_request:
     paths:
       - 'js/v155-organic-flight.js'
-      - 'js/v72-published-actions.js'
       - 'tools/capture-flight-guard-stills.cjs'
   workflow_dispatch:
 permissions:

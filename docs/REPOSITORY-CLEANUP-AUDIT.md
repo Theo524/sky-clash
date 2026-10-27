@@ -52,3 +52,19 @@ Concrete dependencies:
 - Run `node tools/assistant-checkup.cjs --strict --smoke`, animation ownership and V66 full integration; any JS deletion additionally needs actual WebGL default and rollback smoke screenshots. Deleting old docs alone needs source/links validation.
 - Never claim eliminating more files makes the game faster without measuring **network bytes loaded** and FPS, not only Git tree size.
 - GitHub Pages and branch status must be checked live; deleting a file from the current branch does not erase its older commits.
+
+## Fighting-animation recovery cleanup
+
+Removed `tools/bake_mixamo_v54.py`: no repository code, workflow or test refers
+to this old V54 converter. It depended on the absent `inspect_mixamo_fbx` module
+and private `/mnt/data` ZIP inputs, so it was not a usable current build path.
+Its historical source remains in Git (`10cf2de`); existing licensed/baked motion
+assets and attribution have not been removed. Current Blender authoring and
+Animation Studio tooling remain available.
+
+Consolidated contradictory handoff/README text, removed obsolete ZIP publishing
+instructions, and excluded generated review captures, Python caches and local
+Node dependencies from Git. Historical V154/V155 reviews retain manual and
+experiment-specific triggers; shared V72 edits no longer launch both jobs.
+No active controller, approved pose asset, VRM model or regression suite was
+deleted merely because it had an old version number.

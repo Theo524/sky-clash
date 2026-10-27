@@ -1,123 +1,47 @@
-# Sky Clash — coding assistant instructions
+# Sky Clash — assistant instructions
 
-**2026-10-27 — USER REJECTED KAIRO BATCH A; LIVE PREVIEW WITHDRAWN AND ORIGINAL FIGHTING RESTORED.** Experimental [PR #139](https://github.com/Theo524/sky-clash/pull/139) had been merged solely as an opt-in playtest. The player reported that it **ruined the standing/fighting stance** and that the strikes looked like the old Mixamo actions or looked **horrible**. This is a REJECTION, not provisional aesthetic approval. Main's executable game/assets/workflows are restored byte-for-byte to pre-PR baseline `8e77ebdccdc63542c7b11f20162685a325db4fb8` through a forward rollback commit, with only these new safety/handoff notes added; original V156 Q/default, user-selected V164 B/B/B/B, optional V165 and legacy fighting are protected. `?combatAnim=kairo-a1` must NOT be offered as a test or advertised as working; it is no longer shipped on the game site. Keep rejected authored/source material only on the historical feature branch `feature/kairo-combat-choreo-batch-a` / merged PR for forensic comparison, not as a deployable asset. See [rejection and rebuild criteria](KAIRO-BATCH-A-REJECTED-2026-10-27.md). No new visual preview should ship without a *continuous user-realistic real-VRM grounded fight and idle/guard visual review*; static contact screenshots, authored quaternion metadata, synthetic rigs and CI-only are not sufficient. Avoid soliciting piecemeal stance/punch approval or sending unsolicited images/videos. Do not silently resurrect/merge Batch A.
-
-**LATEST 2026-10-27 — V164 DEPLOYED TO MAIN AS OPT-IN PLAYER TEST, NOT DEFAULT.** All four player-selected B choices are now integrated in the existing V100 flight owner: (1) arm clearance B, (2) natural arm sway B, (3) balanced ASCENT B and (4) settling DESCENT B. The exact VRM0 data module `js/v164-selected-kairo-real-flight.js` was generated directly from archived 71 real Pose Lab keyframes via `tools/build-kairo-v164-selected-flight.cjs` / `.github/workflows/kairo-v164-generate-selected-clips.yml`. [PR #135](https://github.com/Theo524/sky-clash/pull/135) is MERGED, commit `d8ab7aded3f0441bf699d3608d723dc16f4b6df2`. **User test URL:** https://theo524.github.io/sky-clash/?flightVertical=v164 . Default normal game remains approved V156 Q! Older V163 stays opt-in. Real in-game WebGL QA [run 40429831902](https://github.com/Theo524/sky-clash/actions/runs/40429831902) **PASSED**, artifact **12700854889** has 9 moments from 3 cameras in V156/V164 comparison, 60-tick telemetry, pure up/down and combined forward vertical plus Boost. All 5 PR checks passed. Front and side camera inspections show upright hover-family silhouette and intentionally subtle B movement; **full combined gameplay is NOT yet player aesthetically approved**, await their playtesting feedback. Do not repeat four choice prompts or revert approved B/B/B/B data; operate toolchain using [V164 guide](docs/KAIRO-V164-SELECTED-FLIGHT-PLAYTEST.md) and the [repository audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md).
-
-
-**LATEST 2026-10-27: ALL FOUR PLAYER VISUAL CHOICES ARE NOW LOCKED.** Kairo **stance B** (arms slightly away), **arm motion B** (natural), **ascending B** (balanced levitation), and **descending B** (natural settling) — four separate decisions. The player JUST selected descending **B** from the three real-Kairo animated GIFs generated in successful [run #40425774416](https://github.com/Theo524/sky-clash/actions/runs/40425774416), artifact **12699498850**, source `B-descend-B.pose.json`. Earlier selected source: arm B `B-B-animation.pose.json` from #40418975917/artifact #12697736565 and ascent B `B-ascend-B.pose.json` from #40421353502/artifact #12698076236. **NEXT TASK: combine all three real-VRM quaternion clips into a NEW OPT-IN playtest URL** within existing V100 flight owner; preserve exact approved V156 Q default, avoid V159-162 additive Euler changes and avoid Goku poses. Test pure up/down and forward-mixed, neutral arm swaying, reversed inputs and 3-view WebGL. Do not ask player to choose anything else until they test this build.
-
-
-**MOST RECENT PLAYER SELECTION (2026-10-27):** The player picked **B — Balanced ASCENDING** in the real Kairo A/B/C ascent motion comparison. This is IN ADDITION to earlier **B = arms slightly away from body stance** and **B = natural arm sway**. The ascending selection is **B** (middle intensity, authored actual 20-bone VRM0 25-keyframes 2-second animation with rising pose scaled by 0.65 from B standing hover). Verified study run [40421353502](https://github.com/Theo524/sky-clash/actions/runs/40421353502), artifact **12698076236**; source `B-ascend-B.pose.json`. **Do not confuse** the three different independent B choices, and do not revert them. No new B ascent or arm-motion candidate is yet implemented in the PLAYABLE game: V156 normal flight default, V163 older experimental vertical. NEXT: show the player one animated A/B/C choice for **DESCENDING ONLY**, sharing exact B static stance, B natural sway, and B balanced ascent as the already-selected base; user must choose down before integration. Avoid Goku/pitch dive. Save decision and assets after choice.
+**Experimental jab publication is explicitly authorized by the user.** The
+`combatAnim=blender-jab-v1` link opts into the recovered original Blender jab
+inside V72. This authorizes playtesting, not final animation approval or a new
+default. Preserve rollback tag `rollback/pre-blender-jab-2026-10-27-038ac13`.
+See [playtest and restore instructions](docs/KAIRO-JAB-PLAYTEST.md). Earlier
+private-only/no-deploy notes describe the preceding development stage.
 
 
-**LATEST PLAYER CHOICE — 2026-10-26:** The player explicitly selected **B — Natural arm movement** from the real-Kairo animated A/B/C comparison, *in addition* to the previously selected **B — arms slightly away from torso** static flight stance. Both decisions are FINAL for the current iteration: selected stance B + movement amplitude B. The authoring script `tools/preview-kairo-b-arm-motion.cjs` created it on the original Kairo VRM0; source run [40418975917](https://github.com/Theo524/sky-clash/actions/runs/40418975917) artifact **12697736565** includes `B-B-animation.pose.json`. **This is NOT yet integrated into playable flight**, and V156 Q remains the approved/default forward-flight clip. NEXT: show the user three visually different **ascending** motion options built upon the exact selected B stance and motion, rather than guessing from text. Show a single clean animated A/B/C comparison on Kairo's actual model, with no dramatic Goku or forward-dive poses; ask for a visual selection, then separately do descending. Never assume the user chose B for ascending or descending.
+Read [current state](docs/ASSISTANT-CURRENT-STATE.md) and the [runbook](docs/ASSISTANT-RUNBOOK.md) before implementing or describing the game. Verify the checkout, remote main, open PRs, CI and Pages when access is available; dated documents are not live evidence. Run `node tools/assistant-checkup.cjs --strict` for local bundle, asset and roster facts. Use [project context](docs/PROJECT-CONTEXT.md) for historical detail, not current status.
 
+The player wants the assistant to operate developer tools. Do not ask them to use Pose Lab, export rigs, install packs, capture debugging clips or run tooling the assistant can run. Do not send unsolicited images/videos or repeatedly solicit piecemeal stance/punch choices. State unavailable access honestly.
 
-**2026-10-26 player choice B (new):** Player chose **B — arms slightly away from body** for Kairo normal/standing hover and explicitly wants natural movement, not a frozen pose. Do NOT change pose silhouette between options. Real-Kairo Pose Lab animation comparison A/B/C has been rendered successfully via [GitHub Actions run 40418975917](https://github.com/Theo524/sky-clash/actions/runs/40418975917), artifact **12697736565**. A = gentle, B = natural, C = more expressive **arm-motion amplitude only**; all have the exact same B-base, 20-bone real VRM0 track. Source tool: `tools/preview-kairo-b-arm-motion.cjs` and `tools/compose-kairo-b-arm-motion.py`, `.github/workflows/kairo-b-arm-motion-preview.yml`. **Await player selection of motion A/B/C** before adding any of it to the playable V100 owner; original V156 Q forward and experimental V163 vertical still unchanged. The user's prior feedback remains: up/down should look like neutral standing hover, not Goku rocket pose. User sees a cleaned animated triptych in current chat; raw authoring frames and GIFs are retained in artifact.
+## Current decisions and scope
 
+- Kairo and Rin are the only playable fighters; other roster ideas are proposals.
+- Main's restored game baseline is rollback `038ac13` after rejected PR #139. **Batch A is REJECTED:** it ruined standing/fighting stance and looked like old Mixamo or looked horrible. Its removed `combatAnim=kairo-a1` query is not a working preview. Preserve its history for diagnosis; do not resurrect its assets or wiring. Read [rejection and rebuild criteria](docs/KAIRO-BATCH-A-REJECTED-2026-10-27.md).
+- V156 Q normal forward flight is the accepted default. V164 is an opt-in player test with four locked B choices: arm clearance, natural arm sway, balanced ascent, settling descent. Preserve the exact selected data. Full combined gameplay is not aesthetically approved. See [V164 guide](docs/KAIRO-V164-SELECTED-FLIGHT-PLAYTEST.md).
+- Older V153 flight was rejected as a rigid stick; standard/V154 Boost were rejected; V155 was rejected as twisted; V160–V162 vertical motion was rejected. A green test cannot overturn player feedback. Preserve rollback routes until an approved replacement is established.
+- PR #140's Blender/VRM transfer, foot IK and original-jab work is an **offline foundation**, recovered locally at `87ef542` for continuation. The jab is an unapproved blockout, now available only through the explicitly authorized experimental playtest. See [foundation evidence and limits](docs/KAIRO-COMBAT-FOUNDATION-2026-10-27.md). Check current remote PR status rather than assuming a merge.
 
-**V163 real-game QA (2026-10-26):** [WebGL run #40414042610](https://github.com/Theo524/sky-clash/actions/runs/40414042610) **passed**, artifact **12693699323** contains actual V156/V163 front/side/back 9-moment PNG comparisons and 60-tick telemetry. Pure climb/down and forward+up/down now genuinely execute the 5-keyframe real-VRM tracks. The assistant inspected side/front visuals: **the pose differences remain subtle** at normal gameplay screenshot scale. This is a technically working but **NOT artistically approved** user-test preview. Do not promote to default or misreport it as visibly perfect. Historical speed-blend guard falsely failed on zero-forward vertical fixture; fixed in [PR #131](https://github.com/Theo524/sky-clash/pull/131). Future tasks should iterate authored keyframe silhouettes, not tweak procedural Euler values.
+## Animation ownership and safety
 
-**LATEST (2026-10-26): V163 REAL KEYFRAMED UP/DOWN FLIGHT IS AN OPT-IN PLAYER TEST.** The player explicitly asked us to publish the new Pose Lab animation work **for personal testing** and store *every useful tool/workflow* in GitHub for new chats. First read [V163 preview and tool instructions](docs/KAIRO-V163-PLAYABLE-PREVIEW.md), [complete repository tool audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md), [fast runbook](docs/ASSISTANT-RUNBOOK.md), and [current state](docs/ASSISTANT-CURRENT-STATE.md). Test `https://theo524.github.io/sky-clash/?flightVertical=v163`; the default remains player-approved V156 Q forward-only. The source is genuine real-VRM Pose Lab multi-keyframes in a single V100 owner, NOT another V159–V162 Euler overlay. The 4-candidate Pose Lab authoring workflow is **merged into main** as [PR #129](https://github.com/Theo524/sky-clash/pull/129), at `tools/author-kairo-vertical-keyframes.cjs` and `.github/workflows/kairo-vertical-keyframes.yml`. Actions run `40410045312` has the full SHA-bound local quaternion tracks and three-camera screenshots. Inspect actual visuals and respect user's feedback, not just code CI. Use the GitHub connector tools directly so the player does not need to touch any development tools.
+Read [ownership contract](docs/ANIMATION-OWNERSHIP-CONTRACT.md), [V100 authority](docs/V100-ANIMATION-AUTHORITY.md), [V103 exit criteria](docs/V103-ANIMATION-CONTRACT-AND-MOVING-JUMPS.md), and relevant source before changing animation. [Rig metadata](docs/KAIRO-RIG-CONTRACT.v1.json) is incomplete; never invent bind-pose signatures or approval.
 
+- Do not add another `Fighter.animate` / `fighter.animate` / `f.animate` wrapper or competing final bone writer as a quick fix. Update the ownership plan first. V100 owns selected Kairo prep/jump/fall/landing/normal-flight poses; V72 handles recorded actions/Boost; V81 blends transitions. Ground combat, guard, damage and Rin have other legacy paths. State labels alone do not prove the final per-bone writer.
+- The invisible guide rig and visible VRM skeleton are distinct. `fighter.flying` derives from height, not intentional flight; it must not override genuine jumping/dropping.
+- Preserve approved ground idle/walk/run/arms (V94/V95/V97), compact jump arms (V101), V102 standing-jump baseline and current V125 jump behavior. V111–V115 experiments are not blanket aesthetic approvals. Keep Rin's ninja sprint, VRM assets, camera, physics, hitboxes, attack clocks and selected flight intact during combat work.
+- Work on one animation state at a time with independent opt-in isolation. Never merge, change a visual default or remove rollback without explicit user approval. The current request authorizes development and cleanup, not automatic aesthetic approval. The later explicit publication request authorizes this opt-in jab playtest.
+- Edit `src/*.js`, then run `python3 tools/build.py` for the generated `js/game.js`; do not edit the bundle alone.
 
-## MANDATORY assistant bootstrap (every new chat, any Sky Clash task)
+## Authoring and acceptance
 
-This repo is the cross-chat technical memory. **First read `docs/ASSISTANT-CURRENT-STATE.md` and `docs/ASSISTANT-RUNBOOK.md` before implementing or describing the state of the game**. The historical `docs/PROJECT-CONTEXT.md` is very long and includes superseded progress statements; use it as background, not as current truth. Verify `main`, open PRs, CI and Pages at the time of the question. Use `tools/assistant-checkup.cjs` or its GitHub Actions artifact for local code/asset consistency checks.
+Use actual Kairo VRM data and the recovered Blender control/IK pipeline for combat. Do not repeat the rejected pose-direction generator or guessed Euler overlays. Pose Lab remains useful for exact normalized-joint inspection and references; it is not a substitute for planted feet, authored wrists/fingers, full-body choreography or weight transfer. Read the [Pose Lab workflow](docs/KAIRO-POSE-LAB-WORKFLOW.md) and [tool audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) when relevant.
 
-**User wants the assistant to operate developer tools, not the user.** Do NOT ask them to use Pose Lab, keyframe bones, capture debugging videos, export rigs, install motion packs or otherwise run development tooling when the assistant can use GitHub, scripted Playwright or CI directly. Present user with results and necessary visual approval only. If GitHub is not connected in the new chat, say so clearly and do not pretend invisible previous-chat access persists.
+The first target is one original full-body jab with anticipation, canonical contact at .24s and recovery at .55s to the unchanged standing pose. Inspect continuous real-VRM motion at gameplay distance, including target hit/whiff, entry/recovery and guard, before expanding the combo. Source quaternion agreement, a static contact image or passing IK limits does not certify artistic quality. Validate timing and transitions at 30/60/120 FPS where relevant. Before a playable preview, meet the complete continuous combat gate in the rejection document; no unsolicited preview assets.
 
-**Latest player verdict:** standard/V154 Boost remain rejected; V153 was a rigid stick and V155 twisted. On 2026-10-26 the player explicitly requested the corrected real-VRM flight pose be put **in the playable game**, without waiting for Pages' amber→green signal. V156 replaces only Kairo ordinary powered flight in V100; Q was authored on the actual VRM and its side/front/back stills were reviewed. Real-game animation visual validation remains important, and older preview URLs are retained for rollback. Never assume new default implies aesthetic endorsement of every detail; further player corrections may follow.
+For flight data, edit `assets/animations/kairo/flight-library.v1.json` and regenerate using `node tools/build-kairo-flight-library.cjs --write`; validate with `node tests/kairo-flight-library.js`. Preserve V156 Q exactly. V164's 71 selected keyframes are retained under `assets/animations/kairo/selected/v164/` and reproduced by `tools/build-kairo-v164-selected-flight.cjs`.
 
-**Latest vertical-flight verdict (26 October 2026):** The player rejected V160–V162 up/down results as over-tilted and barely moving. No further procedural overlay is artistically approved. **Read [the complete cross-project animation/tools audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md)** before the next flight change. The key underused assets are assistant-operated real-VRM Pose Lab keyframes, `tools/author-kairo-forward-flight-stills.cjs`, existing 30fps recorded flying/floating clips, and real WebGL captures. First author and inspect full-body **vertical keyframes**, then integrate opt-in through one V100 owner; keep accepted V156 Q forward flight unchanged. The player is not expected to drive developer tools.
+## Efficient work and handoff
 
-**Read this file before proposing or changing Sky Clash animation code.**
-This is the repository's persistent handoff between chats. An assistant reading
-only a previous conversation may not have the full project context.
+Batch related changes; reuse installed Blender/Chromium and existing outputs. Run focused tests during iteration and the relevant full safety checks at milestones. Keep V66's authoritative regression suite rather than replaying it inside ownership CI. Current V164 WebGL capture handles shared V100 edits; historical film workflows remain available on demand. If V100 changes affect jumping, run the real jump review. Inspect actual motion before recommending a visual change.
 
-## Read in this order
+Cleanup requires reference/dependency evidence. Old version numbers alone do not make modules, tests, rigs, source chunks or rollback assets disposable. Preserve the two real VRMs, source plus generated bundle, vendor libraries and useful authoring tooling. See [cleanup audit](docs/REPOSITORY-CLEANUP-AUDIT.md).
 
-1. [Project handoff](docs/PROJECT-CONTEXT.md) — history, visual feedback, current focus.
-2. [Animation ownership contract](docs/ANIMATION-OWNERSHIP-CONTRACT.md) — wrapper inventory, state boundaries, target architecture.
-3. [Kairo rig metadata draft](docs/KAIRO-RIG-CONTRACT.v1.json) — known joint names and explicit unknowns. It is **not a verified bind pose**.
-4. [V100 authority](docs/V100-ANIMATION-AUTHORITY.md) and [V103 long-term exit criteria](docs/V103-ANIMATION-CONTRACT-AND-MOVING-JUMPS.md).
-5. Check the *current* main commit, PRs and CI; dated documentation snapshots can become stale.
-
-## Non-negotiable rules
-
-- Do not add another Fighter.animate / fighter.animate / f.animate wrapper,
-  or another direct VRM bone writer as a quick animation fix. The historical
-  wrapper inventory is guarded by tests/animation-ownership-contract.js.
-- V100 owns the **final visible Kairo pose** for selected opt-in prep, jump,
-  fall, contact landing and powered flight states. Older controllers yield.
-  It is NOT universal ownership: Boost, damage, guard, combat, ordinary
-  ground locomotion and Rin still rely on older animation paths.
-- Distinguish the invisible procedural guide rig from the visible VRM skeleton.
-  Two rig representations do not alone prove a controller conflict.
-- Fighter.flying is calculated from height, not intentional flight. Do not
-  let this override a genuine jumping or dropping state.
-- Preserve approved ground idle/walk/run/arms (V94/V95/V97), compact jump
-  arms (V101) and the V102 standing jump baseline. V112–V115 knee/jump
-  preparations and V111–V114 flight styles require explicit visual approval.
-- Fix one animation state at a time, behind independent A/B preview flags.
-  Do not change flight physics, collision, VRM assets, Rin's combat, or
-  approved movement as collateral damage.
-- Do not conflate a green test run with WebGL animation quality. Review
-  real Kairo geometry, front/side/back video and explicit user feedback.
-- For screenshot-free visual QA, use the existing GitHub Actions workflow
-  `.github/workflows/jump-visual-review.yml` (`Real Kairo Jump Visual
-  Captures`), download `real-kairo-jump-frames` from a successful run
-  and inspect its *actual WebGL VRM0* PNGs and `measurements.json`.
-  Capture pairs with the workflow_dispatch `previews` input. This allows
-  future chats to see browser-rendered animations without making the user
-  take screenshots, but still requires visual approval for phone behavior.
-- For timing, fluidity and transitions, also inspect `real-kairo-jump-videos`
-  from that same workflow. It contains 24fps front/side H.264 MP4s,
-  synchronized A/B composites and `motion-metrics.json` with 48 fixed-time
-  frames spanning crouch → rise → fall → landing. This is NOT a continuous
-  recording of the user's phone; animations are sampled on a fixed clock
-  against the real headless WebGL VRM. Check both recorded angles, not
-  bone math alone. A failed video job or empty artifact is a blocker, not
-  a pass. The action is also manually dispatchable with a `previews` pair.
-- Run prior tests AND new tests at 30/60/120 FPS where relevant.
-- Never merge, change the visual default, or remove the rollback before
-  explicit user approval.
-
-## Visual authoring tool instead of procedural flight revisions
-
-Before touching Kairo flight or Boost following the user's V153/V154/V155 rejections, read `docs/KAIRO-POSE-LAB-WORKFLOW.md`. Use the standalone `pose-lab.html` for actual real-VRM quaternion editing and manual keyframes. Do not claim previous parametric V142/V153/V155 flight targets were directly authored VRM joint clips. Do not replace game flight merely because the Pose Lab exports a JSON; baseline/transition, runtime single-owner and user visual review are still outstanding.
-
-## One authored Kairo flight pose library
-
-Edit `assets/animations/kairo/flight-library.v1.json`, not generated `js/v156-real-vrm-flight.js` / `js/v158-real-vrm-flight.js`. Regenerate via `node tools/build-kairo-flight-library.cjs --write`; validate via `node tests/kairo-flight-library.js`. Preserve player-liked V156 Q forward-flight data exactly, keep V158 U experimental and retain VRM SHA and 20-bone order. See `docs/KAIRO-FLIGHT-LIBRARY.md`. Do not add another final VRM pose writer.
-
-## Fast animation development workflow (2026-10-26)
-
-- **Batch GitHub edits:** use one `create_tree` + `create_commit` + `update_ref` when multiple files change; never send a separate update request for every source and test file if batching is possible.
-- **PR CI:** superseded PR runs cancel automatically, but main-branch runs do not. The 70+ old tests run ONCE in `v66-character.yml`, not again in animation ownership. V100 owner and approved-state safety remain tested.
-- **Visual evidence:** the relevant current feature WebGL workflow stays automatic. Historic V153/V154/V155 film reviews and moving/jump variants can be run by `workflow_dispatch` only as needed. This preserves rollback comparisons without flooding Actions. If a change to V100 genuinely affects jump, **manually dispatch `jump-visual-review.yml`**; if changing only current forward flight, run the active V159/appropriate current VRM capture. Always inspect real Kairo front/side/back footage before approving a visual change.
-- **Cost control:** ten Chromium workflows pin Playwright 1.56.1 and cache its browser. A fast `tests/ci-workflow-fanout.js` test guards these policies. A green CI status is not evidence of attractive animation.
-
-## Fast Kairo flight previews
-
-- On ordinary V100 flight edits, `.github/workflows/kairo-quick-flight-stills.yml` captures 9 sample frames through 3 cameras on the **real game Kairo VRM0 WebGL renderer**, plus comparison PNGs and the full 60-tick state telemetry. No H.264 encoding during this first aesthetic pass.
-- To validate fluidity, response timing, turning reversals and Boost interruptions **before promoting a motion change**, manually dispatch the appropriate complete 24fps real-game film workflow (`kairo-v159-vertical-flight.yml` or `flight-visual-review.yml`). A gallery does not prove that movement flows naturally.
-- The assistant should retrieve and inspect contact sheet artifacts, not ask the player to capture screenshots.
-
-## Before closing an animation PR
-
-Update docs/PROJECT-CONTEXT.md with dated PR/status, affected state, flags,
-test evidence, rollback, unresolved defects and actual visual feedback.
-Update the ownership contract if controller responsibilities change.
-Do not invent missing rig signatures, pose approvals or source-clip metadata.
-
-## In a new chat
-
-Tell the assistant: "Analyze Theo524/sky-clash. Read AGENTS.md,
-docs/PROJECT-CONTEXT.md and docs/ANIMATION-OWNERSHIP-CONTRACT.md first.
-Continue from GitHub main and open PRs, preserve approved animations,
-and do not introduce another skeleton controller."
-
-A new chat does not automatically receive the prior chat's complete
-engineering context. These version-controlled files are the handoff.
+Before closing animation work, update current state with tested outcomes, exact scope, remaining artistic/technical limits and next action. Add detailed dated evidence to project context, and update the ownership contract/runbook when responsibilities or commands change. Do not claim tests, screenshots, CI, publication or user approval that were not verified.

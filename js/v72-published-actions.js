@@ -16,6 +16,7 @@
  const OVERRIDES='assets/animations/gameplay/v81-recorded-actions.json';
  const UE5_PACK='assets/animations/gameplay/v86-ue5-converted-actions.json';
  const COMBAT_PACK='assets/animations/gameplay/v87-recorded-combat.json';
+ const NATIVE_PLAYTEST='assets/animations/kairo/original-jab-playtest.v1.json';
  const COMBAT_SLOTS=new Set(['punch1','punch2','punch3','overhand','airStrike','kick','sideKick']);
  // Safe rollback: ?ue5=off restores all earlier published Studio motions.
  const UE5_ACTIVE=new Set(['guard','jump','landing','fallingToLanding','runStop',
@@ -27,6 +28,68 @@
   'leftUpperLeg','leftLowerLeg','leftFoot',
   'rightUpperLeg','rightLowerLeg','rightFoot'];
  const LOOP=new Set(['idle','walk','run','guard','boost','floating','flying','fallingIdle']);
+ // Private authoring transport, registered explicitly by the browser verifier.
+ // No asset is fetched or enabled by normal gameplay. These are SDK-native
+ // LOCAL ABSOLUTE rotations, never Mixamo world-rest deltas.
+ const NATIVE_MODEL='775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72';
+ const NATIVE_RIG='94130ff7e42ab6fb207fec21078b41b64f824052259ab85ae233ee770ee4ef72';
+ function decodeNativeCombatPreview(THREE,pack){
+  if(pack?.schema!=='sky-clash.native-combat-preview.v1'||
+     pack.status!=='UNAPPROVED_PRIVATE_PREVIEW'||
+     pack.characterId!=='kairo_venn'||pack.modelSha256!==NATIVE_MODEL||
+     pack.rigSignature!==NATIVE_RIG||pack.clipId!=='original-jab'||
+     pack.durationSeconds!==.55||pack.impactSeconds!==.24||
+     JSON.stringify(pack.bones)!==JSON.stringify(BONES)||
+     !Array.isArray(pack.frames)||pack.frames.length<3||pack.frames.length>1000)
+   throw Error('Invalid private native combat preview identity or format');
+  const frames=pack.frames.map((frame,index)=>{
+   if(!Number.isFinite(frame.time)||frame.time<0||frame.time>.55||
+      index>0&&frame.time<=pack.frames[index-1].time||
+      !Array.isArray(frame.hipsPosition)||frame.hipsPosition.length!==3||
+      !frame.hipsPosition.every(v=>Number.isFinite(v)&&Math.abs(v)<10)||
+      !Array.isArray(frame.quaternions)||frame.quaternions.length!==BONES.length)
+    throw Error('Invalid private native combat preview frame');
+   return {time:frame.time,hipsPosition:new THREE.Vector3().fromArray(frame.hipsPosition),
+    quaternions:frame.quaternions.map(q=>{
+    if(!Array.isArray(q)||q.length!==4||!q.every(Number.isFinite)||
+       Math.abs(Math.hypot(...q)-1)>1e-5)
+     throw Error('Invalid private native combat preview quaternion');
+    return new THREE.Quaternion(...q).normalize();
+   })};
+  });
+  if(frames[0].time!==0||frames[frames.length-1].time!==.55||
+     frames[0].hipsPosition.distanceTo(frames[frames.length-1].hipsPosition)>1e-6||
+     frames[0].quaternions.some((q,i)=>
+      q.angleTo(frames[frames.length-1].quaternions[i])>1e-5))
+   throw Error('Private native combat preview must recover its entry pose');
+  function bracket(seconds){
+    const t=Math.max(0,Math.min(.55,seconds));
+    let hi=frames.findIndex(frame=>frame.time>=t);
+    if(hi<0)hi=frames.length-1;
+    const lo=Math.max(0,hi-1),a=frames[lo],b=frames[hi];
+    const weight=hi===lo?0:(t-a.time)/(b.time-a.time);
+    return {a,b,weight};
+  }
+  return {clipId:pack.clipId,durationSeconds:.55,impactSeconds:.24,
+   sampleHips(seconds,out){
+    const {a,b,weight}=bracket(seconds);
+    if(weight<=0)return out.copy(a.hipsPosition);
+    if(weight>=1)return out.copy(b.hipsPosition);
+    return out.lerpVectors(a.hipsPosition,b.hipsPosition,weight);
+   },
+   sample(seconds,out){
+    const {a,b,weight}=bracket(seconds);
+    for(let i=0;i<BONES.length;i++)
+     out[i].slerpQuaternions(a.quaternions[i],b.quaternions[i],weight).normalize();
+    return out;
+   }};
+ }
+ function registerNativeCombatPreview(THREE,status,pack){
+  // Validate/copy before changing the current preview, including its arrays.
+  const decoded=decodeNativeCombatPreview(THREE,pack);
+  status.nativeCombatPreview=decoded;
+  return {clipId:decoded.clipId,durationSeconds:.55,impactSeconds:.24};
+ }
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -179,6 +242,8 @@
   const old=fighter.animate;
   const state={rig:null,bones:null,bind:null,targetSide:null,slot:null,clock:0,weight:0,
     releasingIdle:false,releasingExtra:false,releaseEntry:null,
+    nativePreviewActive:false,nativePreviewTime:null,
+    nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
@@ -205,6 +270,20 @@
    state.rig=rig;state.bones=bones;state.bind=bind;state.targetSide=side;
   }
   fighter.animate=function(dt){
+   state.nativePreviewActive=false;state.nativePreviewTime=null;
+   const previewSerial=Number(this.attackSerial||0);
+   if(!(this.punchT>0)||state.nativePreviewSerial!==previewSerial){
+    state.nativePreviewSerial=previewSerial;state.nativePreviewCancelled=false;
+   }
+   const nativeBlocked=this.hp<=0||this.attackAir||this.flying||this.jumping||
+     this.launched||this.spiked||this.stun>0||this.downT>0||
+     this.superHitT>0||this.slamming||this.blockHeld||this.blocking;
+   // Damage/guard/air interruption relinquishes this particular swing for
+   // good. Its gameplay punchT may outlive the stun; it must not resurrect
+   // an already canceled source clip when that stun wears off.
+   if(status.nativeCombatPreview&&!options.choose&&
+      this.characterId==='kairo_venn'&&this.punchT>0&&nativeBlocked)
+    state.nativePreviewCancelled=true;
    old.call(this,dt);
    // Also applies to the V79 optional-action wrapper, which reuses
    // this attach() function. One authoritative pose during air.
@@ -213,6 +292,36 @@
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
     const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
+    const native=status.nativeCombatPreview;
+    const nativeJab=native&&!options.choose&&this.characterId==='kairo_venn'&&
+      this.hp>0&&this.punchT>0&&this.attackKind==='punch'&&this.punchSide===1&&
+      !state.nativePreviewCancelled&&!nativeBlocked;
+    if(nativeJab){
+     // This one deliberately full-body clip owns its support legs inside
+     // V72, so the legacy Mixamo punch mask must not be applied to it.
+     const progress=Math.max(0,Math.min(1,
+      (this.attackElapsed||0)/Math.max(.001,this.attackTotal||.55)));
+     state.nativePreviewTime=progress*native.durationSeconds;
+     native.sample(state.nativePreviewTime,state.samples);
+     for(let i=0;i<BONES.length;i++){
+      const node=state.bones[i];if(node)node.quaternion.copy(state.samples[i]);
+     }
+     // VRMRig's procedural breathing moves the skeleton's hips locally
+     // before V72 runs. The authored fixed-support pose includes its
+     // calibrated local hip path, so sample that placement during this
+     // clip. This does not move fighter.pos, the VRM scene, hitboxes
+     // or any physics root; the base writer restores it on the next frame
+     // after native ownership ends.
+     native.sampleHips(state.nativePreviewTime,state.bones[0].position);
+     state.rig.vrm.scene.updateMatrixWorld(true);
+     state.nativePreviewActive=true;
+     // Keep idle-release and legacy clocks from leaking across an interrupt.
+     state.slot=slot;state.clock=state.nativePreviewTime;state.weight=1;
+     state.releasingIdle=false;state.releasingExtra=false;state.releaseEntry=null;
+     state.rig.vrm.update(0);state.frames++;
+     status.active='native-private-original-jab';status.frames=state.frames;
+     return;
+    }
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     // V154 reuses this EXISTING V72 final Boost writer; no new animation
     // wrapper and no gameplay root/velocity changes. Kairo preview only.
@@ -413,10 +522,50 @@
   fighter[marker]=state;
   return state;
  }
+ async function loadNativeCombatPlaytest(context,status){
+  if(!status.ready||!status.nativePlaytest.requested)return;
+  const state=status.nativePlaytest;
+  state.state='loading';state.source=NATIVE_PLAYTEST;
+  const Controller=context.AbortController||root.AbortController;
+  const controller=Controller?new Controller():null;
+  const schedule=context.setTimeout||setTimeout,cancel=context.clearTimeout||clearTimeout;
+  let timer;
+  try{
+   // Bound both the fetch and JSON body read. A missing experiment must
+   // never prevent the normal game from releasing its startup gate.
+   const deadline=new Promise((resolve,reject)=>{
+    timer=schedule(()=>{
+     controller?.abort();reject(Error('Experimental jab request timed out'));
+    },5000);
+   });
+   const request=(async()=>{
+    const response=await context.fetch(NATIVE_PLAYTEST+'?v=blender-jab-v1',{
+     cache:'no-cache',...(controller?{signal:controller.signal}:{})});
+    if(!response.ok)throw Error('Experimental jab HTTP '+response.status);
+    return response.json();
+   })();
+   const pack=await Promise.race([request,deadline]);
+   registerNativeCombatPreview(context.THREE,status,pack);
+   state.state='ready';state.clipId=pack.clipId;
+  }catch(error){
+   // Keep this error separate from the base animation pack's readiness.
+   // No partially decoded native clip is installed on failure.
+   state.state='fallback';state.error=String(error);
+   (context.console||console).warn('Experimental jab unavailable; original combat retained',error);
+  }finally{if(timer!==undefined)cancel(timer);}
+ }
  async function start(context=root){
-  const status={ready:false,active:'none',frames:0,error:null,source:PATH};
+  const flags=new URLSearchParams(context.location?.search||'');
+  const requested=flags.get('combatAnim')==='blender-jab-v1';
+  const status={ready:false,active:'none',frames:0,error:null,source:PATH,
+   nativePlaytest:{requested,state:requested?'unavailable':'off'}};
+  status.registerNativeCombatPreview=pack=>registerNativeCombatPreview(context.THREE,status,pack);
+  status.clearNativeCombatPreview=()=>{status.nativeCombatPreview=null;};
   context.SkyClashPublishedActions=status;
-  if(new URLSearchParams(context.location?.search||'').get('studioActions')==='off')return status;
+  if(flags.get('studioActions')==='off'){
+   if(requested)status.nativePlaytest.state='disabled';
+   return status;
+  }
   try{
    const response=await context.fetch(PATH,{cache:'no-cache'});
    if(response.status===404)return status; // Optional until the user publishes a pack.
@@ -499,11 +648,14 @@
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;
    for(const f of fighters)if(attach(context.THREE,f,actions,status))count++;
-   if(count){status.ready=true;status.actions=Object.keys(actions);status.characters=count;}
+   if(count){
+    status.ready=true;status.actions=Object.keys(actions);status.characters=count;
+    await loadNativeCombatPlaytest(context,status);
+   }
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,start,BONES};
+ const api={decode,choose,attach,start,BONES,decodeNativeCombatPreview,registerNativeCombatPreview};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);

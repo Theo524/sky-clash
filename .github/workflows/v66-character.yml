@@ -219,6 +219,8 @@ jobs:
       - run: node tests/v82-studio-jump-and-locomotion.js
       - run: node tests/v86-ue5-mixamo-export.js
       - run: node tests/v87-recorded-combat.js
+      - run: node tests/native-combat-private-preview.js
+      - run: node tests/native-combat-playtest-loader.js
       - run: node tests/v88-walk-preview.js
       - run: node tests/v89-first-step.js
       - run: node tests/v90-idle-stance-match.js

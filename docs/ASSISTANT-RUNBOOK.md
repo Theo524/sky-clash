@@ -1,5 +1,16 @@
 # Sky Clash — assistant operations handbook
 
+For current fighting-animation work, use the [recovered Blender-to-game route](KAIRO-COMBAT-FOUNDATION-2026-10-27.md#recovered-jab-calibrated-source-and-private-engine-playback).
+From the served checkout: capture the real idle anchor → author in Blender →
+run `tools/verify-kairo-original-jab.cjs`. This exercises the private V72 native
+sampler through actual combat. Pose Lab's V152 flight-pose recipe below is
+historical flight guidance, not the starting rig for this grounded jab.
+Normal gameplay loads no native jab. The authorized `combatAnim=blender-jab-v1`
+playtest loads it through V72; validate automatic entry/fallback with
+`node tools/smoke-kairo-jab-playtest.cjs`. Set `PLAYTEST_BASE_URL` to check a
+served Pages URL with the same smoke test.
+
+
 **LATEST 2026-10-27 — V164 DEPLOYED TO MAIN AS OPT-IN PLAYER TEST, NOT DEFAULT.** All four player-selected B choices are now integrated in the existing V100 flight owner: (1) arm clearance B, (2) natural arm sway B, (3) balanced ASCENT B and (4) settling DESCENT B. The exact VRM0 data module `js/v164-selected-kairo-real-flight.js` was generated directly from archived 71 real Pose Lab keyframes via `tools/build-kairo-v164-selected-flight.cjs` / `.github/workflows/kairo-v164-generate-selected-clips.yml`. [PR #135](https://github.com/Theo524/sky-clash/pull/135) is MERGED, commit `d8ab7aded3f0441bf699d3608d723dc16f4b6df2`. **User test URL:** https://theo524.github.io/sky-clash/?flightVertical=v164 . Default normal game remains approved V156 Q! Older V163 stays opt-in. Real in-game WebGL QA [run 40429831902](https://github.com/Theo524/sky-clash/actions/runs/40429831902) **PASSED**, artifact **12700854889** has 9 moments from 3 cameras in V156/V164 comparison, 60-tick telemetry, pure up/down and combined forward vertical plus Boost. All 5 PR checks passed. Front and side camera inspections show upright hover-family silhouette and intentionally subtle B movement; **full combined gameplay is NOT yet player aesthetically approved**, await their playtesting feedback. Do not repeat four choice prompts or revert approved B/B/B/B data; operate toolchain using [V164 guide](docs/KAIRO-V164-SELECTED-FLIGHT-PLAYTEST.md) and the [repository audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md).
 
 

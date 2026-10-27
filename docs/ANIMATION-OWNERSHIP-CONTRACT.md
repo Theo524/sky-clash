@@ -132,3 +132,23 @@ limb checks and explicit user visual approval of that state.
 - Record exact A/B URL, changed state, rollback, visible results and
   explicit approvals in docs/PROJECT-CONTEXT.md.
 - Never confuse CI success with finished visual animation.
+
+## Recovered private Blender jab transport
+
+The local PR #140 continuation adds **no new animate wrapper**. Explicit private
+registration on `SkyClashPublishedActions` allows one model/rig-verified native
+opening jab to be sampled inside V72's existing action owner. It uses SDK-local
+absolute rotations plus per-frame skeleton-local pelvis translation, separate
+from Mixamo world-rest deltas. This deliberately full-body branch owns its legs
+and pelvis during that jab. Ordinary gameplay loads/registers no native asset. The explicitly authorized
+`combatAnim=blender-jab-v1` playtest loads the same verified native pack with
+a bounded, nonfatal loader inside V72 startup.
+
+V81 keeps finger grip and the existing exit path, while skipping its additional
+body-entry crossfade only when V72 reports that the authored native jab is
+active. Damage/guard/air states relinquish native ownership, with attack-serial
+cancellation preventing a stale swing from restarting after stun. Original
+idle/guard, Rin, V100 flight/jump, root physics and hitboxes remain unchanged.
+See `tests/native-combat-private-preview.js` and the real gameplay helper for
+this private contract. Full moving world-foot support and fist/mesh contact are
+not yet established; this branch is not approval to publish a replacement combo.

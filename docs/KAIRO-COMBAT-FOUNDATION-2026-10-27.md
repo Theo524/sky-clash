@@ -174,3 +174,102 @@ The verification launches the **real existing Kairo game scene** and disposably 
 - No gameplay controller, default idle, attack, flight, model or physics files were changed. Draft PR #140 remains intentionally unmerged.
 
 The next gate is full in-engine interactive combat replay with clearly attributed animation writers and visual review of actual 3D movement. One professionally authored original jab may be introduced only in a private/offline preview and requires separate artistic acceptance before any change to gameplay.
+
+## Recovered jab: calibrated source and private engine playback
+
+The interrupted PR #140 was recovered from `87ef542` onto local branch
+`fix/combat-animation-recovery`. Its source wrist IK started in the imported
+T-pose while the verifier applied its world deltas to the bent gameplay idle.
+The earlier rotation-transport checks did not establish matching wrist paths.
+A rendered side view also exposed a forward-axis error: `vrm.scene` includes
+the VRM0 facing correction, so its model-relative +Z is not the fighter's
+world forward direction.
+
+The corrected sequence is:
+
+1. Start the unchanged game locally, with Playwright available.
+2. `node tools/capture-kairo-combat-anchor.cjs` measures the actual settled
+   original idle's 20 joint heads/orientations and transforms `fighter.forward()`
+   into the same model frame. This frame is an authoring reference, never a
+   replacement standing animation.
+3. `blender --background --factory-startup --python tools/author-kairo-original-jab.py`
+   builds its complete control hierarchy from those measurements, calibrates
+   elbow/knee pole targets, locks rear support and authors a lead-foot step. It authors wrist-target
+   curves with canonical .24s contact and .55s neutral recovery. No imported
+   T-pose offsets or hidden pelvis-height calibration are used for this jab.
+4. `node tools/verify-kairo-original-jab.cjs` checks the resulting trajectories
+   on the actual VRM at 30/60/120Hz, including exact source timestamps. It bakes
+   normalized-local absolute quaternions only after those comparisons pass,
+   then runs `check-kairo-native-jab-gameplay.cjs` through genuine
+   `Combat.melee` / `Fighter.update` / V72 / V81 / V100 execution.
+
+Use the cloud's retained Playwright tooling via
+`NODE_PATH=/workspace/sky-clash-tools/node_modules` and
+`NODE_OPTIONS=--require=/workspace/sky-clash-tools/system-chromium.cjs` when
+running here. The local development source was executed with installed Blender
+4.3.2; CI retains checksum-verified Blender 4.5.15. Local validation is not a
+claim that this new CI revision has run remotely.
+
+The private native transport is explicitly registered by the verifier using
+`SkyClashPublishedActions.registerNativeCombatPreview(pack)`. Normal gameplay
+fetches no new combat asset and registers no preview. The native clip is sampled
+**inside the existing V72 owner**, not after the final animator and not in a new
+wrapper. V81 retains its hand grip and ordinary exit blending; it does not add a
+second entry crossfade over the native clip's already-authored entry. Timing
+uses normalized actual attack progress so V165's existing tempo can be retained.
+The registration has a strict distinct schema, Kairo/model/rig identity, ordered
+unit quaternion frames, per-frame local pelvis translation and matching neutral endpoints; it is never decoded as
+Mixamo world-rest deltas. A damage/guard interruption must relinquish the whole
+native pose for that attack, including after the interrupt ends.
+
+Outputs are generated under ignored `visual-review-output/kairo-combat-foundation/`:
+the Blender source, calibrated anchor, baked native pack, per-rate source/target
+and gameplay reports, and continuous chronological three-camera engine capture.
+`clearNativeCombatPreview()` restores ordinary selection; no preview URL,
+default change, deployment or player aesthetic approval is implied.
+
+**Remaining production limits:** this is one privately exercised jab, not a
+complete original four-strike chain or a Rin remake. Rear support in this author
+is model-relative; the unchanged game's physical lunge still translates the
+root, so this is not a verified world-planted moving attack. Gameplay collision
+volumes remain unchanged and must not be confused with fist-to-mesh contact.
+Continuous images and numerical checks support critique; they do not make this
+a finished or player-approved fighting animation. Resolve support-foot stepping,
+contact alignment and full-chain transitions before any new playable preview.
+
+
+### Local validation of the recovered implementation
+
+- **109 regression commands passed** (105 V66 workflow commands plus the private
+  native-player, bootstrap, ownership and CI fan-out checks). Generated bundle
+  matches its 21 source chunks. Model bytes, selected V164/V156 data, V100,
+  attack clocks, movement and collision code match remote main's baseline.
+- Corrected source and actual VRM sampling passed at **30/60/120Hz**. Maximum
+  intended-ankle trajectory error was **0.000609 world units**; endpoint
+  position restoration was exact. The knee check compares to the authored
+  step trajectory at each rate rather than reusing the static hip-turn's
+  absolute per-frame cap. This deliberately fast step still needs artistic
+  timing critique; source fidelity is not a claim of ideal knee motion.
+- The final real V72→V81 replay passed target hit, distant whiff, stun cancellation,
+  genuine guard selection and original-idle recovery at all three rates.
+  Damage matches ordinary gameplay. Canceled native attacks do not resume
+  when stun ends. Registered idle and recovered idle match the default path.
+- Three **36-frame/24fps** chronological films and their full sequence sheets
+  were generated. Front/side/back sequences were inspected locally. The
+  step-in reads as a distinct forward full-body lunge, with compact arm entry
+  and return to the original stance; it is **not player-approved** or a full
+  combat-combination review. No images/videos were sent to the player.
+- Wrist-to-upper-chest-center separation at the collision event improved from
+  **0.71–0.76** to **0.37–0.43 world units** in the fixed 1.45-unit target setup.
+  That is a measured improvement, not verified knuckle-to-skin contact.
+  Rear-support world sliding from the unchanged physical lunge remains a
+  production limitation. Do not offer this as a completed fighting remake.
+- These are local results on the prepared cloud machine, **not a remote CI run,
+  merge, Pages deployment or fresh-task restoration claim**. No default clip
+  is loaded; the private verifier explicitly registers its generated pack.
+
+Next production work is to resolve world-space support during physical travel,
+verify the actual fist/target surface relationship and refine the fast lunge's
+continuous timing. Only then expand the original jab into a cohesive four-beat
+chain and later a Rin-native chain. Preserve this working source/bake/player
+route rather than starting another authoring tool or another wrapper.

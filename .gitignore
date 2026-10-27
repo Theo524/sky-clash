@@ -1,0 +1,6 @@
+# Local dependencies and generated authoring/review output.
+node_modules/
+visual-review-output/
+__pycache__/
+*.py[cod]
+*.blend1
