@@ -212,7 +212,11 @@
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
-    const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
+    const legacySlot=options.choose?options.choose(this,actions,dt):choose(this,actions);
+    const authoredSlot=!options.choose&&options.kairoCombat&&
+      root.SkyClashKairoCombatChoreo?.select?
+      root.SkyClashKairoCombatChoreo.select(this,legacySlot):null;
+    const slot=authoredSlot||legacySlot;
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     // V154 reuses this EXISTING V72 final Boost writer; no new animation
     // wrapper and no gameplay root/velocity changes. Kairo preview only.
@@ -264,7 +268,11 @@
       state.slot=slot;state.clock=0;
       // V85: V81 is the final crossfade owner for the primary gameplay
       // states. Do not double-blend the recorded pose with procedural arms.
-      state.weight=options.choose||new URLSearchParams(root.location?.search||'')
+      // The grounded authored combat stance is layered gradually over the
+      // previous approved idle; the first attack frame is handled by V81's
+      // existing fast attack-state handoff.
+      state.weight=authoredSlot==='combatReady'?0:
+        options.choose||new URLSearchParams(root.location?.search||'')
         .get('animationV85')==='legacy'?0:1;
       state.releasingIdle=false;
      }
@@ -275,8 +283,7 @@
     // Batch A: select exact locally authored Kairo clips INSIDE V72's existing
     // final combat writer. No extra fighter.animate wrapper. Other characters,
     // airborne attacks and default game retain the original published motions.
-    const local=options.kairoCombat&&this.characterId==='kairo_venn'&&
-      !this.attackAir&&(this.punchT||0)>0?options.kairoCombat[slot]:null;
+    const local=authoredSlot?options.kairoCombat[authoredSlot]:null;
     const entry=local||(slot?actions[slot]:options.choose?
       (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null));
     if(!entry){state.weight=0;return;}
@@ -297,7 +304,7 @@
       const to=entry.localAbsolute?entry.duration:Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
       state.clock=from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
-      let rate=entry.speed;
+      let rate=entry.localAbsolute?1:entry.speed;
       if(slot==='walk'||slot==='run'){
        const travel=Math.hypot(this.vel?.x||0,this.vel?.z||0);
        // Match foot cycles to actual world speed. The previous 1.9x cap
@@ -321,7 +328,7 @@
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
      }
-     entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
+     entry.sample(state.clock,state.samples,LOOP.has(slot)||!!entry.localAbsolute&&entry.loop||!!options.loopSlots?.includes(slot));
      if(boostClip&&slot==='boost'&&actions.run&&state.v154Motion?.ground>.001){
       // 18-frame old sprint had frantic lower-body pedalling. Retain its
       // real attack-speed upper-body drive but phase-align 62% of the
@@ -359,7 +366,7 @@
      // existing ground-contact/skid controller own the hips, knees and feet;
      // this optional clip only supplies its braking upper-body gesture.
      if((entry.slot==='runStop'&&(i===0||i>=14))||
-        (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
+        (!entry.localAbsolute&&!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='landing'&&i===0))continue;
      // V92: the approved idle arms are now owned by V76 throughout
      // standing, first-step and walking. V72 still owns the approved

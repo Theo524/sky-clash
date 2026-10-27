@@ -16,6 +16,22 @@ assert.deepEqual(pack.bones,published.BONES);
 assert.equal(pack.gameplayRootTranslation,false,'Physics, pursuit and hitboxes own translation');
 assert.equal(pack.visualApproval,false,'First-pass clips must not be mistaken for player approval');
 const clips=authored.decodePack(THREE,pack);
+const state={characterId:'kairo_venn',hp:100,vel:new THREE.Vector3(),
+ moveIntent:new THREE.Vector3(),punchT:0,stun:0,downT:0,
+ blockHeld:false,blocking:false,launched:false,spiked:false};
+assert.equal(authored.select(state,'idle'),'combatReady');
+assert.equal(authored.select({...state,vel:new THREE.Vector3(0,0,4)},'walk'),null);
+assert.equal(authored.select({...state,punchT:.4,attackAir:false},'punch1'),'punch1');
+assert.equal(authored.select({...state,punchT:.4,attackAir:true},'punch1'),null);
+assert.equal(authored.select({...state,blockHeld:true},'guard'),'guard');
+assert.equal(authored.select({...state,blockHeld:true,riposteT:1.02},'guard'),'parry');
+assert.equal(authored.select({...state,stun:.3,hitFlash:.15},'hit'),'hitLight');
+assert.equal(authored.select({...state,stun:.3,hitFlash:.2},'hit'),'hitHeavy');
+assert.equal(authored.select({...state,stun:.3,brokenT:.4},'hit'),'hitHeavy');
+assert.equal(authored.select({...state,launched:true},'idle'),null);
+assert.equal(authored.select({...state,flying:true},'floating'),null);
+assert.equal(authored.select({...state,sprinting:true},'boost'),null);
+assert.equal(authored.select({...state,characterId:'rin_sable'},'idle'),null);
 const stages=[
  ['punch1',.55,.24],['punch2',.55,.24],
  ['punch3',.68,.33],['overhand',.68,.33],['kick',.87,.41]
@@ -85,9 +101,29 @@ const v87=JSON.parse(text('assets/animations/gameplay/v87-recorded-combat.json')
 const old={};
 for(const entry of v87.motions)old[entry.slot]=published.decode(THREE,entry);
 const {f,nodes}=dummyFighter(),status={frames:0,error:null};
+// Test the same selection callback installed in the experimental browser.
+global.SkyClashKairoCombatChoreo=authored;
 published.attach(THREE,f,old,status,{kairoCombat:clips});
 f.animate(1/60);
 assert.equal(status.active,'punch1');
+assert.equal(f.v72StudioPack.slot,'punch1');
+f.punchT=0;f.attackElapsed=0;f.vel.set(0,0,0);f.moveIntent.set(0,0,0);
+for(let i=0;i<28;i++)f.animate(1/60);
+assert.equal(f.v72StudioPack.slot,'combatReady');
+assert(!status.error);
+f.blockHeld=true;f.blocking=true;for(let i=0;i<15;i++)f.animate(1/60);
+assert.equal(f.v72StudioPack.slot,'guard');
+const shield=authored.BONES.map(()=>new THREE.Quaternion());
+clips.guard.sample(.24,shield);
+assert(nodes.leftUpperArm.quaternion.angleTo(shield[7])<.22,
+ 'native authored shield must play, not freeze due to missing Mixamo speed');
+f.riposteT=1.14;for(let i=0;i<9;i++)f.animate(1/60);
+assert.equal(f.v72StudioPack.slot,'parry');
+f.blockHeld=false;f.blocking=false;f.riposteT=0;f.stun=.4;f.hitFlash=.2;
+for(let i=0;i<4;i++)f.animate(1/60);
+assert.equal(f.v72StudioPack.slot,'hitHeavy');
+f.stun=0;f.hitFlash=0;f.punchT=.4;f.attackElapsed=.24;f.attackTotal=.55;
+f.animate(1/60);
 const sample=authored.BONES.map(()=>new THREE.Quaternion());
 clips.punch1.sample(.24,sample);
 for(const n of ['hips','leftUpperArm','leftLowerArm','rightUpperArm','leftUpperLeg']){
@@ -117,4 +153,4 @@ for(const protectedPath of [
  'assets/animations/kairo/selected/v164/descending/B-descend-B.pose.json']){
  assert(fs.statSync(path.join(ROOT,protectedPath)).size>10000);
 }
-console.log('PASS Batch A: 10 real Kairo Pose Lab clips, 5 timed contacts, V165 fractions, 30/60/120fps, native V72 pose owner, Rin isolation and protected flight');
+console.log('PASS Batch A: 10 Kairo Pose Lab clips, contact markers and V165, 30/60/120fps, native V72 actor guard/parry/hurt/ready, Rin isolated and protected flight');

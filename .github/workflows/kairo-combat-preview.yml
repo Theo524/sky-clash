@@ -1,0 +1,50 @@
+name: Kairo Combat Batch A Focused Real-Game Validation
+
+on:
+  pull_request:
+    paths:
+      - 'js/kairo-combat-choreography.js'
+      - 'js/v72-published-actions.js'
+      - 'js/v81-pose-transitions.js'
+      - 'js/v66-game-boot.js'
+      - 'assets/animations/combat/kairo/**'
+      - 'tools/test-kairo-combat-browser.cjs'
+      - '.github/workflows/kairo-combat-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-game-combat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: chromium-kairo-combat-1.56.1
+      - name: Install focused browser
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check tools/test-kairo-combat-browser.cjs
+      - name: Serve actual game
+        run: |
+          python -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-combat-http.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl --max-time 3 -fsS http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+      - name: Test original clip playback on real Kairo VRM
+        env: {VISUAL_PORT: '8765'}
+        run: node tools/test-kairo-combat-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-batch-a-internal-playable-qa
+          path: visual-review-output/kairo-combat-playable/
+          retention-days: 14

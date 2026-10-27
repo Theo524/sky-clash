@@ -67,7 +67,26 @@
   for(const name of activeSlots)if(!actions[name])throw Error('Missing first-four chain authored slot '+name);
   return actions;
  }
- const api={decodePack,BONES,SHA,activeSlots};
+ // Pure authored-role selector. Only used if the experimental pack was
+ // explicitly loaded; V72 itself still owns the actual visible pose.
+ function select(f,legacySlot){
+  if(!f||f.characterId!=='kairo_venn'||f.hp<=0||
+    f.launched||f.spiked||f.downT>0)return null;
+  if(f.stun>0)return f.brokenT>0||f.superHitT>0||f.hitFlash>=.175?
+    'hitHeavy':'hitLight';
+  if(f.punchT>0)return !f.attackAir&&activeSlots.has(legacySlot)?
+    legacySlot:null;
+  if(f.blockHeld||f.blocking)return f.riposteT>.85?'parry':'guard';
+  // Preserve approved movement/Boost/flight, abilities and interrupts.
+  if(f.jumping||f.flying||f.dashing||f.dashPrep>0||f.sprinting||
+    f.charging||f.blastT>0||f.slamming||f.landingMotionT>0||
+    f.acro||f.awakenChargeT>0)return null;
+  const speed=Math.hypot(f.vel?.x||0,f.vel?.z||0);
+  if(speed>.45||Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)>.25)
+    return null;
+  return 'combatReady';
+ }
+ const api={decodePack,select,BONES,SHA,activeSlots};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashKairoCombatChoreo=api;
 })(typeof window!=='undefined'?window:globalThis);
