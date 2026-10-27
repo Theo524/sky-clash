@@ -36,6 +36,13 @@ async function main(){
    window.SkyClashPublishedActions?.ready &&
    window.SkyClash?.Game?.player?.vrmRig?.vrm?.humanoid,
    null,{timeout:180000});
+  // Enter through the REAL menu button. Calling g.enterDojo() alone
+  // left the main-menu overlay in front of the game in earlier evidence.
+  await page.locator('#trainBtn').click();
+  await page.waitForFunction(()=>{
+   const menu=document.getElementById('titleScreen');
+   return menu && !menu.classList.contains('show');
+  },null,{timeout:20000});
   const setup=await page.evaluate(()=>{
    const s=window.SkyClash,g=s.Game,p=g.player,T=window.THREE;
    g.enterDojo();g.introT=0;g.update=()=>{};s.CameraRig.update=()=>{};
@@ -63,9 +70,11 @@ async function main(){
       n,h.getNormalizedBoneNode(n).getWorldPosition(new T.Vector3()).toArray()]));
    // Store unmodified Game references inside private page-only test state.
    window.__kairoJabProof={g,p,T,s,rig,h,scene,names,nodes,saved,world,basePos};
-   return {realKairo:true,realWebGL:true};
+   const menu=document.getElementById('titleScreen');
+   if(menu?.classList.contains('show'))throw Error('Main menu still hides Kairo');
+   return {realKairo:true,realWebGL:true,menuHidden:true};
   });
-  assert(setup.realKairo&&setup.realWebGL);
+  assert(setup.realKairo&&setup.realWebGL&&setup.menuHidden);
   async function apply(t){
    return page.evaluate(({t,source})=>{
     const st=window.__kairoJabProof,{T,rig,h,scene,nodes,saved,world,basePos}=st;
