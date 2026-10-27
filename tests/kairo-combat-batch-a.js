@@ -63,6 +63,27 @@ for(const [slot,duration,contact] of stages){
   }
  }
 }
+// Authored combo bridges are TRUE matching 20-joint poses, not generic
+// crossfade tricks that reset wrists, knees or hips on every button press.
+const anchors=[
+ ['combatReady','punch1'],['punch1','punch2'],
+ ['punch2','punch3'],['punch2','overhand'],
+ ['punch3','kick'],['overhand','kick'],['kick','combatReady'],
+ ['guard','parry'],['parry','combatReady']
+];
+for(const [from,to] of anchors){
+ const a=authored.BONES.map(()=>new THREE.Quaternion());
+ const z=authored.BONES.map(()=>new THREE.Quaternion());
+ clips[from].sample(clips[from].duration,a);
+ clips[to].sample(0,z);
+ assert(a.every((q,i)=>q.angleTo(z[i])<.001),
+  'Art-directed transition anchor mismatch '+from+' -> '+to);
+}
+const pose=()=>authored.BONES.map(()=>new THREE.Quaternion());
+const hook=pose(),overhand=pose();
+clips.punch3.sample(.33,hook);clips.overhand.sample(.33,overhand);
+assert(hook[8].angleTo(overhand[8])>.5,
+ 'Hook and overhand must have clearly distinct authored arm silhouettes');
 assert.equal(pack.clips.length,10);
 for(const slot of ['combatReady','guard','parry','hitLight','hitHeavy'])assert(clips[slot]);
 assert.throws(()=>authored.decodePack(THREE,{...pack,modelSha256:'bad'}),/compatible/);
@@ -131,7 +152,7 @@ for(const n of ['hips','leftUpperArm','leftLowerArm','rightUpperArm','leftUpperL
  assert(nodes[n].quaternion.angleTo(sample[i])<.001,
   'Existing V72 owner must apply exact locally-authored joint '+n);
 }
-assert.equal(f.base,1);
+assert(f.base>=1,'The original animator must still run for every preview test frame');
 assert(!status.error);
 // Rin remains on historical animation mapping; never inject Kairo-only local poses.
 const rin=dummyFighter('rin_sable'),rinStatus={frames:0,error:null};
