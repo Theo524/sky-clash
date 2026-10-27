@@ -114,6 +114,10 @@ for f in sorted([float(i) for i in range(1,35)]+[15.4]):
         delta=(worldquat(b) @ baseline[b].inverted()).normalized()
         if b in ("spine","chest"):
             delta=Quaternion().slerp(delta,.4 if b=="spine" else .78)
+        # Blender 32-bit quaternion interpolation can drift slightly from
+        # unit length. Explicitly normalize the serialized result; never
+        # weaken the real-WebGL input validation tolerance.
+        delta.normalize()
         quats.append([float(x) for x in delta])
     feet={};wrists={}
     for side in ("left","right"):
