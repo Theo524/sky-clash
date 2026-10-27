@@ -1,5 +1,12 @@
 # Sky Clash — assistant operations handbook
 
+Latest verdict: all Storm Fist arms, including the jab, were rejected for
+body crossings and weird shapes. Follow the current-state kung fu correction;
+older instructions to preserve the jab are superseded. After author/bake run
+`node tools/verify-kairo-arm-clearance.cjs`, then audit actual gameplay with
+`--gameplay visual-review-output/kairo-storm-fist/gameplay-60hz.json`.
+The committed measured anchor supports fast CI without launching a browser.
+
 For the full Storm Fist continuation, follow
 [the set author/bake/real-game commands](KAIRO-STORM-FIST-PLAYTEST.md).
 The player accepts the original published jab and authorizes the full set in

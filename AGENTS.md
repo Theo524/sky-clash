@@ -1,5 +1,12 @@
 # Sky Clash — assistant instructions
 
+**Latest player verdict (27 October 2026):** the full Storm Fist arms AND jab
+are rejected: weird arm shapes and limbs going through the body. Reauthor
+the entire fighting set for kung fu/martial-arts movement with Dragon Ball
+energy. This explicitly supersedes the earlier jab-preservation instruction
+below. Keep its historical asset for rollback, but replace the jab in the
+revised set. Preserve standing/flight and use the same Blender→VRM→V72 route.
+
 **Current 2026-10-27 authorization:** the player says the published original
 Blender jab looks good; preserve its bytes and choreography. They authorize
 the full original Storm Fist set in one coordinated task, autonomous move

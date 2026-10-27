@@ -22,7 +22,11 @@ function fixture(){return {schema:'sky-clash.native-combat-set.v1',status:'EXPER
 const file=require('node:path').resolve(__dirname,'../assets/animations/kairo/storm-fist.v1.json');
 const pack=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fixture();
 const status={};studio.registerNativeCombatSet(THREE,status,pack);
-assert.deepEqual(pack.clips.find(c=>c.clipId==='original-jab'),jab,'Published jab preserved exactly');
+if(pack.revision==='kung-fu-v2'){
+ assert.notDeepEqual(pack.clips.find(c=>c.clipId==='original-jab').frames,jab.frames,
+  'The rejected jab must be reauthored in the kung fu set');
+ assert.equal(status.nativeCombatSet.reauthoredJab,true);
+}else assert.deepEqual(pack.clips.find(c=>c.clipId==='original-jab'),jab,'Historical jab preserved exactly');
 for(const [id,[duration,impact]] of Object.entries(timings)){
  const clip=status.nativeCombatSet.clips[id];assert.equal(clip.durationSeconds,duration,id);
  assert.equal(clip.impactSeconds,impact,id);

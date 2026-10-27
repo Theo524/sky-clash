@@ -12,7 +12,8 @@ const {Fighter,Game,Combat}=new Function('require','__dirname',fixture+';return 
 const THREE=require('../js/vendor/three.min.js');
 function run({mode='off',stage=1,characterId='kairo_venn',fps=60,falling=false,visible=false}={}){
  global.window={location:{search:mode==='set'?'?combatAnim=storm-fist-v1':mode==='jab'?'?combatAnim=blender-jab-v1':''},
-  SkyClashPublishedActions:mode==='set'?{nativeCombatSet:{}}:mode==='jab'?{nativeCombatPreview:{}}:{}};
+  SkyClashPublishedActions:mode==='set'||mode==='kungfu'?{nativeCombatSet:{reauthoredJab:mode==='kungfu'}}:
+   mode==='jab'?{nativeCombatPreview:{}}:{}};
  const me=new Fighter('Kairo',{ki:0x44aaff,aura:0xffffff},new THREE.Vector3(0,falling?3:0,0),characterId);
  const foe=new Fighter('Rival',{ki:0xff6600,aura:0xffffff},new THREE.Vector3(0,0,2.5));
  me.animate=foe.animate=()=>{};me.facing=0;me.t=foe.t=12;me.combo=stage;me.lastMelee=12;
@@ -44,6 +45,8 @@ try{
   assert(native.travel<native.budget,'Approach stays inside the existing travel budget');
   assert.deepEqual(run({fps,stage:0,mode:'set'}).trace,run({fps,stage:0}).trace,
    'Original jab trajectory must remain identical');
+  assert(run({fps,stage:0,mode:'kungfu'}).trace.at(-1).pos[2]>
+   run({fps,stage:0}).trace.at(-1).pos[2]+.1,'Reauthored kung fu jab approaches its actual striking reach');
   assert.deepEqual(run({fps,characterId:'rin_sable',mode:'set'}).trace,
    run({fps,characterId:'rin_sable'}).trace,'Rin pursuit must remain identical');
   const noMesh=run({fps,mode:'set',falling:true}),visible=run({fps,mode:'set',falling:true,visible:true});

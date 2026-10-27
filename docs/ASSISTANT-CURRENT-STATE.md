@@ -2,6 +2,22 @@
 
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
+## Latest rejection and kung fu correction
+
+The player rejects all fighting arms, including the jab: weird shapes and
+arms passing through the body. They want martial arts/kung fu with Dragon
+Ball-style movement. The previous jab acceptance below is superseded.
+Reauthor the full set, including the jab, inside the same measured Blender
+pipeline and V72 player. Preserve standing stance and flight.
+
+Confirmed defects: the first set pinned wrists in idle WORLD orientation
+while forearms turned (104–176° wrist deflection), and transported the rear
+elbow through the ribs when lifting the right hand from behind the body.
+The correction uses forearm-following wrists with pronation, a front lead
+guard/rear waist chamber, torso-carried guard targets and anatomical elbow
+planes. Continuous arm/torso clearance and final real-model review are now
+required in addition to gameplay tests. In-progress revision: `kung-fu-v2`.
+
 ## Active full Storm Fist development — 2026-10-27
 
 **Published for review:** PR #141 merged as `054f6ae` and GitHub Pages
