@@ -49,7 +49,8 @@ async function main(){
      clip:f.v72StudioPack.nativeClipId||null,time:f.v72StudioPack.nativePreviewTime,
      support:f.v72StudioPack.nativeSupportCorrection||null,slot:f.v72StudioPack.slot,
      supportFeet:nativeClip?.sampleSupport(native.nativePreviewTime)||null,
-     entryAge:native.nativeAge||0,air:!!(f.attackAir||f.flying||f.jumping),floor:f.floor,
+     entryAge:native.nativeAge||0,air:!!(f.attackAir||f.flying||f.jumping),
+     airOwner:!!window.SkyClashV100Animator?.ownsAir(f),floor:f.floor,
      serial:f.attackSerial,kind:f.attackKind,elapsed:f.attackElapsed,total:f.attackTotal,
      punchT:f.punchT,cd:f.meleeCd,hp:f.hp,stun:f.stun,blocking:f.blocking,
      launched:f.launched,spiked:f.spiked,downT:f.downT,
@@ -134,6 +135,39 @@ async function main(){
      if(i*dt>=.12&&p.stun<=0&&i*dt<.12+dt){p.stun=.3;}
      tick(dt);interrupted.push(observe(p));
     }
+    // Exercise genuine incoming hit events from meaningful outgoing poses.
+    // In the contact cases strike a fraction before the attack's own active
+    // event, so the enemy has not already been stunned by that same blow.
+    const handoffs=[];
+    for(const from of ['original-jab','original-cross','original-hook','guard']){
+     for(const phase of ['windup','contact']){
+      reset(1.45,1);q.strikeEvents.length=0;
+      const guarded=from==='guard';
+      if(guarded)p.blockHeld=true;
+      else{
+       p.combo={'original-jab':0,'original-cross':1,'original-hook':2}[from];
+       p.lastMelee=p.t;s.Combat.melee(p,e);
+      }
+      const contact=guarded?.35:window.SkyClashPublishedActions.nativeCombatSet.clips[from].impactSeconds;
+      const deadline=guarded?(phase==='windup'?.08:.35):phase==='windup'?contact*.45:contact-.0001;
+      let elapsed=0;
+      while(elapsed<deadline-1e-10){const step=Math.min(dt,deadline-elapsed);tick(step);elapsed+=step;}
+      const before=observe(p),serial=p.attackSerial,hp=p.hp;
+      // A settled guard is broken by a real heavy strike, rather than by
+      // assigning stun. The early guard case remains a real successful parry.
+      if(guarded&&phase==='contact')p.guard=1;
+      e.facing=Math.atan2(p.pos.x-e.pos.x,p.pos.z-e.pos.z);
+      s.Combat.strike(e,p,false,guarded&&phase==='contact'?2:0);
+      const frames=[before],damage=hp-p.hp;
+      for(let i=0;i<Math.ceil(fps*1.7);i++){
+       if(guarded&&i*dt>=.5)p.blockHeld=false;
+       tick(dt);frames.push(observe(p));
+      }
+      handoffs.push({id:from+'-'+phase,from,phase,serial,hitElapsed:before.elapsed,
+       before,damage,expectedClip:guarded?(phase==='windup'?'parry':'hit-heavy'):'hit-light',
+       frames,recovery:observe(p)});
+     }
+    }
     const defenses=[];
     for(const mode of ['guard','parry','hit-light','hit-heavy','hit-left','hit-right']){
      reset();p.blockHeld=mode==='guard'||mode==='parry';
@@ -161,7 +195,7 @@ async function main(){
     }
     reset();const before=p.pos.clone();p.moveIntent.set(1,0,0);
     for(let i=0;i<Math.ceil(fps*.8);i++)tick(dt);
-    return {fps,combo,alternate,whiff,interrupted,defenses,aerial,kicks,
+    return {fps,combo,alternate,whiff,interrupted,handoffs,defenses,aerial,kicks,
      movement:p.pos.distanceTo(before),runtimeError:q.g.lastRuntimeError||null};
    },{fps});
    fs.writeFileSync(path.join(output,`gameplay-${fps}hz.json`),JSON.stringify(report,null,2));
@@ -200,8 +234,30 @@ async function main(){
     check(kick.frames.filter(f=>f.native&&f.punchT>0).every(f=>f.clip===kick.id),
      'Steering changed finisher mid-swing: '+kick.id);
    }
+   for(const handoff of r.handoffs){
+    check(handoff.before.native&&handoff.before.clip===handoff.from,
+     'Incoming hit did not start from requested pose '+handoff.id);
+    check(has(handoff.frames.slice(1),handoff.expectedClip),
+     'Incoming hit missed expected reaction '+handoff.id+' -> '+handoff.expectedClip);
+    check(handoff.expectedClip==='parry'?handoff.damage===0:handoff.damage>0,
+     'Real incoming hit/parry did not resolve '+handoff.id);
+    if(handoff.from!=='guard'){
+     check(handoff.frames.slice(1).every(f=>
+      !(f.native&&f.clip===handoff.from&&f.serial===handoff.serial)),
+      'Cancelled attack resurrected after genuine hit '+handoff.id);
+    }
+    const recovery=handoff.recovery;
+    // A real heavy guard break retains its existing upward knock. Kairo's
+    // unchanged flight controller can settle above the height threshold,
+    // where V100 owns the recovered hover and V72 correctly has no idle slot.
+    const recoveredAir=handoff.id==='guard-contact'&&recovery.air&&recovery.airOwner&&
+     recovery.stun===0&&recovery.punchT===0&&!recovery.launched&&!recovery.spiked&&!recovery.downT;
+    check(!recovery.native&&(recovery.slot==='idle'||recoveredAir),
+     'Genuine hit did not yield to original idle/air owner '+handoff.id);
+   }
    const all=[...r.combo.frames,...r.alternate.frames,...r.aerial,
-    ...r.defenses.flatMap(d=>d.frames),...r.kicks.flatMap(k=>k.frames)];
+    ...r.defenses.flatMap(d=>d.frames),...r.kicks.flatMap(k=>k.frames),
+    ...r.handoffs.flatMap(h=>h.frames)];
    check(all.every(f=>f.quaternions.flat().every(Number.isFinite)),'Nonfinite joint pose');
    check(all.every(f=>f.quaternions.every(q=>Math.abs(Math.hypot(...q)-1)<1e-4)),
     'Nonunit joint rotation');
@@ -212,7 +268,11 @@ async function main(){
   const result={status:failures.length?'FAIL':'PASS',base,errors,failures,
    reports:reports.map(r=>({fps:r.fps,starts:r.combo.starts,
     clips:[...new Set(r.combo.frames.filter(f=>f.native).map(f=>f.clip))],
-    contacts:r.combo.impacts,movement:r.movement,motion:r.motion})),
+    contacts:r.combo.impacts,movement:r.movement,motion:r.motion,
+    handoffs:r.handoffs.map(h=>({id:h.id,damage:h.damage,expectedClip:h.expectedClip,
+     clips:[...new Set(h.frames.filter(f=>f.native).map(f=>f.clip))],
+     recovery:{native:h.recovery.native,slot:h.recovery.slot,air:h.recovery.air,
+      airOwner:h.recovery.airOwner}}))})),
    limitations:['Numeric validation does not establish animation aesthetics',
     'Pre-strike geometry uses the previous rendered animation tick before hit/knockback; post-tick distances include defender physics',
     'Contact distances refer to skeleton geometry; inspect real-model frames for surface contact']};
@@ -304,7 +364,9 @@ async function captureMoves(page){
  const available=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
  if(selectedMoves)assert(selectedMoves.every(id=>available.includes(id)),'Unknown STORM_QA_MOVES entry');
  const ids=selectedMoves?available.filter(id=>selectedMoves.includes(id)):available;
- const views={front:[1.15,1.65,4.1],side:[4.1,1.65,.1]};
+ const views=process.env.STORM_QA_ARM_CLOSEUP==='1'?
+  {front:[.75,1.65,2.45],side:[2.45,1.65,.1]}:
+  {front:[1.15,1.65,4.1],side:[4.1,1.65,.1]};
  const all=[];
  for(const id of ids){
   const timing=await page.evaluate(id=>{
@@ -362,6 +424,8 @@ async function captureMoves(page){
      s.Game.loop(performance.now());
     },offset);
     await page.screenshot({path:path.join(dir,`${id}-${view}-${i}.jpg`),type:'jpeg',quality:84});
+    if(process.env.STORM_QA_ARM_CLOSEUP==='1'&&Math.abs(times[i]-impact)<1e-8)
+     await page.screenshot({path:path.join(output,`${id}-${view}-contact.png`)});
    }
   }
   assert(observations.some(f=>f.native&&f.clip===id),'Gallery did not route actual runtime move '+id);

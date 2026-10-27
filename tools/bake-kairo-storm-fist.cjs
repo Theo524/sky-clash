@@ -1,7 +1,7 @@
 /* Bake the recovered Blender world-delta transport on Kairo's real VRM.
  * This extends verify-kairo-original-jab.cjs's offline conversion/foot solve;
- * it never installs another runtime animation owner. The published jab is
- * copied verbatim as a clip and is deliberately never rebaked.
+ * it never installs another runtime animation owner. Kung fu revision 2
+ * includes the reauthored jab; the old jab file remains historical rollback.
  */
 'use strict';
 const assert=require('node:assert/strict');
@@ -24,7 +24,8 @@ assert.deepEqual(source.bones,mf.bones);assert.deepEqual(source.parents,mf.paren
 assert(Array.isArray(source.clips)&&source.clips.length>0);
 assert.equal(new Set(source.clips.map(c=>c.clipId)).size,source.clips.length);
 for(const clip of source.clips){
- assert.notEqual(clip.clipId,'original-jab','Published jab must never be rebaked');
+ assert(clip.clipId!=='original-jab'||source.revision==='kung-fu-v2',
+  'Only the explicitly authorized kung fu revision may replace the jab');
  assert(clip.durationSeconds>0&&clip.durationSeconds<4);
  assert(clip.samples.length>=2);
  assert(Math.abs(clip.samples[0].timeSeconds)<1e-8);
@@ -176,20 +177,21 @@ async function main(){
    assert(report.maxPathError<.004,report.clipId+': joint path mismatch '+report.maxPathError);
    assert(report.worstKneeStep<=report.expectedKneeStep+.008,report.clipId+': knee trajectory mismatch');
   }
-  const jabClip=jab;
+  const reauthoredJab=source.revision==='kung-fu-v2';
   const pack={schema:'sky-clash.native-combat-set.v1',status:'EXPERIMENTAL_PLAYTEST',
    characterId:'kairo_venn',modelSha256:modelHash,rigSignature:mf.rigSignature,bones:mf.bones,
-   sourceSha256:hash(sourceBytes),preservedJabSha256:hash(fs.readFileSync('assets/animations/kairo/original-jab-playtest.v1.json')),
-   clips:[jabClip,...baked.clips]};
-  assert.deepEqual(pack.clips[0].frames,jab.frames);
+   revision:source.revision||'storm-fist-v1',
+   sourceSha256:hash(sourceBytes),historicalJabSha256:hash(fs.readFileSync('assets/animations/kairo/original-jab-playtest.v1.json')),
+   clips:reauthoredJab?baked.clips:[jab,...baked.clips]};
+  if(!reauthoredJab)assert.deepEqual(pack.clips[0].frames,jab.frames);
   fs.writeFileSync('assets/animations/kairo/storm-fist.v1.json',JSON.stringify(pack)+'\n');
   fs.writeFileSync(path.join(OUT,'storm-fist-bake-report.json'),JSON.stringify({
    schema:'sky-clash.kairo-storm-fist-bake-report.v1',sourceSha256:pack.sourceSha256,
-   preservedJabSha256:pack.preservedJabSha256,clips:baked.reports},null,2)+'\n');
+   revision:pack.revision,historicalJabSha256:pack.historicalJabSha256,clips:baked.reports},null,2)+'\n');
   console.log('PASS KAIRO_STORM_FIST_BAKE '+JSON.stringify({clips:pack.clips.length,
    frames:pack.clips.reduce((n,c)=>n+c.frames.length,0),
    maxFootResidual:Math.max(...baked.reports.map(r=>r.maxFootResidual)),
-   maxPathError:Math.max(...baked.reports.map(r=>r.maxPathError)),preservedJab:true}));
+   maxPathError:Math.max(...baked.reports.map(r=>r.maxPathError)),reauthoredJab}));
  }finally{await browser.close();}
 }
 main().catch(error=>{console.error(error.stack||error);process.exitCode=1;});

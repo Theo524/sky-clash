@@ -527,7 +527,8 @@ class Fighter {
           const nativeApproach=!!(typeof window!=='undefined'&&
             window.SkyClashPublishedActions?.nativeCombatSet&&
             this.characterId==='kairo_venn'&&
-            !(this.attackKind==='punch'&&this.punchSide===1));
+            (!(this.attackKind==='punch'&&this.punchSide===1)||
+             window.SkyClashPublishedActions.nativeCombatSet.reauthoredJab));
           const goal = nativeApproach ?
             (this.attackKind==='kick'||this.attackKind==='skyKick'?.82:.72):
             this.attackKind === 'kick' || this.attackKind === 'skyKick' ? 1.7 : 1.45;

@@ -276,7 +276,7 @@
   // finish loading. Keep Kairo's VRM meshes hidden until fully composed.
   window.SKY_V104_STARTUP_GATE=true;
   window.SKY_V104_ANIMATIONS_READY=false;
-  await script('js/game.js?v=1530&startup=104&stormFist=1');
+  await script('js/game.js?v=1530&startup=104&stormFist=2');
   // Isolated V88 walk evaluation. Original live game settings are untouched
   // unless the user explicitly opens ?movementLab=walk.
   const walkLab=['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'));
@@ -305,14 +305,14 @@
   // Shared V155 authored shape feeds either existing owner, never both.
   if(v155Preview||boostMode==='v155')
    await script('js/v155-organic-flight.js?v=1550');
-  await script('js/v72-published-actions.js?v=820&jabPlaytest=1&stormFist=1'+
+  await script('js/v72-published-actions.js?v=820&jabPlaytest=1&stormFist=2'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':''));
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
   // Final pose owner runs after all optional Move layers. This keeps
   // whole-body transitions smooth instead of exposing old procedural arms.
-  await script('js/v81-pose-transitions.js?v=810&jabPlaytest=1&stormFist=1');
+  await script('js/v81-pose-transitions.js?v=810&jabPlaytest=1&stormFist=2');
   window.SkyClashV81Transitions.start(window);
   // Apply authored stepping and brief support-foot corrections LAST, after
   // the previously existing pose-transition owner. Ordinary game is intact.

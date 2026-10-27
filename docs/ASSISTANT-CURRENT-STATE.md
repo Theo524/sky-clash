@@ -2,7 +2,51 @@
 
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
-## Active full Storm Fist development — 2026-10-27
+## Kung fu arm correction — 2026-10-27
+
+The player rejects all fighting arms, including the jab: weird shapes and
+arms passing through the body. They want martial arts/kung fu with Dragon
+Ball-style movement. The previous jab acceptance below is superseded.
+Reauthor the full set, including the jab, inside the same measured Blender
+pipeline and V72 player. Preserve standing stance and flight.
+
+Confirmed defects: the first set pinned wrists in idle WORLD orientation
+while forearms turned (104–176° wrist deflection), and transported the rear
+elbow through the ribs when lifting the right hand from behind the body.
+The correction uses forearm-following wrists with pronation, a front lead
+guard/rear waist chamber, torso-carried guard targets and anatomical elbow
+planes. Revision `kung-fu-v2` reauthors all 17 clips, including the jab,
+inside the same Blender→VRM→V72/V81 path. Straight punches now extend
+purposefully; guards and hit reactions retain the lead/rear chamber.
+Native hit entry has an 80ms blend and its exit is classified as damage
+in V81, avoiding abrupt arm resets. No animation wrapper was added.
+
+Continuous native and actual gameplay arm audits at 30/60/120Hz report
+positive torso-proxy clearance in every group, including eight real
+incoming-hit handoffs per rate. Maximum sampled wrist deflection is
+19.8° (previously 104–176°); maximum arm speed is 39.9rad/s. These
+are skeleton/proxy checks, not a mesh collision guarantee. Real Kairo
+three-view sequence captures and move sheets were inspected, with focused
+recapture of the revised straight strikes and four hit reactions.
+Baking all 17 clips/668 frames gives maximum joint-path error
+0.0000041 units and foot-target residual 0.0000036 units.
+
+Historical standalone jab bytes, standing stance, flight, Rin, hitboxes
+and move clocks remain preserved. The revised set jab uses the same
+bounded pursuit as the other new clips. Heavy guard-break recovery can
+legitimately return to V100 hover after its existing knock-up; QA verifies
+the actual air owner instead of incorrectly demanding ground idle.
+
+The earlier roughly 0.12-unit support-foot discontinuity is still present
+in the 60/120Hz combo and remains unfinished. Exact fist/mesh contact
+and moving-target heights also need player review. Do not claim zero
+sliding, universal collision clearance or aesthetic approval.
+
+Review URL remains `?combatAnim=storm-fist-v1`; normal combat defaults
+are unchanged. PR #142 contains the correction. Verify final CI/Pages
+and the served pack before claiming it is published.
+
+## Earlier full Storm Fist publication — superseded arm verdict
 
 **Published for review:** PR #141 merged as `054f6ae` and GitHub Pages
 deployment `40587098602` succeeded. Main's V66, ownership and startup checks

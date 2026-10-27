@@ -116,7 +116,8 @@
       'air-strike','sky-uppercut','sky-kick','falling-fist','guard','parry',
       'hit-light','hit-heavy','hit-left','hit-right'])
    if(!clips[id])throw Error('Incomplete native Storm Fist set: '+id);
-  status.nativeCombatSet={clips};
+  status.nativeCombatSet={clips,revision:pack.revision||'storm-fist-v1',
+   reauthoredJab:pack.revision==='kung-fu-v2'};
   return Object.keys(clips);
  }
  function nativeAttackId(f){
@@ -465,8 +466,9 @@
      native.sample(nativeTime,state.samples);
      // A short handoff retains the actual outgoing pose across chained
      // attacks and aerial/guard entries. It ends before canonical contact.
-     const fade=set&&native.clipId!=='original-jab'&&state.nativeEntry?
-      Math.min(1,state.nativeAge/(nativeMode==='damage'?.035:.065)):1;
+     const historicalJab=native.clipId==='original-jab'&&!set?.reauthoredJab;
+     const fade=set&&!historicalJab&&state.nativeEntry?
+      Math.min(1,state.nativeAge/(nativeMode==='damage'?.080:.065)):1;
      const blend=fade*fade*(3-2*fade);
      for(let i=0;i<BONES.length;i++){
       const node=state.bones[i];if(!node)continue;
@@ -476,7 +478,7 @@
      native.sampleHips(nativeTime,state.bones[0].position);
      if(blend<1&&state.nativeEntryHips)state.bones[0].position.lerpVectors(state.nativeEntryHips,state.bones[0].position.clone(),blend);
      state.rig.vrm.scene.updateMatrixWorld(true);
-     if(set&&native.clipId!=='original-jab'&&nativeMode!=='damage'&&
+     if(set&&!historicalJab&&nativeMode!=='damage'&&
        !(this.attackAir||this.flying||this.jumping)){
       supportFoot('left',nativeTime,native);supportFoot('right',nativeTime,native);
      }
@@ -707,7 +709,7 @@
     },5000);
    });
    const request=(async()=>{
-    const response=await context.fetch(path+'?v='+(fullSet?'storm-fist-v1':'blender-jab-v1'),{
+    const response=await context.fetch(path+'?v='+(fullSet?'kung-fu-v2':'blender-jab-v1'),{
      cache:'no-cache',...(controller?{signal:controller.signal}:{})});
     if(!response.ok)throw Error('Experimental jab HTTP '+response.status);
     return response.json();

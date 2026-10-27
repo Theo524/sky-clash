@@ -135,6 +135,16 @@ limb checks and explicit user visual approval of that state.
 
 ## Storm Fist full-set extension (2026-10-27)
 
+**Kung fu revision 2:** the player rejects the jab and the full set's arms.
+The same V72 native set now carries `revision: kung-fu-v2`; its jab receives
+the same native handoff, support and bounded approach as the other new moves.
+The historical standalone jab route retains its old data for rollback only.
+All revised hand orientations are authored from the solved Blender forearm
+plus pronation, not pinned to idle world rotation. Elbows use anatomical
+outside/down planes; guard/chamber targets move with the torso. No extra
+runtime arm writer or animation wrapper is introduced. The older jab-copy
+description below records revision 1, not the current player verdict.
+
 The user authorizes coordinated full-set development and Pages review and
 accepts the published jab's appearance. V72 remains the only native combat
 writer. A model/rig-validated `native-combat-set.v1` contains separately timed
