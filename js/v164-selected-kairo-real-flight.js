@@ -1,6 +1,7 @@
 /* Generated from three EXACT original real Kairo Pose Lab clip JSON files.
  * PLAYER CHOSE B stance + B arm movement + B rise + B fall.
- * Archived Github runs: 40418975917, 40421353502, 40425774416.
+ * Repository-local real-Kairo source projects are under assets/animations/kairo/selected/v164.
+ * Original archived authoring runs: 40418975917, 40421353502, 40425774416.
  * Do not hand-edit these model-bound complete normalized quaternion keys.
  * Select via ?flightVertical=v164 only; no default change.
  */
