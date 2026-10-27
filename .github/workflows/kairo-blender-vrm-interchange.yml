@@ -19,18 +19,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: '22'}
-      - name: Install real Blender CLI (no game changes)
+      - name: Prepare official standalone Blender 4.5 LTS (no apt)
         run: |
-          # Runner has pre-populated package indexes. Avoid a slow unconditional
-          # package-index refresh; retry an update only if direct install fails.
-          if ! timeout 420s sudo env DEBIAN_FRONTEND=noninteractive \
-              apt-get install -y --no-install-recommends blender python3-numpy; then
-            timeout 120s sudo apt-get update -qq
-            timeout 420s sudo env DEBIAN_FRONTEND=noninteractive \
-              apt-get install -y --no-install-recommends blender python3-numpy
-          fi
-          blender --version | head -3
-          blender --background --python-expr 'import numpy; print("KAIRO_BLENDER_NUMPY_READY", numpy.__version__)'
+          set -euo pipefail
+          version=4.5.15
+          filename="blender-${version}-linux-x64.tar.xz"
+          base="https://download.blender.org/release/Blender4.5"
+          cd "$RUNNER_TEMP"
+          curl --fail --location --retry 2 --connect-timeout 20 --max-time 540 \
+            "$base/$filename" --output "$filename"
+          curl --fail --location --retry 2 --connect-timeout 20 --max-time 90 \
+            "$base/blender-${version}.sha256" --output "blender-${version}.sha256"
+          grep " $filename" "blender-${version}.sha256" | sha256sum --check --
+          tar -xJf "$filename"
+          binary="$RUNNER_TEMP/blender-${version}-linux-x64/blender"
+          test -x "$binary"
+          echo "$RUNNER_TEMP/blender-${version}-linux-x64" >> "$GITHUB_PATH"
+          "$binary" --version | head -3
+          "$binary" --background --factory-startup --python-expr 'import numpy; print("KAIRO_BLENDER_NUMPY_READY", numpy.__version__)'
       - name: Author one test-only armature movement on the actual Kairo VRM
         run: |
           blender --background --factory-startup --python tools/author-kairo-blender-probe.py
