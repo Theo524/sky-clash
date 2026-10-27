@@ -6,6 +6,11 @@ older instructions to preserve the jab are superseded. After author/bake run
 `node tools/verify-kairo-arm-clearance.cjs`, then audit actual gameplay with
 `--gameplay visual-review-output/kairo-storm-fist/gameplay-60hz.json`.
 The committed measured anchor supports fast CI without launching a browser.
+Audit actual gameplay at all three rates after runtime handoff changes.
+Real heavy guard-break recovery can yield to V100 hover; verify that owner,
+not a forced ground idle. `STORM_QA_FILM=0` runs numeric gameplay only;
+`STORM_QA_ARM_CLOSEUP=1` saves detailed contact images. Reuse unchanged
+clip galleries and focus recapture on changed poses.
 
 For the full Storm Fist continuation, follow
 [the set author/bake/real-game commands](KAIRO-STORM-FIST-PLAYTEST.md).

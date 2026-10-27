@@ -2,6 +2,41 @@
 
 > **Historical record; not canonical current status.** New assistants must start with [Assistant Current State](ASSISTANT-CURRENT-STATE.md) and [Assistant Runbook](ASSISTANT-RUNBOOK.md) and run `node tools/assistant-checkup.cjs --strict` or inspect its GitHub Actions artifact. The history below includes stale earlier snapshots (such as saying the V152 pose reference wasn't yet captured). The human user explicitly does **not** want to operate Pose Lab or developer tools. Use GitHub and Playwright tooling autonomously. New-flight/Boost V153/V154/V155 were all rejected by the player, irrespective of green code tests. Verify the current repo/CI/Pages before making further claims.
 
+## Kung fu arm revision — 27 October 2026
+
+The player rejected the prior full set AND jab for weird arms and body
+crossings, superseding the earlier jab acceptance. PR #142 reauthors all
+17 Blender clips in the recovered pipeline. Root causes were idle-world
+wrist locking (104–176° wrist deflection), rear elbow transport across the
+ribs and an incompatible rear-hand route from idle. Asymmetric lead guard/
+rear waist chamber, torso-following targets, anatomical elbow planes and
+forearm-relative wrist pronation replace those controls. Straight jab,
+cross and free aerial punch now extend with source elbow internal angles
+161°, 147° and 156°. Historical standalone jab remains only a rollback.
+
+The same V72 owner blends native damage entry over 80ms. V81 recognizes
+native stun as damage so reaction exit blends instead of snapping. Actual
+incoming-hit tests interrupt jab/cross/hook windup and contact, plus early
+parry and settled guard break. The guard break legitimately leaves Kairo
+in the existing flight controller; QA verifies V100 air ownership after
+stun rather than changing gameplay to force ground idle.
+
+Native 120Hz and final rendered 30/60/120Hz arm audits all have positive
+joint-derived torso capsule clearance, max wrist deflection 19.8° and max
+arm speed 39.9rad/s. Bake: 17 clips, 668 frames, max joint-path error
+0.0000041 and foot-target residual 0.0000036 units. Three-view continuous
+combo review and chronological move sheets use real Kairo; final jab,
+cross, aerial strike and four reaction galleries were recaptured after
+source polish. Focused native/pursuit/loader/private-preview tests, V100
+suite, ownership guard and strict checkup pass. Check final-head CI and
+Pages evidence in current-state before claiming release.
+
+Scope limits: torso capsules do not certify sleeve/mesh collision or exact
+knuckle contact. The existing approximately 0.12-unit support-foot jump in
+60/120Hz pursuit remains unresolved. The revised set is opt-in through
+`combatAnim=storm-fist-v1`; normal stance, flight, Rin, models, hitboxes and
+attack clocks stay protected. Only the player can approve the aesthetics.
+
 ## Critical 2026-10-26 user feedback: rejected flight and real VRM Pose Lab foundation
 
 User says V155 ruined flight further and twisted the character, following earlier rejections of V153 stick/plank flying and both old/V154 Boost animations. This is **not a request to increase lean or add V156 corrective geometry**. The player explicitly wants a better authoring process: one that builds actual keyframe motion on the real character, not automatic solver guesses. Admit that `js/v142-hover-keyframes.js` etc stored parametric targets that still depended on V100 world-bone correction; it was NOT a full rig manual editor.

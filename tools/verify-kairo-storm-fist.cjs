@@ -49,7 +49,8 @@ async function main(){
      clip:f.v72StudioPack.nativeClipId||null,time:f.v72StudioPack.nativePreviewTime,
      support:f.v72StudioPack.nativeSupportCorrection||null,slot:f.v72StudioPack.slot,
      supportFeet:nativeClip?.sampleSupport(native.nativePreviewTime)||null,
-     entryAge:native.nativeAge||0,air:!!(f.attackAir||f.flying||f.jumping),floor:f.floor,
+     entryAge:native.nativeAge||0,air:!!(f.attackAir||f.flying||f.jumping),
+     airOwner:!!window.SkyClashV100Animator?.ownsAir(f),floor:f.floor,
      serial:f.attackSerial,kind:f.attackKind,elapsed:f.attackElapsed,total:f.attackTotal,
      punchT:f.punchT,cd:f.meleeCd,hp:f.hp,stun:f.stun,blocking:f.blocking,
      launched:f.launched,spiked:f.spiked,downT:f.downT,
@@ -245,8 +246,14 @@ async function main(){
       !(f.native&&f.clip===handoff.from&&f.serial===handoff.serial)),
       'Cancelled attack resurrected after genuine hit '+handoff.id);
     }
-    check(!handoff.recovery.native&&handoff.recovery.slot==='idle',
-     'Genuine hit did not recover to unchanged idle '+handoff.id);
+    const recovery=handoff.recovery;
+    // A real heavy guard break retains its existing upward knock. Kairo's
+    // unchanged flight controller can settle above the height threshold,
+    // where V100 owns the recovered hover and V72 correctly has no idle slot.
+    const recoveredAir=handoff.id==='guard-contact'&&recovery.air&&recovery.airOwner&&
+     recovery.stun===0&&recovery.punchT===0&&!recovery.launched&&!recovery.spiked&&!recovery.downT;
+    check(!recovery.native&&(recovery.slot==='idle'||recoveredAir),
+     'Genuine hit did not yield to original idle/air owner '+handoff.id);
    }
    const all=[...r.combo.frames,...r.alternate.frames,...r.aerial,
     ...r.defenses.flatMap(d=>d.frames),...r.kicks.flatMap(k=>k.frames),
@@ -263,7 +270,9 @@ async function main(){
     clips:[...new Set(r.combo.frames.filter(f=>f.native).map(f=>f.clip))],
     contacts:r.combo.impacts,movement:r.movement,motion:r.motion,
     handoffs:r.handoffs.map(h=>({id:h.id,damage:h.damage,expectedClip:h.expectedClip,
-     clips:[...new Set(h.frames.filter(f=>f.native).map(f=>f.clip))]}))})),
+     clips:[...new Set(h.frames.filter(f=>f.native).map(f=>f.clip))],
+     recovery:{native:h.recovery.native,slot:h.recovery.slot,air:h.recovery.air,
+      airOwner:h.recovery.airOwner}}))})),
    limitations:['Numeric validation does not establish animation aesthetics',
     'Pre-strike geometry uses the previous rendered animation tick before hit/knockback; post-tick distances include defender physics',
     'Contact distances refer to skeleton geometry; inspect real-model frames for surface contact']};
