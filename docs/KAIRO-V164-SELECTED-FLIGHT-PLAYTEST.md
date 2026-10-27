@@ -21,3 +21,7 @@ At `?flightVertical=v164`, V100 samples all three tracks using spherical quatern
 Original V156 forward Q, V163 preview, Kairo/Rin models, Boost, jump, landing, combat and physics remain unchanged. No automatic activation. Inspect dedicated V164 vs V156 [real Kairo WebGL 3-angle comparisons](../.github/workflows/kairo-v164-selected-flight-stills.yml) in GitHub Actions, **including pure ascent, pure descent, forward-mixed directions, neutral hover and Boost**, before merge; green CI is not an aesthetic grade.
 
 Future chats start at `AGENTS.md`, `docs/ASSISTANT-CURRENT-STATE.md`, this document, and `docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md`. Show the combined playable link and ask for visual feedback; do not reopen already selected B/B/B/B clip choices.
+
+## Generated source verification
+
+The GitHub source-import action successfully validated and committed the unmodified source-backed `js/v164-selected-kairo-real-flight.js` into the feature PR: 71 real 20-bone authored keyframes, 21 + 25 + 25, SHA matched. The playable candidate still needs the full CI/real-Kairo visual pass and Pages deployment before calling it live. This note is intentionally committed via the GitHub connector to retrigger all PR checks after the Actions bot's asset-generation commit (bot pushes don't independently trigger normal workflows).
