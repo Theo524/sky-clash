@@ -20,7 +20,7 @@ const sourceFiles=['src/45-fighter-controller.js','src/60-combat.js',
 const sources=Object.fromEntries(sourceFiles.map(p=>[p,fs.readFileSync(p,'utf8')]));
 assert(sources[sourceFiles[0]].includes('burstV165?AnimeFeelV165.boostSpeedScale:1'));
 assert(sources[sourceFiles[0]].includes('Spectacle.boostIgnition(this)'));
-assert(sources[sourceFiles[1]].includes('const beatScale=AnimeFeelV165.enabled?'));
+assert(sources[sourceFiles[1]].includes('AnimeFeelV165.enabled?AnimeFeelV165.tempo(stage):1'));
 assert(sources[sourceFiles[1]].includes('* agile * beatScale, kick, stage'));
 assert(sources[sourceFiles[2]].includes('function boostIgnition(f)'));
 assert(sources[sourceFiles[3]].includes('if(AnimeFeelV165.enabled&&camera?.isPerspectiveCamera)'));

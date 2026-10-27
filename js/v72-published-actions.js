@@ -18,6 +18,7 @@
  const COMBAT_PACK='assets/animations/gameplay/v87-recorded-combat.json';
  const NATIVE_PLAYTEST='assets/animations/kairo/original-jab-playtest.v1.json';
  const NATIVE_SET='assets/animations/kairo/storm-fist.v1.json';
+ const NATIVE_SET_V3='assets/animations/kairo/storm-fist.v3.json';
  const COMBAT_SLOTS=new Set(['punch1','punch2','punch3','overhand','airStrike','kick','sideKick']);
  // Safe rollback: ?ue5=off restores all earlier published Studio motions.
  const UE5_ACTIVE=new Set(['guard','jump','landing','fallingToLanding','runStop',
@@ -100,7 +101,7 @@
  }
  const NATIVE_CLIPS=new Set(['original-jab','original-cross','original-hook','original-overhand',
   'rising-kick','roundhouse','side-kick','air-strike','sky-uppercut','sky-kick','falling-fist',
-  'guard','parry','hit-light','hit-heavy','hit-left','hit-right']);
+  'guard','parry','hit-light','hit-heavy','hit-left','hit-right','launch-recoil','spike-recoil']);
  function registerNativeCombatSet(THREE,status,pack){
   if(pack?.schema!=='sky-clash.native-combat-set.v1'||pack.status!=='EXPERIMENTAL_PLAYTEST'||
      pack.characterId!=='kairo_venn'||pack.modelSha256!==NATIVE_MODEL||pack.rigSignature!==NATIVE_RIG||
@@ -116,8 +117,10 @@
       'air-strike','sky-uppercut','sky-kick','falling-fist','guard','parry',
       'hit-light','hit-heavy','hit-left','hit-right'])
    if(!clips[id])throw Error('Incomplete native Storm Fist set: '+id);
+  if(pack.revision==='storm-fist-v3')for(const id of ['launch-recoil','spike-recoil'])
+   if(!clips[id])throw Error('Incomplete native Storm Fist v3 set: '+id);
   status.nativeCombatSet={clips,revision:pack.revision||'storm-fist-v1',
-   reauthoredJab:pack.revision==='kung-fu-v2'};
+   reauthoredJab:['kung-fu-v2','storm-fist-v3'].includes(pack.revision)};
   return Object.keys(clips);
  }
  function nativeAttackId(f){
@@ -422,9 +425,15 @@
     const nativeJab=native&&!options.choose&&this.characterId==='kairo_venn'&&
       this.hp>0&&this.punchT>0&&this.attackKind==='punch'&&this.punchSide===1&&
       !state.nativePreviewCancelled&&!nativeBlocked;
-    if(set&&this.hp>0&&!this.downT&&!this.launched&&!this.spiked&&!this.slamming&&!this.superHitT){
+    const authoredRecoil=set?.revision==='storm-fist-v3'&&(this.launched||this.spiked)&&
+      set.clips[this.spiked?'spike-recoil':'launch-recoil'];
+    if(set&&this.hp>0&&!this.downT&&(!(this.launched||this.spiked)||authoredRecoil)&&!this.slamming&&!this.superHitT){
      const reaction=this.nativeCombatReaction,parry=this.nativeCombatParry;
-     if(this.stun>0&&reaction){
+     if(authoredRecoil){
+      native=authoredRecoil;nativeMode='damage';
+      nativeTime=Math.min(native.durationSeconds,Math.max(0,(this.t||0)-(reaction?.at||this.t||0)));
+      nativeKey=(this.spiked?'spike:':'launch:')+(reaction?.serial||0);
+     }else if(this.stun>0&&reaction){
       native=set.clips[reaction.clipId]||set.clips['hit-light'];nativeMode='damage';
       nativeTime=Math.min(native.durationSeconds,Math.max(0,(this.t||0)-reaction.at));
       nativeKey='reaction:'+reaction.serial;
@@ -694,7 +703,8 @@
  async function loadNativeCombatPlaytest(context,status){
   if(!status.ready||!status.nativePlaytest.requested)return;
   const state=status.nativePlaytest;
-  const fullSet=state.mode==='storm-fist-v1',path=fullSet?NATIVE_SET:NATIVE_PLAYTEST;
+  const revision3=state.mode==='storm-fist-v3',fullSet=revision3||state.mode==='storm-fist-v1',
+   path=revision3?NATIVE_SET_V3:fullSet?NATIVE_SET:NATIVE_PLAYTEST;
   state.state='loading';state.source=path;
   const Controller=context.AbortController||root.AbortController;
   const controller=Controller?new Controller():null;
@@ -709,7 +719,7 @@
     },5000);
    });
    const request=(async()=>{
-    const response=await context.fetch(path+'?v='+(fullSet?'kung-fu-v2':'blender-jab-v1'),{
+    const response=await context.fetch(path+'?v='+(revision3?'storm-fist-v3':fullSet?'kung-fu-v2':'blender-jab-v1'),{
      cache:'no-cache',...(controller?{signal:controller.signal}:{})});
     if(!response.ok)throw Error('Experimental jab HTTP '+response.status);
     return response.json();
@@ -728,7 +738,7 @@
  async function start(context=root){
   const flags=new URLSearchParams(context.location?.search||'');
   const mode=flags.get('combatAnim');
-  const requested=mode==='blender-jab-v1'||mode==='storm-fist-v1';
+  const requested=mode==='blender-jab-v1'||mode==='storm-fist-v1'||mode==='storm-fist-v3';
   const status={ready:false,active:'none',frames:0,error:null,source:PATH,
    nativePlaytest:{requested,mode,state:requested?'unavailable':'off'}};
   status.registerNativeCombatPreview=pack=>registerNativeCombatPreview(context.THREE,status,pack);

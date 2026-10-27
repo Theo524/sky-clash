@@ -6,10 +6,23 @@
  * A dash always sets suspendT, so the camera never chases the rival mid-dash.
  */
 const CameraRig = (() => {
-  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0, baseFov: null };
+  const rig = { yaw: 0, pitch: 0.3, dist: 8.5, focus: 0, suspendT: 0, shakeT: 0, shakeAmp: 0, baseFov: null,
+    strikeT:0,strikeDuration:.16,strikeAmp:0,strikeSide:0,strikeRise:0,strikeFrame:0 };
   const look = new V3(), desired = new V3();
   function forward() { return new V3(-Math.sin(rig.yaw), 0, -Math.cos(rig.yaw)); }
   function right() { return new V3(Math.cos(rig.yaw), 0, -Math.sin(rig.yaw)); }
+  function soundPan(point){
+    const fromCamera=point.clone().sub(camera.position);
+    return clamp(fromCamera.dot(right())/Math.max(4,fromCamera.length())*1.4,-.65,.65);
+  }
+  function strike(direction,stage,kick,counter){
+    rig.strikeDuration=stage>=5?.21:kick?.18:.145;
+    rig.strikeT=rig.strikeDuration;
+    rig.strikeAmp=counter?.047:stage>=5?.063:kick?.048:stage===2?.036:.022;
+    rig.strikeSide=clamp(direction.dot(right()),-.85,.85);
+    rig.strikeRise=clamp(direction.y,-.8,.8);
+    rig.strikeFrame=stage>=3?.018:0;
+  }
   function isLockActive() { return Game.lockOn && rig.suspendT <= 0 && !Game.player.moving; }
   function onDash() {
     if (Game.lockOn) {
@@ -60,7 +73,8 @@ const CameraRig = (() => {
     const presetDist = cameraDistances[Settings.get('cameraDist')] || 8.5;
     // A short camera push-in gives the transformation weight without stealing the orbit controls.
     const cinematic = p.awakenChargeT > 0 ? Math.sin(Math.PI * smooth01(p.awakenChargeProgress)) : 0;
-    const desiredDist = presetDist * (1 - 0.16 * cinematic);
+    const strikeEnvelope=rig.strikeT>0?Math.sin(Math.PI*(1-rig.strikeT/rig.strikeDuration)):0;
+    const desiredDist = presetDist * (1 - 0.16 * cinematic + rig.strikeFrame*strikeEnvelope);
     rig.dist += (desiredDist - rig.dist) * (instant ? 1 : damp(5.5, dt));
     const d = rig.dist + (p.dashing ? 0.62 : p.sprinting ? (p.flying ? 1.10 : 0.5) : 0);
     // V165: controlled zoom-out and slight lens widening at full aerial
@@ -83,6 +97,14 @@ const CameraRig = (() => {
       rig.shakeT -= dt; const a = rig.shakeAmp * 0.48 * Math.max(0, rig.shakeT / 0.25);
       camera.position.x += (Math.random() - 0.5) * a; camera.position.y += (Math.random() - 0.5) * a;
     }
+    if(rig.strikeT>0){
+      rig.strikeT=Math.max(0,rig.strikeT-dt);
+      const t=1-rig.strikeT/rig.strikeDuration;
+      const pulse=Math.sin(t*Math.PI*3.0)*(1-t)*(1-t)*rig.strikeAmp;
+      const side=right();
+      camera.position.addScaledVector(side,pulse*(.35+rig.strikeSide*.65));
+      camera.position.y+=pulse*(.46+rig.strikeRise*.35);
+    }
     // Kairo's blast charge: controlled low-frequency camera vibration that grows
     // with concentration. No high-frequency random jitter or persistent offset.
     if (!instant && p.charging && p.chargeHeld && p.stun <= 0) {
@@ -92,7 +114,8 @@ const CameraRig = (() => {
     }
     camera.lookAt(look);
   }
-  return { update, forward, right, onDash, snapBehind, isLockActive, shake(a) { rig.shakeT = 0.25; rig.shakeAmp = Math.max(rig.shakeAmp * 0.40, a); }, rig };
+  return { update, forward, right, onDash, snapBehind, isLockActive, strike, soundPan,
+    shake(a) { rig.shakeT = 0.25; rig.shakeAmp = Math.max(rig.shakeAmp * 0.40, a); }, rig };
 })();
 
 

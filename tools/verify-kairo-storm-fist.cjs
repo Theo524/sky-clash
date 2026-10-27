@@ -10,6 +10,13 @@ const {chromium}=require('playwright');
 const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/?$/,'/');
 const output=path.resolve(process.env.STORM_QA_OUTPUT||'visual-review-output/kairo-storm-fist');
 const film=process.env.STORM_QA_FILM!=='0';
+const combatFlag=process.env.STORM_QA_COMBAT_FLAG||'storm-fist-v1';
+const videoFps=Number(process.env.STORM_QA_VIDEO_FPS||30);
+assert([15,30,60].includes(videoFps),'STORM_QA_VIDEO_FPS must be 15,30 or 60');
+const skipMoves=process.env.STORM_QA_SKIP_MOVES==='1';
+const showcase=process.env.STORM_QA_SHOWCASE==='1';
+const captureAudio=process.env.STORM_QA_AUDIO==='1';
+const audioSegments=[];
 const skipSequence=process.env.STORM_QA_SKIP_SEQUENCE==='1';
 const selectedMoves=process.env.STORM_QA_MOVES?.split(',').map(x=>x.trim()).filter(Boolean)||null;
 const bones=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json').bones;
@@ -22,9 +29,10 @@ async function main(){
  else if(fs.existsSync('/usr/bin/chromium'))launch.executablePath='/usr/bin/chromium';
  const browser=await chromium.launch(launch);
  const page=await browser.newPage({viewport:{width:960,height:720}});
+ if(captureAudio)await installAudioCapture(page);
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  try{
-  const response=await page.goto(base+'?combatAnim=storm-fist-v1',{waitUntil:'domcontentloaded'});
+  const response=await page.goto(base+'?combatAnim='+encodeURIComponent(combatFlag),{waitUntil:'domcontentloaded'});
   assert(response.ok(),'Game entry is unavailable');
   await page.waitForFunction(()=>window.SKY_V104_ANIMATIONS_READY&&
    window.SkyClashPublishedActions?.ready&&
@@ -35,6 +43,7 @@ async function main(){
   await page.waitForFunction(()=>!document.getElementById('titleScreen').classList.contains('show'));
   await page.evaluate(({bones})=>{
    const s=window.SkyClash,g=s.Game,p=g.player,e=g.enemy,T=window.THREE;
+   const cameraUpdate=s.CameraRig.update;
    g.update=()=>{};s.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
    g.mode='dojo';g.dojoRival=true;g.training=true;g.introT=0;
    const cv=document.querySelector('canvas');
@@ -84,7 +93,23 @@ async function main(){
     }
     s.Combat.update(dt);s.Effects.update(dt);s.Spectacle.update(dt);
    };
-   const q={s,g,p,e,T,bones,observe,reset,tick,strikeEvents:[]};
+   const q={s,g,p,e,T,bones,observe,reset,tick,cameraUpdate,strikeEvents:[]};
+   // Film clocks must follow simulation, not slow screenshot wall time.
+   q.filmTick=(real,input=false)=>{
+    let dt=real;if(g.hitStopT>0){g.hitStopT=Math.max(0,g.hitStopT-real);dt*=.08;}
+    const serial=p.attackSerial;if(input)g.handlePlayerInput(dt);
+    if(input&&p.attackSerial!==serial)q.filmStarts++;
+    window.__stormAudioClock=(window.__stormAudioClock||0)+real;
+    tick(dt);q.filmTime=(q.filmTime||0)+real;
+   };
+   q.queueBeat=maximum=>{
+    if(q.filmStarts>=maximum||q.queuedSerial===p.attackSerial)return;
+    if(p.punchT>0&&p.attackElapsed<p.attackTotal*.52)return;
+    window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyJ',key:'j'}));
+    window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyJ',key:'j'}));
+    q.queuedSerial=p.attackSerial;
+   };
+   q.render=()=>g.loop(g._last||0);
    window.__stormQA=q;
    const realStrike=s.Combat.strike;
    s.Combat.strike=function(attacker,target,...args){
@@ -105,8 +130,8 @@ async function main(){
      const idle=observe(p),frames=[],starts=[],impacts=[];
      let lastHp=e.hp,waiting=0;
      for(let i=0;i<Math.ceil(fps*7.4);i++){
-      if(starts.length<maximum&&p.punchT<=0&&p.meleeCd<=0&&p.stun<=0){
-       const before=p.attackSerial;s.Combat.melee(p,e);
+      if(starts.length<maximum&&p.stun<=0){
+       const before=p.attackSerial;s.Combat.melee(p,e,window.SkyClashPublishedActions.nativeCombatSet.revision==='storm-fist-v3');
        if(p.attackSerial!==before)starts.push({tick:i,kind:p.attackKind,follow:p.comboFollow?.phase||null});
       }
       tick(dt);const f=observe(p);f.target=observe(e);frames.push(f);
@@ -148,7 +173,8 @@ async function main(){
        p.combo={'original-jab':0,'original-cross':1,'original-hook':2}[from];
        p.lastMelee=p.t;s.Combat.melee(p,e);
       }
-      const contact=guarded?.35:window.SkyClashPublishedActions.nativeCombatSet.clips[from].impactSeconds;
+      const outgoing=window.SkyClashPublishedActions.nativeCombatSet.clips[from];
+      const contact=guarded?.35:outgoing.impactSeconds*(p.attackTotal/outgoing.durationSeconds);
       const deadline=guarded?(phase==='windup'?.08:.35):phase==='windup'?contact*.45:contact-.0001;
       let elapsed=0;
       while(elapsed<deadline-1e-10){const step=Math.min(dt,deadline-elapsed);tick(step);elapsed+=step;}
@@ -264,8 +290,10 @@ async function main(){
    check(r.interrupted.filter(f=>f.elapsed>=.12+1/r.fps).every(f=>f.clip!=='original-jab'||!f.native),
     'Interrupted jab was resurrected');
   }
-  if(film){if(!skipSequence)await captureFilm(page);await captureMoves(page);}
-  const result={status:failures.length?'FAIL':'PASS',base,errors,failures,
+  if(film){if(!skipSequence)await captureFilm(page);if(showcase)await captureShowcase(page);
+   if(captureAudio)await finishAudioCapture(page);
+   if(!skipMoves)await captureMoves(page);}
+  const result={status:failures.length?'FAIL':'PASS',base,combatFlag,videoFps,errors,failures,
    reports:reports.map(r=>({fps:r.fps,starts:r.combo.starts,
     clips:[...new Set(r.combo.frames.filter(f=>f.native).map(f=>f.clip))],
     contacts:r.combo.impacts,movement:r.movement,motion:r.motion,
@@ -315,47 +343,204 @@ function measureMotion(frames,fps){
  return result;
 }
 
+// No animation pose is injected: these captures drive actual Combat and Fighter
+// updates. Fixed views are for silhouette review; the showcase also uses the
+// actual game camera. JPEG cadence equals video cadence, with 60Hz simulation.
+async function installAudioCapture(page){
+ await page.addInitScript(()=>{
+  // Render the actual game's synth calls offline at the movie clock. A slow
+  // software GPU must not insert seconds of silence between two real hits.
+  window.__stormAudioClock=0;window.__stormAudioContexts=[];
+  const Offline=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  class MovieAudioContext extends Offline{
+   constructor(){super(2,44100*60,44100);window.__stormAudioContexts.push(this);}
+   get currentTime(){return window.__stormAudioClock||0;}
+   get state(){return 'running';}
+   resume(){return Promise.resolve();}
+  }
+  window.AudioContext=window.webkitAudioContext=MovieAudioContext;
+  try{const k='skyclash.v4.settings',settings=JSON.parse(localStorage.getItem(k)||'{}');
+   settings.sound=false;localStorage.setItem(k,JSON.stringify(settings));}catch{}
+ });
+}
+async function finishAudioCapture(page){
+ const files=await page.evaluate(async segments=>{
+  window.SkyClash.Settings.set('sound',false);
+  const contexts=window.__stormAudioContexts||[];
+  if(!contexts.length)throw Error('No actual game audio calls were captured');
+  const buffers=await Promise.all(contexts.map(c=>c.startRendering()));
+  return segments.map(segment=>{
+   const rate=44100,count=Math.ceil((segment.end-segment.start)*rate),offset=Math.floor(segment.start*rate);
+   const bytes=new Uint8Array(44+count*4),v=new DataView(bytes.buffer);
+   const word=(at,text)=>{for(let n=0;n<text.length;n++)v.setUint8(at+n,text.charCodeAt(n));};
+   word(0,'RIFF');v.setUint32(4,bytes.length-8,true);word(8,'WAVE');word(12,'fmt ');
+   v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,2,true);v.setUint32(24,rate,true);
+   v.setUint32(28,rate*4,true);v.setUint16(32,4,true);v.setUint16(34,16,true);
+   word(36,'data');v.setUint32(40,count*4,true);
+   const channels=buffers.map(b=>[b.getChannelData(0),b.getChannelData(1)]);
+   for(let n=0;n<count;n++)for(let c=0;c<2;c++){
+    let sample=0;for(const channel of channels)sample+=channel[c][offset+n]||0;
+    v.setInt16(44+n*4+c*2,Math.round(Math.max(-1,Math.min(1,sample))*32767),true);
+   }
+   let raw='';for(let n=0;n<bytes.length;n+=32768)raw+=String.fromCharCode(...bytes.subarray(n,n+32768));
+   return {names:segment.names,data:btoa(raw)};
+  });
+ },audioSegments);
+ for(let n=0;n<files.length;n++){
+  const file=files[n],wav=path.join(output,'captured-game-audio-'+n+'.wav');
+  fs.writeFileSync(wav,Buffer.from(file.data,'base64'));
+  for(const name of file.names){
+   const movie=path.join(output,name+'.mp4'),temp=path.join(output,name+'-audio.mp4');
+   execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-i',movie,'-i',wav,
+    '-c:v','copy','-c:a','aac','-b:a','128k','-shortest','-movflags','+faststart',temp]);
+   fs.renameSync(temp,movie);
+  }
+ }
+ console.log('Muxed actual game synth audio at the simulation clock');
+}
+function encodeMovie(directory,prefix,filename,fps=videoFps){
+ execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-framerate',String(fps),
+  '-i',path.join(directory,prefix+'-%04d.jpg'),'-c:v','libx264','-crf','21',
+  '-pix_fmt','yuv420p','-movflags','+faststart',path.join(output,filename+'.mp4')]);
+ execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y',
+  '-i',path.join(output,filename+'.mp4'),'-vf','fps=4,scale=320:240,tile=6x5',
+  '-frames:v','1',path.join(output,filename+'.png')]);
+}
+async function filmCamera(page,view){
+ await page.evaluate(({view,dt})=>{
+  const q=window.__stormQA,{s,p,e,T}=q,cam=s.camera;
+  if(view==='gameplay'){
+   q.g.lockOn=true;s.CameraRig.rig.suspendT=0;q.cameraUpdate(dt);q.render();return;
+  }
+  const directions={front:[1.5,1.6,5.8],side:[5.8,1.6,.2],back:[-1.5,1.6,-5.8]};
+  const d=new T.Vector3(...directions[view]).normalize();
+  const center=p.pos.clone().lerp(e.pos,.5);center.y+=1.05;
+  const separation=p.pos.distanceTo(e.pos),distance=Math.max(5.6,3.7+separation*.65);
+  cam.position.copy(center).addScaledVector(d,distance);
+  cam.lookAt(center);cam.fov=43;cam.updateProjectionMatrix();q.render();
+ },{view,dt:1/videoFps});
+}
 async function captureFilm(page){
  const directory=path.join(output,'sequence-frames');fs.mkdirSync(directory,{recursive:true});
  await page.evaluate(()=>{
-  const q=window.__stormQA;q.reset();q.filmStarts=0;
+  const q=window.__stormQA;q.reset();q.filmStarts=0;q.queuedSerial=-1;q.filmTime=0;q.g.hitStopT=0;
   q.g.combo={n:0,dmg:0,t:0};document.getElementById('comboBox')?.classList.remove('show','hot');
   const panel=document.getElementById('walkLabStatus');if(panel)panel.open=false;
  });
- const views={front:[1.5,1.9,5.8],side:[5.8,1.9,.2],back:[-1.5,1.9,-5.8]};
- const frames=60;
+ const audioStart=captureAudio?await page.evaluate(()=>{
+  window.SkyClash.Settings.set('sound',true);return window.__stormAudioClock||0;
+ }):0;
+ const views=(process.env.STORM_QA_VIDEO_VIEWS||'front,side,back').split(',');
+ assert(views.every(v=>['front','side','back','gameplay'].includes(v)),'Unknown video view');
+ const frames=Math.ceil(videoFps*8),timeline=[];
+ if(process.env.STORM_QA_CLEAN_VIDEO==='1')await cleanFilmUI(page);
  for(let i=0;i<frames;i++){
-  await page.evaluate(()=>{
-   const q=window.__stormQA,{p,e,s,tick}=q;
-   for(let n=0;n<8;n++){
-    if(q.filmStarts<7&&p.punchT<=0&&p.meleeCd<=0&&p.stun<=0){
+  const observation=await page.evaluate(({fps})=>{
+   const q=window.__stormQA,{p,e,s}=q;
+   for(let n=0;n<60/fps;n++){
+    const queued=window.SkyClashPublishedActions.nativeCombatSet.revision==='storm-fist-v3';
+    if(queued)q.queueBeat(7);
+    else if(q.filmStarts<7&&p.punchT<=0&&p.meleeCd<=0&&p.stun<=0){
      const before=p.attackSerial;s.Combat.melee(p,e);if(p.attackSerial!==before)q.filmStarts++;
     }
-    tick(1/60);
+    q.filmTick(1/60,queued);
    }
-  });
-  for(const [view,offset]of Object.entries(views)){
-   await page.evaluate(offset=>{
-    const {s,p,e}=window.__stormQA,cam=s.camera;
-    const y=p.pos.y*.6+e.pos.y*.4;
-    cam.position.set(p.pos.x+offset[0],y+offset[1],p.pos.z+offset[2]);
-    cam.lookAt(p.pos.x,y+1.05,p.pos.z+.45);cam.fov=43;cam.updateProjectionMatrix();
-    s.Game.loop(performance.now());
-   },offset);
-   await page.screenshot({path:path.join(directory,`${view}-${String(i).padStart(3,'0')}.jpg`),
-    type:'jpeg',quality:82});
+   return {time:q.filmTime,player:q.observe(p),enemy:q.observe(e)};
+  },{fps:videoFps});timeline.push(observation);
+  for(const view of views){
+   await filmCamera(page,view);
+   await page.screenshot({path:path.join(directory,`${view}-${String(i).padStart(4,'0')}.jpg`),
+    type:'jpeg',quality:85});
   }
  }
- for(const view of Object.keys(views)){
-  execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-framerate','7.5',
-   '-i',path.join(directory,view+'-%03d.jpg'),'-c:v','libx264','-pix_fmt','yuv420p',
-   path.join(output,'sequence-'+view+'.mp4')]);
-  execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y',
-   '-i',path.join(output,'sequence-'+view+'.mp4'),'-vf','fps=4,scale=320:240,tile=6x5',
-   '-frames:v','1',path.join(output,'sequence-'+view+'.png')]);
- }
+ for(const view of views)encodeMovie(directory,view,'sequence-'+view);
+ if(captureAudio)audioSegments.push({names:views.map(view=>'sequence-'+view),start:audioStart,
+  end:await page.evaluate(()=>window.__stormAudioClock)});
+ fs.writeFileSync(path.join(output,'sequence-timeline.json'),JSON.stringify(timeline,null,2));
  fs.rmSync(directory,{recursive:true,force:true});
- console.log('Captured continuous real-model Storm Fist front/side/back sequence');
+ console.log('Captured continuous real-model Storm Fist '+views.join('/')+' sequence at '+videoFps+'fps');
+}
+
+async function cleanFilmUI(page){
+ await page.evaluate(()=>{for(const id of ['controls','walkLabStatus','dojoTools']){
+  const el=document.getElementById(id);if(el)el.style.display='none';
+ }});
+}
+async function captureShowcase(page){
+ const directory=path.join(output,'showcase-frames');fs.mkdirSync(directory,{recursive:true});
+ const duration=20,frames=Math.ceil(videoFps*duration),timeline=[];
+ if(process.env.STORM_QA_CLEAN_VIDEO==='1')await cleanFilmUI(page);
+ await page.evaluate(()=>{
+  const q=window.__stormQA;q.showcasePhase=-1;q.showcaseElapsed=0;q.filmTime=0;
+  const panel=document.getElementById('walkLabStatus');if(panel)panel.open=false;
+  let label=document.getElementById('stormQaLabel');
+  if(!label){label=document.createElement('div');label.id='stormQaLabel';
+   label.style.cssText='position:fixed;left:12px;bottom:18px;background:#07111dde;color:white;padding:7px 10px;font:18px sans-serif;z-index:99999;pointer-events:none';
+   document.body.appendChild(label);}
+ });
+ const audioStart=captureAudio?await page.evaluate(()=>{
+  window.SkyClash.Settings.set('sound',true);return window.__stormAudioClock||0;
+ }):0;
+ for(let i=0;i<frames;i++){
+  const report=await page.evaluate(({fps})=>{
+   const q=window.__stormQA,{p,e,s,T}=q;
+   for(let n=0;n<60/fps;n++){
+    const t=q.showcaseElapsed;
+    const phase=t<6.5?0:t<8.0?1:t<9.5?2:t<11?3:t<12.6?4:t<14.4?5:6;
+    if(phase!==q.showcasePhase){
+     q.showcasePhase=phase;q.phaseTime=0;q.showcaseStarts=0;q.filmStarts=0;q.queuedSerial=-1;q.didIncoming=false;q.didCounter=false;
+     q.reset(phase===6?2.2:1.45);q.g.hitStopT=0;
+     if(phase>=1&&phase<=3){
+      p.combo=3;p.lastMelee=p.t;
+      p.moveIntent.set(phase===1?1:0,0,phase===2?1:0);s.Combat.melee(p,e);p.moveIntent.set(0,0,0);
+     }
+     if(phase===4)p.blockHeld=true;
+     if(phase===5){e.lastMelee=e.t;s.Combat.melee(e,p);}
+    }
+    const age=q.phaseTime;
+    const queued=phase===0&&window.SkyClashPublishedActions.nativeCombatSet.revision==='storm-fist-v3';
+    if(queued)q.queueBeat(7);
+    else if(phase===0&&q.showcaseStarts<7&&p.punchT<=0&&p.meleeCd<=0&&p.stun<=0){
+     const serial=p.attackSerial;s.Combat.melee(p,e);if(p.attackSerial!==serial)q.showcaseStarts++;
+    }
+    if(phase===4&&!q.didIncoming&&age>.38){q.didIncoming=true;e.lastMelee=e.t;s.Combat.melee(e,p);}
+    if(phase===4&&age>1.2)p.blockHeld=false;
+    if(phase===5){
+     if(e.attackElapsed>.13&&!q.didIncoming){p.blockHeld=true;q.didIncoming=true;}
+     if(q.didIncoming&&age>.46){
+      p.blockHeld=false;
+      if(!q.didCounter&&p.stun<=0&&p.meleeCd<=0&&p.punchT<=0){q.didCounter=true;s.Combat.melee(p,e);}
+     }
+    }
+    if(phase===6){
+     // Actual velocity/controller movement, never root teleporting between ticks.
+     p.moveIntent.set(Math.sin(age*1.5)*.22,0,.65);
+     e.moveIntent.set(Math.cos(age*1.25)*.55,0,-.12);
+     p.facing=Math.atan2(e.pos.x-p.pos.x,e.pos.z-p.pos.z);
+     e.facing=Math.atan2(p.pos.x-e.pos.x,p.pos.z-e.pos.z);
+     const ready=p.stun<=0&&p.meleeCd<=0&&p.punchT<=0;
+     if(ready&&p.pos.distanceTo(e.pos)<2.0)s.Combat.melee(p,e);
+    }
+    q.filmTick(1/60,queued);q.phaseTime+=1/60;q.showcaseElapsed+=1/60;
+   }
+   const names=['Ground-to-air combination','Roundhouse','Side kick','Rising kick','Guard and contact','Parry into counter','Moving exchange'];
+   document.getElementById('stormQaLabel').textContent=names[q.showcasePhase];
+   return {time:q.showcaseElapsed,phase:q.showcasePhase,name:names[q.showcasePhase],
+    player:q.observe(p),enemy:q.observe(e)};
+  },{fps:videoFps});
+  timeline.push(report);
+  const view=report.phase===0?'side':report.phase===1?'front':report.phase===2?'side':
+   report.phase===3?'back':report.phase<=5?'side':'gameplay';
+  await filmCamera(page,view);
+  await page.screenshot({path:path.join(directory,`showcase-${String(i).padStart(4,'0')}.jpg`),type:'jpeg',quality:86});
+ }
+ encodeMovie(directory,'showcase','combat-showcase');
+ if(captureAudio)audioSegments.push({names:['combat-showcase'],start:audioStart,
+  end:await page.evaluate(()=>window.__stormAudioClock)});
+ fs.writeFileSync(path.join(output,'combat-showcase-timeline.json'),JSON.stringify(timeline,null,2));
+ await page.evaluate(()=>document.getElementById('stormQaLabel')?.remove());
+ fs.rmSync(directory,{recursive:true,force:true});
+ console.log('Captured complete combat showcase: combination, three kicks, defense/counter and moving exchange');
 }
 
 async function captureMoves(page){
@@ -389,6 +574,10 @@ async function captureMoves(page){
    }else if(id==='guard')p.blockHeld=true;
    else if(id==='parry'){
     p.blockHeld=true;tick(.025);s.Combat.strike(e,p,false,0);
+   }else if(id==='launch-recoil'||id==='spike-recoil'){
+    if(id==='spike-recoil'){p.pos.y+=2.4;e.pos.y+=2.4;p.launched=true;p.stun=2;}
+    e.facing=Math.atan2(p.pos.x-e.pos.x,p.pos.z-e.pos.z);
+    s.Combat.strike(e,p,true,id==='launch-recoil'?3:5);
    }else{
     // The name is the body's recoil direction, opposite the incoming side.
     if(id==='hit-left')e.pos.set(1.2,e.floor,0);
@@ -403,7 +592,8 @@ async function captureMoves(page){
     label.style.cssText='position:fixed;left:12px;top:12px;background:#07111de8;color:white;padding:8px 12px;font:26px monospace;z-index:99999;pointer-events:none';
     document.body.appendChild(label);}
    const clip=window.SkyClashPublishedActions.nativeCombatSet.clips[id];
-   return {duration:clip.durationSeconds,impact:clip.impactSeconds};
+   const scale=p.punchT>0?p.attackTotal/clip.durationSeconds:1;
+   return {duration:clip.durationSeconds*scale,impact:clip.impactSeconds*scale};
   },id);
   const {duration,impact}=timing;
   const times=id==='guard'?[0,.06,.15,.3,.45,.59,.72,.9]:
@@ -421,7 +611,7 @@ async function captureMoves(page){
      const {p,s}=window.__stormQA,cam=s.camera;
      cam.position.set(p.pos.x+offset[0],p.pos.y+offset[1],p.pos.z+offset[2]);
      cam.lookAt(p.pos.x,p.pos.y+1.05,p.pos.z+.28);cam.fov=40;cam.updateProjectionMatrix();
-     s.Game.loop(performance.now());
+     window.__stormQA.render();
     },offset);
     await page.screenshot({path:path.join(dir,`${id}-${view}-${i}.jpg`),type:'jpeg',quality:84});
     if(process.env.STORM_QA_ARM_CLOSEUP==='1'&&Math.abs(times[i]-impact)<1e-8)

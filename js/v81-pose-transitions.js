@@ -46,7 +46,7 @@
   const old=f.animate;
   const st={rig:null,mode:null,elapsed:1,blend:1,nodes:[],
    previous:[],fingerNodes:[],fingerRest:[],handGrip:0,frames:0,
-    airWristAnchor:null};
+    airWristAnchor:null,previousHips:null,nativeRelease:false};
   const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
    headWorld=new THREE.Quaternion(),parentWorld=new THREE.Quaternion(),
    euler=new THREE.Euler();
@@ -72,6 +72,9 @@
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
    const before=rig?.vrm&&st.rig===rig?st.nodes.map((node,i)=>
     node?node.quaternion.clone():st.previous[i].clone()):null;
+   const stormV3=root.SkyClashPublishedActions?.nativeCombatSet?.revision==='storm-fist-v3';
+   const wasNative=!!this.v72StudioPack?.nativePreviewActive;
+   const beforeHips=stormV3&&st.nodes[0]?st.nodes[0].position.clone():null;
    old.call(this,dt);
    // V100 owns whole-body jump/fall/landing fades and neutral fingers.
    // Do not also perform V81's full-skeleton crossfade or finger curls.
@@ -99,6 +102,8 @@
     }else st.airWristAnchor=null;
     if(st.mode!==next){
      st.mode=next;st.elapsed=0;st.blend=0;
+     st.nativeRelease=stormV3&&wasNative;
+     st.previousHips=st.nativeRelease?beforeHips:null;
      // The outgoing pose is whatever the player actually SAW on the last
      // frame, not the procedural pose under the incoming Mixamo layer.
      if(before&&before.length===st.previous.length)
@@ -127,12 +132,18 @@
      // BOTH receiver and target makes the new clip pose disappear until
      // the last frame, then snap into view. Hold the target separately.
      if(new URLSearchParams(root.location?.search||'')
-        .get('stance')==='handoff'){
+        .get('stance')==='handoff'||stormV3){
       const incoming=node.quaternion.clone();
       node.quaternion.slerpQuaternions(st.previous[i],incoming,w).normalize();
      }else{
       node.quaternion.slerpQuaternions(st.previous[i],node.quaternion,w);
      }
+    }
+    // Native pelvis translation must fade with its pose, or a correctly
+    // blended leg still snaps at the hips on combat exit. V100 retains air.
+    if(stormV3&&st.nativeRelease&&st.previousHips&&w<1&&st.nodes[0]){
+     const incoming=st.nodes[0].position.clone();
+     st.nodes[0].position.lerpVectors(st.previousHips,incoming,w);
     }
     // Neutral hands remain exactly as the user's approved idle.
     // Floating opens them only PARTIALLY, so they don't become robot palms;

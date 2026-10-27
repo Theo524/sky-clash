@@ -3,7 +3,7 @@ const Combat = (() => {
   const projectiles = [];
   const geo = new THREE.SphereGeometry(0.3, 14, 10);
   function damageMul(f) { return (f.awakened ? TUNING.awakenDamage : 1) * (f._dmgMul || 1); }
-  function hit(attacker, target, dmg, knock, heavy = false, kind = 'melee') {
+  function hit(attacker, target, dmg, knock, heavy = false, kind = 'melee', strikeFeel = null) {
     if (target.hp <= 0) return;
     if (dmg <= 0 || target.invulnT > 0) return;
     // the rival can sometimes teleport out of the way of your attack
@@ -32,18 +32,33 @@ const Combat = (() => {
     target.vel.copy(knock);
     target.dashT = 0;
     const c = target.center;
-    Effects.impact(c, attacker.awakened ? attacker.pal.aura : 0xffe8a8, heavy,
-      knock.lengthSq()>0.001?knock.clone().normalize():attacker.forward());
-    Sound.play(heavy ? 'heavy' : 'hit');
-    CameraRig.shake((attacker === Game.player ? 0.25 : 0.4) * (heavy ? 1.6 : 1));
-    Game.hitStop(AnimeFeelV165.enabled?AnimeFeelV165.hitStop(heavy,kind):(heavy ? 0.075 : 0.035));
+    const storm=strikeFeel&&AnimeFeelV165.stormFist?.(attacker);
+    if(storm){
+      const {stage,kick,counter}=strikeFeel;
+      const direction=knock.lengthSq()>.001?knock.clone().normalize():attacker.forward();
+      const point=Spectacle.contactPoint(attacker,target,kick);
+      Effects.stormImpact(point,attacker.awakened?attacker.pal.aura:attacker.pal.ki,
+        direction,stage,kick,counter);
+      Sound.stormImpact(stage,kick,CameraRig.soundPan(point));
+      CameraRig.strike(direction,stage,kick,counter);
+      Game.hitStop(AnimeFeelV165.stormHitStop(stage,kick,counter));
+    }else{
+      Effects.impact(c, attacker.awakened ? attacker.pal.aura : 0xffe8a8, heavy,
+        knock.lengthSq()>0.001?knock.clone().normalize():attacker.forward());
+      Sound.play(heavy ? 'heavy' : 'hit');
+      CameraRig.shake((attacker === Game.player ? 0.25 : 0.4) * (heavy ? 1.6 : 1));
+      Game.hitStop(AnimeFeelV165.enabled?AnimeFeelV165.hitStop(heavy,kind):(heavy ? 0.075 : 0.035));
+    }
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(30);
     else if(AnimeFeelV165.enabled&&attacker===Game.player&&Settings.get('haptics')&&navigator.vibrate)
       navigator.vibrate(heavy?[20,14,28]:14);
     return 'hit';
   }
   function blocked(attacker, target, dmg, knock, kind, floorHp) {
-    const c = target.center.add(target.forward().multiplyScalar(0.7));
+    const storm=AnimeFeelV165.stormFist?.(attacker)||AnimeFeelV165.stormFist?.(target);
+    const c = storm&&kind==='melee'?Spectacle.contactPoint(attacker,target,
+      attacker.attackKind==='kick'||attacker.attackKind==='skyKick'):
+      target.center.add(target.forward().multiplyScalar(0.7));
     target.hurtT = 0;
     // After a real guarded hit, double-tap Guard to slip behind the attacker.
     target.guardCounterWindow = TUNING.defensiveVanishWindow;
@@ -59,7 +74,8 @@ const Combat = (() => {
         attacker.stun = TUNING.parryStun; attacker.hitFlash = 0.15; attacker.windT = 0;
         attacker.vel.copy(attacker.pos.clone().sub(target.pos).setY(0).normalize().multiplyScalar(8));
       }
-      Effects.parry(c); Sound.play('parry'); Game.hitStop(0.14); CameraRig.shake(0.3);
+      if(storm)Effects.stormImpact(c,0xffd166,target.forward(),0,false,true);else Effects.parry(c);
+      Sound.play('parry'); Game.hitStop(storm?.055:.14); CameraRig.shake(storm?.12:.3);
       Game.callout(target === Game.player ? 'Parry' : 'Parried', 'parry');
       return;
     }
@@ -72,10 +88,12 @@ const Combat = (() => {
       target.nativeCombatReaction={at:target.t||0,serial:(target.nativeCombatReaction?.serial||0)+1,clipId:'hit-heavy'};
       target.stun = TUNING.guardBreakStun; target.brokenT = TUNING.guardBreakStun; target.hitFlash = 0.2; target.blocking = false;
       target.vel.copy(knock).multiplyScalar(0.8);
-      Effects.guardBreak(target); Effects.dizzy(target, TUNING.guardBreakStun); Game.hitStop(0.18); CameraRig.shake(0.65);
+      if(storm)Effects.stormImpact(c,0xffd166,target.forward(),3,false,true);else Effects.guardBreak(target);
+      Effects.dizzy(target, TUNING.guardBreakStun); Game.hitStop(storm?.085:.18); CameraRig.shake(storm?.28:.65);
       Game.callout('Guard break', 'break'); Game.onGuardBreak(target);
       if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate([40, 30, 60]);
-    } else { Sound.play('block'); Effects.blockSpark(c); Game.hitStop(0.035); CameraRig.shake(0.12); }
+    } else { Sound.play('block'); if(storm)Effects.stormImpact(c,0xbfe9ff,target.forward(),0,false,false);
+      else Effects.blockSpark(c); Game.hitStop(storm?.022:.035); CameraRig.shake(storm?.065:.12); }
     if (target === Game.player && Settings.get('haptics') && navigator.vibrate) navigator.vibrate(15);
   }
   // V50: An optional, input-confirmed aerial extension of a successful launcher.
@@ -103,8 +121,9 @@ const Combat = (() => {
     // A controlled rising chase; never warp the character's position.
     if (phase === 1 && t.y > 0.7) attacker.vel.y = Math.max(attacker.vel.y, Math.min(15.5, 7 + t.y * 2));
     if (groundedFinish) { attacker.vel.y = Math.min(attacker.vel.y, t.y < -1 ? -24 : -4); target.meteorWindow = 0; }
-    const total = phase === 1 ? 0.57 : phase === 2 ? 0.63 : 0.81;
-    const contact = phase === 1 ? 0.29 : phase === 2 ? 0.30 : 0.53;
+    const rhythm=AnimeFeelV165.stormFist?.(attacker)?AnimeFeelV165.stormFollowTempo(phase):1;
+    const total = (phase === 1 ? 0.57 : phase === 2 ? 0.63 : 0.81)*rhythm;
+    const contact = (phase === 1 ? 0.29 : phase === 2 ? 0.30 : 0.53)*rhythm;
     attacker.attackSerial++;
     attacker.punchT = total; attacker.attackTotal = total; attacker.attackElapsed = 0;
     attacker.meleeCd = total - 0.015;
@@ -115,8 +134,9 @@ const Combat = (() => {
   }
   // Four readable beats: jab > cross > turning hook > rising kick.
   // Input buffering happens in Game, contact is delayed until the corresponding active frame.
-  function melee(attacker, target) {
-    if (attacker.awakenChargeT > 0 || attacker.meleeCd > 0 || attacker.punchT > 0 || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
+  function melee(attacker, target, bufferedLink=false) {
+    const linked=bufferedLink&&AnimeFeelV165.stormCanLink?.(attacker);
+    if (attacker.awakenChargeT > 0 || (!linked&&(attacker.meleeCd > 0 || attacker.punchT > 0)) || attacker.stun > 0 || attacker.launched || attacker.downT > 0) return;
     if (attacker.charging) attacker.cancelCharge();
     const follow = attacker.comboFollow;
     if (follow) {
@@ -168,7 +188,8 @@ const Combat = (() => {
     // V165: recorded strike progression is indexed by normalized attack
     // progress in V72. Scaling recovery AND contact delay together keeps
     // the authored wind-up -> hit -> follow-through in phase.
-    const beatScale=AnimeFeelV165.enabled?AnimeFeelV165.tempo(stage):1;
+    const beatScale=AnimeFeelV165.stormFist?.(attacker)?AnimeFeelV165.stormTempo(stage):
+      AnimeFeelV165.enabled?AnimeFeelV165.tempo(stage):1;
     const cd = (ninja ? [0.38,0.47,0.61,0.76] : [0.55,0.55,0.69,0.88])[stage] * agile * beatScale;
     const anim = (ninja ? [0.39,0.48,0.62,0.78] : [0.55,0.55,0.68,0.87])[stage] * agile * beatScale;
     attacker.meleeCd = cd; attacker.punchT = anim;
@@ -186,6 +207,9 @@ const Combat = (() => {
     if (counter && attacker === Game.player) Game.callout('Counter!', 'parry');
   }
   function strike(attacker, target, kick, stage = 0, counter = false) {
+    const storm=AnimeFeelV165.stormFist?.(attacker);
+    const contactHit=(dmg,knock,heavy=false)=>hit(attacker,target,dmg,knock,heavy,'melee',
+      storm?{stage,kick,counter}:null);
     // Training props are separate hit volumes: dummies, bags, and projectile targets.
     if (Game.mode === 'dojo' && Dojo.hitMelee(attacker,stage,kick)) {
       attacker.energy = Math.min(100, attacker.energy + 2);
@@ -208,47 +232,47 @@ const Combat = (() => {
     const col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     let result;
     if (stage === 6 && target.meteorSource === attacker && target.downT > 0) {
-      result = hit(attacker, target, base, fwd.clone().multiplyScalar(5).setY(0), true);
+      result = contactHit(base, fwd.clone().multiplyScalar(5).setY(0), true);
       if (result === 'hit') {
         target.meteorSource = null; target.meteorWindow = 0; target.downT = Math.max(target.downT, 0.72);
         target.stun = Math.max(target.stun, 0.95);
         Effects.meteorCrater(target.pos, col, true);
-        Effects.flash(target.center, 0xffffff, 4.2, 0.12);
-        Game.hitStop(0.115); CameraRig.shake(attacker === Game.player ? 0.41 : 0.27);
+        if(!storm){Effects.flash(target.center, 0xffffff, 4.2, 0.12);
+          Game.hitStop(0.115); CameraRig.shake(attacker === Game.player ? 0.41 : 0.27);}
         if (attacker === Game.player) Game.callout('FALLING FIST · FINISH!', 'smash');
       }
     } else if (air && stage === 5) {
       const kd = fwd.clone();
-      result = hit(attacker, target, base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
+      result = contactHit(base, fwd.multiplyScalar(4.5).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') {
         kickImpact(attacker, target, kd); target.spiked = true; target.stun = 1.65;
         target.meteorSource = attacker; target.meteorWindow = 0;
-        Game.callout('METEOR SMASH', 'smash'); Effects.flash(target.center, 0xffd166, 2.5, 0.14);
+        Game.callout('METEOR SMASH', 'smash'); if(!storm)Effects.flash(target.center, 0xffd166, 2.5, 0.14);
       }
     } else if (air && stage === 4) {
-      result = hit(attacker, target, base, fwd.multiplyScalar(2.6).setY(7.0), true);
+      result = contactHit(base, fwd.multiplyScalar(2.6).setY(7.0), true);
       if (result === 'hit') {
         target.launched = true; target.spiked = false; target.juggle++;
         target.stun = 0.83;
         attacker.comboFollow = { target, phase: 2, until: attacker.t + TUNING.airFollowWindow };
-        Effects.flash(target.center, col, 1.65, 0.10);
+        if(!storm)Effects.flash(target.center, col, 1.65, 0.10);
       }
     } else if (attacker.characterId === 'rin_sable' && stage === 2) {
       // Heel strike disorients instead of copying Kairo's early air-launch.
-      result = hit(attacker, target, base, fwd.multiplyScalar(3.5).setY(1.35), true);
+      result = contactHit(base, fwd.multiplyScalar(3.5).setY(1.35), true);
       if (result === 'hit') Effects.sparks(target.center, col, 8);
     } else if (air && kick) {
       const kd = fwd.clone();
-      result = hit(attacker, target, base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
+      result = contactHit(base * 1.25, fwd.multiplyScalar(6).setY(-TUNING.spikeSpeed), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.spiked = true; target.stun = 2;
-        Game.callout('Air smash', 'smash'); Effects.flash(target.center, 0xffd166, 2.4, 0.12); }
+        Game.callout('Air smash', 'smash'); if(!storm)Effects.flash(target.center, 0xffd166, 2.4, 0.12); }
     } else if (air) {
-      result = hit(attacker, target, base * 0.83, fwd.multiplyScalar(3).setY(4.5), stage === 2);
+      result = contactHit(base * 0.83, fwd.multiplyScalar(3).setY(4.5), stage === 2);
       if (result === 'hit') { target.juggle++; target.launched = true;
         target.stun = target.juggle >= TUNING.juggleMax ? 0.25 : Math.max(0.3, TUNING.airHitStun - 0.07 * target.juggle); }
     } else if (kick) {
       const kd = fwd.clone();
-      result = hit(attacker, target, base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
+      result = contactHit(base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.launched = true; target.launchT = 0;
         target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15); Effects.launchTrail(target);
         // The player must press Melee again while the opponent is in the air.
@@ -257,9 +281,10 @@ const Combat = (() => {
     } else {
       // Opening strikes keep opponents within range for a real four-hit chain.
       const push = [3.1, 4.0, 6.6][stage];
-      result = hit(attacker, target, base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
+      result = contactHit(base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
     }
     if (result === 'hit') {
+      if(storm&&stage<3)attacker.stormHitSerial=attacker.attackSerial;
       Spectacle.contact(attacker, target, stage <= 3 ? stage : stage === 4 ? 2 : 3, counter);
       if (stage < 3) target.stun = Math.max(target.stun, [0.45, 0.49, 0.60][stage]);
       // Subtle hit-confirm follow-step while leaving movement and dash under player control.
@@ -280,6 +305,12 @@ const Combat = (() => {
   }
   // kick connects: longer freeze, bigger shake, a shockwave facing the kick and a burst of sparks thrown along it
   function kickImpact(attacker, target, dir) {
+    // V3 contact already emitted its one impact. Stacking the legacy generic
+    // hit, kick burst and contact ribbons hid both the foot and the recoil.
+    if(AnimeFeelV165.stormFist?.(attacker)){
+      if(attacker===Game.player&&Settings.get('haptics')&&navigator.vibrate)navigator.vibrate(28);
+      return;
+    }
     const c = target.center, col = attacker.awakened ? attacker.pal.aura : attacker.pal.ki;
     Effects.kickImpact(c, dir, col);
     Game.hitStop(TUNING.kickHitStop);

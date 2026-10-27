@@ -1,11 +1,16 @@
 # Sky Clash — assistant instructions
 
-**Latest player verdict (27 October 2026):** the full Storm Fist arms AND jab
-are rejected: weird arm shapes and limbs going through the body. Reauthor
-the entire fighting set for kung fu/martial-arts movement with Dragon Ball
-energy. This explicitly supersedes the earlier jab-preservation instruction
-below. Keep its historical asset for rollback, but replace the jab in the
-revised set. Preserve standing/flight and use the same Blender→VRM→V72 route.
+**Latest player verdict and authorization (27 October 2026):** kung-fu-v2
+is visually rejected: stiff punches, poor kicks, weak fluidity and impact.
+Complete a coordinated Storm Fist choreography/feel overhaul using the
+existing Blender→VRM→V72/V81 route. Rework any bad move, including the jab;
+the earlier Blender jab is a reference, not a locked asset. Preserve standing,
+flight, models, baseline rules/controls and Rin. Original choreography only.
+Use a reversible checkpoint, push substantial completed progress, evaluate
+continuous real-model motion, then publish a new review flag and actual
+continuous footage. No per-move approvals. Tests protect correctness and
+cannot establish aesthetic approval. The current user authorizes scoped
+combat timing/input/feedback changes when necessary and justified.
 
 **Current 2026-10-27 authorization:** the player says the published original
 Blender jab looks good; preserve its bytes and choreography. They authorize
@@ -49,7 +54,7 @@ Read [ownership contract](docs/ANIMATION-OWNERSHIP-CONTRACT.md), [V100 authority
 
 Use actual Kairo VRM data and the recovered Blender control/IK pipeline for combat. Do not repeat the rejected pose-direction generator or guessed Euler overlays. Pose Lab remains useful for exact normalized-joint inspection and references; it is not a substitute for planted feet, authored wrists/fingers, full-body choreography or weight transfer. Read the [Pose Lab workflow](docs/KAIRO-POSE-LAB-WORKFLOW.md) and [tool audit](docs/REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) when relevant.
 
-The original full-body jab is accepted and must remain intact at .24s contact and .55s recovery. The coordinated set extends it with compact guard connections, grounded stepping, directional finishers and aerial follow-ups. Inspect continuous real-VRM motion at gameplay distance, including hit/whiff, entry/recovery and guard. Source quaternion agreement, a static image or passing IK limits does not certify artistic quality. Validate timing and transitions at 30/60/120 FPS; do not send unsolicited preview media.
+The earlier jab is a potential motion reference. The coordinated overhaul must deliver distinct full-body punch and kick phrases with deliberate anticipation, contact, follow-through and recovery. Inspect continuous real-VRM motion at gameplay distance, including hit/whiff, entry/recovery and guard. Source quaternion agreement, a static image or passing IK limits does not certify artistic quality. Validate timing and transitions at 30/60/120 FPS; do not send unsolicited preview media.
 
 For flight data, edit `assets/animations/kairo/flight-library.v1.json` and regenerate using `node tools/build-kairo-flight-library.cjs --write`; validate with `node tests/kairo-flight-library.js`. Preserve V156 Q exactly. V164's 71 selected keyframes are retained under `assets/animations/kairo/selected/v164/` and reproduced by `tools/build-kairo-v164-selected-flight.cjs`.
 
