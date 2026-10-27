@@ -21,6 +21,11 @@
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
  function stateOf(f){
   if(f.hp<=0||f.downT>0||f.spiked||f.launched)return 'damage';
+  // Only the opt-in native Kairo combat pack receives complete directional
+  // stun/hit priority here; public V81 animation remains unchanged.
+  if(root.location?.search&&new URLSearchParams(root.location.search)
+      .get('combatAnim')==='kairo-a1'&&f.characterId==='kairo_venn'&&
+      f.stun>0)return 'damage';
   if(f.punchT>0||f.blastT>0||f.superHitT>0||f.slamming)return 'attack';
   if(f.blockHeld||f.blocking)return 'guard';
   if(f.dropping)return 'fall';

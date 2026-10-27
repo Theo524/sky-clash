@@ -68,6 +68,8 @@ jobs:
         run: node tests/ci-workflow-trigger-safety.js
       - name: Confirm canonical Kairo real-VRM poses and exact baseline
         run: node tests/kairo-flight-library.js
+      - name: Verify new Kairo Batch A authored combat pose data and unchanged owner
+        run: node tests/kairo-combat-batch-a.js
       - name: Test optional Kairo banking and vertical previews without rerendering WebGL
         run: |
           node tests/v157-flight-banking.js

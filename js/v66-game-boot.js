@@ -305,6 +305,8 @@
   // Shared V155 authored shape feeds either existing owner, never both.
   if(v155Preview||boostMode==='v155')
    await script('js/v155-organic-flight.js?v=1550');
+  if(new URLSearchParams(location.search).get('combatAnim')==='kairo-a1')
+   await script('js/kairo-combat-choreography.js?v=1');
   await script('js/v72-published-actions.js?v=820'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':''));
   await window.SkyClashPublishedGamePack.start(window);

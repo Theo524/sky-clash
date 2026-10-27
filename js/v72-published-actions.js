@@ -212,7 +212,11 @@
    if(!this.vrmRig?.vrm)return;
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
-    const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
+    const legacySlot=options.choose?options.choose(this,actions,dt):choose(this,actions);
+    const authoredSlot=!options.choose&&options.kairoCombat&&
+      root.SkyClashKairoCombatChoreo?.select?
+      root.SkyClashKairoCombatChoreo.select(this,legacySlot):null;
+    const slot=authoredSlot||legacySlot;
     const speed=Math.hypot(this.vel?.x||0,this.vel?.z||0);
     // V154 reuses this EXISTING V72 final Boost writer; no new animation
     // wrapper and no gameplay root/velocity changes. Kairo preview only.
@@ -264,7 +268,11 @@
       state.slot=slot;state.clock=0;
       // V85: V81 is the final crossfade owner for the primary gameplay
       // states. Do not double-blend the recorded pose with procedural arms.
-      state.weight=options.choose||new URLSearchParams(root.location?.search||'')
+      // The grounded authored combat stance is layered gradually over the
+      // previous approved idle; the first attack frame is handled by V81's
+      // existing fast attack-state handoff.
+      state.weight=authoredSlot==='combatReady'?0:
+        options.choose||new URLSearchParams(root.location?.search||'')
         .get('animationV85')==='legacy'?0:1;
       state.releasingIdle=false;
      }
@@ -272,8 +280,12 @@
     if(state.releasingIdle&&!safeWalk){
      state.releasingIdle=false;state.weight=0;
     }
-    const entry=slot?actions[slot]:options.choose?
-      (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
+    // Batch A: select exact locally authored Kairo clips INSIDE V72's existing
+    // final combat writer. No extra fighter.animate wrapper. Other characters,
+    // airborne attacks and default game retain the original published motions.
+    const local=authoredSlot?options.kairoCombat[authoredSlot]:null;
+    const entry=local||(slot?actions[slot]:options.choose?
+      (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null));
     if(!entry){state.weight=0;return;}
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     if(state.releasingIdle||state.releasingExtra){
@@ -288,11 +300,11 @@
       // V87: real punches usually include a long idle lead-in/recovery.
       // Play their *contact window* over the gameplay strike, not the
       // entire 2-3 second file squeezed into a split second.
-      const from=Number.isFinite(entry.attackStart)?entry.attackStart:0;
-      const to=Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
+      const from=entry.localAbsolute?0:Number.isFinite(entry.attackStart)?entry.attackStart:0;
+      const to=entry.localAbsolute?entry.duration:Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
       state.clock=from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
-      let rate=entry.speed;
+      let rate=entry.localAbsolute?1:entry.speed;
       if(slot==='walk'||slot==='run'){
        const travel=Math.hypot(this.vel?.x||0,this.vel?.z||0);
        // Match foot cycles to actual world speed. The previous 1.9x cap
@@ -316,7 +328,7 @@
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
      }
-     entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
+     entry.sample(state.clock,state.samples,LOOP.has(slot)||!!entry.localAbsolute&&entry.loop||!!options.loopSlots?.includes(slot));
      if(boostClip&&slot==='boost'&&actions.run&&state.v154Motion?.ground>.001){
       // 18-frame old sprint had frantic lower-body pedalling. Retain its
       // real attack-speed upper-body drive but phase-align 62% of the
@@ -333,18 +345,20 @@
       }
      }
     }
-    const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
-    const sideDst=state.targetSide;
-    const cross=sideSrc.z*sideDst.x-sideSrc.x*sideDst.z;
-    const dot=sideSrc.x*sideDst.x+sideSrc.z*sideDst.z;
-    qBasis.setFromAxisAngle(unitY,Math.atan2(cross,dot)+entry.yaw*Math.PI/180);
-    qBasisInv.copy(qBasis).invert();
+    if(!entry.localAbsolute){
+     const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
+     const sideDst=state.targetSide;
+     const cross=sideSrc.z*sideDst.x-sideSrc.x*sideDst.z;
+     const dot=sideSrc.x*sideDst.x+sideSrc.z*sideDst.z;
+     qBasis.setFromAxisAngle(unitY,Math.atan2(cross,dot)+entry.yaw*Math.PI/180);
+     qBasisInv.copy(qBasis).invert();
+    }
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
      // Keep recorded boxing strikes above the belt so support feet stay
      // planted, but allow real kicks to animate both legs and the torso.
-     if(COMBAT_SLOTS.has(entry.slot)&&
+     if(!entry.localAbsolute&&COMBAT_SLOTS.has(entry.slot)&&
         !['kick','sideKick'].includes(entry.slot)&&
         (i===0||i>=14))continue;
      // V80: the 0.9-second Mixamo run-to-stop file contains airborne
@@ -352,7 +366,7 @@
      // existing ground-contact/skid controller own the hips, knees and feet;
      // this optional clip only supplies its braking upper-body gesture.
      if((entry.slot==='runStop'&&(i===0||i>=14))||
-        (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
+        (!entry.localAbsolute&&!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='landing'&&i===0))continue;
      // V92: the approved idle arms are now owned by V76 throughout
      // standing, first-step and walking. V72 still owns the approved
@@ -366,6 +380,14 @@
      if(unified&&!options.choose&&entry.slot==='idle'&&i>=6&&i<=13&&
         root.SkyClashUpperBody?.ready&&status.approvedIdle)continue;
      const node=state.bones[i],bind=state.bind[i];if(!node||!bind||!node.parent)continue;
+     if(entry.localAbsolute){
+      // Pose Lab stores LOCAL ABSOLUTE normalized-node quaternions, unlike
+      // the V72 Mixamo world-rest deltas below. Never retarget a local
+      // quaternion a second time or compose an extra procedural offset.
+      node.quaternion.slerp(state.samples[i],state.weight).normalize();
+      node.updateMatrixWorld(true);
+      continue;
+     }
      mapped.copy(qBasis).multiply(state.samples[i]).multiply(qBasisInv);
      wanted.copy(sceneQ).multiply(mapped).multiply(bind).normalize();
      node.parent.getWorldQuaternion(parentQ);
@@ -496,9 +518,22 @@
    // asset loader or another wrapper that fights over the same bones.
    status.motionClips=actions;
    if(!Object.keys(actions).length)return status;
+   // Optional preview only, decoder is pure and assets are never loaded in
+   // the public/default game. Failure retains the exact old V87 path.
+   let kairoCombat=null;
+   if(new URLSearchParams(context.location?.search||'').get('combatAnim')==='kairo-a1'){
+    try{
+     if(!context.SkyClashKairoCombatChoreo)throw Error('Kairo authored clip decoder unavailable');
+     const response=await context.fetch('assets/animations/combat/kairo/storm-fist-batch-a.pose.json',
+      {cache:'no-cache'});
+     if(!response.ok)throw Error('Authored Kairo clips HTTP '+response.status);
+     kairoCombat=context.SkyClashKairoCombatChoreo.decodePack(context.THREE,await response.json());
+     status.combatPreview='kairo-a1';
+    }catch(e){status.combatPreviewError=String(e);console.warn('Kairo authored combat preview falling back to V87',e);}
+   }
    const fighters=[context.SkyClash?.Game?.heroes?.kairo_venn,context.SkyClash?.Game?.enemy];
    let count=0;
-   for(const f of fighters)if(attach(context.THREE,f,actions,status))count++;
+   for(const f of fighters)if(attach(context.THREE,f,actions,status,{kairoCombat}))count++;
    if(count){status.ready=true;status.actions=Object.keys(actions);status.characters=count;}
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
