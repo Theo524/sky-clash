@@ -338,18 +338,20 @@
       }
      }
     }
-    const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
-    const sideDst=state.targetSide;
-    const cross=sideSrc.z*sideDst.x-sideSrc.x*sideDst.z;
-    const dot=sideSrc.x*sideDst.x+sideSrc.z*sideDst.z;
-    qBasis.setFromAxisAngle(unitY,Math.atan2(cross,dot)+entry.yaw*Math.PI/180);
-    qBasisInv.copy(qBasis).invert();
+    if(!entry.localAbsolute){
+     const sideSrc=new THREE.Vector3(entry.side[0],0,entry.side[1]).normalize();
+     const sideDst=state.targetSide;
+     const cross=sideSrc.z*sideDst.x-sideSrc.x*sideDst.z;
+     const dot=sideSrc.x*sideDst.x+sideSrc.z*sideDst.z;
+     qBasis.setFromAxisAngle(unitY,Math.atan2(cross,dot)+entry.yaw*Math.PI/180);
+     qBasisInv.copy(qBasis).invert();
+    }
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
      // Keep recorded boxing strikes above the belt so support feet stay
      // planted, but allow real kicks to animate both legs and the torso.
-     if(COMBAT_SLOTS.has(entry.slot)&&
+     if(!entry.localAbsolute&&COMBAT_SLOTS.has(entry.slot)&&
         !['kick','sideKick'].includes(entry.slot)&&
         (i===0||i>=14))continue;
      // V80: the 0.9-second Mixamo run-to-stop file contains airborne
