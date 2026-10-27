@@ -30,6 +30,10 @@ assert.equal(authored.select({...state,stun:.3,hitFlash:.2},'hit'),'hitHeavy');
 assert.equal(authored.select({...state,stun:.3,brokenT:.4},'hit'),'hitHeavy');
 assert.equal(authored.select({...state,launched:true},'idle'),null);
 assert.equal(authored.select({...state,flying:true},'floating'),null);
+assert.equal(authored.select({...state,flying:true,stun:.3,hitFlash:.2},'hit'),null,
+ 'Grounded hit reactions must never overwrite approved airborne motion');
+assert.equal(authored.select({...state,jumping:true,blockHeld:true},'guard'),null,
+ 'Grounded guard must never overwrite approved jump or flight');
 assert.equal(authored.select({...state,sprinting:true},'boost'),null);
 assert.equal(authored.select({...state,characterId:'rin_sable'},'idle'),null);
 const stages=[

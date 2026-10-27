@@ -72,6 +72,10 @@
  function select(f,legacySlot){
   if(!f||f.characterId!=='kairo_venn'||f.hp<=0||
     f.launched||f.spiked||f.downT>0)return null;
+  // Batch A authored feet/guard/hit reaction poses are strictly GROUND
+  // choreography; the approved V100 flight/air-combat owners must stay in
+  // control even if a block or stun is active at altitude.
+  if(f.jumping||f.flying)return null;
   if(f.stun>0)return f.brokenT>0||f.superHitT>0||f.hitFlash>=.175?
     'hitHeavy':'hitLight';
   if(f.punchT>0)return !f.attackAir&&activeSlots.has(legacySlot)?
