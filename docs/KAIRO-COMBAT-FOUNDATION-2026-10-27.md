@@ -46,3 +46,11 @@ The fixture intentionally never loads the rejected opt-in preview, never changes
 - The genuine nearby jab registered **5.22 damage** at every tested FPS (rival HP 100 → 94.78); the full four-move distant sequence registered **no damage**. The unmodified game's `idle → jab → idle → guard → idle → four strikes → idle` selection states were actually observed.
 - The existing animation and standing pose were **not edited** and remain the production source of truth. This test establishes predictable baseline *state selection* and continuous VRM pose capture. It does **not** prove artistic quality, planted feet, correct old-layer per-bone ownership, or satisfactory visual motion. Those are still necessary before any replacement or playable preview.
 
+
+## 27 October — instrument actual per-joint writer attribution
+
+The first complete baseline workflow succeeded for real Kairo on all three frame rates, checking the unchanged native V72 slots, the real targeted jab hit and the deliberately missed four-beat chain. Follow-up now instruments **the actual 20 normalized bone quaternion objects** directly in Chromium at sampled 60fps frames. During the real `Fighter.update`, wrapped quaternion API calls capture the *closest application JS call-site* and record which module actually changes each joint after other wrappers have run.
+
+Artifacts: `writer-ownership-60fps.json` gives each sampled frame's `changedByOwner`, per-joint `lastChanged` and `lastCalled` (distinct!), plus per-state totals. The unchanged existing per-frame complete quaternion recording remains available at 30/60/120fps. This is **measurement**, not a replacement animation or a gameplay flag; source production files remain untouched.
+
+**Limitations:** A last quaternion-changing call may be V81's *transition*, not V72's underlying authored pose; compare total writes and ordering rather than assuming the last caller alone generated a move. Method instrumentation doesn't observe raw scalar setters, finger joints beyond the named 20, motion through parent/root transforms or unhooked GLTF skeleton internals. Most importantly it doesn't judge animation aesthetics. Before declaring this writer map reliable, CI must exercise and pass a real WebGL run and confirm expected procedural/base and V72 changes, including while idle and fighting.

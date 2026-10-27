@@ -53,6 +53,23 @@ function verify(trace,fps){
   assert(selected.includes(slot),
    'Unexpected native legacy V72 slot for '+stage+': '+JSON.stringify([...new Set(selected)]));
  }
+ if(fps===60){
+  const own=trace.ownership;
+  assert(own&&own.boneCount===20&&own.frames.length>=15,
+   'Real 20-joint writer attribution must capture several complete states');
+  const totals=own.changedOwnerTotals;
+  assert((totals['v72-published-actions.js']||0)>0,
+   'The old recorded V72 must ACTUALLY change Kairo joints');
+  assert((totals['game.js']||0)>0,
+   'The actual procedural real-VRM base must change Kairo joints');
+  const attacks=own.frames.filter(f=>f.stage==='jab'||
+   /^combo-/.test(f.stage));
+  assert(attacks.some(f=>(f.changedByOwner['v72-published-actions.js']||0)>0),
+   'V72 recording must actually change joints during a real attack');
+  const idle=own.frames.filter(f=>f.stage==='pre-attack-idle');
+  assert(idle.some(f=>(f.changedByOwner['v72-published-actions.js']||0)>0),
+   'Capture old recorded idle owner before replacing any standing stance');
+ }
  const guard=trace.samples.filter(x=>x.stage==='guard');
  assert(guard.some(x=>x.blocking===true),'Must activate actual guard gameplay');
  assert(trace.samples.every(x=>x.q.length===20&&
@@ -134,6 +151,88 @@ async function main(){
      p.animate(dt);e.animate(dt);
     };
     const samples=[],attacks=[];
+
+    // Read-only INSTRUMENTATION: wrap methods on the actual 20 normalized
+    // Kairo quaternion instances, never substitute an animation or writer.
+    // Parse the *direct call site's file*, not a shared V72 status label.
+    // Trace only 60fps and one frame per 10 simulated ticks for bounded CI.
+    const writerTrace=fps===60?(()=>{
+     const methods=['copy','set','identity','normalize','slerp',
+      'slerpQuaternions','multiply','premultiply','multiplyQuaternions',
+      'setFromEuler','setFromAxisAngle','setFromRotationMatrix',
+      'setFromUnitVectors','invert','conjugate'];
+     const originals=[],frames=[],ownerTotals={},stageTotals={};
+     const lastByStage={};let current=null,active=false;
+     const ownerFromStack=()=>{
+      const stack=String(new Error().stack||'');
+      const m=stack.match(/\/js\/([a-z0-9-]+\.js)(?::|\?|[)\s])/i);
+      return m?m[1]:'unattributed';
+     };
+     names.forEach(bone=>{
+      const q=h.getNormalizedBoneNode(bone).quaternion;
+      for(const method of methods){
+       const old=q[method];
+       if(typeof old!=='function')continue;
+       let depth=0;
+       const wrapped=function(...args){
+        if(!active||depth)return old.apply(this,args);
+        const x=this.x,y=this.y,z=this.z,w=this.w;
+        depth++;let result;
+        try{result=old.apply(this,args);}finally{depth--;}
+        const dx=Math.hypot(this.x-x,this.y-y,this.z-z,this.w-w);
+        const ds=Math.hypot(this.x+x,this.y+y,this.z+z,this.w+w);
+        const changed=Math.min(dx,ds)>1e-8;
+        const owner=ownerFromStack();
+        const key=bone;
+        let entry=current.bones[key];
+        if(!entry)entry=current.bones[key]={lastChanged:null,lastCalled:null,
+         changed:0,called:0,byOwner:{}};
+        entry.called++;entry.lastCalled=owner;
+        entry.byOwner[owner]=(entry.byOwner[owner]||0)+1;
+        if(changed){
+         entry.changed++;entry.lastChanged=owner;
+         current.changedByOwner[owner]=(current.changedByOwner[owner]||0)+1;
+        }
+        current.calledByOwner[owner]=(current.calledByOwner[owner]||0)+1;
+        return result;
+       };
+       q[method]=wrapped;originals.push({q,method,old});
+      }
+     });
+     return {
+      begin(stage,frame){
+       const step=stage===lastByStage.name?(lastByStage.tick+1):0;
+       lastByStage.name=stage;lastByStage.tick=step;
+       // Include the first frame and regular samples across every state.
+       if(step%10!==0)return;
+       current={stage,frame,bones:{},changedByOwner:{},calledByOwner:{}};
+       active=true;
+      },
+      end(){
+       if(!active)return;
+       active=false;
+       for(const [owner,n] of Object.entries(current.changedByOwner))
+        ownerTotals[owner]=(ownerTotals[owner]||0)+n;
+       for(const [owner,n] of Object.entries(current.changedByOwner)){
+        const key=current.stage+' / '+owner;
+        stageTotals[key]=(stageTotals[key]||0)+n;
+       }
+       frames.push(current);current=null;
+      },
+      report(){return {method:'direct normalized-quaternion API call-site capture',
+       fps:60,boneCount:names.length,frames,
+       changedOwnerTotals:ownerTotals,changedOwnerByStage:stageTotals,
+       limits:[
+        'Tracks methods called on 20 real normalized-bone quaternions only',
+        'LastChanged means last measured quaternion-changing API call, not sole creative owner',
+        'Direct x/y/z/w property setters and fingers outside these 20 bones are not captured',
+        'The callback may include V81 transition after V72; that is intentional and must not be mistaken for new attack motion',
+        'This read-only diagnostic instruments a subset of 60fps frames, not every rendered frame'
+       ]};},
+      restore(){active=false;for(const {q,method,old} of originals)q[method]=old;}
+     };
+    })():null;
+
     let frame=0,stage='starting';
     const observe=()=>{
      p.vrmRig.vrm.scene.updateMatrixWorld(true);
@@ -155,7 +254,8 @@ async function main(){
     const tick=(seconds)=>{
      const n=Math.round(seconds*fps);
      for(let i=0;i<n;i++){
-      p.update(dt);
+      writerTrace?.begin(stage,frame);
+      try{p.update(dt);}finally{writerTrace?.end();}
       // The defender is stationary: it still has real health and receives
       // game hit rules, but doesn't trigger AI attacks back at the camera.
       observe();
@@ -185,10 +285,15 @@ async function main(){
      tick((p.attackTotal||.55)+.09);
     }
     stage='combo-exit-to-idle';tick(.65);
-    return {fps,samples,attacks};
+    const ownership=writerTrace?.report()||null;
+    writerTrace?.restore();
+    return {fps,samples,attacks,ownership};
    },{fps,names:NAMES});
    trace.setup=setup;trace.errors=[...errors];
    verify(trace,fps);
+   if(trace.ownership)fs.writeFileSync(
+    path.join(OUT,'writer-ownership-60fps.json'),
+    JSON.stringify(trace.ownership,null,2));
    fs.writeFileSync(path.join(OUT,'continuous-'+fps+'fps.json'),
     JSON.stringify(trace));
    const first=trace.samples.find(x=>x.stage==='pre-attack-idle');
@@ -218,9 +323,10 @@ async function main(){
   const report={status:'CAPTURED_NOT_VISUALLY_APPROVED',
    intent:'Baseline existing actual game, never a new animation',
    modelSha256:SHA,realVRM:true,scriptNotLoadedInGame:true,
+   writerAttribution:traces.length===3?'recorded-in-60fps-trace':null,
    fps:fpsList,results:traces,limitations:[
     'This captures complete existing final-pose frames and gameplay clocks, not aesthetics',
-    'State labels identify owners but do not prove per-joint write attribution',
+    'Writer attribution measures actual 20-joint changing API call sites at sampled 60fps frames; not every scalar setter or IK/finger node',
     'Targeted jab uses real melee and defender; combo deliberately whiffs',
     'No actual new artwork has been produced'
    ]};
