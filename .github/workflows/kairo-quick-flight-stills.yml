@@ -5,14 +5,10 @@ concurrency:
 on:
   pull_request:
     paths:
-      - 'js/v100-pose-authority.js'
+      # Older V163 study: do not run alongside current V164 QA
+      # on every owner / loader / capture change.
       - 'js/v163-real-kairo-vertical-keyframes.js'
-      - 'assets/animations/kairo/flight-library.v1.json'
-      - 'js/v156-real-vrm-flight.js'
-      - 'js/v158-real-vrm-flight.js'
-      - 'js/v66-game-boot.js'
-      - 'tools/capture-flight-video.cjs'
-      - 'tests/ci-quick-preview.js'
+      - 'tests/v163-authored-vertical-keyframes.js'
   workflow_dispatch:
     inputs:
       previews:
