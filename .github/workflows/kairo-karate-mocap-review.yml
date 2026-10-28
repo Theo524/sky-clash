@@ -1,0 +1,43 @@
+name: Kairo Karate Motion Reference Research
+on:
+  push:
+    branches: [feature/kairo-authentic-karate-kicks]
+    paths:
+      - 'tools/analyze-kairo-karate-mocap.py'
+      - '.github/workflows/kairo-karate-mocap-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review-karate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install offline motion analysis dependencies
+        run: python -m pip install --quiet numpy scipy matplotlib
+      - name: Fetch exactly three pinned CMU karate captures
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kairo-cmu-kicks
+          ref=09a07f54f3bbb58797325f009282d0b2048a2871
+          for n in 04 07 11; do
+            curl --fail --location --retry 3 --max-time 90 "https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/$ref/data/135/135_${n}.bvh" -o "/tmp/kairo-cmu-kicks/135_${n}.bvh"
+            test -s "/tmp/kairo-cmu-kicks/135_${n}.bvh"
+          done
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_04.bvh)" = 1b695a78de95f891c4cd51f8e51d8922f1725c83
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_07.bvh)" = 2fa6fc86aa241bb8ae497e8ed248084155fb6da1
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_11.bvh)" = 70ab99d59261df82bfd0a6bd8c5d7fdb781c29e3
+      - name: Visually analyze actual karate performer full-body kick sequences
+        run: python tools/analyze-kairo-karate-mocap.py --source-dir /tmp/kairo-cmu-kicks --output-dir visual-review-output/cmu-karate-reference
+      - name: Preserve authentic source-motion preview for hand retargeting
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-karate-mocap-reference
+          path: visual-review-output/cmu-karate-reference/
+          retention-days: 21
+          if-no-files-found: warn
