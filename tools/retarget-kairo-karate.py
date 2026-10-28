@@ -132,7 +132,15 @@ def source_mocap_clip(name,file,peak,source_dir):
 
     pelvis_axis0=first['RightUpLeg']-first['LeftUpLeg']
     upper_axis0=first['RightArm']-first['LeftArm']
-    torso0=first['Spine1']-first['Hips']
+    # Spine1 is a short near-pelvis segment: its tiny 3D tilt is a poor,
+    # noisy proxy for the entire torso. Derive body pitch and roll from the
+    # recorded Hips-to-Neck axis instead (and only fall back on available
+    # upper body nodes for BVH naming variants). This couples the chest,
+    # pelvis and head to the actual performer's whole-body counterbalance.
+    torso_marker=next((n for n in ('Neck','Neck1','Head','Spine1')
+                       if n in names),None)
+    assert torso_marker
+    torso0=first[torso_marker]-first['Hips']
     result=[]
     previous_elbow_planes={}
     for i in range(53):
@@ -170,13 +178,15 @@ def source_mocap_clip(name,file,peak,source_dir):
                     (support_leg*.953))-support_joint
             hip=vector_components(hip_t)
         chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
-        actor_torso=horizontal(p['Spine1']-p['Hips'])
-        lean=clamp(math.degrees(math.atan2((p['Spine1']-p['Hips']).dot(actor_forward),
-                      max(.001,(p['Spine1']-p['Hips']).y)))-
-                   math.degrees(math.atan2(torso0.dot(actor_forward),max(.001,torso0.y))),-42,42)*strength
-        roll=clamp(math.degrees(math.atan2((p['Spine1']-p['Hips']).dot(actor_side),
-                      max(.001,(p['Spine1']-p['Hips']).y)))-
-                   math.degrees(math.atan2(torso0.dot(actor_side),max(.001,torso0.y))),-32,32)*strength
+        torso=p[torso_marker]-p['Hips']
+        lean=clamp(math.degrees(math.atan2(torso.dot(actor_forward),
+                      max(.001,torso.y)))-
+                   math.degrees(math.atan2(torso0.dot(actor_forward),
+                      max(.001,torso0.y))),-42,42)*strength
+        roll=clamp(math.degrees(math.atan2(torso.dot(actor_side),
+                      max(.001,torso.y)))-
+                   math.degrees(math.atan2(torso0.dot(actor_side),
+                      max(.001,torso0.y))),-32,32)*strength
         foot_targets={}
         foot_angles={}
         knee_hints={}
