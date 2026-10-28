@@ -43,6 +43,14 @@ const Spectacle = (() => {
   // The swipe is a *short-lived* arc timed with the attack's active frame,
   // not an orb or a trail that obscures the fighter.
   function swing(f, stage) {
+    if(AnimeFeelV165.stormFist?.(f)){
+      const kick=f.attackKind==='kick'||f.attackKind==='skyKick';
+      const bone=kick?'rightFoot':f.attackKind==='airStrike'||f.punchSide===1?'leftHand':'rightHand';
+      const point=anchor(f,bone,f.center);
+      Sound.stormSwing(stage,kick,CameraRig.soundPan(point));
+      if(quality()&&stage>=2)limbTrail(f,bone,kick?.055:.032,kick?.17:.13);
+      return;
+    }
     if (!quality() || f.hp <= 0) return;
     const dir = f.forward(), col = f.awakened ? f.pal.aura : f.pal.ki;
     if (stage === 4 || stage === 5) {
@@ -75,6 +83,17 @@ const Spectacle = (() => {
   }
   // Contact is computed between the fighters, avoiding explosion cores behind the rival.
   function contact(f, target, stage, counter) {
+    if(AnimeFeelV165.stormFist?.(f)){
+      // A single pressure arc emphasizes heavier contacts without covering
+      // the pose. The contact core/sparks are emitted once by Combat.hit.
+      if(!quality()||stage<2&&!counter)return;
+      const dir=target.center.clone().sub(f.center).normalize();
+      const kick=f.attackKind==='kick'||f.attackKind==='skyKick';
+      const point=contactPoint(f,target,kick);
+      circle(point,dir,kick?.29:.21,f.awakened?f.pal.aura:f.pal.ki,
+        kick?.14:.10,Math.PI*1.35,.24);
+      return;
+    }
     const dir = target.center.clone().sub(f.center).normalize();
     const point = target.center.clone().addScaledVector(dir, -0.55);
     point.y += stage === 3 ? -0.18 : stage === 2 ? 0.1 : 0;
@@ -109,6 +128,35 @@ const Spectacle = (() => {
     const h = f.vrmRig && f.vrmRig.vrm && f.vrmRig.vrm.humanoid;
     const n = h && h.getNormalizedBoneNode(name);
     return n ? n.getWorldPosition(new V3()) : fallback;
+  }
+  function contactPoint(f,target,kick){
+    const chest=anchor(target,'upperChest',target.center);
+    const kicking=kick&&f.attackKind!=='airStrike';
+    const names=kicking?['leftFoot','rightFoot']:
+      [f.attackKind==='airStrike'||f.punchSide===1?'leftHand':'rightHand'];
+    const points=names.map(name=>anchor(f,name,f.center));
+    points.sort((a,b)=>a.distanceToSquared(chest)-b.distanceToSquared(chest));
+    // The volume hitbox stays authoritative. Render feedback at the actual
+    // striking limb; never use an effect to bridge a missing metre of reach.
+    return points[0];
+  }
+  function limbTrail(f,bone,width,duration){
+    let previous=anchor(f,bone,f.center),older=previous.clone();
+    const geometry=new THREE.BufferGeometry();
+    geometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(12),3));
+    geometry.setIndex([0,1,2,2,1,3]);
+    const color=f.awakened?f.pal.aura:f.pal.ki;
+    const mesh=new THREE.Mesh(geometry,mat(color,.34));
+    emit(mesh,duration,(m,t)=>{
+      const now=anchor(f,bone,f.center),travel=now.clone().sub(older);
+      const view=camera.position.clone().sub(now).normalize();
+      const side=travel.clone().cross(view).normalize().multiplyScalar(width*(1-t));
+      const a=older.clone().add(side),b=older.clone().sub(side);
+      const c=now.clone().add(side),d=now.clone().sub(side);
+      m.geometry.attributes.position.array.set([...a.toArray(),...b.toArray(),...c.toArray(),...d.toArray()]);
+      m.geometry.attributes.position.needsUpdate=true;m.geometry.computeBoundingSphere();
+      m.material.opacity=.34*(1-t);older=previous;previous=now;
+    });
   }
   function dashWake(f) {
     if (!quality()) return;
@@ -203,5 +251,5 @@ const Spectacle = (() => {
     if(x.mesh.material) x.mesh.material.dispose();
   }
   function clear() {live.forEach(dispose);live.length=0;}
-  return {swing,contact,dashStart,dashWake,boostIgnition,flightWake,muzzle,wake,explosion,update,clear};
+  return {swing,contact,contactPoint,dashStart,dashWake,boostIgnition,flightWake,muzzle,wake,explosion,update,clear};
 })();

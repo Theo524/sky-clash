@@ -354,11 +354,13 @@ const Game = {
       p.meleeBuf -= dt;
       if (p.meleeBuf <= 0) p.meleeQ = 0;
       if (p.stun > 0 || p.launched || p.hp <= 0) { p.meleeQ = 0; p.meleeBuf = 0; }
-      else if (p.meleeCd <= 0 && p.punchT <= 0 && !p.kickPend) {
+      else if ((p.meleeCd <= 0 && p.punchT <= 0 && !p.kickPend) ||
+          (p.meleeQ>0&&AnimeFeelV165.stormCanLink?.(p))) {
+        const linked=AnimeFeelV165.stormCanLink?.(p);
         p.meleeQ--; p.meleeBuf = p.meleeQ > 0 ? TUNING.meleeBuffer : 0;
         // holding Down in the air turns Melee into a ground slam, unless the rival is right next to you in the air
         const airFoe = e.flying && p.pos.distanceTo(e.pos) < TUNING.meleeRange + 0.5;
-        if (!(p.vert < 0 && !airFoe && p.trySlam(e))) Combat.melee(p, e);
+        if (!(p.vert < 0 && !airFoe && p.trySlam(e))) Combat.melee(p, e, linked);
       }
     }
     // Blast: hold to charge, release to fire (handled by the fighter); a tap too quick to register as held fires straight away
@@ -480,7 +482,12 @@ const Game = {
     let dt = real;
     if (this.state === 'playing') {
       // hit-stop: a few frames of near-freeze on impact; KO: slow motion before the result screen
-      if (this.hitStopT > 0) { this.hitStopT -= real; dt *= 0.08; }
+      if (this.hitStopT > 0) {
+        if(AnimeFeelV165.stormFist?.(this.player)||AnimeFeelV165.stormFist?.(this.enemy))
+          dt=AnimeFeelV165.stormStopStep(real,this.hitStopT);
+        else dt*=0.08;
+        this.hitStopT=Math.max(0,this.hitStopT-real);
+      }
       if (this.introT > 0) { const was = this.introT; this.introT -= real; if (this.introT <= 0) { this.introT = 0; this.banner('FIGHT!', 'fight'); } }
       if (this.koT > 0) { dt *= this.timeUp ? 0.6 : 0.3; this.koT -= real; if (this.koT <= 0) { this.koT = 0; this.endRound(); } }
       if (this.state === 'playing') this.update(dt);

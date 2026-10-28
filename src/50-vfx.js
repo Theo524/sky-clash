@@ -61,6 +61,21 @@ const Effects = (() => {
     // sparks thrown forward in a cone
     sparks(pos, color, 11, dir, 1.55);
   }
+  // One compact contact core for the authored Storm Fist set. Its position is
+  // the real attacking limb, not an explosion centred behind the opponent.
+  function stormImpact(pos,color,dir,stage,kick,counter){
+    const power=kick||stage>=3||counter;
+    const size=power?.78:.48,life=power?.070:.045;
+    const core=sprite(TEX.glow,0xffffff,size,power?.95:.85);
+    core.position.copy(pos);
+    push(core,life,e=>{const t=e.t/e.life;e.obj.material.opacity=(1-t)*(1-t);
+      e.obj.scale.setScalar(size*(1+t*.35));});
+    const halo=sprite(TEX.glow,color,size*1.45,.55);
+    halo.position.copy(pos);
+    push(halo,life+.035,e=>{const t=e.t/e.life;e.obj.material.opacity=.55*(1-t)*(1-t);
+      e.obj.scale.setScalar(size*1.45*(1+t*.7));});
+    sparks(pos,color,Settings.get('quality')==='low'?2:power?6:3,dir,power?.82:.58);
+  }
   function dust(pos, n = 4) {
     for (let i = 0; i < n; i++) {
       const s = sprite(TEX.smoke, 0xd9cdb8, 0.8, 0.55, false);
@@ -520,6 +535,6 @@ const Effects = (() => {
   function blockSpark(pos) { flash(pos, 0xbfe9ff, 2.6, 0.12); ring(pos, 0x8fd8ff, 1.0); sparks(pos, 0xd8f4ff, 5); }
   // parry: bright gold double ring
   function parry(pos) { flash(pos, 0xffffff, 5, 0.14); flash(pos, 0xffd166, 7, 0.3); ring(pos, 0xffd166, 2.6); ring(pos, 0xffffff, 1.6); sparks(pos, 0xffe08a, 14); }
-  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, push, sprintTrail, vanish, launchTrail, groundSlam, meteorCrater, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
+  return { awakenIgnition, awakenCharge, bodyAura, chargePressure, chargeFracture, kickImpact, stormImpact, push, sprintTrail, vanish, launchTrail, groundSlam, meteorCrater, chargeSpark, groundRing, chargeFull, bigBlast, guardBreak, dizzy, blockSpark, parry, ring, flash, sparks, impact, dust, dashBurst, awakenBurst, auraSpark, trail, sprite, update, clear };
 })();
 

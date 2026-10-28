@@ -19,10 +19,10 @@ function fixture(){return {schema:'sky-clash.native-combat-set.v1',status:'EXPER
  bones:studio.BONES,clips:[jab,...Object.entries(timings).map(([clipId,[durationSeconds,impactSeconds]])=>({
   clipId,durationSeconds,impactSeconds,loop:clipId==='guard',frames:jab.frames.map(f=>({...clone(f),
    time:f.time===.55?durationSeconds:f.time*durationSeconds/.55}))}))]};}
-const file=require('node:path').resolve(__dirname,'../assets/animations/kairo/storm-fist.v1.json');
+const file=process.env.NATIVE_COMBAT_SET||require('node:path').resolve(__dirname,'../assets/animations/kairo/storm-fist.v1.json');
 const pack=fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):fixture();
 const status={};studio.registerNativeCombatSet(THREE,status,pack);
-if(pack.revision==='kung-fu-v2'){
+if(['kung-fu-v2','storm-fist-v3'].includes(pack.revision)){
  assert.notDeepEqual(pack.clips.find(c=>c.clipId==='original-jab').frames,jab.frames,
   'The rejected jab must be reauthored in the kung fu set');
  assert.equal(status.nativeCombatSet.reauthoredJab,true);
@@ -99,7 +99,7 @@ async function testLoader(){
    SkyClash:{Game:{heroes:{kairo_venn:{animate(){}}}}},
    fetch:async url=>{
     requests.push(url);
-    if(url.startsWith('assets/animations/kairo/storm-fist.v1.json'))
+    if(/^assets\/animations\/kairo\/storm-fist\.v[13]\.json/.test(url))
      return {ok:!fail,status:fail?404:200,json:async()=>clone(pack)};
     if(url==='assets/animations/gameplay/studio-actions-v1.json')return {ok:true,json:async()=>base};
     return {ok:false,status:404};
@@ -109,6 +109,9 @@ async function testLoader(){
  const ready=await load('?combatAnim=storm-fist-v1');
  assert.equal(ready.status.nativePlaytest.state,'ready');assert(ready.status.nativeCombatSet);
  assert(!ready.requests.some(url=>url.includes('original-jab-playtest')));
+ if(pack.revision==='storm-fist-v3'){const v3=await load('?combatAnim=storm-fist-v3');
+  assert.equal(v3.status.nativePlaytest.state,'ready');
+  assert(v3.requests.some(url=>url.includes('storm-fist.v3.json')));}
  const fallback=await load('?combatAnim=storm-fist-v1',true);
  assert(fallback.status.ready);assert.equal(fallback.status.nativePlaytest.state,'fallback');
  assert(!fallback.status.nativeCombatSet);
