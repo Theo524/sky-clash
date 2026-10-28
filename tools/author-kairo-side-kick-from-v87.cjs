@@ -28,6 +28,17 @@ const sourcePack=JSON.parse(fs.readFileSync('assets/animations/gameplay/v87-reco
 const recorded=sourcePack.motions.find(m=>m.slot==='sideKick');
 assert.equal(recorded.sourceId,'mxRSideKick');
 assert.equal(recorded.sourceFile,sourceMeta.source);
+assert.deepEqual(recorded.bones,NAMES,'Recorded 20-bone hierarchy differs from native');
+const recordingBytes=Buffer.from(recorded.data,'base64');
+assert.equal(recordingBytes.byteLength,recorded.frames*NAMES.length*4*2);
+const recordingView=new DataView(recordingBytes.buffer,recordingBytes.byteOffset,recordingBytes.byteLength);
+const sourceWorldDeltas=Array.from({length:recorded.frames},(_,f)=>
+  Array.from({length:NAMES.length},(_,j)=>{
+    const q=Array.from({length:4},(_,k)=>
+      recordingView.getInt16(((f*NAMES.length+j)*4+k)*2,true)/32767);
+    const length=Math.hypot(...q);
+    return q.map(x=>x/length);
+  }));
 const old=native.clips.find(c=>c.clipId==='side-kick');
 assert(old,'Missing existing side kick');
 assert.equal(native.clips.length,19,'No native clips may be dropped');
@@ -42,6 +53,11 @@ function rootAt(seconds){
   return out;
 }
 function smooth01(v){v=Math.max(0,Math.min(1,v));return v*v*(3-2*v);}
+function rotateVec(q,v){
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const t=cross(q.slice(0,3),v).map(x=>2*x),c=cross(q.slice(0,3),t);
+  return v.map((x,i)=>x+q[3]*t[i]+c[i]);
+}
 function measureDegrees(a,b){
   const d=Math.abs(a.reduce((n,x,i)=>n+x*b[i],0));
   return 2*Math.acos(Math.max(-1,Math.min(1,d)))*180/Math.PI;
@@ -91,34 +107,64 @@ async function main(){
       const rootHeight=scene.worldToLocal(
         h.getNormalizedBoneNode('hips').getWorldPosition(new T.Vector3())
       ).y;
-      p.attackKind='sideKick';p.attackSerial=122;
-      p.punchT=9;p.attackElapsed=0;p.attackTotal=1;
-      p.v72StudioPack.weight=1;
-      window.__v87Baker={p,h,nodes,rest,base};
-      return {rest,base,rootHeight};
+      // Match V72's canonical world-rest-delta rig calibration. All 20
+      // sampled joints are interpreted together in FK, without an
+      // intervening procedural fighter.animate() resetting the forearms.
+      const saved=nodes.map(node=>node.quaternion.clone());
+      for(const node of nodes)node.quaternion.identity();
+      scene.updateMatrixWorld(true);
+      const sceneQ=scene.getWorldQuaternion(new T.Quaternion());
+      const invSceneQ=sceneQ.clone().invert();
+      const bind=nodes.map(node=>invSceneQ.clone().multiply(
+        node.getWorldQuaternion(new T.Quaternion())).normalize());
+      const left=nodes[7].getWorldPosition(new T.Vector3());
+      const right=nodes[11].getWorldPosition(new T.Vector3());
+      const targetSide=left.sub(right).applyQuaternion(invSceneQ);
+      targetSide.y=0;targetSide.normalize();
+      const sideSrc=new T.Vector3(1,0,0);
+      const angle=Math.atan2(sideSrc.z*targetSide.x-sideSrc.x*targetSide.z,
+        sideSrc.x*targetSide.x+sideSrc.z*targetSide.z);
+      const qBasis=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),angle);
+      const qBasisInv=qBasis.clone().invert();
+      nodes.forEach((node,i)=>node.quaternion.copy(saved[i]));
+      scene.updateMatrixWorld(true);
+      window.__v87Baker={p,h,nodes,rest,base,bind,qBasis,qBasisInv,scene,sceneQ,T};
+      return {rest,base,rootHeight,qBasis:qBasis.toArray(),mappedSide:targetSide.toArray()};
     },{names:NAMES});
     const h0=rootAt(START);
     const rawFrames=[];
     for(let i=0;i<=Math.ceil(TOTAL*FPS);i++){
       const t=Math.min(TOTAL,i/FPS),progress=t/TOTAL;
-      const current=await page.evaluate(({t,total})=>{
-        const b=window.__v87Baker,p=b.p;
-        p.punchT=9;p.attackElapsed=t;p.attackTotal=total;
-        p.v72StudioPack.weight=1;
-        p.animate(1/60);
-        if(p.v72StudioPack.slot!=='sideKick')
-          throw Error('SideKick recorded owner not active');
-        return {quaternions:b.nodes.map(n=>n.quaternion.toArray()),
-          hipLocal:b.nodes[0].position.toArray()};
-      },{t,total:TOTAL});
       const sourceTime=START+(END-START)*progress;
+      const sourceFrame=sourceTime*30;
+      const lo=Math.floor(sourceFrame),hi=Math.min(sourceWorldDeltas.length-1,lo+1);
+      const fraction=sourceFrame-lo;
+      const current=await page.evaluate(({lo,hi,fraction,a,c})=>{
+        const b=window.__v87Baker,T=b.T;
+        const {nodes,scene,sceneQ,bind,qBasis,qBasisInv}=b;
+        // Source quaternion interpolation is per-bone, while target
+        // orientation is evaluated in the measured normalized VRM hierarchy.
+        // No old animate() call and no procedural knees, ankles or hands.
+        nodes.forEach(node=>node.quaternion.identity());
+        scene.updateMatrixWorld(true);
+        const delta=new T.Quaternion(),mapped=new T.Quaternion(),
+          wanted=new T.Quaternion(),parent=new T.Quaternion();
+        for(let j=0;j<nodes.length;j++){
+          delta.slerpQuaternions(new T.Quaternion(...a[j]),
+            new T.Quaternion(...c[j]),fraction).normalize();
+          mapped.copy(qBasis).multiply(delta).multiply(qBasisInv);
+          wanted.copy(sceneQ).multiply(mapped).multiply(bind[j]).normalize();
+          nodes[j].parent.getWorldQuaternion(parent);
+          nodes[j].quaternion.copy(parent.invert().multiply(wanted)).normalize();
+          nodes[j].updateMatrixWorld(true);
+        }
+        return {quaternions:nodes.map(n=>n.quaternion.toArray())};
+      },{lo,hi,fraction,a:sourceWorldDeltas[lo],c:sourceWorldDeltas[hi]});
       const h=rootAt(sourceTime);
-      // src/41 Y-up motion is in source actor coordinates. V72 rotates
-      // the source shoulder-side (+X) onto Kairo's measured shoulder-side
-      // (-X), a 180-degree Y-axis basis change. Preserve that same basis
-      // for the pelvis translation and scale normalized hip heights.
+      // The richer original archive also preserves normalized pelvis
+      // translation. Rotate by the EXACT SAME basis as the FK source bones.
       const r=setup.rootHeight;
-      const delta=[-(h[0]-h0[0])*r,(h[1]-h0[1])*r,-(h[2]-h0[2])*r];
+      const delta=rotateVec(setup.qBasis,h.map((x,j)=>(x-h0[j])*r));
       const weight=smooth01(t/.085)*smooth01((TOTAL-t)/.13);
       rawFrames.push({time:+t.toFixed(9),
         hipsPosition:setup.base.map((x,j)=>x+delta[j]*weight),
