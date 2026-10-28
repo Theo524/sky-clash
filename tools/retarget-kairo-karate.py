@@ -189,13 +189,23 @@ def source_mocap_clip(name,file,peak,source_dir):
     captured_hip_axis=tr(first['RightUpLeg']-first['LeftUpLeg'])
     captured_shoulder_axis=tr(first['RightArm']-first['LeftArm'])
     hip_handedness=1 if captured_hip_axis.dot(rest_hip_axis)>=0 else -1
-    shoulder_handedness=(1 if captured_shoulder_axis.dot(rest_shoulder_axis)>=0
-                          else -1)
+    # Right/left anatomical handedness is shared by the WHOLE skeleton.
+    # The old independent shoulder sign vote changed sign when the actor
+    # turned near 90 degrees, producing an impossible ~170-degree twist
+    # between the shoulder girdle and the pelvis on Yoko-geri.
+    shoulder_handedness=hip_handedness
+    source_torso_twist=blender_yaw(
+        tr(first['RightUpLeg']-first['LeftUpLeg']),
+        tr(first['RightArm']-first['LeftArm']))
+    assert abs(source_torso_twist)<85,(
+        name,'capture shoulders/hips unexpectedly flipped',
+        round(source_torso_twist,1))
     print('KARATE_REFERENCE_ORIENTATION',name,
           'sourceStartPelvisYaw',round(blender_yaw(
               rest_hip_axis,captured_hip_axis*hip_handedness),2),
           'sourceStartChestYaw',round(blender_yaw(
-              rest_shoulder_axis,captured_shoulder_axis*shoulder_handedness),2))
+              rest_shoulder_axis,captured_shoulder_axis*shoulder_handedness),2),
+          'capturedTorsoTwistDegrees',round(source_torso_twist,2))
     # Spine1 is a short near-pelvis segment: its tiny 3D tilt is a poor,
     # noisy proxy for the entire torso. Derive body pitch and roll from the
     # recorded Hips-to-Neck axis instead (and only fall back on available
