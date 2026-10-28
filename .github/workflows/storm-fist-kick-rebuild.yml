@@ -37,6 +37,8 @@ jobs:
           node --check tools/bake-kairo-storm-fist.cjs
           node --check tools/verify-kairo-storm-fist.cjs
           command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Rebundle real playable JavaScript from updated src files
+        run: python3 tools/build.py
       - name: Serve local game for authoring (does not deploy)
         run: |
           set -euo pipefail
@@ -90,7 +92,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/animations/kairo/storm-fist.v3.json
+          git add assets/animations/kairo/storm-fist.v3.json js/game.js
           git diff --cached --quiet && { echo "ERROR: no newly baked kick motion to preserve"; exit 1; }
           git commit -m "art(kicks): bake revised grounded and aerial kick trajectories onto Kairo"
           git fetch origin feature/storm-fist-kick-silhouette-v5
