@@ -155,6 +155,9 @@ if os.environ.get('KAIRO_KARATE_BVH_DIR'):
     exec(compile(pathlib.Path('tools/retarget-kairo-karate.py').read_text(),
                  'tools/retarget-kairo-karate.py','exec'),globals())
     clips.extend(make_authentic_karate_clips())
+    # Recorded subject 135 covers the three GROUNDED kicks; retain Kairo's
+    # existing original aerial sky-kick so all 19 clips still exist.
+    clips.extend(c for c in make_storm_kicks() if c['clipId']=='sky-kick')
 else:
     clips.extend(make_storm_kicks())
 
