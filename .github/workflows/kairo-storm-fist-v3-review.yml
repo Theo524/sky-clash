@@ -1,0 +1,73 @@
+name: Kairo Storm Fist V3 — Real VRM Motion Review
+on:
+  pull_request:
+    paths:
+      - 'assets/animations/kairo/storm-fist.v3.json'
+      - 'tools/verify-kairo-storm-fist.cjs'
+      - 'js/v72-published-actions.js'
+      - 'js/v81-pose-transitions.js'
+      - 'src/**'
+      - '.github/workflows/kairo-storm-fist-v3-review.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  real-kairo-v3-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install playback and film dependencies
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          node --check tools/verify-kairo-storm-fist.cjs
+      - name: Serve isolated candidate (not live Pages)
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/storm-fist-v3-server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS --max-time 2 http://127.0.0.1:8765/index.html >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/animations/kairo/storm-fist.v3.json >/dev/null
+      - name: Real-Kairo hit, whiff, guard, interruption and full combos at 30/60/120 Hz
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_FILM: '0'
+          STORM_QA_OUTPUT: visual-review-output/storm-fist-v3-validation
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Capture uninterrupted real-model front/side sequences and full combat showcase with game audio
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_VISUAL_ONLY: '1'
+          STORM_QA_SKIP_MOVES: '1'
+          STORM_QA_SHOWCASE: '1'
+          STORM_QA_CLEAN_VIDEO: '1'
+          STORM_QA_AUDIO: '1'
+          STORM_QA_VIDEO_FPS: '30'
+          STORM_QA_VIDEO_SECONDS: '8'
+          STORM_QA_VIDEO_VIEWS: front,side
+          STORM_QA_OUTPUT: visual-review-output/storm-fist-v3-film
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Preserve review footage and real-game evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-storm-fist-v3-continuous-footage
+          path: |
+            visual-review-output/storm-fist-v3-validation/
+            visual-review-output/storm-fist-v3-film/
+          retention-days: 21
+          if-no-files-found: warn
