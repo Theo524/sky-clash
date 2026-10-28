@@ -1,0 +1,47 @@
+name: Storm Fist V4 Kicks - Visual Review
+on:
+  pull_request:
+    paths:
+      - 'assets/animations/kairo/storm-fist.v3.json'
+      - 'tools/kairo-storm-fist-kicks.py'
+      - '.github/workflows/storm-fist-v4-kick-visual.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kick-visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install existing WebGL/footage dependencies
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then npx playwright install-deps chromium; fi
+          if ! command -v ffmpeg >/dev/null; then sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+          command -v ffmpeg
+          node --check tools/verify-kairo-storm-fist.cjs
+      - name: Serve the exact V4 candidate
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/storm-kick-visual-http.log 2>&1 &
+          for i in $(seq 1 25); do curl --max-time 2 -fsS http://127.0.0.1:8765/index.html >/dev/null && break; sleep 1; done
+      - name: Capture actual Kairo four-kick front/side motion and contact sequence
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_VISUAL_ONLY: '1'
+          STORM_QA_SKIP_SEQUENCE: '1'
+          STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick
+          STORM_QA_OUTPUT: visual-review-output/kick-v4-move-review
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Preserve reproducible images, films and source hash
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storm-fist-v4-four-kick-visual-review
+          path: visual-review-output/kick-v4-move-review/
+          retention-days: 21
+          if-no-files-found: warn
