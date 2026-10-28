@@ -156,13 +156,18 @@ def source_mocap_clip(name,file,peak,source_dir):
         if name in ('roundhouse','side-kick'):
             hip=(hip[0],hip[1],min(hip[2],-.025*strength))
         hip_t=offset(*hip)
-        support_joint=heads['leftUpperLeg']+hip_t
-        support_span=heads['leftFoot']-support_joint
-        if support_span.length>support_leg*.965:
-            hip_t+=(heads['leftFoot']-support_span.normalized()*
-                    (support_leg*.965))-support_joint
-            hip=vector_components(hip_t)
         hips_yaw=clamp(angle_about_up(pelvis_axis0,p['RightUpLeg']-p['LeftUpLeg']),-105,105)*strength
+        # A turn moves the support HIP SOCKET around the pelvis, not only
+        # its translation. Solve the planted leg against that rotated socket
+        # in the same global basis used by the DCC, with IK bend clearance.
+        pelvis_q=Quaternion(up,math.radians(hips_yaw))
+        support_joint=(heads['hips']+hip_t+
+                       pelvis_q@(heads['leftUpperLeg']-heads['hips']))
+        support_span=heads['leftFoot']-support_joint
+        if support_span.length>support_leg*.953:
+            hip_t+=(heads['leftFoot']-support_span.normalized()*
+                    (support_leg*.953))-support_joint
+            hip=vector_components(hip_t)
         chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
         actor_torso=horizontal(p['Spine1']-p['Hips'])
         lean=clamp(math.degrees(math.atan2((p['Spine1']-p['Hips']).dot(actor_forward),
@@ -190,12 +195,13 @@ def source_mocap_clip(name,file,peak,source_dir):
                 # Enforce Kairo's actual thigh + shin reach as a kinematic
                 # limit. IK should NEVER be asked to extend a non-existent
                 # third leg segment when actor proportions differ.
-                joint=heads['rightUpperLeg']+hip_t
+                joint=(heads['hips']+hip_t+
+                       pelvis_q@(heads['rightUpperLeg']-heads['hips']))
                 length=(heads['rightUpperLeg']-heads['rightLowerLeg']).length + (
                          heads['rightLowerLeg']-heads['rightFoot']).length
                 span=target-joint
-                if span.length>length*.965:
-                    target=joint+span.normalized()*(length*.965)
+                if span.length>length*.955:
+                    target=joint+span.normalized()*(length*.955)
             foot_targets[side]=target
             toe_now=p[label+'ToeBase']-p[label+'Foot']
             toe_0=first[label+'ToeBase']-first[label+'Foot']
