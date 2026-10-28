@@ -172,8 +172,30 @@ def source_mocap_clip(name,file,peak,source_dir):
         v=tr(a-b)
         return v.normalized() if v.length>.001 else offset(.5,0,0)
 
-    pelvis_axis0=first['RightUpLeg']-first['LeftUpLeg']
-    upper_axis0=first['RightArm']-first['LeftArm']
+    # Absolute capture orientation in Kairo's already-turned fighter stance.
+    # The previous relative-to-first-frame yaw lost the defining sideways
+    # pelvis/shoulder rotation when the mocap performer was ALREADY side-on
+    # at the beginning of our 0.87s excerpt (especially Yoko-geri).  Match
+    # measured left-to-right anatomical axes after converting to the SAME
+    # Blender world basis, and turn by the shortest yaw from Kairo's rest.
+    def blender_yaw(a,b):
+        a=a.copy(); b=b.copy()
+        a.z=0; b.z=0
+        assert a.length>.001 and b.length>.001
+        a.normalize();b.normalize()
+        return math.degrees(math.atan2(up.dot(a.cross(b)),a.dot(b)))
+    rest_hip_axis=heads['rightUpperLeg']-heads['leftUpperLeg']
+    rest_shoulder_axis=heads['rightUpperArm']-heads['leftUpperArm']
+    captured_hip_axis=tr(first['RightUpLeg']-first['LeftUpLeg'])
+    captured_shoulder_axis=tr(first['RightArm']-first['LeftArm'])
+    hip_handedness=1 if captured_hip_axis.dot(rest_hip_axis)>=0 else -1
+    shoulder_handedness=(1 if captured_shoulder_axis.dot(rest_shoulder_axis)>=0
+                          else -1)
+    print('KARATE_REFERENCE_ORIENTATION',name,
+          'sourceStartPelvisYaw',round(blender_yaw(
+              rest_hip_axis,captured_hip_axis*hip_handedness),2),
+          'sourceStartChestYaw',round(blender_yaw(
+              rest_shoulder_axis,captured_shoulder_axis*shoulder_handedness),2))
     # Spine1 is a short near-pelvis segment: its tiny 3D tilt is a poor,
     # noisy proxy for the entire torso. Derive body pitch and roll from the
     # recorded Hips-to-Neck axis instead (and only fall back on available
@@ -213,7 +235,9 @@ def source_mocap_clip(name,file,peak,source_dir):
         if name in ('roundhouse','side-kick'):
             hip=(hip[0],hip[1],min(hip[2],-.025*strength))
         hip_t=offset(*hip)
-        hips_yaw=clamp(angle_about_up(pelvis_axis0,p['RightUpLeg']-p['LeftUpLeg']),-105,105)*strength
+        absolute_hips_axis=tr(p['RightUpLeg']-p['LeftUpLeg'])*hip_handedness
+        hips_yaw=clamp(blender_yaw(rest_hip_axis,absolute_hips_axis),
+                       -125,125)*strength
         # A turn moves the support HIP SOCKET around the pelvis, not only
         # its translation. Solve the planted leg against that rotated socket
         # in the same global basis used by the DCC, with IK bend clearance.
@@ -225,7 +249,9 @@ def source_mocap_clip(name,file,peak,source_dir):
             hip_t+=(heads['leftFoot']-support_span.normalized()*
                     (support_leg*.953))-support_joint
             hip=vector_components(hip_t)
-        chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
+        absolute_chest_axis=tr(p['RightArm']-p['LeftArm'])*shoulder_handedness
+        chest_yaw=clamp(blender_yaw(rest_shoulder_axis,absolute_chest_axis),
+                        -125,125)*strength
         torso=p[torso_marker]-p['Hips']
         lean=clamp(math.degrees(math.atan2(torso.dot(actor_forward),
                       max(.001,torso.y)))-
