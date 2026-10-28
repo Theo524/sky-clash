@@ -194,13 +194,19 @@ def source_mocap_clip(name,file,peak,source_dir):
                         math.degrees(math.atan2(toe_0.y,max(.01,horizontal(toe_0).length))),-42,45)*strength
             foot_angles[side]=(foot_yaw,pitch,0)
             knee_hints[side]=dir_(p[label+'Leg'],p[label+'UpLeg'])*.75
-            elbow_hints[side]=dir_(p[label+'ForeArm'],p[label+'Arm'])*.65
+            # Kairo's shoulders are narrower than CMU actor's. The raw
+            # performer elbow pole repeatedly crossed Kairo's ribcage during
+            # the fast turn. Retain safe measured outside-elbow bend planes.
+            elbow_hints[side]=(offset(-.14,.29,-.31) if side=='left'
+                               else offset(-.18,-.33,-.29))
             wrist=tr((p[label+'Hand']-p['Spine1'])-
                      (first[label+'Hand']-first['Spine1']))+hip_t
             # Hands should follow the actor's counterbalancing changes but
             # start/end at the approved Kairo guard positions.
             # Hip displacement is included once in the target's world frame.
-            hand_goal=guard[side]+wrist*strength
+            # Preserve the ACTOR's arm counter-sweep rhythm, but attenuate
+            # its reach so the hands do not punch through Kairo's ribs.
+            hand_goal=guard[side]+wrist*strength*.28
             # Different human/VRM arm proportions: preserve the actor's
             # hand-direction counterbalance without hyperextending Kairo's
             # elbows. The measured shoulder-to-wrist link is ~0.55 m.
