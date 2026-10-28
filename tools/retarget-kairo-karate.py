@@ -198,16 +198,24 @@ def source_mocap_clip(name,file,peak,source_dir):
                 # third leg segment when actor proportions differ.
                 joint=(heads['hips']+hip_t+
                        pelvis_q@(heads['rightUpperLeg']-heads['hips']))
-                if name=='side-kick':
-                    # Trial 11 contains a supporting-leg step. Treating the
-                    # traveling support shoe as a stationary reference drove
-                    # the striking foot into Kairo's chest in the game render.
-                    # Instead transfer the captured thigh-to-foot FK vector
-                    # directly onto Kairo's measured, pelvis-turned hip
-                    # socket. This preserves the actor's actual side-thrust
-                    # direction and knee chamber, independently of footwork.
-                    captured_leg=tr(p['RightFoot']-p['RightUpLeg'])
-                    target=heads['rightFoot'].lerp(joint+captured_leg,strength)
+                # The kick leg is a TWO-BONE human chain, not a foot
+                # spline with an arbitrary IK pole. Reconstruct both segments
+                # from the actual captured femur and tibia directions, then
+                # scale EACH segment to Kairo's measured limb lengths. In
+                # particular this preserves the captured knee chamber across
+                # turning kicks and avoids a knee inversion when the planted
+                # source foot slides or steps. IK below merely fits the foot
+                # and the captured knee plane to the same measured skeleton.
+                source_thigh=tr(p['RightLeg']-p['RightUpLeg'])
+                source_shin=tr(p['RightFoot']-p['RightLeg'])
+                assert source_thigh.length>.001 and source_shin.length>.001
+                thigh_length=(heads['rightLowerLeg']-
+                              heads['rightUpperLeg']).length
+                shin_length=(heads['rightFoot']-
+                             heads['rightLowerLeg']).length
+                fk_knee=joint+source_thigh.normalized()*thigh_length
+                fk_ankle=fk_knee+source_shin.normalized()*shin_length
+                target=heads['rightFoot'].lerp(fk_ankle,strength)
                 length=(heads['rightUpperLeg']-heads['rightLowerLeg']).length + (
                          heads['rightLowerLeg']-heads['rightFoot']).length
                 span=target-joint
