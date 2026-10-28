@@ -4,6 +4,7 @@ on:
     branches: [feature/kairo-authentic-karate-kicks]
     paths:
       - 'tools/retarget-kairo-karate.py'
+      - 'tools/verify-kairo-storm-fist.cjs'
       - 'tools/kairo-storm-fist-kicks.py'
       - 'tools/author-kairo-storm-fist.py'
       - '.github/workflows/kairo-authentic-kick-retarget.yml'
@@ -108,11 +109,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/animations/kairo/storm-fist.v3.json js/game.js
-          git diff --cached --quiet && { echo "ERROR: no newly baked kick motion to preserve"; exit 1; }
-          git commit -m "art(kairo): retarget genuine karate footwork and torso movement onto VRM"
-          git fetch origin feature/kairo-authentic-karate-kicks
-          git rebase origin/feature/kairo-authentic-karate-kicks
-          git push origin HEAD:feature/kairo-authentic-karate-kicks
+          if git diff --cached --quiet; then
+            echo "Baked motion unchanged; visual QA only; no asset commit necessary"
+          else
+            git commit -m "art(kairo): retarget genuine karate footwork and torso movement onto VRM"
+            git fetch origin feature/kairo-authentic-karate-kicks
+            git rebase origin/feature/kairo-authentic-karate-kicks
+            git push origin HEAD:feature/kairo-authentic-karate-kicks
+          fi
       - name: Film real Kairo mocap kicks continuously from gameplay front and side
         env:
           STORM_QA_COMBAT_FLAG: storm-fist-v3
@@ -121,6 +125,7 @@ jobs:
           STORM_QA_SKIP_MOVES: '0'
           STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick
           STORM_QA_VIDEO_FPS: '30'
+          STORM_QA_CONTINUOUS_MOVES: '1'
           STORM_QA_OUTPUT: visual-review-output/karate-retarget-visual
         run: node tools/verify-kairo-storm-fist.cjs
       - name: Preserve validation reports and real-Kairo footage
