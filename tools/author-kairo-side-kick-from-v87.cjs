@@ -165,7 +165,7 @@ async function main(){
       // translation. Rotate by the EXACT SAME basis as the FK source bones.
       const r=setup.rootHeight;
       const delta=rotateVec(setup.qBasis,h.map((x,j)=>(x-h0[j])*r));
-      const weight=smooth01(t/.085)*smooth01((TOTAL-t)/.13);
+      const weight=smooth01(t/.18)*smooth01((TOTAL-t)/.17);
       rawFrames.push({time:+t.toFixed(9),
         hipsPosition:setup.base.map((x,j)=>x+delta[j]*weight),
         quaternions:current.quaternions.map((q,j)=>qBlend(setup.rest[j],q,weight)),
@@ -196,13 +196,15 @@ async function main(){
     // Explicitly label this preview source, preserving the contract and 19
     // native clip IDs. This is a candidate, NOT aesthetic acceptance.
     native.revision='storm-fist-v3';
-    native.sourceSha256=crypto.createHash('sha256').update(
-      fs.readFileSync(SOURCE)).digest('hex');
+    // Retain global Storm Fist provenance for the other 18 untouched clips.
+    // Side-kick Mixamo provenance belongs in the separate candidate report.
     const file=path.join(OUT,'storm-fist-v3-side-kick-review-only.json');
     fs.writeFileSync(file,JSON.stringify(native)+'\n');
     const report={status:'UNAPPROVED_PRIVATE_CANDIDATE',
       source:'src/41-mixamo-animations.js',sourceFile:sourceMeta.source,
       sourceId:'mxRSideKick',sourceFrames:sourceMeta.n,sourceFps:30,
+      sourceArchiveSha256:crypto.createHash('sha256').update(
+        fs.readFileSync(SOURCE)).digest('hex'),
       preservedNativeClipIds:native.clips.map(c=>c.clipId),
       changedClipId:'side-kick',oldDuration:old.durationSeconds,
       newDuration:TOTAL,impact:IMPACT,sampledFrames:rawFrames.length,
