@@ -169,7 +169,7 @@ def source_mocap_clip(name,file,peak,source_dir):
                 # The support leg must not follow the mocap actor's floor
                 # drift unboundedly while Kairo's gameplay root stays planted.
                 f,l,z=vector_components(foot)
-                foot=offset(clamp(f,-.045,.045),clamp(l,-.035,.035),clamp(z,-.006,.018))
+                foot=offset(clamp(f,-.015,.015),clamp(l,-.015,.015),clamp(z,-.002,.006))
             target=heads[side+'Foot']+foot*strength
             if side=='right':
                 # Enforce Kairo's actual thigh + shin reach as a kinematic
