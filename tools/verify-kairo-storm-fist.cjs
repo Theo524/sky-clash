@@ -586,6 +586,14 @@ async function captureShowcase(page){
 }
 
 async function captureMoves(page){
+ // Review-only camera option: hide the training dummy's mesh so Kairo's
+ // own full-body kick silhouette is never obscured by hit reactions.
+ // The opponent remains active for identical actual combat physics.
+ if(process.env.STORM_QA_HIDE_OPPONENT==='1')await page.evaluate(()=>{
+  const rig=window.__stormQA?.e?.vrmRig?.vrm;
+  if(!rig?.scene)throw Error('Review opponent rig unavailable');
+  rig.scene.visible=false;
+ });
  const dir=path.join(output,'move-frames');fs.mkdirSync(dir,{recursive:true});
  await page.evaluate(()=>{const panel=document.getElementById('walkLabStatus');if(panel)panel.open=false;});
  const available=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
