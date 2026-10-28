@@ -61,7 +61,7 @@ jobs:
           node <<'NODE'
           const fs=require('fs'),cp=require('child_process'),assert=require('assert/strict');
           const file='assets/animations/kairo/storm-fist.v3.json';
-          const original=JSON.parse(cp.execFileSync('git',['show','HEAD:'+file],{encoding:'utf8'}));
+          const original=JSON.parse(cp.execFileSync('git',['show','HEAD:'+file],{encoding:'utf8',maxBuffer:8*1024*1024}));
           const candidate=JSON.parse(fs.readFileSync(file,'utf8'));
           const meta=x=>Object.fromEntries(Object.entries(x).filter(([k])=>k!=='clips'));
           assert.deepEqual(meta(candidate),meta(original),'Native-pack metadata changed');
