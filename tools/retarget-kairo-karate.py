@@ -140,9 +140,9 @@ def source_mocap_clip(name,file,peak,source_dir):
         strength=smooth(t/.11)*smooth((duration-t)/.15)
         hip_delta=tr(p['Hips']-first['Hips'])
         hf,hl,hz=vector_components(hip_delta)
-        hip=(clamp(hf*strength,-.12,.16),
-             clamp(hl*strength,-.10,.10),
-             clamp(hz*strength,-.085,.11))
+        hip=(clamp(hf*strength,-.075,.08),
+             clamp(hl*strength,-.06,.065),
+             clamp(hz*strength,-.075,.005))
         hip_t=offset(*hip)
         hips_yaw=clamp(angle_about_up(pelvis_axis0,p['RightUpLeg']-p['LeftUpLeg']),-105,105)*strength
         chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
@@ -169,7 +169,7 @@ def source_mocap_clip(name,file,peak,source_dir):
                 # The support leg must not follow the mocap actor's floor
                 # drift unboundedly while Kairo's gameplay root stays planted.
                 f,l,z=vector_components(foot)
-                foot=offset(clamp(f,-.095,.095),clamp(l,-.065,.065),clamp(z,-.008,.045))
+                foot=offset(clamp(f,-.045,.045),clamp(l,-.035,.035),clamp(z,-.006,.018))
             target=heads[side+'Foot']+foot*strength
             if side=='right':
                 # Enforce Kairo's actual thigh + shin reach as a kinematic
