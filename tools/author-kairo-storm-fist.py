@@ -506,6 +506,7 @@ for clip in clips:
             foot=position(side+"Foot")
             foot_goal=targets[(side,"ankle")].location
             residual=(foot-foot_goal).length
+            if residual>max_foot: worst_foot=(clip['clipId'],side,round(t,4),round(residual,5))
             max_foot=max(max_foot,residual)
             max_wrist=max(max_wrist,(position(side+"Hand")-targets[(side,"wrist")].location).length)
             grounded=abs(foot_goal.z-heads[side+"Foot"].z)<.015
@@ -535,7 +536,7 @@ for clip in clips:
             jointPositionsGame={n:to_game(position(n)) for n in bones},
             pelvisOffsetGame=to_game(position("hips")-base_pos["hips"]),
             feet=feet,support=support))
-    assert max_foot<.004,(clip["clipId"],"unreachable ankle",max_foot)
+    assert max_foot<.004,(clip["clipId"],"unreachable ankle",max_foot,worst_foot)
     assert max_wrist<.012,(clip["clipId"],"unreachable wrist",max_wrist)
     results.append({k:v for k,v in clip.items() if k!="keys"}|dict(samples=samples,
         maxSourceFootError=max_foot,maxSourceWristError=max_wrist))

@@ -44,7 +44,7 @@ def make_storm_kicks():
     # The lead palm remains forward while the rear elbow draws back as a
     # counterweight; this silhouette stays recognisable beside the side kick.
     rise_chamber = pelvis + offset(.12, -.035, -.34)
-    rise_contact = pelvis + offset(.89, -.035, .18)
+    rise_contact = pelvis + offset(.84, -.045, .30)
     rising = [
         pose(0, right_start),
         pose(.09, right_start + offset(-.035, 0, .025),
@@ -57,7 +57,7 @@ def make_storm_kicks():
              (.015, .080, -.045), 4, 12, -10, -4, pivot_yaw=12,
              foot=(0, -12, 0), knee=(.75, -.035, .46),
              left_hand=guard["left"] + offset(.045, .015, .025)),
-        pose(.375, pelvis + offset(.55, -.035, -.035),
+        pose(.375, pelvis + offset(.49, -.05, .075),
              (.045, .085, -.030), 11, 20, -18, -7, pivot_yaw=16,
              foot=(0, -30, 0), knee=(.85, -.04, .30),
              right_hand=guard["right"] + offset(-.09, -.035, -.035)),
@@ -66,11 +66,11 @@ def make_storm_kicks():
              foot=(0, -38, 0), knee=(.85, -.045, .20),
              left_hand=guard["left"] + offset(.035, .015, .035),
              right_hand=guard["right"] + offset(-.12, -.045, -.055)),
-        pose(.445, pelvis + offset(.89, -.025, .20),
+        pose(.445, pelvis + offset(.82, -.02, .33),
              (.065, .085, -.020), 16, 26, -26, -9, pivot_yaw=18,
              foot=(0, -29, 0), knee=(.85, -.045, .18),
              right_hand=guard["right"] + offset(-.12, -.045, -.055)),
-        pose(.525, pelvis + offset(.43, -.035, .035),
+        pose(.525, pelvis + offset(.38, -.04, .105),
              (.030, .080, -.025), 8, 15, -14, -5, pivot_yaw=15,
              foot=(0, -8, 0), knee=(.82, -.035, .42)),
         pose(.605, rise_chamber + offset(-.035, 0, -.025),
@@ -83,46 +83,47 @@ def make_storm_kicks():
         pose(.87, right_start),
     ]
 
-    # Roundhouse: the rear heel first folds toward the seat, the knee opens
-    # outside, then the instep whips around a broad horizontal arc. Pelvis
+    # Roundhouse: lift and turn the chamber visibly OUTSIDE the hip, sweep
+    # the instep through a lateral arc, and fold back before placing the foot.
+    # This must not read like a forward kick from the gameplay camera. Pelvis
     # rotation leads a deliberately counter-rotated chest and forearms.
-    round_chamber = pelvis + offset(.04, -.22, -.38)
-    round_contact = pelvis + offset(.96, .035, .18)
+    round_chamber = pelvis + offset(.00, -.37, -.28)
+    round_contact = pelvis + offset(.76, .29, .24)
     roundhouse = [
         pose(0, right_start),
         pose(.10, right_start + offset(-.04, -.025, .045),
              (-.025, .045, -.045), -12, -18, 3, -2,
              foot=(-12, 15, -8)),
-        pose(.205, pelvis + offset(-.17, -.22, -.40),
+        pose(.205, pelvis + offset(-.18, -.37, -.33),
              (-.025, .090, -.045), -7, 2, -4, -5, pivot_yaw=20,
-             foot=(8, 32, -15), knee=(.18, -.78, .30),
+             foot=(12, 30, -15), knee=(.12, -.72, .40),
              left_hand=guard["left"] + offset(.025, .035, .035),
              right_hand=guard["right"] + offset(-.04, -.08, .045)),
         pose(.29, round_chamber,
              (.010, .105, -.025), 18, 32, -10, -13, pivot_yaw=45,
-             foot=(38, 30, -10), knee=(.45, -.73, .28),
+             foot=(40, 28, -10), knee=(.32, -.73, .38),
              right_hand=guard["right"] + offset(-.085, -.10, .015)),
-        pose(.355, pelvis + offset(.48, -.43, -.015),
+        pose(.355, pelvis + offset(.34, -.52, .075),
              (.035, .105, -.055), 38, 54, -23, -22, pivot_yaw=62,
-             foot=(50, 23, -12), knee=(.66, -.60, .16),
+             foot=(55, 23, -12), knee=(.60, -.63, .24),
              left_hand=guard["left"] + offset(.025, .015, .065),
              right_hand=guard["right"] + offset(-.19, -.12, -.015)),
         pose(.41, round_contact,
              (.050, .105, -.060), 64, 72, -31, -27, pivot_yaw=72,
-             foot=(62, 26, -10), knee=(.80, -.45, .12),
+             foot=(73, 26, -10), knee=(.72, -.47, .18),
              left_hand=guard["left"] + offset(.005, .015, .075),
              right_hand=guard["right"] + offset(-.255, -.11, -.035)),
-        pose(.455, pelvis + offset(.78, .34, .145),
+        pose(.455, pelvis + offset(.69, .48, .27),
              (.040, .105, -.050), 82, 80, -28, -25, pivot_yaw=76,
-             foot=(92, 30, -6), knee=(.78, -.20, .18),
+             foot=(89, 28, -6), knee=(.77, -.23, .19),
              left_hand=guard["left"] + offset(-.025, .015, .055),
              right_hand=guard["right"] + offset(-.205, -.08, -.025)),
-        pose(.535, pelvis + offset(.26, .12, -.14),
+        pose(.535, pelvis + offset(.33, .28, -.03),
              (.010, .095, -.055), 56, 58, -18, -17, pivot_yaw=58,
-             foot=(60, 24, -8), knee=(.75, -.35, .35)),
-        pose(.62, pelvis + offset(.045, -.14, -.37),
+             foot=(65, 24, -8), knee=(.70, -.39, .32)),
+        pose(.62, pelvis + offset(.03, -.29, -.26),
              (-.010, .070, -.025), 20, 24, -7, -7, pivot_yaw=30,
-             foot=(22, 25, -4), knee=(.52, -.62, .32)),
+             foot=(28, 25, -4), knee=(.45, -.62, .38)),
         pose(.75, right_start + offset(-.015, -.025, .075),
              (-.010, .025, -.030), -3, -5, 1, 0, pivot_yaw=5,
              foot=(0, 10, 0), knee=(.62, -.10, .08)),
@@ -130,11 +131,11 @@ def make_storm_kicks():
         pose(.87, right_start),
     ]
 
-    # Side kick: knee closes across the body, hip turns to profile, heel
-    # drives out on one line. Unlike the roundhouse, there is no sweeping
+    # Side kick: keep a tight folded chamber, then drive the heel in a near-
+    # straight line at the opponent's torso after the hip turns to profile. Unlike the roundhouse, there is no sweeping
     # shin arc or spin-through: the leg recoils back through its chamber.
     side_chamber = pelvis + offset(.035, .035, -.27)
-    side_contact = pelvis + offset(.98, -.015, .095)
+    side_contact = pelvis + offset(.79, -.045, .16)
     sidekick = [
         pose(0, right_start),
         pose(.09, right_start + offset(-.025, 0, .035),
@@ -158,7 +159,7 @@ def make_storm_kicks():
              foot=(0, -78, -8), knee=(.90, .15, .08),
              left_hand=guard["left"] + offset(.005, .015, .095),
              right_hand=guard["right"] + offset(-.25, -.10, -.035)),
-        pose(.445, pelvis + offset(.99, -.015, .105),
+        pose(.445, pelvis + offset(.81, -.04, .16),
              (.050, .110, -.065), 72, 83, -36, -27, pivot_yaw=78,
              foot=(0, -78, -8), knee=(.90, .15, .08),
              left_hand=guard["left"] + offset(.005, .015, .095),
@@ -176,11 +177,11 @@ def make_storm_kicks():
         pose(.87, right_start),
     ]
 
-    # Aerial crescent/turning kick: compact scissor preparation, a sweeping
-    # instep contact and a fast folded recoil. The left leg never impersonates
+    # Aerial crescent/turning kick: visibly sweep laterally through the target,
+    # while the other leg counter-scissors; do not mirror the grounded side kick. The left leg never impersonates
     # floor support. The profile and arm counter-sweep differ from ground kicks.
     air_left = left_start + offset(-.10, .025, .31)
-    sky_contact = pelvis + offset(.96, -.015, .16)
+    sky_contact = pelvis + offset(.79, .27, .25)
     skykick = [
         pose(0, right_start),
         pose(.075, pelvis + offset(-.12, -.17, -.41),
@@ -194,7 +195,7 @@ def make_storm_kicks():
              left=air_left + offset(-.055, .025, .08),
              left_angle=(12, 24, 5),
              right_hand=guard["right"] + offset(-.085, -.09, .025)),
-        pose(.255, pelvis + offset(.49, -.37, .015),
+        pose(.255, pelvis + offset(.41, -.48, .09),
              (.025, .015, .005), 40, 57, -23, -22,
              foot=(52, 25, -13), knee=(.76, -.49, .17),
              left=air_left + offset(-.075, .025, .10),
@@ -208,13 +209,13 @@ def make_storm_kicks():
              left_angle=(39, 35, 12),
              left_hand=guard["left"] + offset(-.005, .015, .075),
              right_hand=guard["right"] + offset(-.265, -.095, -.025)),
-        pose(.34, pelvis + offset(.77, .31, .13),
+        pose(.34, pelvis + offset(.70, .44, .24),
              (.025, .015, .010), 79, 87, -27, -24,
              foot=(95, 30, -4), knee=(.84, -.10, .15),
              left=air_left + offset(-.085, .025, .10),
              left_angle=(43, 32, 12),
              right_hand=guard["right"] + offset(-.235, -.07, -.015)),
-        pose(.42, pelvis + offset(.24, .10, -.16),
+        pose(.42, pelvis + offset(.28, .23, -.03),
              (.005, .010, -.005), 55, 59, -17, -14,
              foot=(57, 24, -5), knee=(.70, -.35, .38),
              left=air_left + offset(-.045, .015, .07),
