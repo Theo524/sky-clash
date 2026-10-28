@@ -134,7 +134,7 @@ def make_storm_kicks():
     # Side kick: keep a tight folded chamber, then drive the heel in a near-
     # straight line at the opponent's torso after the hip turns to profile. Unlike the roundhouse, there is no sweeping
     # shin arc or spin-through: the leg recoils back through its chamber.
-    side_chamber = pelvis + offset(.015, .005, -.24)
+    side_chamber = pelvis + offset(.035, .035, -.27)
     side_contact = pelvis + offset(.79, -.045, .16)
     sidekick = [
         pose(0, right_start),
@@ -149,7 +149,7 @@ def make_storm_kicks():
              (-.005, .105, -.035), 40, 58, -16, -16, pivot_yaw=54,
              foot=(5, -38, -20), knee=(.62, .35, .45),
              right_hand=guard["right"] + offset(-.055, -.055, -.005)),
-        pose(.365, pelvis + offset(.38, -.005, .01),
+        pose(.365, pelvis + offset(.46, .015, -.085),
              (.025, .110, -.065), 58, 73, -28, -24, pivot_yaw=70,
              foot=(0, -67, -12), knee=(.83, .19, .20),
              left_hand=guard["left"] + offset(.025, .015, .075),
@@ -164,7 +164,7 @@ def make_storm_kicks():
              foot=(0, -78, -8), knee=(.90, .15, .08),
              left_hand=guard["left"] + offset(.005, .015, .095),
              right_hand=guard["right"] + offset(-.25, -.10, -.035)),
-        pose(.525, pelvis + offset(.38, -.015, .015),
+        pose(.525, pelvis + offset(.44, .025, -.070),
              (.015, .100, -.060), 52, 66, -23, -18, pivot_yaw=63,
              foot=(0, -55, -10), knee=(.78, .30, .30)),
         pose(.61, side_chamber + offset(-.025, 0, -.025),
