@@ -132,8 +132,17 @@ async function main(){
     rawFrames[rawFrames.length-1].hipsPosition=setup.base.slice();
     rawFrames[rawFrames.length-1].quaternions=setup.rest.map(q=>q.slice());
     // No joint may reverse by an instantaneous 90+ degree timestep.
-    const maxStep=Math.max(...rawFrames.slice(1).flatMap((f,i)=>
-      f.quaternions.map((q,j)=>measureDegrees(q,rawFrames[i].quaternions[j]))));
+    const transitions=rawFrames.slice(1).flatMap((f,i)=>
+      f.quaternions.map((q,j)=>({bone:NAMES[j],frame:i+1,
+        t0:rawFrames[i].time,t1:f.time,
+        degrees:measureDegrees(q,rawFrames[i].quaternions[j])})));
+    const worstSteps=transitions.sort((a,b)=>b.degrees-a.degrees).slice(0,15);
+    const maxStep=worstSteps[0].degrees;
+    if(maxStep>=80){
+      fs.writeFileSync(path.join(OUT,'rejected-rotation-steps.json'),
+        JSON.stringify({worstSteps,maxStep},null,2));
+      console.error('REJECTED VRM high-velocity bone samples',JSON.stringify(worstSteps));
+    }
     assert(maxStep<80,'Sampled VRM has snapping rotation: '+maxStep);
     const candidate={...old,durationSeconds:TOTAL,impactSeconds:IMPACT,
       frames:rawFrames};
