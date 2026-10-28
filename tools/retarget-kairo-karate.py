@@ -114,6 +114,13 @@ def source_mocap_clip(name,file,peak,source_dir):
                 (heads['rightLowerLeg']-heads['rightFoot']).length)
     scale=target_leg/source_leg
     assert .025<scale<.11,(file,scale)
+    # Retarget in the frame of the captured PLANTED foot, not the moving
+    # pelvis. Subtracting the travel of the actor's hips from the striking
+    # foot while separately clamping pelvis travel removed most of the
+    # authentic extension and counterweight transfer.
+    initial_support_to_pelvis=first['Hips']-first['LeftFoot']
+    support_leg=(heads['leftUpperLeg']-heads['leftLowerLeg']).length + (
+        heads['leftLowerLeg']-heads['leftFoot']).length
     # Explicitly face the mocap kick's horizontal foot trajectory toward
     # Kairo's opponent. No historical VRM+Z / Blender-Y facing guess.
     actor_forward=horizontal(at_hit['RightFoot']-at_hit['Hips'])
@@ -138,17 +145,23 @@ def source_mocap_clip(name,file,peak,source_dir):
         # Smooth in/out of Kairo's OWN existing guard, avoiding a hard-cut from
         # his game stance to the actor's arbitrary opening pose.
         strength=smooth(t/.11)*smooth((duration-t)/.15)
-        hip_delta=tr(p['Hips']-first['Hips'])
+        # The real support-foot/pelvis relationship contains the actor's
+        # weight shift. Keep it in world space as the Kairo gameplay root is
+        # in-place, then project onto the reach of Kairo's measured support leg.
+        hip_delta=tr((p['Hips']-p['LeftFoot'])-initial_support_to_pelvis)
         hf,hl,hz=vector_components(hip_delta)
-        hip=(clamp(hf*strength,-.075,.08),
-             clamp(hl*strength,-.06,.065),
-             clamp(hz*strength,-.075,.005))
+        hip=(clamp(hf*strength,-.16,.16),
+             clamp(hl*strength,-.14,.14),
+             clamp(hz*strength,-.12,.04))
         if name in ('roundhouse','side-kick'):
-            # Karate turning kicks sink onto a bent support knee as the pelvis
-            # rotates. Kairo's measured stance otherwise straightens the
-            # support leg to a tiny but unsolvable limit at follow-through.
-            hip=(hip[0],hip[1],min(hip[2],-.035*strength))
+            hip=(hip[0],hip[1],min(hip[2],-.025*strength))
         hip_t=offset(*hip)
+        support_joint=heads['leftUpperLeg']+hip_t
+        support_span=heads['leftFoot']-support_joint
+        if support_span.length>support_leg*.965:
+            hip_t+=(heads['leftFoot']-support_span.normalized()*
+                    (support_leg*.965))-support_joint
+            hip=vector_components(hip_t)
         hips_yaw=clamp(angle_about_up(pelvis_axis0,p['RightUpLeg']-p['LeftUpLeg']),-105,105)*strength
         chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
         actor_torso=horizontal(p['Spine1']-p['Hips'])
@@ -165,17 +178,14 @@ def source_mocap_clip(name,file,peak,source_dir):
         hand_targets={}
         for side in ('left','right'):
             label=side.capitalize()
-            # FK motion relative to the actor's moving pelvis. The raw world
-            # trajectory contains metres of performer travel which the
-            # in-place Kairo melee root does NOT share.
-            foot=tr((p[label+'Foot']-p['Hips'])-
-                    (first[label+'Foot']-first['Hips']))+hip_t
-            if side=='left':
-                # The support leg must not follow the mocap actor's floor
-                # drift unboundedly while Kairo's gameplay root stays planted.
-                f,l,z=vector_components(foot)
-                foot=offset(clamp(f,-.015,.015),clamp(l,-.015,.015),clamp(z,-.002,.006))
-            target=heads[side+'Foot']+foot*strength
+            # Reproduce the captured foot trajectory relative to the SAME
+            # actual planted shoe used for the pelvis. Keep Kairo's left sole
+            # planted; turning is expressed by the captured toe orientation.
+            # This is true source FK motion, not an animated foot-offset arc.
+            foot=tr((p[label+'Foot']-p['LeftFoot'])-
+                    (first[label+'Foot']-first['LeftFoot']))
+            target=(heads['leftFoot'].copy() if side=='left' else
+                    heads['rightFoot']+foot*strength)
             if side=='right':
                 # Enforce Kairo's actual thigh + shin reach as a kinematic
                 # limit. IK should NEVER be asked to extend a non-existent
@@ -184,8 +194,8 @@ def source_mocap_clip(name,file,peak,source_dir):
                 length=(heads['rightUpperLeg']-heads['rightLowerLeg']).length + (
                          heads['rightLowerLeg']-heads['rightFoot']).length
                 span=target-joint
-                if span.length>length*.91:
-                    target=joint+span.normalized()*(length*.91)
+                if span.length>length*.965:
+                    target=joint+span.normalized()*(length*.965)
             foot_targets[side]=target
             toe_now=p[label+'ToeBase']-p[label+'Foot']
             toe_0=first[label+'ToeBase']-first[label+'Foot']
@@ -193,12 +203,32 @@ def source_mocap_clip(name,file,peak,source_dir):
             pitch=clamp(math.degrees(math.atan2(toe_now.y,max(.01,horizontal(toe_now).length)))-
                         math.degrees(math.atan2(toe_0.y,max(.01,horizontal(toe_0).length))),-42,45)*strength
             foot_angles[side]=(foot_yaw,pitch,0)
-            knee_hints[side]=dir_(p[label+'Leg'],p[label+'UpLeg'])*.75
-            # Kairo's shoulders are narrower than CMU actor's. The raw
-            # performer elbow pole repeatedly crossed Kairo's ribcage during
-            # the fast turn. Retain safe measured outside-elbow bend planes.
-            elbow_hints[side]=(offset(-.14,.29,-.31) if side=='left'
-                               else offset(-.18,-.33,-.29))
+            # Transfer the actual captured knee BEND PLANE. A thigh vector
+            # is not an IK pole: projecting it into the hip/ankle plane
+            # erases the martial artist's knee-chamber and turning intent.
+            upper=tr(p[label+'UpLeg']-p['LeftFoot'])
+            knee=tr(p[label+'Leg']-p['LeftFoot'])
+            ankle=tr(p[label+'Foot']-p['LeftFoot'])
+            axis=(ankle-upper).normalized()
+            bend=(knee-upper)-axis*(knee-upper).dot(axis)
+            knee_hints[side]=(bend.normalized()*.75 if bend.length>.001
+                              else offset(.0,.45,-.25))
+            # Recover arm counterbalance from captured shoulder/elbow/wrist
+            # geometry while retaining the outward guard clearance on the
+            # stylised, narrower Kairo torso.
+            shoulder=tr(p[label+'Arm']-p['LeftFoot'])
+            elbow=tr(p[label+'ForeArm']-p['LeftFoot'])
+            wrist_source=tr(p[label+'Hand']-p['LeftFoot'])
+            arm_axis=(wrist_source-shoulder).normalized()
+            pole=(elbow-shoulder)-arm_axis*(elbow-shoulder).dot(arm_axis)
+            safe=(offset(-.14,.29,-.31) if side=='left'
+                  else offset(-.18,-.33,-.29)).normalized()
+            if pole.length>.001:
+                captured=pole.normalized()
+                if captured.dot(safe)<0: captured.negate()
+                elbow_hints[side]=(captured*.48+safe*.52).normalized()*.75
+            else:
+                elbow_hints[side]=safe*.75
             wrist=tr((p[label+'Hand']-p['Spine1'])-
                      (first[label+'Hand']-first['Spine1']))+hip_t
             # Hands should follow the actor's counterbalancing changes but
@@ -206,7 +236,7 @@ def source_mocap_clip(name,file,peak,source_dir):
             # Hip displacement is included once in the target's world frame.
             # Preserve the ACTOR's arm counter-sweep rhythm, but attenuate
             # its reach so the hands do not punch through Kairo's ribs.
-            hand_goal=guard[side]+wrist*strength*.28
+            hand_goal=guard[side]+wrist*strength*.48
             # Different human/VRM arm proportions: preserve the actor's
             # hand-direction counterbalance without hyperextending Kairo's
             # elbows. The measured shoulder-to-wrist link is ~0.55 m.
@@ -214,8 +244,8 @@ def source_mocap_clip(name,file,peak,source_dir):
             reach=(heads[side+'UpperArm']-heads[side+'LowerArm']).length + (
                    heads[side+'LowerArm']-heads[side+'Hand']).length
             delta=hand_goal-shoulder
-            if delta.length>reach*.83:
-                hand_goal=shoulder+delta.normalized()*(reach*.83)
+            if delta.length>reach*.85:
+                hand_goal=shoulder+delta.normalized()*(reach*.85)
             hand_targets[side]=hand_goal
         result.append(key(t,hand_targets['left'],hand_targets['right'],
             hip=hip,yaw=chest_yaw,hips_yaw=hips_yaw,
