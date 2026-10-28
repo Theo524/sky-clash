@@ -101,9 +101,51 @@ def source_mocap_clip(name,file,peak,source_dir):
     fps=1/dt
     assert 115<fps<125,(file,fps)
     duration,contact=.87,.41
-    t0=max(0,min(len(frames)-1,round(peak-contact*fps)))
-    first=frame_pose(nodes,names,frames[t0])
-    at_hit=frame_pose(nodes,names,frames[peak])
+    # Motion reference: the striking instant is not a guessed BVH frame.
+    # Identify its actual high, extended, opponent-directed right foot.  The
+    # old hard-coded markers (notably trial 135_11 frame 608) aligned "impact"
+    # to the *recoil*, so the leg folded when the hit effect was playing.
+    # Keep the manually located frame as a narrow event-local search seed;
+    # never scan the entire multi-technique file and pick an unrelated kick.
+    seed=frame_pose(nodes,names,frames[peak])
+    direction=horizontal(seed['RightFoot']-seed['Hips'])
+    seed_leg=((seed['RightUpLeg']-seed['RightLeg']).length+
+              (seed['RightLeg']-seed['RightFoot']).length)
+    candidates=[]
+    for j in range(max(0,peak-round(fps*.34)),
+                   min(len(frames),peak+round(fps*.20)+1)):
+        pose=frame_pose(nodes,names,frames[j])
+        thigh=pose['RightLeg']-pose['RightUpLeg']
+        shin=pose['RightFoot']-pose['RightLeg']
+        extension=(thigh+shin).length/max(.001,thigh.length+shin.length)
+        lift=(pose['RightFoot'].y-pose['LeftFoot'].y)/seed_leg
+        reach=(pose['RightFoot']-pose['RightUpLeg']).dot(direction)/seed_leg
+        # Require a raised striking shoe; a fully straight *standing* leg
+        # must not win the event selection.  Use the actual thrust direction
+        # and leg extension, not an attractive but biomechanically wrong arc.
+        if lift>.15 and extension>.48:
+            score=reach+.20*extension+.10*min(1.4,lift)
+            candidates.append((score,j,lift,extension,reach))
+    assert candidates,(file,'No identifiable raised, extended human kick')
+    # A centred five-frame window suppresses isolated mocap marker jitter.
+    rough=max(candidates)[1]
+    ranking={item[1]:item for item in candidates}
+    neighbour=[ranking[j] for j in range(rough-2,rough+3) if j in ranking]
+    selected=max(neighbour,key=lambda x:x[0])
+    impact_frame=selected[1]
+    # Preserve the actor's genuine approach and re-chamber, but register the
+    # *recorded extension* with the game's hit instant.  The 0.87s clip is
+    # assembled as a continuous, piecewise-linear sampling of real captured
+    # frames; no fabricated knee or ankle trajectory is introduced.
+    source_begin=max(0,impact_frame-round(fps*contact))
+    source_end=min(len(frames)-1,impact_frame+round(fps*(duration-contact)))
+    first=frame_pose(nodes,names,frames[source_begin])
+    at_hit=frame_pose(nodes,names,frames[impact_frame])
+    print('KARATE_REFERENCE_STRIKE',name,'seed',peak,'capturedContact',impact_frame,
+          'correctionFrames',impact_frame-peak,'liftLegLengths',round(selected[2],3),
+          'extensionRatio',round(selected[3],3),
+          'forwardReachLegLengths',round(selected[4],3),
+          'sourceWindow',source_begin,source_end)
     assert all(k in names for k in (
         'Hips','Spine1','LeftUpLeg','RightUpLeg','LeftLeg','RightLeg',
         'LeftFoot','RightFoot','LeftArm','RightArm','LeftHand','RightHand',
@@ -145,7 +187,13 @@ def source_mocap_clip(name,file,peak,source_dir):
     previous_elbow_planes={}
     for i in range(53):
         t=round(min(duration,i/60),7)
-        source_frame=clamp(t0+t*fps,0,len(frames)-1)
+        # Piecewise linear time map: actual human extension exactly on hit,
+        # and unmodified filmed movement on either side of that event.
+        source_frame=(source_begin+(impact_frame-source_begin)*t/contact
+                      if t<=contact else
+                      impact_frame+(source_end-impact_frame)*
+                      (t-contact)/(duration-contact))
+        source_frame=clamp(source_frame,0,len(frames)-1)
         lo=int(source_frame); hi=min(lo+1,len(frames)-1)
         pa=frame_pose(nodes,names,frames[lo])
         pb=frame_pose(nodes,names,frames[hi])
@@ -234,7 +282,9 @@ def source_mocap_clip(name,file,peak,source_dir):
             foot_targets[side]=target
             toe_now=p[label+'ToeBase']-p[label+'Foot']
             toe_0=first[label+'ToeBase']-first[label+'Foot']
-            foot_yaw=clamp(angle_about_up(toe_0,toe_now),-110,110)*strength
+            # The planted shoe is the pivot axis in Mawashi/Yoko.
+            # 110 degrees truncated genuine heel turns into knee/hip torque.
+            foot_yaw=clamp(angle_about_up(toe_0,toe_now),-155,155)*strength
             pitch=clamp(math.degrees(math.atan2(toe_now.y,max(.01,horizontal(toe_now).length)))-
                         math.degrees(math.atan2(toe_0.y,max(.01,horizontal(toe_0).length))),-42,45)*strength
             foot_angles[side]=(foot_yaw,pitch,0)
@@ -305,8 +355,25 @@ def source_mocap_clip(name,file,peak,source_dir):
     result.append(key(duration,guard['left'],guard['right'],
                       feet={'left':heads['leftFoot'].copy(),
                             'right':heads['rightFoot'].copy()}))
+    # Human reference acceptance evidence, one sample each at chamber,
+    # full extension, and re-chamber.  This is joint-level data from the
+    # captured actor, not an unsupported visual "looks better" assertion.
+    def captured_phase(seconds):
+        frame=(source_begin+(impact_frame-source_begin)*seconds/contact
+               if seconds<=contact else impact_frame+(source_end-impact_frame)*
+               (seconds-contact)/(duration-contact))
+        pose=frame_pose(nodes,names,frames[round(clamp(frame,0,len(frames)-1))])
+        hip=pose['RightUpLeg'];knee=pose['RightLeg'];foot=pose['RightFoot']
+        leg=(knee-hip).length+(foot-knee).length
+        return dict(kneeHeight=round((knee.y-pose['LeftFoot'].y)/leg,3),
+            footHeight=round((foot.y-pose['LeftFoot'].y)/leg,3),
+            extension=round((foot-hip).length/leg,3),
+            forwardReach=round((foot-hip).dot(actor_forward)/leg,3))
+    print('KARATE_CAPTURED_PHASES',name,
+          'chamber',captured_phase(.22),'impact',captured_phase(contact),
+          'rechamber',captured_phase(.60))
     print('AUTHENTIC_KARATE_RETARGET',name,'fps',round(fps,2),
-          'scale',round(scale,5),'actor peak',peak,'keys',len(result))
+          'scale',round(scale,5),'measured strike',impact_frame,'keys',len(result))
     return dict(clipId=name,durationSeconds=duration,impactSeconds=contact,
         keys=result,grounded=True,air=False,kickingSide='right',
         explicitFeet=True,supportWindows={
