@@ -52,6 +52,7 @@ jobs:
           STORM_QA_MOVES: side-kick
           STORM_QA_VIDEO_FPS: '30'
           STORM_QA_CONTINUOUS_MOVES: '1'
+          STORM_QA_HIDE_OPPONENT: '1'
           STORM_QA_OUTPUT: visual-review-output/kairo-v87-side-kick-candidate/real-kairo-capture
         run: node tools/verify-kairo-storm-fist.cjs
       - name: Upload candidate and review footage (never update branch asset)
