@@ -7,7 +7,7 @@ on:
       - '.github/workflows/kairo-v87-side-kick-candidate.yml'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   full-body-candidate:
     runs-on: ubuntu-latest
@@ -55,7 +55,35 @@ jobs:
           STORM_QA_HIDE_OPPONENT: '1'
           STORM_QA_OUTPUT: visual-review-output/kairo-v87-side-kick-candidate/real-kairo-capture
         run: node tools/verify-kairo-storm-fist.cjs
-      - name: Upload candidate and review footage (never update branch asset)
+      - name: Verify ONLY side kick changed and commit isolated improvement on draft branch
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),cp=require('child_process'),assert=require('assert/strict');
+          const file='assets/animations/kairo/storm-fist.v3.json';
+          const original=JSON.parse(cp.execFileSync('git',['show','HEAD:'+file],{encoding:'utf8'}));
+          const candidate=JSON.parse(fs.readFileSync(file,'utf8'));
+          const meta=x=>Object.fromEntries(Object.entries(x).filter(([k])=>k!=='clips'));
+          assert.deepEqual(meta(candidate),meta(original),'Native-pack metadata changed');
+          assert.equal(candidate.clips.length,19,'Lost a native clip');
+          const before=Object.fromEntries(original.clips.map(c=>[c.clipId,c]));
+          const after=Object.fromEntries(candidate.clips.map(c=>[c.clipId,c]));
+          assert.deepEqual(Object.keys(after).sort(),Object.keys(before).sort(),'Clip identity changed');
+          for(const id of Object.keys(before)){
+            if(id==='side-kick')continue;
+            assert.deepEqual(after[id],before[id],'Unexpectedly modified native clip '+id);
+          }
+          assert.notDeepEqual(after['side-kick'],before['side-kick'],'Mixamo change is empty');
+          console.log('PASS exactly one experimental clip updated: side-kick; 18 clips preserved');
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/animations/kairo/storm-fist.v3.json
+          git commit -m "art(kairo): use original Mixamo full-body Side Kick (experimental draft only)"
+          git fetch origin feature/kairo-authentic-karate-kicks
+          git rebase origin/feature/kairo-authentic-karate-kicks
+          git push origin HEAD:feature/kairo-authentic-karate-kicks
+      - name: Upload candidate and review footage (never deploy)
         uses: actions/upload-artifact@v4
         if: always()
         with:
