@@ -147,7 +147,16 @@ clips.append(attack('original-overhand',.68,.33,[
 # Kicks are independent authored phrases in the same control schema.
 exec(compile(pathlib.Path('tools/kairo-storm-fist-kicks.py').read_text(),
              'tools/kairo-storm-fist-kicks.py','exec'),globals())
-clips.extend(make_storm_kicks())
+# CMU action retarget is an explicit research-only authoring mode. It never
+# loads source motion in the browser or affects the shipped V3 unless baked,
+# reviewed and separately merged.
+import os
+if os.environ.get('KAIRO_KARATE_BVH_DIR'):
+    exec(compile(pathlib.Path('tools/retarget-kairo-karate.py').read_text(),
+                 'tools/retarget-kairo-karate.py','exec'),globals())
+    clips.extend(make_authentic_karate_clips())
+else:
+    clips.extend(make_storm_kicks())
 
 clips.append(attack('sky-uppercut',.57,.29,[
  key(0,guard['left'],guard['right']),
