@@ -383,6 +383,9 @@ for clip in clips:
         if bv is None: bv=av
         w=max(0,min(1,(t-aa['t'])/max(1e-9,bb['t']-aa['t'])))
         return av.lerp(bv,w*w*(3-2*w))
+    mocap_leg=(bool(os.environ.get('KAIRO_KARATE_BVH_DIR')) and
+               clip['clipId'] in {'rising-kick','roundhouse','side-kick'})
+    source_knee_angles={}
     # A stationary pole can cross the moving limb axis and suddenly roll a
     # perfectly connected elbow/knee by 100 degrees. Transport the measured
     # bend plane along each target's shortest arc instead. Dense control keys
@@ -426,7 +429,33 @@ for clip in clips:
                     transported-=current_axis*transported.dot(current_axis)
                     transported.normalize()
                     hint=hint_at('knees',side,t)
-                    if hint is None:
+                    if mocap_leg and side=="right":
+                        # Follow the capture's REAL knee side, even when the
+                        # chamber rotates across the neutral standing plane.
+                        # The historical `if dot<0: negate()` turned those
+                        # legitimate motions into backwards-knee silhouettes.
+                        # Rotate the rest bend around the current thigh/ankle
+                        # axis by a continuous, unwrapped signed angle. Ramp
+                        # only at the mocap-to-guard joins; at contact the
+                        # knee points exactly into the captured bend plane.
+                        rest=(initial_axis.rotation_difference(current_axis)@
+                              initial_bend).normalized()
+                        projection=hint-current_axis*hint.dot(current_axis)
+                        if projection.length>.00001:
+                            desired=projection.normalized()
+                            theta=math.atan2(current_axis.dot(rest.cross(desired)),
+                                             rest.dot(desired))
+                            previous=source_knee_angles.get(side)
+                            if previous is not None:
+                                theta+=2*math.pi*round((previous-theta)/(2*math.pi))
+                            source_knee_angles[side]=theta
+                            enter=max(0,min(1,t/.11))
+                            leave=max(0,min(1,(duration-t)/.15))
+                            fade=(enter*enter*(3-2*enter))*(leave*leave*(3-2*leave))
+                            bend=(Quaternion(current_axis,theta*fade)@rest).normalized()
+                        else:
+                            bend=transported
+                    elif hint is None:
                         # Closed, non-kicking foot paths retain their measured
                         # initial bend reference, avoiding parallel-transport
                         # drift on a complete pelvis/foot loop.
@@ -438,10 +467,9 @@ for clip in clips:
                             bend=transported
                         else:
                             projected.normalize()
-                            # A pole hint crossing the straight leg axis has
-                            # two equivalent signs. Preserve the continuous
-                            # anatomical bend hemisphere, rather than rolling
-                            # the thigh and shoe through 180 degrees.
+                            # Preserve legacy transport for non-kick clips.
+                            # The explicit FK chain above has its own separate,
+                            # anatomy-driven knee solver.
                             if projected.dot(transported)<0: projected.negate()
                             weight=min(1,strength/.22)
                             weight=weight*weight*(3-2*weight)
@@ -510,6 +538,8 @@ for clip in clips:
     evaluate(1)
     # World deltas must always use the MEASURED standing basis, including guard.
     samples=[]; max_foot=0.; max_wrist=0.
+    source_knee_alignments=[]
+    previous_knee_bend=None
     for t in times:
         evaluate(1+t*60)
         deltas=[list((world_quat(n)@base_q[n].inverted()).normalized()) for n in bones]
@@ -544,6 +574,32 @@ for clip in clips:
             else:
                 support[side]=bool(clip.get("grounded") and grounded and
                                    (clip["clipId"]=="guard" or near))
+        if mocap_leg and .19<=t<=.63:
+            # Compare the EVALUATED Blender/VRM knee, not just IK targets, to
+            # the original human's captured knee direction. This fails when
+            # IK silently chooses the opposite bend hemisphere. Source FK
+            # defines the thigh, shin, and true knee plane independently.
+            thigh=position('rightUpperLeg')
+            knee=position('rightLowerLeg')
+            ankle=position('rightFoot')
+            limb_axis=(ankle-thigh).normalized()
+            real=(knee-thigh)-limb_axis*(knee-thigh).dot(limb_axis)
+            hint=hint_at('knees','right',t)
+            desired=hint-limb_axis*hint.dot(limb_axis)
+            if real.length>.035 and desired.length>.04:
+                alignment=real.normalized().dot(desired.normalized())
+                source_knee_alignments.append(alignment)
+                assert alignment>.67, (
+                    clip['clipId'],'anatomically reversed kicking knee',
+                    round(t,4),round(alignment,3))
+                if previous_knee_bend is not None:
+                    step=math.degrees(math.acos(max(-1,min(1,
+                        previous_knee_bend.dot(real.normalized())))))
+                    assert step<57,(clip['clipId'],'knee pole snapped',
+                                    round(t,4),round(step,1))
+                previous_knee_bend=real.normalized()
+            else:
+                previous_knee_bend=None
         samples.append(dict(timeSeconds=t,deltasWXYZ=deltas,
             jointPositionsGame={n:to_game(position(n)) for n in bones},
             pelvisOffsetGame=to_game(position("hips")-base_pos["hips"]),
@@ -554,6 +610,10 @@ for clip in clips:
         maxSourceFootError=max_foot,maxSourceWristError=max_wrist))
     # Every action remains inspectable/reeditable as a measured Blender rig.
     bpy.ops.wm.save_as_mainfile(filepath=str(OUT/("storm-"+clip["clipId"]+".blend")))
+    if mocap_leg:
+        print("AUTHENTIC_KICK_KNEE_ANATOMY",clip["clipId"],
+              "minSourceKneeAlignment",round(min(source_knee_alignments),4)
+              if source_knee_alignments else "no bent frames")
     print("AUTHORED",clip["clipId"],len(samples),"foot",max_foot,"wrist",max_wrist)
 
 result=dict(schema="sky-clash.kairo-storm-fist-dcc.v1",modelSha256=sha,
