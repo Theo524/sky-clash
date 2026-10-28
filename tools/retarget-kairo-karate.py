@@ -200,7 +200,17 @@ def source_mocap_clip(name,file,peak,source_dir):
             # Hands should follow the actor's counterbalancing changes but
             # start/end at the approved Kairo guard positions.
             # Hip displacement is included once in the target's world frame.
-            hand_targets[side]=guard[side]+wrist*strength
+            hand_goal=guard[side]+wrist*strength
+            # Different human/VRM arm proportions: preserve the actor's
+            # hand-direction counterbalance without hyperextending Kairo's
+            # elbows. The measured shoulder-to-wrist link is ~0.55 m.
+            shoulder=heads[side+'UpperArm']+hip_t
+            reach=(heads[side+'UpperArm']-heads[side+'LowerArm']).length + (
+                   heads[side+'LowerArm']-heads[side+'Hand']).length
+            delta=hand_goal-shoulder
+            if delta.length>reach*.83:
+                hand_goal=shoulder+delta.normalized()*(reach*.83)
+            hand_targets[side]=hand_goal
         result.append(key(t,hand_targets['left'],hand_targets['right'],
             hip=hip,yaw=chest_yaw,hips_yaw=hips_yaw,
             lean=lean,roll=roll,feet=foot_targets,foot_angles=foot_angles,
