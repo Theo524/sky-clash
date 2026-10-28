@@ -165,7 +165,7 @@ async function main(){
       // translation. Rotate by the EXACT SAME basis as the FK source bones.
       const r=setup.rootHeight;
       const delta=rotateVec(setup.qBasis,h.map((x,j)=>(x-h0[j])*r));
-      const weight=smooth01(t/.18)*smooth01((TOTAL-t)/.17);
+      const weight=smooth01(t/.22)*smooth01((TOTAL-t)/.17);
       rawFrames.push({time:+t.toFixed(9),
         hipsPosition:setup.base.map((x,j)=>x+delta[j]*weight),
         quaternions:current.quaternions.map((q,j)=>qBlend(setup.rest[j],q,weight)),
