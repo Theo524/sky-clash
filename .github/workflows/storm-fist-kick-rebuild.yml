@@ -93,6 +93,8 @@ jobs:
           git add assets/animations/kairo/storm-fist.v3.json
           git diff --cached --quiet && { echo "ERROR: no newly baked kick motion to preserve"; exit 1; }
           git commit -m "art(kicks): bake revised grounded and aerial kick trajectories onto Kairo"
+          git fetch origin feature/storm-fist-kick-silhouette-v5
+          git rebase origin/feature/storm-fist-kick-silhouette-v5
           git push origin HEAD:feature/storm-fist-kick-silhouette-v5
       - name: Capture real-model continuous front/side kick footage
         env:
