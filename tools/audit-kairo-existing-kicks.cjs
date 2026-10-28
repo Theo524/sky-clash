@@ -122,7 +122,7 @@ async function main(){
           p.punchT=9;p.attackElapsed=seconds;p.attackTotal=duration;
           // V72's recorded-body owner applies the V87 full-body rotations.
           p.v72StudioPack.weight=1;
-          p.animate(1/FPS);
+          p.animate(1/30);
           s.scene?.updateMatrixWorld?.(true);
           const h=p.vrmRig.vrm.humanoid,where=bone=>
             h.getNormalizedBoneNode(bone).getWorldPosition(new T.Vector3()).toArray();
