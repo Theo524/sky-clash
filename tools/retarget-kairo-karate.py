@@ -160,13 +160,28 @@ def source_mocap_clip(name,file,peak,source_dir):
         hand_targets={}
         for side in ('left','right'):
             label=side.capitalize()
-            foot=tr(p[label+'Foot']-first[label+'Foot'])
+            # FK motion relative to the actor's moving pelvis. The raw world
+            # trajectory contains metres of performer travel which the
+            # in-place Kairo melee root does NOT share.
+            foot=tr((p[label+'Foot']-p['Hips'])-
+                    (first[label+'Foot']-first['Hips']))+hip_t
             if side=='left':
                 # The support leg must not follow the mocap actor's floor
                 # drift unboundedly while Kairo's gameplay root stays planted.
                 f,l,z=vector_components(foot)
                 foot=offset(clamp(f,-.095,.095),clamp(l,-.065,.065),clamp(z,-.008,.045))
-            foot_targets[side]=heads[side+'Foot']+foot*strength
+            target=heads[side+'Foot']+foot*strength
+            if side=='right':
+                # Enforce Kairo's actual thigh + shin reach as a kinematic
+                # limit. IK should NEVER be asked to extend a non-existent
+                # third leg segment when actor proportions differ.
+                joint=heads['rightUpperLeg']+hip_t
+                length=(heads['rightUpperLeg']-heads['rightLowerLeg']).length + (
+                         heads['rightLowerLeg']-heads['rightFoot']).length
+                span=target-joint
+                if span.length>length*.91:
+                    target=joint+span.normalized()*(length*.91)
+            foot_targets[side]=target
             toe_now=p[label+'ToeBase']-p[label+'Foot']
             toe_0=first[label+'ToeBase']-first[label+'Foot']
             foot_yaw=clamp(angle_about_up(toe_0,toe_now),-110,110)*strength
@@ -175,7 +190,8 @@ def source_mocap_clip(name,file,peak,source_dir):
             foot_angles[side]=(foot_yaw,pitch,0)
             knee_hints[side]=dir_(p[label+'Leg'],p[label+'UpLeg'])*.75
             elbow_hints[side]=dir_(p[label+'ForeArm'],p[label+'Arm'])*.65
-            wrist=tr(p[label+'Hand']-first[label+'Hand'])
+            wrist=tr((p[label+'Hand']-p['Spine1'])-
+                     (first[label+'Hand']-first['Spine1']))+hip_t
             # Hands should follow the actor's counterbalancing changes but
             # start/end at the approved Kairo guard positions.
             # Hip displacement is included once in the target's world frame.
