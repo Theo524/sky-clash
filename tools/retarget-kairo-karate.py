@@ -134,6 +134,7 @@ def source_mocap_clip(name,file,peak,source_dir):
     upper_axis0=first['RightArm']-first['LeftArm']
     torso0=first['Spine1']-first['Hips']
     result=[]
+    previous_elbow_planes={}
     for i in range(53):
         t=round(min(duration,i/60),7)
         source_frame=clamp(t0+t*fps,0,len(frames)-1)
@@ -229,12 +230,20 @@ def source_mocap_clip(name,file,peak,source_dir):
             pole=(elbow-shoulder)-arm_axis*(elbow-shoulder).dot(arm_axis)
             safe=(offset(-.14,.29,-.31) if side=='left'
                   else offset(-.18,-.33,-.29)).normalized()
+            # A hemisphere sign flip at 90 degrees produces a violent
+            # upper-arm snap. Use only the captured tangential pole swing,
+            # preserve Kairo's outside-elbow hemisphere, and low-pass the
+            # source signal at the measured 60 Hz authoring sample rate.
             if pole.length>.001:
                 captured=pole.normalized()
-                if captured.dot(safe)<0: captured.negate()
-                elbow_hints[side]=(captured*.48+safe*.52).normalized()*.75
+                tangent=captured-safe*captured.dot(safe)
+                desired=(safe+tangent*.20).normalized()
             else:
-                elbow_hints[side]=safe*.75
+                desired=safe
+            previous=previous_elbow_planes.get(side,safe)
+            stable=previous.lerp(desired,.27).normalized()
+            previous_elbow_planes[side]=stable
+            elbow_hints[side]=stable*.75
             wrist=tr((p[label+'Hand']-p['Spine1'])-
                      (first[label+'Hand']-first['Spine1']))+hip_t
             # Hands should follow the actor's counterbalancing changes but
@@ -243,6 +252,14 @@ def source_mocap_clip(name,file,peak,source_dir):
             # Preserve the ACTOR's arm counter-sweep rhythm, but attenuate
             # its reach so the hands do not punch through Kairo's ribs.
             hand_goal=guard[side]+wrist*strength*.48
+            # Anatomical guard clearance: if the actor swings a wrist across
+            # the sternum, remap that reach to Kairo's near-side silhouette
+            # rather than threading the sleeve through his narrower ribs.
+            outward=1 if side=='left' else -1
+            torso=heads['upperChest']+hip_t
+            signed_side=(hand_goal-torso).dot(lateral)*outward
+            if signed_side<.16:
+                hand_goal+=lateral*(outward*(.16-signed_side))
             # Different human/VRM arm proportions: preserve the actor's
             # hand-direction counterbalance without hyperextending Kairo's
             # elbows. The measured shoulder-to-wrist link is ~0.55 m.
