@@ -160,6 +160,7 @@ async function main(){
        impacts.push({tick:i,damage:lastHp-e.hp,clip:f.clip,
         beforeStrike:event?{elapsed:event.before.attacker.elapsed,
          rootSeparation:distance(event.before.attacker.root,event.before.target.root),
+         targetAboveFloor:Math.max(0,event.before.target.root[1]-event.before.target.floor),
          nearestStrikeJointToChest:Math.min(...beforePoints.map(point=>distance(point,event.before.target.chest)))}:null,
         nearestStrikeJointToChest:Math.min(...strikePoints.map(point=>distance(point,f.target.chest))),
         rootSeparation:p.pos.distanceTo(e.pos)});lastHp=e.hp;
@@ -258,6 +259,14 @@ async function main(){
    check(has(r.alternate.frames,'original-overhand'),'Alternate overhand missing');
    check(has(r.aerial,'air-strike'),'Free aerial attack missing');
    check(r.combo.impacts.length>=6,'Complete combo did not connect');
+   // The rising kick should actually meet a still-grounded opponent. Earlier
+   // Storm Fist punched the rival a metre into the air before this contact.
+   if(combatFlag==='storm-fist-v3')for(const impact of r.combo.impacts.filter(x=>x.clip==='rising-kick')){
+    check(impact.beforeStrike?.targetAboveFloor<.45,
+      'Pre-launch rival was already airborne '+JSON.stringify(impact.beforeStrike));
+    check(impact.beforeStrike?.nearestStrikeJointToChest<.80,
+      'Rising shoe missed opponent chest before damage '+JSON.stringify(impact.beforeStrike));
+   }
    check(r.whiff.impacts.length===0,'Distant attack caused damage');
    check(r.movement>.05,'Recovered movement failed');
    check(r.combo.recovery.slot==='idle'&&!r.combo.recovery.native,'Combo did not recover to unchanged idle');

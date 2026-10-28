@@ -4422,14 +4422,22 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = contactHit(base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.launched = true; target.launchT = 0;
-        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15); Effects.launchTrail(target);
+        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15);
+        // Storm Fist already emits a compact foot-anchored impact. The old
+        // launch ring and eight large glow sprites obscure the kick entirely.
+        if (!storm) Effects.launchTrail(target);
         // The player must press Melee again while the opponent is in the air.
         attacker.comboFollow = { target, phase: 1, until: attacker.t + TUNING.airFollowWindow };
         if (attacker === Game.player) Game.callout('LAUNCH · TAP MELEE TO FOLLOW', 'launch'); }
     } else {
       // Opening strikes keep opponents within range for a real four-hit chain.
       const push = [3.1, 4.0, 6.6][stage];
-      result = contactHit(base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
+      // Storm Fist's hook must NOT pre-launch the rival. The old 2.2 upward
+      // impulse floated the opponent almost a metre above Kairo before the
+      // fourth-beat rising kick, so the foot visibly struck empty air.
+      // Grounded strikes stay grounded; the fourth beat owns the launch.
+      const upward = storm ? (stage === 2 ? 0.35 : 0.18) : (stage === 2 ? 2.2 : 0.8);
+      result = contactHit(base, fwd.multiplyScalar(push).setY(upward), stage === 2 || counter);
     }
     if (result === 'hit') {
       if(storm&&stage<3)attacker.stormHitSerial=attacker.attackSerial;

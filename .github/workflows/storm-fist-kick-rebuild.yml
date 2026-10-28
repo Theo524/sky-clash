@@ -1,7 +1,7 @@
-name: Storm Fist Kick Choreography - Rebuild and Real Kairo QA
+name: Storm Fist V5 - Reauthored Kick Silhouettes and Real Kairo QA
 on:
   push:
-    branches: [feature/storm-fist-kick-polish-v4]
+    branches: [feature/storm-fist-kick-silhouette-v5]
     paths:
       - 'tools/kairo-storm-fist-kicks.py'
       - 'tools/author-kairo-storm-fist.py'
@@ -36,6 +36,9 @@ jobs:
           node --check tools/capture-kairo-combat-anchor.cjs
           node --check tools/bake-kairo-storm-fist.cjs
           node --check tools/verify-kairo-storm-fist.cjs
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Rebundle real playable JavaScript from updated src files
+        run: python3 tools/build.py
       - name: Serve local game for authoring (does not deploy)
         run: |
           set -euo pipefail
@@ -82,17 +85,19 @@ jobs:
         env:
           STORM_QA_COMBAT_FLAG: storm-fist-v3
           STORM_QA_FILM: '0'
-          STORM_QA_OUTPUT: visual-review-output/kick-v4-game-validation
+          STORM_QA_OUTPUT: visual-review-output/kick-v5-game-validation
         run: node tools/verify-kairo-storm-fist.cjs
       - name: Commit reproducibly baked animation to candidate branch only
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/animations/kairo/storm-fist.v3.json
+          git add assets/animations/kairo/storm-fist.v3.json js/game.js
           git diff --cached --quiet && { echo "ERROR: no newly baked kick motion to preserve"; exit 1; }
           git commit -m "art(kicks): bake revised grounded and aerial kick trajectories onto Kairo"
-          git push origin HEAD:feature/storm-fist-kick-polish-v4
+          git fetch origin feature/storm-fist-kick-silhouette-v5
+          git rebase origin/feature/storm-fist-kick-silhouette-v5
+          git push origin HEAD:feature/storm-fist-kick-silhouette-v5
       - name: Capture real-model continuous front/side kick footage
         env:
           STORM_QA_COMBAT_FLAG: storm-fist-v3
@@ -101,16 +106,16 @@ jobs:
           STORM_QA_SKIP_MOVES: '0'
           STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick
           STORM_QA_VIDEO_FPS: '30'
-          STORM_QA_OUTPUT: visual-review-output/kick-v4-visual
+          STORM_QA_OUTPUT: visual-review-output/kick-v5-visual
         run: node tools/verify-kairo-storm-fist.cjs
       - name: Preserve validation reports and real-Kairo footage
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: storm-fist-kick-v4-real-kairo-evidence
+          name: storm-fist-kick-v5-real-kairo-evidence
           path: |
-            visual-review-output/kick-v4-game-validation/
-            visual-review-output/kick-v4-visual/
+            visual-review-output/kick-v5-game-validation/
+            visual-review-output/kick-v5-visual/
             visual-review-output/kairo-combat-foundation/storm-fist-bake-report.json
           retention-days: 21
           if-no-files-found: warn
