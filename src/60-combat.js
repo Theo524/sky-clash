@@ -284,7 +284,12 @@ const Combat = (() => {
     } else {
       // Opening strikes keep opponents within range for a real four-hit chain.
       const push = [3.1, 4.0, 6.6][stage];
-      result = contactHit(base, fwd.multiplyScalar(push).setY(stage === 2 ? 2.2 : 0.8), stage === 2 || counter);
+      // Storm Fist's hook must NOT pre-launch the rival. The old 2.2 upward
+      // impulse floated the opponent almost a metre above Kairo before the
+      // fourth-beat rising kick, so the foot visibly struck empty air.
+      // Grounded strikes stay grounded; the fourth beat owns the launch.
+      const upward = storm ? (stage === 2 ? 0.35 : 0.18) : (stage === 2 ? 2.2 : 0.8);
+      result = contactHit(base, fwd.multiplyScalar(push).setY(upward), stage === 2 || counter);
     }
     if (result === 'hit') {
       if(storm&&stage<3)attacker.stormHitSerial=attacker.attackSerial;
