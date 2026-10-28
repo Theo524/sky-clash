@@ -143,6 +143,11 @@ def source_mocap_clip(name,file,peak,source_dir):
         hip=(clamp(hf*strength,-.075,.08),
              clamp(hl*strength,-.06,.065),
              clamp(hz*strength,-.075,.005))
+        if name in ('roundhouse','side-kick'):
+            # Karate turning kicks sink onto a bent support knee as the pelvis
+            # rotates. Kairo's measured stance otherwise straightens the
+            # support leg to a tiny but unsolvable limit at follow-through.
+            hip=(hip[0],hip[1],min(hip[2],-.035*strength))
         hip_t=offset(*hip)
         hips_yaw=clamp(angle_about_up(pelvis_axis0,p['RightUpLeg']-p['LeftUpLeg']),-105,105)*strength
         chest_yaw=clamp(angle_about_up(upper_axis0,p['RightArm']-p['LeftArm']),-120,120)*strength
