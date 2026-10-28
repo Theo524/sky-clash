@@ -318,6 +318,15 @@ for clip in clips:
         yaw_angles={"hips":pelvis_yaw,"spine":residual_yaw*.28,
             "chest":residual_yaw*.38,"upperChest":residual_yaw*.34,
             "neck":-k['yaw']*.22,"head":-k['yaw']*.30}
+        if (os.environ.get('KAIRO_KARATE_BVH_DIR') and
+                clip['clipId'] in {'rising-kick','roundhouse','side-kick'}):
+            # Karate reference: the hips may turn almost side-on in mawashi
+            # or yoko-geri, but the performer keeps eyes on the opponent.
+            # The previous partial neck counter-yaw left Kairo staring
+            # sideways during the thrust.  Rotate eyes back toward the
+            # original target instead of rigidly following the pelvis.
+            yaw_angles['neck']=-k['yaw']*.38
+            yaw_angles['head']=-k['yaw']*.42
         for name,w in weights.items():
             basis=pb[name].bone.matrix_local.to_quaternion().inverted()
             yaw=Quaternion(basis@up,math.radians(yaw_angles[name]))
