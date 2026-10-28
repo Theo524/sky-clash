@@ -274,7 +274,10 @@ const Combat = (() => {
       const kd = fwd.clone();
       result = contactHit(base, fwd.multiplyScalar(4).setY(TUNING.launchUp), true);
       if (result === 'hit') { kickImpact(attacker, target, kd); target.launched = true; target.launchT = 0;
-        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15); Effects.launchTrail(target);
+        target.juggle = 0; target.stun = Math.max(TUNING.launchStun, 1.15);
+        // Storm Fist already emits a compact foot-anchored impact. The old
+        // launch ring and eight large glow sprites obscure the kick entirely.
+        if (!storm) Effects.launchTrail(target);
         // The player must press Melee again while the opponent is in the air.
         attacker.comboFollow = { target, phase: 1, until: attacker.t + TUNING.airFollowWindow };
         if (attacker === Game.player) Game.callout('LAUNCH · TAP MELEE TO FOLLOW', 'launch'); }
