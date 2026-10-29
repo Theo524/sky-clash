@@ -683,7 +683,8 @@ async function captureMoves(page){
   // The eight-pose contact gallery above is NOT sufficient to judge timing,
   // choreography, foot sliding, or visual flow.
   if(process.env.STORM_QA_CONTINUOUS_MOVES==='1' &&
-     ['rising-kick','roundhouse','side-kick','sky-kick'].includes(id)){
+     ['original-jab','original-cross','original-hook','original-overhand',
+      'rising-kick','roundhouse','side-kick','sky-kick'].includes(id)){
    await startMove(id);
    const movieDir=path.join(output,'continuous-frames',id);
    fs.mkdirSync(movieDir,{recursive:true});
@@ -715,7 +716,7 @@ async function captureMoves(page){
     encodeMovie(movieDir,view,id+'-'+view+'-continuous',videoFps);
    }
    fs.rmSync(movieDir,{recursive:true,force:true});
-   console.log('Filmed real Kairo continuous kick',id,'frames',frames+1,'fps',videoFps);
+   console.log('Filmed real Kairo continuous move',id,'frames',frames+1,'fps',videoFps);
   }
 
  }
