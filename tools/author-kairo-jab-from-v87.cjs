@@ -168,11 +168,24 @@ async function main(){
       // translation. Rotate by the EXACT SAME basis as the FK source bones.
       const r=setup.rootHeight;
       const delta=rotateVec(setup.qBasis,h.map((x,j)=>(x-h0[j])*r));
-      const weight=smooth01(t/.115)*smooth01((TOTAL-t)/.13);
+      // The original FBX has >0.6m pelvis travel: on the real VRM the
+      // unattenuated root plus dual-foot locking makes Kairo crouch and
+      // hyperextend his back leg. The GAME also advances the fighter root
+      // during punch attacks. Do not force feet to remain anchored across
+      // that locomotion; release the existing V72 sole lock during travel.
+      // Preserve recorded upper body, pelvic turn and restrained leg loading.
+      const weight=smooth01(t/.090)*smooth01((TOTAL-t)/.145);
+      const legGain=j=>j===0?.48:
+        j===14||j===17?.28:
+        j===15||j===18?.22:
+        j===16||j===19?.16:1;
+      const support=t>.016&&t<.065||t>.415&&t<.505;
       rawFrames.push({time:+t.toFixed(9),
-        hipsPosition:setup.base.map((x,j)=>x+delta[j]*weight),
-        quaternions:current.quaternions.map((q,j)=>qBlend(setup.rest[j],q,weight)),
-        support:{left:t>.045&&t<TOTAL-.07,right:t>.045&&t<TOTAL-.07}});
+        hipsPosition:setup.base.map((x,j)=>
+          x+delta[j]*weight*(j===1?.12:.105)),
+        quaternions:current.quaternions.map((q,j)=>
+          qBlend(setup.rest[j],q,weight*legGain(j))),
+        support:{left:support,right:support}});
     }
     // Exact original standing entry and recovery; no change to guard asset.
     rawFrames[0].hipsPosition=setup.base.slice();
@@ -211,9 +224,12 @@ async function main(){
       preservedNativeClipIds:native.clips.map(c=>c.clipId),
       changedClipId:'original-jab',oldDuration:old.durationSeconds,
       newDuration:TOTAL,impact:IMPACT,sampledFrames:rawFrames.length,
-      rawRootMotion:true,blendToOriginalGuard:true,
+      rootMotionScale:{horizontal:.105,vertical:.12},
+      legGain:{hips:.48,upperLeg:.28,lowerLeg:.22,foot:.16},
+      rawRootMotion:false,blendToOriginalGuard:true,
       rootHeight:setup.rootHeight,maxQuaternionStepDegrees:maxStep,
-      supportWindows:'dual-foot support during planted jab',
+      supportWindows:'short entry and recovery locks; unlock during physics-driven jab advance',
+      runtimeMotionCaveat:'Existing game punch physics advances the fighter; this isolated bake does not change it.',
       caveat:'Candidate requires real Kairo front/side visual review; not production approved.'};
     fs.writeFileSync(path.join(OUT,'source-bake-report.json'),
       JSON.stringify(report,null,2)+'\n');
