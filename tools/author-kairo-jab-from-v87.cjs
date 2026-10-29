@@ -16,7 +16,9 @@ const SOURCE='src/41-mixamo-animations.js';
 const NAMES=require('../docs/KAIRO-COMBAT-NATIVE-RIG-MANIFEST.v1.json').bones;
 const TOTAL=.55,IMPACT=.24;
 // Sample the recorded lead-hand extension near the canonical 0.24s contact.
-const START=.02,END=.99,FPS=60;
+// Mixamo's lead arm reaches maximum extension ~0.40s into the recording.
+// At Kairo's 0.24s canonical impact, this interval samples ~0.404s.
+const START=.02,END=.90,FPS=60;
 const sourceText=fs.readFileSync(SOURCE,'utf8');
 const sourceMeta=JSON.parse(sourceText.match(/const meta = (\{[^\n]+\});/)[1]).mxKJab;
 assert.equal(sourceMeta.source,'boxing/Lead Jab.fbx');
