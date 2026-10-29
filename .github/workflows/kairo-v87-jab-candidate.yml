@@ -1,0 +1,84 @@
+name: Kairo V87 Lead Jab - Isolated Full Body Native Candidate
+on:
+  push:
+    branches: [feature/kairo-authentic-karate-kicks]
+    paths:
+      - 'tools/author-kairo-jab-from-v87.cjs'
+      - '.github/workflows/kairo-v87-jab-candidate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  full-body-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Kairo browser and video tools
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          node --check tools/author-kairo-jab-from-v87.cjs
+          node --check tools/verify-kairo-storm-fist.cjs
+      - name: Build isolated game locally (never publish)
+        run: python3 tools/build.py
+      - name: Start local game
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/v87-native-candidate.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/index.html >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/index.html >/dev/null
+      - name: Sample recorded Mixamo full-body Lead Jab on actual Kairo
+        run: node tools/author-kairo-jab-from-v87.cjs
+      - name: Swap unapproved candidate into temporary runner checkout only
+        run: |
+          set -euo pipefail
+          cp visual-review-output/kairo-v87-jab-candidate/storm-fist-v3-jab-review-only.json assets/animations/kairo/storm-fist.v3.json
+          NATIVE_COMBAT_SET=assets/animations/kairo/storm-fist.v3.json node tests/native-combat-set.js
+          node tools/verify-kairo-arm-clearance.cjs --pack assets/animations/kairo/storm-fist.v3.json --anchor assets/animations/reference/kairo-combat-anchor.v1.json --report-only --output visual-review-output/kairo-v87-jab-candidate/arm-clearance.json
+      - name: Record isolated candidate on real Kairo front and side
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_VISUAL_ONLY: '1'
+          STORM_QA_SKIP_SEQUENCE: '1'
+          STORM_QA_SKIP_MOVES: '0'
+          STORM_QA_MOVES: original-jab
+          STORM_QA_VIDEO_FPS: '30'
+          STORM_QA_CONTINUOUS_MOVES: '1'
+          STORM_QA_HIDE_OPPONENT: '1'
+          STORM_QA_OUTPUT: visual-review-output/kairo-v87-jab-candidate/real-kairo-capture
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Verify candidate modifies ONLY jab (no commit or publication)
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs=require('fs'),cp=require('child_process'),assert=require('assert/strict');
+          const file='assets/animations/kairo/storm-fist.v3.json';
+          const old=JSON.parse(cp.execFileSync('git',['show','HEAD:'+file],{encoding:'utf8',maxBuffer:8*1024*1024}));
+          const candidate=JSON.parse(fs.readFileSync(file,'utf8'));
+          const metadata=x=>Object.fromEntries(Object.entries(x).filter(([k])=>k!=='clips'));
+          assert.deepEqual(metadata(candidate),metadata(old));
+          assert.equal(candidate.clips.length,19);
+          const before=Object.fromEntries(old.clips.map(x=>[x.clipId,x]));
+          const after=Object.fromEntries(candidate.clips.map(x=>[x.clipId,x]));
+          assert.deepEqual(Object.keys(before).sort(),Object.keys(after).sort());
+          for(const id of Object.keys(before))if(id!=='original-jab')
+            assert.deepEqual(after[id],before[id],id+' was modified unexpectedly');
+          assert.notDeepEqual(after['original-jab'],before['original-jab']);
+          console.log('PASS only original-jab changed: Side Kick and 17 other clips untouched.');
+          NODE
+      - name: Upload candidate and review footage (never deploy)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kairo-v87-jab-native-unapproved-review
+          path: visual-review-output/kairo-v87-jab-candidate/
+          retention-days: 21
+          if-no-files-found: warn
