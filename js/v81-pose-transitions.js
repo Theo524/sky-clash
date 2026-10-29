@@ -46,9 +46,11 @@
   const old=f.animate;
   const st={rig:null,mode:null,elapsed:1,blend:1,nodes:[],
    previous:[],fingerNodes:[],fingerRest:[],handGrip:0,
-   thumbNodes:[],thumbRest:[],jabThumbGrip:0,frames:0,
+   thumbNodes:[],thumbRest:[],jabThumbGrip:0,jabCurlWeight:0,frames:0,
     airWristAnchor:null,previousHips:null,nativeRelease:false};
-  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
+  const y=new THREE.Vector3(0,1,0),z=new THREE.Vector3(0,0,1),
+   extra=new THREE.Quaternion(),curlY=new THREE.Quaternion(),
+   curlZ=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
    headWorld=new THREE.Quaternion(),parentWorld=new THREE.Quaternion(),
    euler=new THREE.Euler();
   function capture(rig){
@@ -76,7 +78,7 @@
     }
    }
    st.rig=rig;st.mode=null;st.elapsed=1;st.blend=1;
-    st.airWristAnchor=null;st.jabThumbGrip=0;
+    st.airWristAnchor=null;st.jabThumbGrip=0;st.jabCurlWeight=0;
   }
   f.animate=function(dt){
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -172,9 +174,18 @@
     const fingerTarget=stabilize&&naturalAir?0:(jabFist?1.28:grip);
     st.handGrip+=(fingerTarget-st.handGrip)*
       (1-Math.exp(-safe*(jabFist?30:13)));
+    // Kairo's normalized finger flexion is around local Z, NOT the
+    // lateral-spread Y rotation used by older guard states. Blend the
+    // rotation itself on entry and recovery so there is no fist-axis snap.
+    st.jabCurlWeight+=((jabFist?1:0)-st.jabCurlWeight)*
+      (1-Math.exp(-safe*25));
     for(let i=0;i<st.fingerNodes.length;i++){
      const {node,sign,angle}=st.fingerNodes[i];
-     extra.setFromAxisAngle(y,sign*angle*st.handGrip);
+     curlY.setFromAxisAngle(y,sign*angle*st.handGrip);
+     if(st.jabCurlWeight>.0005){
+      curlZ.setFromAxisAngle(z,-sign*angle*st.handGrip);
+      extra.slerpQuaternions(curlY,curlZ,st.jabCurlWeight).normalize();
+     }else extra.copy(curlY);
      node.quaternion.copy(st.fingerRest[i]).multiply(extra);
     }
     st.jabThumbGrip+=((jabFist?1:0)-st.jabThumbGrip)*
@@ -182,7 +193,8 @@
     if(st.jabThumbGrip>.0005)for(let i=0;i<st.thumbNodes.length;i++){
      const {node,sign,angle}=st.thumbNodes[i];
      extra.setFromAxisAngle(y,sign*angle*st.jabThumbGrip);
-     node.quaternion.copy(st.thumbRest[i]).multiply(extra);
+     curlZ.setFromAxisAngle(z,-sign*angle*.55*st.jabThumbGrip);
+     node.quaternion.copy(st.thumbRest[i]).multiply(extra).multiply(curlZ);
     }
     if(stabilize&&naturalAir&&st.airWristAnchor){
       const maxWristTurn=.48; // ~27.5 deg relative to last visible wrist
