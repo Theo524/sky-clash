@@ -5,6 +5,10 @@ on:
     paths:
       - 'tools/author-kairo-jab-from-v87.cjs'
       - '.github/workflows/kairo-v87-jab-candidate.yml'
+  pull_request:
+    paths:
+      - 'tools/author-kairo-jab-from-v87.cjs'
+      - '.github/workflows/kairo-v87-jab-candidate.yml'
   workflow_dispatch:
 permissions:
   contents: read
