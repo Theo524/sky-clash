@@ -179,13 +179,18 @@ async function main(){
         j===14||j===17?.28:
         j===15||j===18?.22:
         j===16||j===19?.16:1;
-      const support=t>.016&&t<.065||t>.415&&t<.505;
+      // Right (rear) foot pushes first; left (lead) foot catches the
+      // small step before the punch lands. Replant both feet on recovery.
+      // Existing V72 foot contact correction solves the actual VRM legs.
+      // Do not anchor both soles against the game's whole .6m punch move.
+      const leadPlant=t>.103&&t<.315||t>.365&&t<.505;
+      const rearPlant=t>.023&&t<.138||t>.345&&t<.505;
       rawFrames.push({time:+t.toFixed(9),
         hipsPosition:setup.base.map((x,j)=>
           x+delta[j]*weight*(j===1?.12:.105)),
         quaternions:current.quaternions.map((q,j)=>
           qBlend(setup.rest[j],q,weight*legGain(j))),
-        support:{left:support,right:support}});
+        support:{left:leadPlant,right:rearPlant}});
     }
     // Exact original standing entry and recovery; no change to guard asset.
     rawFrames[0].hipsPosition=setup.base.slice();
@@ -228,7 +233,7 @@ async function main(){
       legGain:{hips:.48,upperLeg:.28,lowerLeg:.22,foot:.16},
       rawRootMotion:false,blendToOriginalGuard:true,
       rootHeight:setup.rootHeight,maxQuaternionStepDegrees:maxStep,
-      supportWindows:'short entry and recovery locks; unlock during physics-driven jab advance',
+      supportWindows:'right-rear push 0.023-0.138; left-lead catch 0.103-0.315; both recover 0.365-0.505',
       runtimeMotionCaveat:'Existing game punch physics advances the fighter; this isolated bake does not change it.',
       caveat:'Candidate requires real Kairo front/side visual review; not production approved.'};
     fs.writeFileSync(path.join(OUT,'source-bake-report.json'),
