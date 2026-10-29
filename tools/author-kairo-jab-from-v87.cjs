@@ -174,7 +174,7 @@ async function main(){
       // during punch attacks. Do not force feet to remain anchored across
       // that locomotion; release the existing V72 sole lock during travel.
       // Preserve recorded upper body, pelvic turn and restrained leg loading.
-      const weight=smooth01(t/.090)*smooth01((TOTAL-t)/.145);
+      const weight=smooth01(t/.130)*smooth01((TOTAL-t)/.145);
       const legGain=j=>j===0?.48:
         j===14||j===17?.28:
         j===15||j===18?.22:
