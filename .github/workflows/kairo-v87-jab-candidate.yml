@@ -4,10 +4,12 @@ on:
     branches: [feature/kairo-authentic-karate-kicks]
     paths:
       - 'tools/author-kairo-jab-from-v87.cjs'
+      - 'js/v81-pose-transitions.js'
       - '.github/workflows/kairo-v87-jab-candidate.yml'
   pull_request:
     paths:
       - 'tools/author-kairo-jab-from-v87.cjs'
+      - 'js/v81-pose-transitions.js'
       - '.github/workflows/kairo-v87-jab-candidate.yml'
   workflow_dispatch:
 permissions:
@@ -54,11 +56,29 @@ jobs:
           STORM_QA_SKIP_SEQUENCE: '1'
           STORM_QA_SKIP_MOVES: '0'
           STORM_QA_MOVES: original-jab
-          STORM_QA_VIDEO_FPS: '30'
+          STORM_QA_VIDEO_FPS: '60'
           STORM_QA_CONTINUOUS_MOVES: '1'
           STORM_QA_ARM_CLOSEUP: '1'
           STORM_QA_HIDE_OPPONENT: '1'
           STORM_QA_OUTPUT: visual-review-output/kairo-v87-jab-candidate/real-kairo-capture
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Make 2x slow-motion review films from 60 fps real-Kairo captures
+        run: |
+          set -euo pipefail
+          cd visual-review-output/kairo-v87-jab-candidate/real-kairo-capture
+          for view in front side; do
+            ffmpeg -hide_banner -loglevel error -y \
+              -i "original-jab-${view}-continuous.mp4" \
+              -vf "setpts=2.0*PTS" -r 30 -an \
+              "original-jab-${view}-slow-motion.mp4"
+          done
+      - name: Run actual native gameplay QA at 30, 60 and 120 FPS (no publish)
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_SKIP_SEQUENCE: '1'
+          STORM_QA_SKIP_MOVES: '1'
+          STORM_QA_FILM: '0'
+          STORM_QA_OUTPUT: visual-review-output/kairo-v87-jab-candidate/native-fps-qa
         run: node tools/verify-kairo-storm-fist.cjs
       - name: Verify candidate modifies ONLY jab (no commit or publication)
         run: |
