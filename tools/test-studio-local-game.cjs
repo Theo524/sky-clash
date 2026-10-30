@@ -176,6 +176,58 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.notEqual(normal.sourceFile,'local-apply-to-game-test.fbx');
   assert(!normal.indicator);
   assert(normal.fullBody&&normal.count>0,'Published Kairo still uses masked punches');
+  // Preview-only Kairo body expression on ACTUAL VRM/Chromium. The
+  // approved idle/jump/flight stay intact when this URL flag is absent.
+  await navigate('?scene=dojo&flightBody=alive');
+  const livingFlight=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,a=window.SkyClashPoseAuthority;
+   window.SkyClash.Game.enterDojo();
+   window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.jumping=false;p.dropping=false;p.landingMotionT=0;p.acro=null;
+   p.pos.y=2.3;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   const chest=p.vrmRig.vrm.humanoid.getNormalizedBoneNode('chest');
+   const samples=[],heights=[];
+   for(let i=0;i<165;i++){
+    p.t+=1/60;p.animate(1/60);
+    if(i===74||i===134){
+     samples.push(chest.quaternion.toArray());
+     heights.push(p.pos.y);
+    }
+   }
+   const q=new window.THREE.Quaternion().fromArray(samples[0]);
+   const difference=q.angleTo(new window.THREE.Quaternion().fromArray(samples[1]));
+   return {active:a.active,style:a.flightBodyExpression,amplitude:a.flightBodyDegrees,
+    difference,heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error};
+  });
+  assert.equal(livingFlight.active,'flight');
+  assert.equal(livingFlight.style,'V166 gentle living hover preview');
+  assert(livingFlight.amplitude>0&&livingFlight.amplitude<3.2);
+  assert(livingFlight.difference>.01&&livingFlight.difference<.11,
+   'Live Kairo ribs should move subtly, not remain frozen or snap');
+  assert(livingFlight.heights.every(h=>h===2.3),'visual breathing must not shift physics root');
+  assert(!livingFlight.error,'V100 flight preview must not throw');
+  await navigate('?scene=dojo');
+  const approvedFlight=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,a=window.SkyClashPoseAuthority;
+   window.SkyClash.Game.enterDojo();
+   window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.jumping=false;p.dropping=false;p.landingMotionT=0;p.acro=null;
+   p.pos.y=2.3;p.vel.set(0,0,0);
+   for(let i=0;i<140;i++){p.t+=1/60;p.animate(1/60);}
+   return {state:a.active,body:a.flightBodyExpression,degrees:a.flightBodyDegrees,error:a.error};
+  });
+  assert.equal(approvedFlight.state,'flight');
+  assert.equal(approvedFlight.body,'off','normal public flight must have no new body movement');
+  assert.equal(approvedFlight.degrees,0);
+  assert(!approvedFlight.error);
   // Corrupt local DB record: opt-in may fail, but published combat survives.
   await page.evaluate(async()=>{
    // The bridge is purposefully NOT loaded in the default game; keep
