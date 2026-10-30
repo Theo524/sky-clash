@@ -720,10 +720,18 @@
      state.localEntryAge=0;
      if(strikeKey){
       state.localHandoffSerial=serial;
-      // Anchor pre-strike world soles; do not plant after the imported
-      // hip/leg retarget has already dragged them across the floor.
+      // Respect the source contact flags at the NEW strike's sampled
+      // time. The old seed always pinned BOTH feet, even when the
+      // actual Mixamo punch2/punch3 starts by lifting one shoe. That
+      // dragged the leg toward the previous body's stance on repeat.
+      // Keep the already approved first punch's seeding unchanged.
+      const selective=localPunch&&entry.slot!=='punch1';
+      const initialSupport=selective&&entry.sampleSupport?
+       entry.sampleSupport(localPunchClock(entry,this.attackElapsed||0,
+        this.attackTotal||.55)):null;
       state.rig.vrm.scene.updateMatrixWorld(true);
       for(const [side,index] of [['left',16],['right',19]]){
+       if(selective&&!initialSupport?.[side])continue;
        const foot=state.bones[index];
        if(foot)state.localStrikeFeet[side]={
         point:foot.getWorldPosition(new THREE.Vector3()),weight:1,planted:true};
