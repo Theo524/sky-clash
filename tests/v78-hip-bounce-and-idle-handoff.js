@@ -94,6 +94,6 @@ assert(state.slot==='idle'&&!state.releasingIdle,'Stopping must restore publishe
 f.punchT=.5;f.animate(1/60);
 assert(state.slot===null&&state.weight===0,'Combat must immediately own all arm/wrist joints');
 const boot=read('js/v66-game-boot.js'),gameHTML=read('index.html');
-assert(boot.includes('js/v72-published-actions.js?v=823'),'Game must load new motion handoff');
+assert(boot.includes('js/v72-published-actions.js?v=824'),'Game must load new motion handoff');
 assert(gameHTML.includes('js/v66-game-boot.js?v=1560'),'Game HTML must refresh cache');
 console.log('PASS V78: 8.36cm run hip bounce without drift + smooth published idle joystick release + full combat isolation');

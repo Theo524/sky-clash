@@ -47,17 +47,18 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=5'));
+assert(index.includes('&studioLocal=6'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
 assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=823'));
+assert(boot.includes('js/v72-published-actions.js?v=824'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
-assert(runtimeSource.includes('const contact=localPunch&&entry.sampleSupport?entry:localPlant'));
-assert(runtimeSource.includes("supportFoot('left',state.clock,contact,state.localStrikeFeet)"));
-assert(runtimeSource.includes("supportFoot('right',state.clock,contact,state.localStrikeFeet)"));
+assert(runtimeSource.includes('if(!localPunch||entry.sampleSupport)'));
+assert(runtimeSource.includes('const contacts=localPunch?entry:localPlant'));
+assert(runtimeSource.includes("supportFoot('left',state.clock,contacts,state.localStrikeFeet)"));
+assert(runtimeSource.includes("supportFoot('right',state.clock,contacts,state.localStrikeFeet)"));
 // A 2.5s Mixamo clip with 1× authoring speed must progress only .55
 // source seconds during a .55s combat beat, not 2.5 seconds.
 const localPunch={seconds:2.5,attackImpact:1.25,speed:1};
