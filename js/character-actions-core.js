@@ -5,6 +5,9 @@ const slots={
   kairo:[
     ['idle','Ready Stance','Movement'],['walk','Walk','Movement'],['run','Run / Sprint','Movement'],['jump','Jump','Movement'],['dodge','Dodge / Evade','Movement'],
     ['runStop','Run → Stop','Transitions'],
+    ['boost','Boost / Sprint','Movement'],
+    ['floating','Hover / Float','Air / Landings'],['flying','Flying / Cruise','Air / Landings'],
+    ['landing','Landing','Air / Landings'],['guard','Guard / Block','Combat'],
     ['fallingIdle','Falling Idle','Air / Landings'],['fallToRoll','Fall → Roll','Air / Landings'],
     ['idle3','Idle 3','Long Idle Variations'],['idle4','Idle 4','Long Idle Variations'],
     ['idle5','Idle 5','Long Idle Variations'],['idleAdventure','Idle Adventure','Long Idle Variations'],
