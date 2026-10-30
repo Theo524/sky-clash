@@ -280,3 +280,69 @@ async function scriptURL(search,source){
  console.log('PASS real boot module routing: V156 normal, V164, V143/V153 rollback, V88 walk, V97 stance, query parsed once');
 })().catch(error=>{console.error(error);process.exitCode=1});
 
+
+
+// Exercise the real cumulative flight loader with a stub for the script tag.
+// This catches missing/duplicated layers without modifying game animation.
+const flightBegin=boot.indexOf("  if(new URLSearchParams(location.search).get('animator')==='unified'){");
+const flightStop=boot.indexOf('  // Release the model/recording startup barrier',flightBegin);
+assert(flightBegin>0&&flightStop>flightBegin,'Find real V100 boot section');
+const flightCode=boot.slice(flightBegin,flightStop);
+async function flightSequence(search){
+ const flags=new URLSearchParams(search),preview=flags.get('flightPreview');
+ const loaded=[];let started=0;
+ const ctx={
+  location:{search},URLSearchParams,
+  modernFlight:['v150','v151','v152','v153','v155'].includes(preview),
+  v151Preview:preview==='v151',v152Preview:preview==='v152',
+  v153Preview:preview==='v153',v155Preview:preview==='v155',
+  script:async name=>{loaded.push(name)},
+  window:{SkyClashV100Animator:{start:()=>{started++}}}
+ };
+ await vm.runInNewContext('(async()=>{'+flightCode+'})()',ctx);
+ assert.equal(started,flags.get('animator')==='unified'?1:0,
+  'V100 final pose owner starts exactly once for unified animator');
+ return loaded;
+}
+const historicalModules=[
+ 'hover-keyframes','hover-performance','relaxed-arms','vertical-flight',
+ 'vertical-followthrough','horizontal-flight','full-flight','travel-performance'
+].map((part,i)=>'js/v'+(142+i)+'-'+part+'.js?v='+(142+i)+'0');
+const ownerModule='js/v100-pose-authority.js?v=1560';
+(async()=>{
+ for(let stage=142;stage<=149;stage++){
+  const query=simulate('?flightPreview=v'+stage).location.search;
+  assert.deepEqual(await flightSequence(query),[
+   ...historicalModules.slice(0,stage-141),ownerModule],
+   'V'+stage+' must load historical V142..V'+stage+' only and the final owner');
+ }
+ const normal=simulate('').location.search;
+ assert.deepEqual(await flightSequence(normal),
+  ['js/v156-real-vrm-flight.js?v=1560',ownerModule],
+  'V156 public default must load only the accepted source and final owner');
+ for(const stage of ['v150','v151','v152','v153','v155']){
+  const q=simulate('?flightPreview='+stage).location.search;
+  const wanted=[...historicalModules,'js/v150-joystick-flight.js?v=1500'];
+  if(stage==='v151')wanted.push('js/v151-travel-arms.js?v=1510');
+  if(['v152','v153','v155'].includes(stage))
+   wanted.push('js/v152-flight-silhouette.js?v=1520');
+  if(['v153','v155'].includes(stage))
+   wanted.push('js/v153-streamlined-flight.js?v=1530');
+  wanted.push(ownerModule);
+  assert.deepEqual(await flightSequence(q),wanted,
+   'Modern flight preview '+stage+' must retain the full original prefix');
+ }
+ for(const [param,extra] of [
+  ['flightVertical=v163','js/v163-real-kairo-vertical-keyframes.js?v=1630'],
+  ['flightVertical=v164','js/v164-selected-kairo-real-flight.js?v=1640'],
+  ['flightPose=v158','js/v158-real-vrm-flight.js?v=1580']
+ ]){
+  const q=simulate('?'+param).location.search;
+  assert.deepEqual(await flightSequence(q),[
+   'js/v156-real-vrm-flight.js?v=1560',extra,ownerModule],
+   'Opt-in '+param+' should not activate historical layers');
+ }
+ assert.deepEqual(await flightSequence('?animator=legacy'),[],
+  'Explicit legacy animator must bypass V100 flight');
+ console.log('PASS real V100 boot order: eight old stages, modern variants, V156 and opt-in flight');
+})().catch(e=>{console.error(e);process.exitCode=1});
