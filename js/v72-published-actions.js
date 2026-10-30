@@ -397,6 +397,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
+    localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
@@ -478,6 +479,7 @@
     state.nativeFeet={};state.nativeEntry=null;state.nativeEntryHips=null;
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
+    state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
    }
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -500,6 +502,13 @@
       (status.nativeCombatSet?(this.hp<=0||this.launched||this.spiked||this.stun>0||
        this.downT>0||this.superHitT>0||this.slamming||this.blockHeld||this.blocking):nativeBlocked))
     state.nativePreviewCancelled=true;
+   // Snapshot the PREVIOUS visible pose before old.call() overwrites it
+   // with procedural bones. Only on a new local attack; no frame-level
+   // allocation or extra skeleton owner during ordinary gameplay.
+   const serial=Number(this.attackSerial||0);
+   const visibleBefore=status.localPlaytest?.state==='ready'&&this.punchT>0&&
+    serial!==state.localHandoffSerial&&state.bones?
+    state.bones.map(b=>b?b.quaternion.clone():null):null;
    old.call(this,dt);
    // Also applies to the V79 optional-action wrapper, which reuses
    // this attach() function. One authoritative pose during air.
@@ -665,7 +674,10 @@
     const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
     if(state.localStrikeKey!==strikeKey){
      state.localStrikeKey=strikeKey;state.localStrikeFeet={};
+     state.localEntryPose=localPunch&&entry.slot!=='punch1'?visibleBefore:null;
+     state.localEntryAge=0;
      if(strikeKey){
+      state.localHandoffSerial=serial;
       // Anchor pre-strike world soles; do not plant after the imported
       // hip/leg retarget has already dragged them across the floor.
       state.rig.vrm.scene.updateMatrixWorld(true);
@@ -678,6 +690,13 @@
     }
     state.localFullBodyPunchActive=fullBodyPunch;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
+    if(state.localEntryPose)state.localEntryAge+=elapsed;
+    // V81 sees chained punches as the SAME attack state, so it does not
+    // soften a punch1 -> punch2 -> punch3 switch. This short handoff is
+    // within V72's existing 20-bone owner, without altering Punch1.
+    const handoff=state.localEntryPose&&localPunch?
+     Math.min(1,state.localEntryAge/.085):1;
+    const handoffEase=handoff*handoff*(3-2*handoff);
     if(state.releasingIdle||state.releasingExtra){
      state.weight*=Math.exp(-elapsed*(state.releasingExtra?12:15));
      if(state.weight<.005){state.weight=0;state.releasingIdle=false;
@@ -777,8 +796,13 @@
      const angle=node.quaternion.angleTo(target),limit=i===0?Math.PI:2.7;
      if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
      node.quaternion.slerp(target,state.weight);
+     if(handoffEase<1&&state.localEntryPose?.[i]){
+      const applied=node.quaternion.clone();
+      node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
+     }
      node.updateMatrixWorld(true);
     }
+    if(handoff>=1)state.localEntryPose=null;
     if(fullBodyPunch){
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
