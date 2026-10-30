@@ -210,6 +210,14 @@
   if(fighter.blockHeld||fighter.blocking)return actions.guard?'guard':null;
   if((fighter.punchT||0)>0){
    const kind=String(fighter.attackKind||'').toLowerCase();
+   // Local editor preview: honor explicitly assigned specialty slots on
+   // the actual follow-up moves. Normal/public routing is unchanged.
+   const previewSlots=root.SkyClashPublishedActions?.localPlaytest;
+   if(previewSlots?.state==='ready'){
+    if(kind.includes('upper')&&previewSlots.slots.includes('uppercut')&&actions.uppercut)return 'uppercut';
+    if((kind.includes('skykick')||kind.includes('meteor'))&&
+       previewSlots.slots.includes('meteor')&&actions.meteor)return 'meteor';
+   }
    // V87: use the recorded strike matching each real combat beat instead
    // of looping the same procedural punch for every combination.
    if(kind.includes('airstrike')||kind.includes('elbow'))
