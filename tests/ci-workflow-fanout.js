@@ -64,5 +64,21 @@ assert(!read('kairo-v157-flight-banking').includes("      - 'js/v158-real-vrm-fl
  'Historical full V157/V158 video must not re-film every new clip migration');
 assert(read('kairo-v159-vertical-flight').includes('  workflow_dispatch:'),
  'Keep actual full-motion filming available on demand');
+// Keep costly browser reviews specific; do not film the same pack twice.
+const storm=read('kairo-storm-fist-v3-review'),kick=read('storm-fist-v4-kick-visual');
+assert(storm.includes("      - 'assets/animations/kairo/storm-fist.v3.json'")&&
+ storm.includes("      - 'src/60-combat.js'")&&
+ !storm.includes("      - 'src/**'"),
+ 'Storm Fist real-VRM review must target actual combat changes');
+assert(kick.includes('  workflow_dispatch:')&&!kick.includes('  pull_request:')&&
+ kick.includes('STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick'),
+ 'Focused four-kick film remains available on demand, never duplicated per PR');
+const focusedFlight=read('kairo-v164-selected-flight-stills');
+assert(focusedFlight.includes("      - 'js/v100-pose-authority.js'")&&
+ focusedFlight.includes("      - 'js/v164-selected-kairo-real-flight.js'")&&
+ !focusedFlight.includes("      - 'js/v66-game-boot.js'")&&
+ !focusedFlight.includes("      - 'tests/ci-quick-preview.js'")&&
+ focusedFlight.includes('  workflow_dispatch:'),
+ 'Flight real-VRM visual QA remains motion-focused and manually runnable');
 console.log('PASS: '+all.length+' concurrency guards, '+heavy.length+
  ' cached WebGL workflows, targeted visual fan-out, and full V66 safety retained');
