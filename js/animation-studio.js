@@ -664,6 +664,19 @@ async function downloadStudioBase(){
  }catch(e){setActionHelp('Could not download Base v1: '+e.message);}
  finally{button.disabled=false;}
 }
+async function importStudioBaseFile(file){
+ try{
+  if(!LiveBridge?.importBase)throw Error('Reload Studio to import Base backups.');
+  const data=JSON.parse(await file.text());
+  // Import only baked Kairo motion data; an assignment-map JSON is not
+  // enough and cannot silently replace any previously protected Base.
+  const old=await LiveBridge.loadBase();
+  if(old&&!window.confirm('Replace existing protected Base v1 with this backup?'))return;
+  const saved=await LiveBridge.importBase(data);
+  setActionHelp('Imported protected Base v1 ('+saved.slots.length+
+   ' real Kairo motion clips) from backup. Click Restore Base v1 to play it. Your existing working pack and Studio assignments are unchanged.');
+ }catch(e){setActionHelp('Could not import Base backup: '+e.message);}
+}
 async function clearAppliedGameMoves(){
  const btn=$('clearAppliedGameMoves');btn.disabled=true;
  try{
@@ -707,6 +720,12 @@ $('clearAppliedGameMoves').addEventListener('click',clearAppliedGameMoves);
 $('saveStudioBase').addEventListener('click',saveStudioBase);
 $('restoreStudioBase').addEventListener('click',restoreStudioBase);
 $('downloadStudioBase').addEventListener('click',downloadStudioBase);
+$('importStudioBase').addEventListener('click',()=>$('studioBaseInput').click());
+$('studioBaseInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];
+ if(file)await importStudioBaseFile(file);
+ e.target.value='';
+});
 $('importActions').addEventListener('click',()=>$('actionMapInput').click());
 $('actionMapInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='sky-clash-action-map'||data.version!==1)throw Error('This is not a V58 action map');const v=Action.sanitize(data.assignments);actionData.kairo=v.kairo;actionData.rin=v.rin;saveActions();refreshActionSlots();setActionHelp('Imported '+Action.count(v)+' action assignments, but this JSON contains NO Mixamo animation data. Reimport the original FBX/ZIP packs, then click Apply to Game & Play. Export Action Map alone does not update the game.');}catch(err){setActionHelp('Could not import map: '+err.message);}e.target.value='';});
 $('clearActions').addEventListener('click',()=>{if(!confirm('Clear all '+displayActor()+' action assignments?'))return;actionData[actionFighter]={};saveActions();activeAction='idle';refreshActionSlots();applyFilter();});
