@@ -19,22 +19,22 @@
     if(explicit==='rokoko'||explicit==='mixamo'||explicit==='other')
      return explicit;
     const archive=String(origin||''),path=String(fileName||'');
-    if(/rokoko/i.test(archive)||/^superhero(?:\\s*\\(\\d+\\))?\\.zip$/i.test(archive)||
-       /^superhero\\//i.test(path))return 'rokoko';
+    if(/rokoko/i.test(archive)||/^superhero(?:\s*\(\d+\))?\.zip$/i.test(archive)||
+       /^superhero\//i.test(path))return 'rokoko';
     if(/^sky-clash-clean-/i.test(archive)||/mixamo/i.test(archive)||
-       /^(movement|acrobatics|ninja|kicks|capoeira|magic|boxing)\\//i.test(path))
+       /^(movement|acrobatics|ninja|kicks|capoeira|magic|boxing)\//i.test(path))
      return 'mixamo';
     return 'other';
   }
   function packGroup(origin,fileName,source){
-    const archive=String(origin||'').replace(/\\.zip$/i,'');
-    if(source==='rokoko'&&(/superhero/i.test(archive)||/^superhero\\//i.test(fileName||'')))
+    const archive=String(origin||'').replace(/\.zip$/i,'');
+    if(source==='rokoko'&&(/superhero/i.test(archive)||/^superhero\//i.test(fileName||'')))
      return 'Rokoko · Superhero';
     if(source==='rokoko')return 'Rokoko · '+(archive||'Loose FBX');
     if(source==='mixamo')return 'Mixamo · '+(archive||'Loose FBX');
     return archive==='Loose FBX'?'Other · Loose FBX':'Other · '+(archive||'Local imports');
   }
-    function makeId(origin,filename,size,crc){return [origin,filename,size||0,crc||''].join('::');}
+  function makeId(origin,filename,size,crc){return [origin,filename,size||0,crc||''].join('::');}
   function match(clip,q,cat,tag,marks){const phrase=String(q||'').trim().toLowerCase();if(phrase&&!(clip.name+' '+clip.origin+' '+clip.fileName).toLowerCase().includes(phrase))return false;if(cat!=='all'&&clip.category!==cat)return false;const m=marks[clip.id]||{};return tag==='all'||!!m[tag];}
   function marksFor(marks,id){return Object.assign({kairo:false,rin:false,saved:false},marks[id]||{});}
   const core={category,displayName,sourceGroup,packGroup,makeId,match,marksFor};
