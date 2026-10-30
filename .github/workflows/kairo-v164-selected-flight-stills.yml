@@ -10,10 +10,7 @@ on:
       - 'assets/animations/kairo/flight-library.v1.json'
       - 'js/v156-real-vrm-flight.js'
       - 'js/v158-real-vrm-flight.js'
-      - 'js/v66-game-boot.js'
       - 'tools/capture-flight-video.cjs'
-      - 'tests/v164-selected-kairo-real-flight.js'
-      - 'tests/ci-quick-preview.js'
   workflow_dispatch:
     inputs:
       previews:
