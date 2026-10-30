@@ -491,12 +491,59 @@ function refreshActionSlots(){
  $('previewFighterName').textContent=displayActor();
  $('applyGameMoves').disabled=actionFighter!=='kairo';
  $('applyGameMoves').title=actionFighter==='kairo'?'Apply baked Kairo moves in this browser and open Training':'Rin live-playtest integration is not available yet';
+ $('exportPunchSources').disabled=actionFighter!=='kairo';
 }
 function exportActionMap(){
  const payload={format:'sky-clash-action-map',version:1,createdAt:new Date().toISOString(),note:'Action-slot assignments ONLY. Does not contain FBX data. Reimport FBX/ZIP files to preview; nothing is installed into live combat automatically.',assignments:Action.sanitize(actionData)};
  const url=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
  const a=document.createElement('a');a.href=url;a.download='sky-clash-action-map.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
  setActionHelp('Exported the Kairo/Rin action map. Keep it with your source ZIPs. This is not yet a playable animation build.');
+}
+// Restore original user-supplied Mixamo data directly from this browser's
+// offline Studio library. This NEVER substitutes the baked quaternion JSON
+// for original source FBX, and sends no files to any server.
+async function exportAssignedPunchSources(){
+ const btn=$('exportPunchSources'),label=btn.textContent;
+ if(actionFighter!=='kairo')return;
+ const keys=['punch1','punch2','punch3','uppercut'];
+ const chosen=keys.map(slot=>({slot,ref:actionData.kairo[slot]})).filter(x=>x.ref);
+ if(!chosen.length){setActionHelp('Assign at least one Kairo Boxing punch before exporting the original FBX files.');return;}
+ const items=chosen.map(x=>({...x,item:Action.findImport(imported,x.ref)}));
+ const missing=items.filter(x=>!x.item).map(x=>x.slot+' ('+x.ref.name+')');
+ if(missing.length){
+  setActionHelp('The source FBX is not loaded for '+missing.join(', ')+'. Check Saved offline above. If it shows your packs, let Studio finish reopening them; otherwise the original files are no longer in this browser.');
+  return;
+ }
+ if(!window.JSZip){setActionHelp('ZIP exporter is unavailable. Reload Animation Studio.');return;}
+ btn.disabled=true;btn.textContent='Collecting original FBXs…';
+ try{
+  const zip=new window.JSZip(),manifest={format:'sky-clash-mixamo-originals',version:1,
+   note:'Original user-imported FBX bytes extracted from local Animation Studio storage. No keyframe reconstruction, no upload.',
+   fighter:'kairo',files:[]};
+  for(const {slot,ref,item} of items){
+   // Use ORIGINAL binary bytes, not bufferFor(), which can repair a malformed
+   // source footer in memory during FBXLoader preview/baking.
+   let bytes;
+   if(item.file)bytes=await item.file.arrayBuffer();
+   else if(item.zipEntry)bytes=await item.zipEntry.async('uint8array');
+   else throw Error('Original source not accessible for '+slot);
+   const filename='kairo-'+slot+'.fbx';
+   zip.file(filename,bytes,{binary:true});
+   manifest.files.push({slot,exportedAs:filename,originalName:ref.sourceFile,
+    originalArchive:ref.sourceArchive,sourceId:ref.id,speed:ref.speed,yaw:ref.yaw,
+    byteLength:bytes.byteLength});
+  }
+  zip.file('sources.json',JSON.stringify(manifest,null,2));
+  btn.textContent='Creating ZIP…';
+  const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:3}});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='sky-clash-kairo-original-mixamo-punches.zip';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  setActionHelp('Saved '+manifest.files.length+' original Mixamo punch FBX files from your existing Studio library in a ZIP. No new imports or keyframe editing needed.');
+ }catch(e){
+  setActionHelp('Could not export the stored original punch files: '+(e?.message||e)+'. Your saved Studio library is unchanged.');
+ }finally{btn.disabled=actionFighter!=='kairo';btn.textContent=label;}
 }
 // Both the JSON download and one-click local playtest use identical FBX baking.
 async function buildAssignedGamePack({playtest=false}={}){
@@ -606,6 +653,7 @@ $('tuneYaw').addEventListener('input',e=>{const ref=actionData[actionFighter][ac
 $('removeAssigned').addEventListener('click',()=>{if(!activeAction)return;delete actionData[actionFighter][activeAction];saveActions();activeAction='';refreshActionSlots();applyFilter();});
 $('exportActions').addEventListener('click',exportActionMap);
 $('exportGamePack').addEventListener('click',exportGamePack);
+$('exportPunchSources').addEventListener('click',exportAssignedPunchSources);
 $('applyGameMoves').addEventListener('click',applyGameMoves);
 $('clearAppliedGameMoves').addEventListener('click',clearAppliedGameMoves);
 $('importActions').addEventListener('click',()=>$('actionMapInput').click());
