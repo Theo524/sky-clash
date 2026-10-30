@@ -329,21 +329,25 @@
   // V100 unified air owner is installed LAST after every legacy layer.
   // The old wrappers yield only during natural jump/fall/landing states.
   if(new URLSearchParams(location.search).get('animator')==='unified'){
-   if(['v142','v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   // V142-V149 are cumulative rollback stages; V150+ load the full stack.
+   const flightPreview=new URLSearchParams(location.search).get('flightPreview');
+   const legacyFlightStage=/^v14[2-9]$/.test(flightPreview)?
+    Number(flightPreview.slice(1)):0;
+   if(modernFlight||legacyFlightStage>=142)
     await script('js/v142-hover-keyframes.js?v=1420');
-   if(['v143','v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=143)
     await script('js/v143-hover-performance.js?v=1430');
-   if(['v144','v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=144)
     await script('js/v144-relaxed-arms.js?v=1440');
-   if(['v145','v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=145)
     await script('js/v145-vertical-flight.js?v=1450');
-   if(['v146','v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=146)
     await script('js/v146-vertical-followthrough.js?v=1460');
-   if(['v147','v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=147)
     await script('js/v147-horizontal-flight.js?v=1470');
-   if(['v148','v149'].includes(new URLSearchParams(location.search).get('flightPreview'))||modernFlight)
+   if(modernFlight||legacyFlightStage>=148)
     await script('js/v148-full-flight.js?v=1480');
-   if(new URLSearchParams(location.search).get('flightPreview')==='v149'||modernFlight)
+   if(modernFlight||legacyFlightStage>=149)
     await script('js/v149-travel-performance.js?v=1490');
    if(modernFlight)
     await script('js/v150-joystick-flight.js?v=1500');
@@ -353,7 +357,7 @@
     await script('js/v152-flight-silhouette.js?v=1520');
    if(v153Preview||v155Preview)
     await script('js/v153-streamlined-flight.js?v=1530');
-   if(new URLSearchParams(location.search).get('flightPreview')==='v156')
+   if(flightPreview==='v156')
     await script('js/v156-real-vrm-flight.js?v=1560');
    if(new URLSearchParams(location.search).get('flightPose')==='v158')
     await script('js/v158-real-vrm-flight.js?v=1580');
