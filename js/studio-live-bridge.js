@@ -97,7 +97,14 @@
   });
   return {slots:current.slots,updatedAt,version:1};
  }
- async function restoreBase(){
+ async function importBase(pack){
+  const slots=validate(pack),updatedAt=Date.now();
+  await transaction('readwrite',store=>{
+   store.put({id:BASE_KEY,pack,updatedAt});
+  });
+  return {slots,updatedAt,version:1};
+ }
+  async function restoreBase(){
   const baseline=await loadBase();
   if(!baseline)throw Error('No saved base version in this browser');
   const restored=await save(baseline.pack);
@@ -107,7 +114,7 @@
   // Reset working preview only; NEVER discard the protected base.
   await transaction('readwrite',store=>{store.delete(KEY);});
  }
- const api={save,load,clear,saveBase,loadBase,restoreBase,validate,
+ const api={save,load,clear,saveBase,loadBase,restoreBase,importBase,validate,
   supportedSlots:SLOTS,baseVersion:1};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashStudioLiveBridge=api;
