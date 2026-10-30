@@ -557,8 +557,15 @@
    try{
     if(state.rig!==this.vrmRig)capture(this.vrmRig);
     const slot=options.choose?options.choose(this,actions,dt):choose(this,actions);
-    const set=!options.choose&&this.characterId==='kairo_venn'?status.nativeCombatSet:null;
-    let native=status.nativeCombatPreview,nativeTime=null,nativeKey=null,nativeMode='attack';
+    // Explicit browser-local Studio motion ALWAYS beats older published
+    // and opt-in native layers for this precise slot; never silently
+    // replace a user's known-good applied attack with an old variant.
+    const studioOwnsSlot=!options.choose&&this.characterId==='kairo_venn'&&
+     status.localPlaytest?.state==='ready'&&status.localPlaytest.slots.includes(slot);
+    const set=!studioOwnsSlot&&!options.choose&&this.characterId==='kairo_venn'?
+     status.nativeCombatSet:null;
+    let native=studioOwnsSlot?null:status.nativeCombatPreview,
+     nativeTime=null,nativeKey=null,nativeMode='attack';
     const nativeJab=native&&!options.choose&&this.characterId==='kairo_venn'&&
       this.hp>0&&this.punchT>0&&this.attackKind==='punch'&&this.punchSide===1&&
       !state.nativePreviewCancelled&&!nativeBlocked;
