@@ -226,6 +226,36 @@
   const sourceTime=strike+(Math.max(0,elapsed)-duration*.45)*(entry.speed||1);
   return Math.max(0,Math.min(entry.seconds,sourceTime));
  }
+ // Identify the strongest *recorded leg drive* within a native Mixamo
+ // kick. Unlike the former normalized .87s sampler, the local playtest
+ // must not squeeze every frame of a 2.5s Roundhouse into one attack.
+ function recordedKickImpact(entry,samples){
+  if(!samples||entry.frames<3)return (entry.seconds||0)*.5;
+  const stride=entry.bones.length*4,legs=[14,15,16,17,18,19];
+  const first=Math.max(1,Math.floor(entry.frames*.10));
+  const last=Math.min(entry.frames-1,Math.ceil(entry.frames*.86));
+  let strongest=-1,best=first;
+  for(let frame=first;frame<last;frame++){
+   let energy=0;
+   for(const bone of legs){
+    const prev=((frame-1)*stride+bone*4),cur=(frame*stride+bone*4);
+    let dot=0;
+    for(let axis=0;axis<4;axis++)dot+=samples[prev+axis]*samples[cur+axis]/(32767*32767);
+    energy+=2*Math.acos(Math.min(1,Math.abs(dot)));
+   }
+   if(energy>strongest){strongest=energy;best=frame;}
+  }
+  return strongest<.002?(entry.seconds||0)*.5:best/entry.fps;
+ }
+ function localKickClock(entry,elapsed,total){
+  const duration=Math.max(.01,Number(total)||.87);
+  // The existing 4th combo beat contacts at .41 / .87 of the
+  // animation. Preserve hitboxes/cooldowns and only align the visual.
+  const contact=duration*(.41/.87),impact=Number.isFinite(entry.kickImpact)?
+   entry.kickImpact:(entry.seconds||0)*.5;
+  return Math.max(0,Math.min(entry.seconds,impact+
+   (Math.max(0,elapsed)-contact)*(entry.speed||1)));
+ }
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -242,6 +272,7 @@
    ...entry,
    attackImpact:recordedPunchImpact(entry,d),
    attackBeats:entry.slot==='punch2'?recordedPunchBeats(entry,d):[],
+   kickImpact:entry.slot==='kick'?recordedKickImpact(entry,d):null,
    sampleSupport:typeof entry.footContacts==='string'&&
     entry.footContacts.length===entry.frames&&/^[0-3]+$/.test(entry.footContacts)?
      seconds=>{const i=Math.min(entry.frames-1,Math.max(0,Math.round(seconds*entry.fps)));
@@ -303,9 +334,16 @@
    if(kind.includes('sidekick'))return actions.sideKick?'sideKick':actions.kick?'kick':null;
    if(kind.includes('kick')||kind.includes('spin'))
     return actions.kick?'kick':actions.meteor?'meteor':null;
-   if(kind.includes('hook')||kind.includes('upper'))
+   if(kind.includes('hook')||kind.includes('upper')){
+    // Kairo alternates published hook/overhand every other combo.
+    // That accidentally replaced the user's Studio punch3 with V87
+    // overhand on repeated runs. Explicitly assigned LOCAL punch3
+    // must win on every third beat, independent of attackVariant.
+    if(previewSlots?.state==='ready'&&previewSlots.slots.includes('punch3')&&
+       actions.punch3)return 'punch3';
     return fighter.attackVariant==='overhand'&&actions.overhand?'overhand':
       actions.punch3?'punch3':actions.uppercut?'uppercut':null;
+   }
    return fighter.punchSide===1?
      (actions.punch1?'punch1':actions.punch2?'punch2':null):
      (actions.punch2?'punch2':actions.punch1?'punch1':null);
@@ -671,6 +709,10 @@
     const fullBodyPunch=groundedPunch;
     const localPunch=fullBodyPunch&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes(entry.slot);
+    const localKick=!options.choose&&this.characterId==='kairo_venn'&&
+     this.punchT>0&&entry.slot==='kick'&&
+     status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes('kick');
     const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
     if(state.localStrikeKey!==strikeKey){
      state.localStrikeKey=strikeKey;state.localStrikeFeet={};
@@ -678,10 +720,18 @@
      state.localEntryAge=0;
      if(strikeKey){
       state.localHandoffSerial=serial;
-      // Anchor pre-strike world soles; do not plant after the imported
-      // hip/leg retarget has already dragged them across the floor.
+      // Respect the source contact flags at the NEW strike's sampled
+      // time. The old seed always pinned BOTH feet, even when the
+      // actual Mixamo punch2/punch3 starts by lifting one shoe. That
+      // dragged the leg toward the previous body's stance on repeat.
+      // Keep the already approved first punch's seeding unchanged.
+      const selective=localPunch&&entry.slot!=='punch1';
+      const initialSupport=selective&&entry.sampleSupport?
+       entry.sampleSupport(localPunchClock(entry,this.attackElapsed||0,
+        this.attackTotal||.55)):null;
       state.rig.vrm.scene.updateMatrixWorld(true);
       for(const [side,index] of [['left',16],['right',19]]){
+       if(selective&&!initialSupport?.[side])continue;
        const foot=state.bones[index];
        if(foot)state.localStrikeFeet[side]={
         point:foot.getWorldPosition(new THREE.Vector3()),weight:1,planted:true};
@@ -713,6 +763,7 @@
       const to=Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
       state.clock=localPunch?
        localPunchClock(entry,progress*(this.attackTotal||.55),this.attackTotal||.55):
+       localKick?localKickClock(entry,progress*(this.attackTotal||.87),this.attackTotal||.87):
        from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
       let rate=entry.speed;
@@ -1079,6 +1130,8 @@
        runtimeError:status.error,
        fighter:fighter?{
         attackKind:fighter.attackKind||null,
+        attackVariant:fighter.attackVariant||null,
+        attackSerial:fighter.attackSerial||0,
         punchSide:fighter.punchSide||0,
         punchT:Number((fighter.punchT||0).toFixed(3)),
         attackElapsed:Number((fighter.attackElapsed||0).toFixed(3)),
@@ -1090,7 +1143,8 @@
        installedClips:status.localPlaytest.slots.map(slot=>{
         const m=actions[slot];
         return {slot,source:m.sourceFile,seconds:m.seconds,speed:m.speed,
-         impact:m.attackImpact,selectedImpact:m.slot==='punch2'&&m.attackBeats?.length>1?
+         impact:m.attackImpact,kickImpact:m.kickImpact,
+         selectedImpact:m.slot==='punch2'&&m.attackBeats?.length>1?
           m.attackBeats[0]:m.attackImpact,beatCount:m.attackBeats?.length||1,
          footContacts:!!m.sampleSupport};
        })
@@ -1121,7 +1175,7 @@
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
+ const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,recordedKickImpact,localKickClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);

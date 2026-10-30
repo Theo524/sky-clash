@@ -60,7 +60,24 @@ assets are not altered. Experimental native V3 remains opt-in.
   now selects its first substantial recorded fist movement for the one-hit
   `punch2` slot, instead of cutting into a later strike in the middle of
   the file. The original FBX source and 1× source rate are unchanged.
-  Punch1 remains exactly as previously approved. Punch2, Punch3 and
+  Punch1 remains exactly as previously approved.
+  In repeated Kairo combos, the published combat controller alternates
+  hook/overhand on the third strike. The **locally assigned** `punch3`
+  now takes precedence on BOTH variants. Previously every second
+  full-body third strike unexpectedly used published overhand and could
+  appear to disconnect at the hips/legs despite the first cycle looking
+  correct. The normal published overhand alternation is unchanged.
+  A locally applied Roundhouse Kick now uses the original FBX's
+  leg-rotation drive peak at the fourth combo's existing hit moment:
+  `1×` advances one recorded source second per gameplay second, not
+  the entire 2.5-second Mixamo file squeezed into a ~0.87-second attack.
+  Later locally applied punches now initialize grounded foot anchors
+  only where the recorded Mixamo frame says a sole is supporting weight.
+  For older Studio exports without that metadata, later punches do not
+  invent contact pins. This prevents stale two-shoe constraints when
+  Punch 2 or Punch 3 lifts a leg; Punch 1 retains its existing setup.
+  Physics, damage, cooldowns, hit frames, Rin and the published game
+  animation defaults are unchanged. Punch2, Punch3 and
   Uppercut make a brief ~85ms transition from the last visible body pose
   at their entry, so chained attacks do not snap elbows/hips/legs between
   unrelated source poses. This is visual-only: a three-second Combo Punch
