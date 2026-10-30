@@ -2353,20 +2353,22 @@
  function isPreview(context=root){
   return new URLSearchParams(context.location?.search||'').get('animator')==='unified';
  }
+ function localStudioAirSlot(f,context=root){
+  const local=context.SkyClashPublishedActions?.localPlaytest;
+  if(local?.state!=='ready'||
+     new URLSearchParams(context.location?.search||'').get('studioPlaytest')!=='local'||
+     f!==context.SkyClash?.Game?.heroes?.kairo_venn)return null;
+  const phase=stateOf(f);
+  const slot=phase==='jump'?'jump':phase==='fall'?'fallingIdle':
+   phase==='landing'?'landing':phase==='flight'?
+   (Math.hypot(f.vel?.x||0,f.vel?.z||0)>3?'flying':'floating'):null;
+  return slot&&local.slots.includes(slot)?slot:null;
+ }
  function ownsAir(f,context=root){
   const clips=context.SkyClashPublishedActions?.motionClips;
   const phase=stateOf(f);
-  // In explicit local Studio playtests, yield only Kairo's assigned air
-  // state to V72; all other states keep their approved V100 poses.
-  const local=context.SkyClashPublishedActions?.localPlaytest;
-  if(local?.state==='ready'&&
-     new URLSearchParams(context.location?.search||'').get('studioPlaytest')==='local'&&
-     f===context.SkyClash?.Game?.heroes?.kairo_venn){
-   const slot=phase==='jump'?'jump':phase==='fall'?'fallingIdle':
-    phase==='landing'?'landing':phase==='flight'?
-    (Math.hypot(f.vel?.x||0,f.vel?.z||0)>3?'flying':'floating'):null;
-   if(slot&&local.slots.includes(slot))return false;
-  }
+  // Only the explicitly assigned local Kairo state yields to V72.
+  if(localStudioAirSlot(f,context))return false;
   return isPreview(context)&&
    f===context.SkyClash?.Game?.heroes?.kairo_venn&&
    !!phase&&!!clips?.[clipFor(phase)]&&
@@ -3454,7 +3456,7 @@
        this.launched||this.spiked||this.punchT>0||this.blastT>0||
        this.superHitT>0||this.slamming||this.charging||
        this.blockHeld||this.blocking||this.dashing||this.sprinting||
-       (this.acro&&this.acro.type!=='landing');
+       (this.acro&&this.acro.type!=='landing')||!!localStudioAirSlot(this);
      if(interrupted){
       // V119: combat, Boost, knockback or flight may interrupt before
       // begin(next) gets a chance to restore toe entry quaternions.
@@ -4041,7 +4043,7 @@
     v120ArmTiming,worldJumpArms,
     prepPose,landingPlan,jumpExpression,
     axialTwist,stabilizeFacing,steadyLandingSupport,
-    soleGaps,plantVisibleSoles,stateOf,ownsAir,attach,start};
+    soleGaps,plantVisibleSoles,stateOf,localStudioAirSlot,ownsAir,attach,start};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashV100Animator=api;
 })(typeof window!=='undefined'?window:globalThis);
