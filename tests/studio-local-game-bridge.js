@@ -20,6 +20,14 @@ for(const bad of [
 ])assert.throws(()=>bridge.validate(bad));
 assert(bridge.supportedSlots.includes('punch1'));
 assert(bridge.supportedSlots.includes('kick'));
+assert.equal(bridge.baseVersion,1);
+for(const method of ['saveBase','loadBase','restoreBase'])
+ assert.equal(typeof bridge[method],'function','Protected baseline API '+method);
+const bridgeSource=read('js/studio-live-bridge.js');
+assert(bridgeSource.includes("BASE_KEY='kairo-studio-approved-base-v1'"));
+assert(bridgeSource.includes('store.delete(KEY)')&&
+ !bridgeSource.includes('store.delete(BASE_KEY)'),
+ 'Normal Reset must not destroy the saved base motion snapshot');
 for(const slot of ['floating','flying','fallingIdle','landing','boost','guard']){
  assert(bridge.supportedSlots.includes(slot),slot+' missing from local playtest');
  assert.deepEqual(bridge.validate({...pack,motions:[{...entry,slot}]}),[slot]);
@@ -33,6 +41,13 @@ const boot=read('js/v66-game-boot.js'),runtimeSource=read('js/v72-published-acti
 const index=read('index.html');
 assert(html.includes('id="applyGameMoves"')&&html.includes('id="clearAppliedGameMoves"'));
 assert(html.includes('id="exportPunchSources"'));
+for(const control of ['saveStudioBase','restoreStudioBase','downloadStudioBase']){
+ assert(html.includes('id="'+control+'"'),'Missing Studio baseline control '+control);
+ assert(studio.includes(control),'Missing baseline UI handler '+control);
+}
+assert(studio.includes('LiveBridge.saveBase()'));
+assert(studio.includes('LiveBridge.restoreBase()'));
+assert(studio.includes('LiveBridge.loadBase()'));
 assert(studio.includes('exportAssignedPunchSources'));
 assert(studio.includes("item.zipEntry.async('uint8array')"));
 assert(studio.includes("item.file.arrayBuffer()"));
@@ -53,6 +68,14 @@ assert(boot.includes("?'&studioLocal=3':''"));
 assert(boot.includes('js/v72-published-actions.js?v=828'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
+assert(runtimeSource.includes('const strikeKey=(fullBodyPunch||localKick)?'));
+assert(runtimeSource.includes("state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?"));
+assert(runtimeSource.includes('state.localFullBodyKickActive=localKick'));
+assert(runtimeSource.includes('if(fullBodyPunch||localKick)'));
+assert(runtimeSource.includes('const selective=localKick||localPunch&&entry.slot!=='));
+assert(runtimeSource.includes('const studioOwnsSlot=!options.choose'));
+assert(runtimeSource.includes('let native=studioOwnsSlot?null:status.nativeCombatPreview'));
+assert(runtimeSource.includes("status.localPlaytest.baseVersion=base?.version||null"));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
 assert(runtimeSource.includes('if(!localPunch||entry.sampleSupport)'));
