@@ -80,11 +80,11 @@ assert(runtimeSource.includes('let native=studioOwnsSlot?null:status.nativeComba
 assert(runtimeSource.includes("status.localPlaytest.baseVersion=base?.version||null"));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
-assert(runtimeSource.includes('if(!localPunch||entry.sampleSupport)'));
-assert(runtimeSource.includes("const selective=localPunch&&entry.slot!=='punch1'"));
+assert(runtimeSource.includes('if((localPunch||localKick)?!!entry.sampleSupport:true)'));
+assert(runtimeSource.includes("const selective=localKick||localPunch&&entry.slot!=='punch1'"));
 assert(runtimeSource.includes("if(selective&&!initialSupport?.[side])continue"));
-assert(runtimeSource.includes('entry.sampleSupport(localPunchClock(entry,this.attackElapsed||0,'));
-assert(runtimeSource.includes('const contacts=localPunch?entry:localPlant'));
+assert(runtimeSource.includes('entry.sampleSupport(sourceTime):null'));
+assert(runtimeSource.includes('const contacts=localPunch||localKick?entry:localPlant'));
 assert(runtimeSource.includes("supportFoot('left',state.clock,contacts,state.localStrikeFeet)"));
 assert(runtimeSource.includes("supportFoot('right',state.clock,contacts,state.localStrikeFeet)"));
 // A 2.5s Mixamo clip with 1× authoring speed must progress only .55
