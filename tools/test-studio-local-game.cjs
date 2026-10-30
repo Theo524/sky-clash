@@ -41,7 +41,23 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const pack=await response.json();
    const idle=pack.motions.find(x=>x.slot==='idle'&&x.character==='kairo');
    if(!idle)throw Error('No real baked idle motion for E2E test');
-   const local={...idle,slot:'punch1',sourceFile:'local-apply-to-game-test.fbx'};
+   // Make a genuine compact 20-bone clip with strongly authored hip/leg
+   // rotations, so the real VRM test can detect the original masking bug.
+   const raw=Uint8Array.from(atob(idle.data),c=>c.charCodeAt(0));
+   const view=new DataView(raw.buffer),stride=20*4;
+   const authored={
+    0:[0,Math.sin(.21),0,Math.cos(.21)],
+    14:[Math.sin(.30),0,0,Math.cos(.30)],
+    15:[Math.sin(.17),0,0,Math.cos(.17)],
+    17:[Math.sin(-.27),0,0,Math.cos(-.27)],
+    18:[Math.sin(-.13),0,0,Math.cos(-.13)]
+   };
+   for(let frame=0;frame<idle.frames;frame++)
+    for(const [bone,q] of Object.entries(authored))
+     for(let j=0;j<4;j++)
+      view.setInt16((frame*stride+Number(bone)*4+j)*2,Math.round(q[j]*32767),true);
+   const data=btoa(Array.from(raw,b=>String.fromCharCode(b)).join(''));
+   const local={...idle,data,slot:'punch1',sourceFile:'local-apply-to-game-test.fbx'};
    const sample={schema:pack.schema,revision:pack.revision,motions:[local]};
    return await window.SkyClashStudioLiveBridge.save(sample);
   });
@@ -61,8 +77,23 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.sprinting=false;p.dashing=false;p.punchT=.3;p.attackKind='punch';
    p.punchSide=1;p.attackSerial=(p.attackSerial||0)+1;p.attackElapsed=.05;p.attackTotal=.42;
    p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
-   for(let i=0;i<6;i++){p.t+=1/60;p.animate(1/60);}
+   for(let i=0;i<10;i++){p.t+=1/60;p.animate(1/60);}
+   const h=p.vrmRig.vrm.humanoid;
+   const names=['hips','leftUpperLeg','leftLowerLeg','rightUpperLeg','rightLowerLeg'];
+   const pose=()=>names.map(n=>h.getNormalizedBoneNode(n).quaternion.clone());
+   const full=pose(),footAnchors=Object.values(p.v72StudioPack.localStrikeFeet)
+    .filter(x=>x?.point).length;
+   const fullBodyPunchFrames=s.localPlaytest.fullBodyPunchFrames;
+   // Same imported clip, but no full-body flag: the old upper-body-only
+   // routing must produce a measurably different lower-body pose.
+   s.localPlaytest.slots=[];
+   p.attackSerial+=1;p.attackElapsed=.05;p.punchT=.3;
+   for(let i=0;i<10;i++){p.t+=1/60;p.animate(1/60);}
+   const masked=pose(),legMotionRadians=Math.max(
+    ...full.map((q,i)=>q.angleTo(masked[i])));
+   s.localPlaytest.slots=['punch1'];
    return {state:s.localPlaytest.state,slots:s.localPlaytest.slots,
+    footAnchors,fullBodyPunchFrames,legMotionRadians,
     sourceFile:active.sourceFile,sourceMatchesIdle:angles.every(x=>x<.0001),
     visibleSlot:p.v72StudioPack?.slot,native:p.v72StudioPack?.nativePreviewActive,
     indicator:document.getElementById('studioLocalMovesStatus')?.textContent,
@@ -76,6 +107,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(!applied.native);
   assert(applied.indicator?.includes('1 local moves active'));
   assert.equal(applied.error,null);
+  assert(applied.fullBodyPunchFrames>0,'Local grounded punch not full-body');
+  assert.equal(applied.footAnchors,2,'Missing strike foot anchors');
+  assert(applied.legMotionRadians>.06,'Local authored hips/legs did not reach real Kairo');
   // Same browser and IndexedDB, but NO opt-in flag: original published
   // punch1 must remain exactly as before.
   await navigate('?scene=dojo');
