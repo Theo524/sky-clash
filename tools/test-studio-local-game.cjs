@@ -131,7 +131,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     p.attackElapsed=.09;p.attackTotal=.68;p.t+=1/60;
     p.animate(1/60);
     runs.push({variant,slot:p.v72StudioPack.slot,full:p.v72StudioPack.localFullBodyPunchActive,
-     source:s.motionClips[p.v72StudioPack.slot]?.sourceFile});
+     source:s.motionClips[p.v72StudioPack.slot]?.sourceFile,
+     anchors:Object.keys(p.v72StudioPack.localStrikeFeet).length});
     p.punchT=0;p.attackElapsed=.68;p.t+=1/60;p.animate(1/60);
    }
    p.attackKind='kick';p.attackVariant='hook';p.punchSide=0;
@@ -146,6 +147,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    assert.equal(run.slot,'punch3','Repeated VRM Kairo hook/overhand chose wrong clip');
    assert.equal(run.source,'local-repeated-punch3.fbx');
    assert(run.full,'Repeated Studio hook must retain authored full-body legs');
+   assert.equal(run.anchors,0,'Legacy Studio punch3 must not invent two grounded foot anchors');
   }
   assert.equal(repeated.kickSlot,'kick');
   assert(Math.abs(repeated.kickClock-repeated.kickImpact)<.08,
