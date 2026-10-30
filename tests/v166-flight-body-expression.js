@@ -15,7 +15,7 @@ assert.equal(still.maxDegrees,0,'no pose snap at flight entry');
 assert(still.joints.every(j=>j.x===0&&j.z===0));
 const b=expression(2,0,1),cruise=expression(2,1,1);
 assert.equal(b.joints.length,20);
-assert(b.maxDegrees>1&&b.maxDegrees<3,'hover should be visible but subtle');
+assert(b.maxDegrees>4&&b.maxDegrees<7,'hover must read at gameplay distance');
 assert(cruise.maxDegrees<b.maxDegrees,'cruise should keep the cleaner silhouette');
 for(const index of [0,1,2,3,6,7,8,10,11,12,14,15,17,18])
  assert([.5,1,1.5,2,2.5].some(t=>{
@@ -24,7 +24,7 @@ for(const index of [0,1,2,3,6,7,8,10,11,12,14,15,17,18])
  }), 'expressive body joint '+pose.bones[index]+' never moves');
 for(const t of [0,.125,.5,1,2,7,100,Infinity,NaN]){
  const q=expression(t,0,1);
- assert(Number.isFinite(q.maxDegrees)&&q.maxDegrees<3.2,'joint bounds');
+ assert(Number.isFinite(q.maxDegrees)&&q.maxDegrees<8,'bounded visual motion');
  for(const j of q.joints)assert(Number.isFinite(j.x)&&Number.isFinite(j.z));
 }
 for(const fps of [30,60,120]){
@@ -34,7 +34,7 @@ for(const fps of [30,60,120]){
   for(let bone=0;bone<20;bone++){
    const delta=Math.hypot(next.joints[bone].x-previous.joints[bone].x,
     next.joints[bone].z-previous.joints[bone].z);
-   assert(delta<.23,'sudden joint pop at '+fps+'fps, bone '+bone);
+   assert(delta<.75,'sudden joint pop at '+fps+'fps, bone '+bone);
   }
   previous=next;
  }
@@ -45,7 +45,7 @@ const sample=expression(1,0,1).joints[2];
 const delta=new THREE.Quaternion().setFromEuler(
  new THREE.Euler(sample.x*Math.PI/180,0,sample.z*Math.PI/180,'XYZ'));
 const result=raw.clone().premultiply(delta);
-assert(result.angleTo(raw)>.015&&result.angleTo(raw)<.06,
+assert(result.angleTo(raw)>.04&&result.angleTo(raw)<.14,
  'real chest joint subtly moves, never loses original Q');
 assert.deepEqual(pose.hover,start,'authored Q data is immutable');
 const code=fs.readFileSync('js/v100-pose-authority.js','utf8');
@@ -56,5 +56,5 @@ assert(code.includes('v166FlightBodyExpression(st.elapsed,travel,'),
 assert(!boot.includes("flags.set('flightBody','alive')"),
  'user has not approved default promotion');
 assert(boot.includes("flags.set('flightPreview','v156')"),'approved Q unchanged');
-assert(boot.includes("e.src+='&body=166'"),'preview cache must refresh');
+assert(boot.includes("e.src+='&body=167'"),'preview cache must refresh');
 console.log('PASS V166: 20-bone gentle flight breathing, phase continuity, unchanged Q and public default');

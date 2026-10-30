@@ -47,10 +47,10 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=8'));
+assert(index.includes('&studioLocal=9'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
 assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=826'));
+assert(boot.includes('js/v72-published-actions.js?v=827'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
@@ -126,6 +126,14 @@ assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,att
 assert(studio.includes('if(result.missing.length||result.unsupported.length)'));
 assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
 assert(runtimeSource.includes('Copy animation report'));
+assert(runtimeSource.includes("get('flightBody')==='alive'"));
+assert(runtimeSource.includes("status.localPlaytest.slots.includes(entry.slot)"));
+assert(runtimeSource.includes('root.SkyClashV100Animator?.v166FlightBodyExpression('));
+assert(runtimeSource.includes("status.localPlaytest.flightBodyOwner=flightExpression?'V72 Studio flight':'unavailable'"));
+assert(boot.includes("params.get('flightBody')==='alive'"));
+assert(boot.includes("e.src+='&body=167'"));
+assert(!boot.includes("flags.set('studioPlaytest','local')"),
+ 'Never auto-publish local punches into ordinary game URLs');
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
 assert(html.includes('animation-studio.js?v=833&fix=87&studioLocal=2'));

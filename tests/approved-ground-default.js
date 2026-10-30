@@ -257,7 +257,7 @@ async function scriptURL(search,source){
   assert(air.includes(part),'V156 normal air loader misses '+part);
  assert.equal(await scriptURL(normal,'js/v156-real-vrm-flight.js?v=1560'),
    'js/v156-real-vrm-flight.js?v=1560','Normal Q animation asset unchanged');
- const native=await scriptURL(normal,'js/v72-published-actions.js?v=826');
+ const native=await scriptURL(normal,'js/v72-published-actions.js?v=827');
  for(const part of ['&fix=89','&jrun=95','&arm=97','&air=98',
    '&poseOwner=100','&landing=105'])
   assert(native.includes(part),'Normal combat owner misses '+part);
@@ -274,7 +274,7 @@ async function scriptURL(search,source){
  const walk=await scriptURL('?movementLab=walk','js/v71-mixamo-gameplay.js?v=820');
  assert(walk.includes('&fix=88'),'Historical V88 walk mode preserved');
  const handoff=await scriptURL('?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored',
-   'js/v72-published-actions.js?v=826');
+   'js/v72-published-actions.js?v=827');
  assert(handoff.includes('&fix=89')&&handoff.includes('&jrun=95')&&
    handoff.includes('&arm=97'),'Explicit step and arm flags preserved');
  console.log('PASS real boot module routing: V156 normal, V164, V143/V153 rollback, V88 walk, V97 stance, query parsed once');

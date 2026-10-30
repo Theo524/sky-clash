@@ -442,7 +442,8 @@
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
         qBasis=new THREE.Quaternion(),qBasisInv=new THREE.Quaternion(),
-        mapped=new THREE.Quaternion(),unitY=new THREE.Vector3(0,1,0);
+        mapped=new THREE.Quaternion(),unitY=new THREE.Vector3(0,1,0),
+        localFlightQ=new THREE.Quaternion(),localFlightEuler=new THREE.Euler(0,0,0,'XYZ');
   function capture(rig){
    const humanoid=rig.vrm.humanoid,scene=rig.vrm.scene,get=n=>humanoid.getNormalizedBoneNode(n);
    const bones=BONES.map(get);
@@ -709,6 +710,24 @@
     const fullBodyPunch=groundedPunch;
     const localPunch=fullBodyPunch&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes(entry.slot);
+    // When an applied Studio pack supplies floating/flying, V100 yields
+    // flight ownership to THIS V72 wrapper. Its previous opt-in breathing
+    // layer was therefore invisible even with ?flightBody=alive.
+    // Apply the SAME V166 motion once inside the actual owning writer,
+    // never as a second Fighter.animate hook or replacement for the FBX.
+    const localFlightBody=!options.choose&&this.characterId==='kairo_venn'&&
+     (entry.slot==='floating'||entry.slot==='flying')&&this.flying&&
+     status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes(entry.slot)&&
+     new URLSearchParams(root.location?.search||'').get('flightBody')==='alive';
+    const flightExpression=localFlightBody?
+     root.SkyClashV100Animator?.v166FlightBodyExpression(
+      this.t||0,entry.slot==='flying'?
+       Math.min(1,Math.hypot(this.vel?.x||0,this.vel?.z||0)/6):0,1):null;
+    if(status.localPlaytest&&localFlightBody){
+     status.localPlaytest.flightBodyOwner=flightExpression?'V72 Studio flight':'unavailable';
+     status.localPlaytest.flightBodyDegrees=flightExpression?.maxDegrees||0;
+    }
     const localKick=!options.choose&&this.characterId==='kairo_venn'&&
      this.punchT>0&&entry.slot==='kick'&&
      status.localPlaytest?.state==='ready'&&
@@ -850,6 +869,15 @@
      if(handoffEase<1&&state.localEntryPose?.[i]){
       const applied=node.quaternion.clone();
       node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
+     }
+     // The Studio floating/flying animation remains the base full-body
+     // pose. This adds only a bounded visual body response on its owner.
+     if(flightExpression?.joints[i]){
+      const j=flightExpression.joints[i],deg=Math.PI/180;
+      if(j.x||j.z){
+       localFlightQ.setFromEuler(localFlightEuler.set(j.x*deg,0,j.z*deg,'XYZ'));
+       node.quaternion.premultiply(localFlightQ).normalize();
+      }
      }
      node.updateMatrixWorld(true);
     }
@@ -1087,6 +1115,12 @@
      'Kairo: '+status.localPlaytest.slots.length+' local moves active':
      'Local moves not loaded — original game active';
     notice.appendChild(title);
+    if(flags.get('flightBody')==='alive'){
+     const flightNote=context.document.createElement('div');
+     flightNote.textContent='Flight body preview on · uses Studio floating/flying if assigned';
+     flightNote.style.cssText='margin-top:4px;color:#a9eac6';
+     notice.appendChild(flightNote);
+    }
     // Show the exact source Mixamo files loaded into gameplay; an action
     // map JSON is not a motion pack and stale/missing files must be visible.
     if(status.localPlaytest.state==='ready'){

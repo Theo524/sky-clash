@@ -205,11 +205,66 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   });
   assert.equal(livingFlight.active,'flight');
   assert.equal(livingFlight.style,'V166 gentle living hover preview');
-  assert(livingFlight.amplitude>0&&livingFlight.amplitude<3.2);
-  assert(livingFlight.difference>.01&&livingFlight.difference<.11,
+  assert(livingFlight.amplitude>0&&livingFlight.amplitude<8);
+  assert(livingFlight.difference>.025&&livingFlight.difference<.30,
    'Live Kairo ribs should move subtly, not remain frozen or snap');
   assert(livingFlight.heights.every(h=>h===2.3),'visual breathing must not shift physics root');
   assert(!livingFlight.error,'V100 flight preview must not throw');
+  // The previous flight preview accidentally dropped studioPlaytest=local,
+  // replacing the user's Mixamo punches with published defaults. The
+  // combined URL must retain the applied punch clips AND make the body
+  // visibly breathe if Studio owns floating/flying instead of V100.
+  await navigate('?scene=dojo&studioPlaytest=local');
+  await page.evaluate(async()=>{
+   const current=await window.SkyClashStudioLiveBridge.load();
+   const sample=current.pack.motions[0],extras=[
+    {...sample,slot:'floating',sourceFile:'user-studio-floating.fbx'},
+    {...sample,slot:'flying',sourceFile:'user-studio-flying.fbx'}
+   ];
+   await window.SkyClashStudioLiveBridge.save({...current.pack,
+    motions:[...current.pack.motions,...extras]});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
+  const combined=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,s=window.SkyClashPublishedActions;
+   window.SkyClash.Game.enterDojo();
+   window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.jumping=false;p.dropping=false;p.landingMotionT=0;p.acro=null;
+   p.pos.y=2.3;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   const chest=p.vrmRig.vrm.humanoid.getNormalizedBoneNode('chest');
+   const samples=[];
+   for(let i=0;i<165;i++){
+    p.t+=1/60;p.animate(1/60);
+    if(i===74||i===134)samples.push(chest.quaternion.clone());
+   }
+   const difference=samples[0].angleTo(samples[1]);
+   const flight={slot:p.v72StudioPack.slot,owner:s.localPlaytest.flightBodyOwner,
+    amplitude:s.localPlaytest.flightBodyDegrees,difference};
+   p.pos.y=0;p.punchT=.35;p.attackKind='hook';p.attackVariant='overhand';
+   p.punchSide=1;p.attackSerial=(p.attackSerial||0)+1;
+   p.attackElapsed=.08;p.attackTotal=.68;p.t+=1/60;p.animate(1/60);
+   return {state:s.localPlaytest.state,slots:s.localPlaytest.slots,
+    flight,punchSlot:p.v72StudioPack.slot,
+    punchSource:s.motionClips[p.v72StudioPack.slot]?.sourceFile,
+    indicator:document.getElementById('studioLocalMovesStatus')?.textContent,
+    error:s.error};
+  });
+  assert.equal(combined.state,'ready');
+  assert(combined.indicator.includes('local moves active'));
+  assert.equal(combined.flight.slot,'floating');
+  assert.equal(combined.flight.owner,'V72 Studio flight');
+  assert(combined.flight.amplitude>1&&combined.flight.amplitude<8,
+   'Studio owned hover must receive the same visible expression');
+  assert(combined.flight.difference>.025&&combined.flight.difference<.3,
+   'Saved Studio floating clip must visibly breathe on combined URL');
+  assert.equal(combined.punchSlot,'punch3');
+  assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
+   'Combined flight preview must keep the saved Studio punch3');
+  assert.equal(combined.error,null);
   await navigate('?scene=dojo');
   const approvedFlight=await page.evaluate(()=>{
    const p=window.SkyClash.Game.player,a=window.SkyClashPoseAuthority;
