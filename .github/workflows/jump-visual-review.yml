@@ -13,11 +13,6 @@ on:
         description: "Comma-separated, version-specific jump previews"
         required: false
         default: "v124,v125"
-  pull_request:
-    paths:
-      - 'tools/capture-jump-frames.cjs'
-      - 'tools/capture-jump-video.cjs'
-
 permissions:
   contents: read
 
