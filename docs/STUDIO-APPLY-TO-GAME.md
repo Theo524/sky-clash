@@ -37,6 +37,8 @@ assets are not altered. Experimental native V3 remains opt-in.
   skipped for live Kairo and reported to the user.
 - The existing combat state machine chooses moves; assigning punch1
   does not create new input buttons, hitboxes, range or hit timings.
+  In local playtest only, an assigned Uppercut or Meteor takes priority
+  over the generic punch3/kick fallback on the corresponding follow-up.
   A local motion plays when its corresponding V72 gameplay state occurs.
 - Other owners (V81 finger/pose transitions, V100 approved air poses)
   are unchanged. An animation test cannot prove aesthetic acceptance.
