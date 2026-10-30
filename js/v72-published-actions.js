@@ -966,6 +966,34 @@
      'Kairo: '+status.localPlaytest.slots.length+' local moves active':
      'Local moves not loaded — original game active';
     notice.appendChild(title);
+    // Show the exact source Mixamo files loaded into gameplay; an action
+    // map JSON is not a motion pack and stale/missing files must be visible.
+    if(status.localPlaytest.state==='ready'){
+     const details=context.document.createElement('details');
+     details.style.cssText='margin-top:5px;max-height:185px;overflow:auto';
+     const summary=context.document.createElement('summary');
+     summary.textContent='Inspect loaded Mixamo clips';
+     details.appendChild(summary);
+     for(const name of status.localPlaytest.slots){
+      const entry=actions[name],item=context.document.createElement('div');
+      const seconds=Number(entry.seconds||0).toFixed(2);
+      item.textContent=name+' — '+(entry.sourceFile||'unknown source')+
+       ' ('+seconds+'s, '+entry.speed+'×)'+
+       (entry.sampleSupport?' · foot contact captured':'');
+      item.style.cssText='margin:4px 0;overflow-wrap:anywhere';
+      details.appendChild(item);
+     }
+     notice.appendChild(details);
+     const playing=context.document.createElement('div');
+     playing.style.cssText='opacity:.8;margin-top:4px';
+     playing.textContent='Use Training controls to trigger each assigned slot.';
+     notice.appendChild(playing);
+    }else if(status.localPlaytest.error){
+     const error=context.document.createElement('div');
+     error.textContent='Reason: '+status.localPlaytest.error;
+     error.style.cssText='margin-top:4px;overflow-wrap:anywhere';
+     notice.appendChild(error);
+    }
     for(const [label,url] of [['Edit moves','animation-studio.html'],
       ['Original game','index.html']]){
      const link=context.document.createElement('a');
