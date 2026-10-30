@@ -56,5 +56,5 @@ assert(code.includes('v166FlightBodyExpression(st.elapsed,travel,'),
 assert(!boot.includes("flags.set('flightBody','alive')"),
  'user has not approved default promotion');
 assert(boot.includes("flags.set('flightPreview','v156')"),'approved Q unchanged');
-assert(boot.includes("js/v100-pose-authority.js?v=1562"),'preview cache must refresh');
+assert(boot.includes("e.src+='&body=166'"),'preview cache must refresh');
 console.log('PASS V166: 20-bone gentle flight breathing, phase continuity, unchanged Q and public default');
