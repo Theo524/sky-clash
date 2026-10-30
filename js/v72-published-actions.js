@@ -435,6 +435,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
+    localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
@@ -518,7 +519,7 @@
     state.nativeFeet={};state.nativeEntry=null;state.nativeEntryHips=null;
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
-    state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
+    state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
    }
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -698,7 +699,8 @@
     const entry=slot?actions[slot]:options.choose?
       (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
     if(!entry){state.weight=0;state.localStrikeKey=null;
-     state.localStrikeFeet={};state.localFullBodyPunchActive=false;return;}
+     state.localStrikeFeet={};state.localFullBodyPunchActive=false;
+     state.localFullBodyKickActive=false;state.localEntryPose=null;return;}
     // Recorded Kairo punches use hips/legs for weight transfer. The old
     // mask discarded them, leaving fists disconnected from the stance.
     // Grounded V87 boxing and locally assigned punches now own all 20 bones.
@@ -732,10 +734,15 @@
      this.punchT>0&&entry.slot==='kick'&&
      status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('kick');
-    const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
+    // Every explicitly applied full-body strike owns a fresh transition
+    // and foot-contact lifetime. Previously kick was excluded here:
+    // its second occurrence inherited old stance / had no leg handoff.
+    const strikeKey=(fullBodyPunch||localKick)?
+     String(this.attackSerial||0)+':'+entry.slot:null;
     if(state.localStrikeKey!==strikeKey){
      state.localStrikeKey=strikeKey;state.localStrikeFeet={};
-     state.localEntryPose=localPunch&&entry.slot!=='punch1'?visibleBefore:null;
+     state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?
+      visibleBefore:null;
      state.localEntryAge=0;
      if(strikeKey){
       state.localHandoffSerial=serial;
@@ -744,10 +751,12 @@
       // actual Mixamo punch2/punch3 starts by lifting one shoe. That
       // dragged the leg toward the previous body's stance on repeat.
       // Keep the already approved first punch's seeding unchanged.
-      const selective=localPunch&&entry.slot!=='punch1';
+      const selective=localKick||localPunch&&entry.slot!=='punch1';
+      const sourceTime=localKick?
+       localKickClock(entry,this.attackElapsed||0,this.attackTotal||.87):
+       localPunchClock(entry,this.attackElapsed||0,this.attackTotal||.55);
       const initialSupport=selective&&entry.sampleSupport?
-       entry.sampleSupport(localPunchClock(entry,this.attackElapsed||0,
-        this.attackTotal||.55)):null;
+       entry.sampleSupport(sourceTime):null;
       state.rig.vrm.scene.updateMatrixWorld(true);
       for(const [side,index] of [['left',16],['right',19]]){
        if(selective&&!initialSupport?.[side])continue;
@@ -758,12 +767,13 @@
      }
     }
     state.localFullBodyPunchActive=fullBodyPunch;
+    state.localFullBodyKickActive=localKick;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     if(state.localEntryPose)state.localEntryAge+=elapsed;
     // V81 sees chained punches as the SAME attack state, so it does not
     // soften a punch1 -> punch2 -> punch3 switch. This short handoff is
     // within V72's existing 20-bone owner, without altering Punch1.
-    const handoff=state.localEntryPose&&localPunch?
+    const handoff=state.localEntryPose&&(localPunch||localKick)?
      Math.min(1,state.localEntryAge/.085):1;
     const handoffEase=handoff*handoff*(3-2*handoff);
     if(state.releasingIdle||state.releasingExtra){
@@ -882,7 +892,7 @@
      node.updateMatrixWorld(true);
     }
     if(handoff>=1)state.localEntryPose=null;
-    if(fullBodyPunch){
+    if(fullBodyPunch||localKick){
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
      // anchor makes recorded hips and knees fight the ground solver.
@@ -891,14 +901,17 @@
      // overrides the real authored knee/foot motion and causes skating.
      // A local clip with recorded contacts anchors only the supported feet.
      // Public/approved combat retains its established contact behavior.
-     if(!localPunch||entry.sampleSupport){
-      const contacts=localPunch?entry:localPlant;
+     if((localPunch||localKick)?!!entry.sampleSupport:true){
+      const contacts=localPunch||localKick?entry:localPlant;
       supportFoot('left',state.clock,contacts,state.localStrikeFeet);
       supportFoot('right',state.clock,contacts,state.localStrikeFeet);
      }
-     status.groundedPunchBodyFrames=(status.groundedPunchBodyFrames||0)+1;
+     if(fullBodyPunch)status.groundedPunchBodyFrames=
+      (status.groundedPunchBodyFrames||0)+1;
      if(localPunch)status.localPlaytest.fullBodyPunchFrames=
       (status.localPlaytest.fullBodyPunchFrames||0)+1;
+     if(localKick)status.localPlaytest.fullBodyKickFrames=
+      (status.localPlaytest.fullBodyKickFrames||0)+1;
     }
     if(boostClip&&this.sprinting&&this.flying&&state.v154Motion?.air>.015){
      const owner=root.SkyClashV100Animator,rig=state.rig;
@@ -1172,7 +1185,9 @@
         attackTotal:Number((fighter.attackTotal||0).toFixed(3)),
         v72Slot:fighter.v72StudioPack?.slot||null,
         footCorrection:fighter.v72StudioPack?.nativeSupportCorrection||0,
-        fullBodyPunch:!!fighter.v72StudioPack?.localFullBodyPunchActive
+        fullBodyPunch:!!fighter.v72StudioPack?.localFullBodyPunchActive,
+        fullBodyKick:!!fighter.v72StudioPack?.localFullBodyKickActive,
+        contactAnchors:Object.keys(fighter.v72StudioPack?.localStrikeFeet||{}).length
        }:null,
        installedClips:status.localPlaytest.slots.map(slot=>{
         const m=actions[slot];
