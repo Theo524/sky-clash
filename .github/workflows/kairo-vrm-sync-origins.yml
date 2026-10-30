@@ -1,0 +1,55 @@
+name: Real Kairo VRM Sync Caller Audit
+on:
+  pull_request:
+    paths:
+      - 'tools/audit-kairo-vrm-sync-origins.cjs'
+      - '.github/workflows/kairo-vrm-sync-origins.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  attribute-vrm-syncs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Check profiler syntax and existing ownership guards
+        run: |
+          node --check tools/audit-kairo-vrm-sync-origins.cjs
+          node tests/animation-ownership-contract.js
+          node tests/ci-workflow-trigger-safety.js
+      - name: Install pinned Playwright Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+      - name: Serve exact checkout, including real Kairo VRM
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-vrm-sync-origin.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Attribute each real Kairo VRM sync to its calling controller
+        run: node tools/audit-kairo-vrm-sync-origins.cjs
+      - name: Preserve per-call raw and normalized joint observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-kairo-vrm-sync-origins
+          path: visual-review-output/kairo-vrm-sync-origins/
+          retention-days: 21
+          if-no-files-found: warn
