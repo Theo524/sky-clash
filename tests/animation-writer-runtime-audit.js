@@ -74,11 +74,12 @@ check('guard',6,()=>{f.punchT=0;f.blockHeld=true;},null);
 check('jump',10,()=>{f.blockHeld=false;f.pos.y=1.2;f.jumping=true;f.vel.y=10;},'jump');
 check('fall',10,()=>{f.vel.y=-6;},'fall');
 check('landing',10,()=>{f.pos.y=0;f.jumping=false;f.vel.y=0;f.landingMotionT=.48;},'landing');
-check('flight',10,()=>{f.pos.y=2;f.landingMotionT=0;f.vel.y=0;f.sprinting=false;},'flight');
-check('air Boost',6,()=>{f.sprinting=true;},null);
+// V156 authored flight requires the real Kairo VRM0 skeleton/clip and cannot
+// be verified on this synthetic rig; a browser/model trace is still required.
+check('air Boost',6,()=>{f.pos.y=2;f.landingMotionT=0;f.vel.y=0;f.sprinting=true;},null);
 check('ground recovery',10,()=>{f.pos.y=0;f.sprinting=false;f.vel.x=0;},null);
 const writes=(r,s)=>(r.writers[s]?.rotation||0)+(r.writers[s]?.position||0);
-for(const state of ['jump','fall','landing','flight']){
+for(const state of ['jump','fall','landing']){
  const row=results.find(r=>r.state===state);
  assert(row.claimed,state+' must be owned by V100');
  assert(writes(row,'V100 air')>0,state+' V100 did not write humanoid');
@@ -93,4 +94,4 @@ for(const r of results)console.log('AUDIT '+r.state+' | V100='+r.claimed+' | '+
 if(process.env.ANIMATION_WRITER_TRACE_JSON==='1')
  console.log(JSON.stringify({measurement:'bone quaternion/position method calls, not final world-space transforms',
   fixture:'parented Three.js humanoid using real V76/V72/V79/V81/V100 implementations',results},null,2));
-console.log('PASS scoped nested Kairo writer attribution');
+console.log('PASS scoped nested Kairo writer attribution; real-VRM V156 flight NOT measured');
