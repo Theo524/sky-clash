@@ -51,7 +51,22 @@ assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
-assert(runtimeSource.includes("supportFoot('left',state.clock,localPlant,state.localStrikeFeet)"));
+assert(runtimeSource.includes('const contact=localPunch&&entry.sampleSupport?entry:localPlant'));
+assert(runtimeSource.includes("supportFoot('left',state.clock,contact,state.localStrikeFeet)"));
+assert(runtimeSource.includes("supportFoot('right',state.clock,contact,state.localStrikeFeet)"));
+// A 2.5s Mixamo clip with 1× authoring speed must progress only .55
+// source seconds during a .55s combat beat, not 2.5 seconds.
+const localPunch={seconds:2.5,attackImpact:1.25,speed:1};
+const sourceBegin=runtime.localPunchClock(localPunch,0,.55);
+const sourceEnd=runtime.localPunchClock(localPunch,.55,.55);
+assert(Math.abs(sourceEnd-sourceBegin-.55)<1e-9,'Mixamo punch accelerated');
+assert(Math.abs(runtime.localPunchClock({...localPunch,speed:.5},.55,.55)-
+ runtime.localPunchClock({...localPunch,speed:.5},0,.55)-.275)<1e-9);
+assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,attackKind:'punch'})},
+ {punch1:{},punch2:{}}),'punch2','Cross should use the assigned punch2 consistently');
+assert(studio.includes('if(result.missing.length||result.unsupported.length)'));
+assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
+assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
 assert(html.includes('animation-studio.js?v=831&fix=86&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
