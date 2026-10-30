@@ -744,9 +744,16 @@
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
      // anchor makes recorded hips and knees fight the ground solver.
-     const contact=localPunch&&entry.sampleSupport?entry:localPlant;
-     supportFoot('left',state.clock,contact,state.localStrikeFeet);
-     supportFoot('right',state.clock,contact,state.localStrikeFeet);
+     // Older saved editor packs have genuine full-body rotations but no
+     // footContacts metadata. Do not pretend BOTH shoes are planted: that
+     // overrides the real authored knee/foot motion and causes skating.
+     // A local clip with recorded contacts anchors only the supported feet.
+     // Public/approved combat retains its established contact behavior.
+     if(!localPunch||entry.sampleSupport){
+      const contacts=localPunch?entry:localPlant;
+      supportFoot('left',state.clock,contacts,state.localStrikeFeet);
+      supportFoot('right',state.clock,contacts,state.localStrikeFeet);
+     }
      status.groundedPunchBodyFrames=(status.groundedPunchBodyFrames||0)+1;
      if(localPunch)status.localPlaytest.fullBodyPunchFrames=
       (status.localPlaytest.fullBodyPunchFrames||0)+1;
