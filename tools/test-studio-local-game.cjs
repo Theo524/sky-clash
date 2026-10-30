@@ -94,7 +94,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    s.localPlaytest.slots=['punch1'];
    return {state:s.localPlaytest.state,slots:s.localPlaytest.slots,
     footAnchors,fullBodyPunchFrames,legMotionRadians,
-    sourceFile:active.sourceFile,sourceMatchesIdle:angles.every(x=>x<.0001),
+    sourceFile:active.sourceFile,sourceDiffersFromIdle:angles.some(x=>x>.02),
     visibleSlot:p.v72StudioPack?.slot,native:p.v72StudioPack?.nativePreviewActive,
     indicator:document.getElementById('studioLocalMovesStatus')?.textContent,
     error:s.error};
@@ -102,7 +102,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(applied.state,'ready');
   assert.deepEqual(applied.slots,['punch1']);
   assert.equal(applied.sourceFile,'local-apply-to-game-test.fbx');
-  assert(applied.sourceMatchesIdle,'Local encoded motion was not retargeted into live V72');
+  assert(applied.sourceDiffersFromIdle,'Locally authored full-body animation was not decoded in V72');
   assert.equal(applied.visibleSlot,'punch1','Actual Kairo fighter did not select local punch');
   assert(!applied.native);
   assert(applied.indicator?.includes('1 local moves active'));
