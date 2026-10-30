@@ -32,6 +32,10 @@ const html=read('animation-studio.html'),studio=read('js/animation-studio.js');
 const boot=read('js/v66-game-boot.js'),runtimeSource=read('js/v72-published-actions.js');
 const index=read('index.html');
 assert(html.includes('id="applyGameMoves"')&&html.includes('id="clearAppliedGameMoves"'));
+assert(html.includes('id="exportPunchSources"'));
+assert(studio.includes('exportAssignedPunchSources'));
+assert(studio.includes("item.zipEntry.async('uint8array')"));
+assert(studio.includes("item.file.arrayBuffer()"));
 assert(html.includes('js/studio-live-bridge.js?v=2'));
 assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo')"));
 assert(studio.includes('LiveBridge.save(result.pack)'));
@@ -69,7 +73,7 @@ assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
 assert(runtimeSource.includes('Copy animation report'));
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
-assert(html.includes('animation-studio.js?v=832&fix=87&studioLocal=2'));
+assert(html.includes('animation-studio.js?v=833&fix=87&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
 // when and ONLY when that slot was explicitly applied in the local pack.
