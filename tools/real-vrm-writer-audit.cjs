@@ -105,8 +105,13 @@ async function run(browser,variant){
    console.log('REAL KAIRO',variant,sample.phase,
     'pose='+sample.pose,'owners='+sample.stages.map(s=>s.name+':'+s.changed).join(','));
   }
-  if(variant==='storm-v3')assert.equal(result.nativeRevision,'storm-fist-v3',
-   'Storm Fist V3 review pack must actually load');
+  if(variant==='storm-v3'){
+   assert.equal(result.nativeRevision,'storm-fist-v3',
+    'Storm Fist V3 review pack must actually load');
+   const melee=result.states.find(s=>s.phase==='real-melee');
+   assert(melee?.native&&melee.nativeClip,
+    'Actual melee API must activate a real Storm Fist native clip');
+  }
   assert(!errors.length,'Page errors: '+errors.join(' | '));
   fs.writeFileSync(path.join(out,variant+'.json'),JSON.stringify(result,null,2));
   return {variant,registered:result.registered,
