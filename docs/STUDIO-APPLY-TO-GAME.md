@@ -24,9 +24,11 @@ published V87 combat pack could override those punch/kick slots.
    individual punches in Training. Use Edit moves to revise, or
    Original game for the published default.
 
+**Your original Mixamo ZIP/FBX files may already be saved in Studio's browser-local offline library.** The editor has a **Download assigned punch FBXs** button to recover the *original, unmodified* Kairo Boxing source files from the saved browser session as one ZIP. It requires no keyframe recreation. If the offline library has been cleared or the browser/device changed, it cannot recover missing originals.
+
 **An exported action-map JSON is only a set of file references**. It is
 NOT playable animation data. Import that map, then import the original
-Mixamo ZIP/FBX sources before **Apply to Game & Play**. For the user's
+Mixamo ZIP/FBX sources (or let Studio restore its saved offline library) before **Apply to Game & Play**. For the user's
 16-slot sample map, `fallToRoll`, `idle3` and `idle4` are editor-only,
 so at most 13 of those entries are eligible for this local game preview.
 If any eligible source is missing or cannot be baked, Studio now reports
