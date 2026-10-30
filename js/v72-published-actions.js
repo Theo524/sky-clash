@@ -988,6 +988,47 @@
      playing.style.cssText='opacity:.8;margin-top:4px';
      playing.textContent='Use Training controls to trigger each assigned slot.';
      notice.appendChild(playing);
+     const copy=context.document.createElement('button');
+     copy.type='button';
+     copy.textContent='Copy animation report';
+     copy.style.cssText='margin-top:6px;padding:4px 7px;font:12px system-ui;cursor:pointer';
+     copy.addEventListener('click',async()=>{
+      // Diagnostic metadata ONLY; no original FBX/animation data leaves
+      // the browser. The user can paste this report into a bug discussion.
+      const fighter=context.SkyClash?.Game?.heroes?.kairo_venn;
+      const active=actions[status.active];
+      const report={
+       page:context.location?.pathname||'game',
+       playtest:status.localPlaytest.state,
+       activeSlot:status.active,
+       activeSource:active?.sourceFile||null,
+       sourceSeconds:active?.seconds||null,
+       sourceSpeed:active?.speed||null,
+       runtimeError:status.error,
+       fighter:fighter?{
+        attackKind:fighter.attackKind||null,
+        punchSide:fighter.punchSide||0,
+        punchT:Number((fighter.punchT||0).toFixed(3)),
+        attackElapsed:Number((fighter.attackElapsed||0).toFixed(3)),
+        attackTotal:Number((fighter.attackTotal||0).toFixed(3)),
+        v72Slot:fighter.v72StudioPack?.slot||null,
+        footCorrection:fighter.v72StudioPack?.nativeSupportCorrection||0,
+        fullBodyPunch:!!fighter.v72StudioPack?.localFullBodyPunchActive
+       }:null,
+       installedClips:status.localPlaytest.slots.map(slot=>{
+        const m=actions[slot];
+        return {slot,source:m.sourceFile,seconds:m.seconds,speed:m.speed,
+         impact:m.attackImpact,footContacts:!!m.sampleSupport};
+       })
+      };
+      try{
+       const clipboard=context.navigator?.clipboard||root.navigator?.clipboard;
+       if(!clipboard?.writeText)throw Error('Clipboard permission unavailable');
+       await clipboard.writeText(JSON.stringify(report,null,2));
+       copy.textContent='Report copied — paste into chat';
+      }catch(e){copy.textContent='Could not copy report: '+(e?.message||'clipboard denied');}
+     });
+     notice.appendChild(copy);
     }else if(status.localPlaytest.error){
      const error=context.document.createElement('div');
      error.textContent='Reason: '+status.localPlaytest.error;
