@@ -40,10 +40,13 @@ assets are not altered. Experimental native V3 remains opt-in.
   In local playtest only, an assigned Uppercut or Meteor takes priority
   over the generic punch3/kick fallback on the corresponding follow-up.
   A local motion plays when its corresponding V72 gameplay state occurs.
-- Local grounded Kairo punches (punch1/2/3 and uppercut) now apply
-  recorded hips and both legs in sync with arms. The existing V72
-  two-bone support-foot correction anchors soles before each strike.
-  Hitboxes, input, physics, native and public default combat do not change.
+- **Grounded Kairo punches in both the published V87 game and local
+  playtesting** now use authored hip and leg movement alongside the arms.
+  V72's existing two-bone foot correction anchors soles at strike entry.
+  This deliberately updates the default boxing silhouette following user
+  feedback. Add `?punchBody=legacy` to the game URL to restore the old
+  upper-body-only punch mask if its stance needs visual comparison.
+  Hitboxes, input, physics, Rin and unapproved native combat remain unchanged.
 - Other owners (V81 finger/pose transitions, V100 approved air poses)
   are unchanged. An animation test cannot prove aesthetic acceptance.
 - studioActions=off still disables V72. Invalid or absent local data

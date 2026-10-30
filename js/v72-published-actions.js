@@ -574,15 +574,19 @@
       (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
     if(!entry){state.weight=0;state.localStrikeKey=null;
      state.localStrikeFeet={};state.localFullBodyPunchActive=false;return;}
-    // Only manually applied grounded Kairo punches use full-body source
-    // samples. Public boxing keeps its existing upper-body mask.
-    const localPunch=!options.choose&&this.characterId==='kairo_venn'&&
-     status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes(entry.slot)&&
-     ['punch1','punch2','punch3','uppercut'].includes(entry.slot)&&
+    // Recorded Kairo punches use hips/legs for weight transfer. The old
+    // mask discarded them, leaving fists disconnected from the stance.
+    // Grounded V87 boxing and locally assigned punches now own all 20 bones.
+    // ?punchBody=legacy restores the old upper-body-only behavior.
+    const groundedPunch=!options.choose&&this.characterId==='kairo_venn'&&
+     ['punch1','punch2','punch3','overhand','uppercut'].includes(entry.slot)&&
      this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
      !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
-    const strikeKey=localPunch?String(this.attackSerial||0)+':'+entry.slot:null;
+    const fullBodyPunch=groundedPunch&&
+     new URLSearchParams(root.location?.search||'').get('punchBody')!=='legacy';
+    const localPunch=fullBodyPunch&&status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes(entry.slot);
+    const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
     if(state.localStrikeKey!==strikeKey){
      state.localStrikeKey=strikeKey;state.localStrikeFeet={};
      if(strikeKey){
@@ -596,7 +600,7 @@
       }
      }
     }
-    state.localFullBodyPunchActive=localPunch;
+    state.localFullBodyPunchActive=fullBodyPunch;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     if(state.releasingIdle||state.releasingExtra){
      state.weight*=Math.exp(-elapsed*(state.releasingExtra?12:15));
@@ -664,11 +668,11 @@
     const scene=state.rig.vrm.scene;
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
-     // Keep recorded boxing strikes above the belt so support feet stay
-     // planted, but allow real kicks to animate both legs and the torso.
+     // Source hips and legs now accompany grounded Kairo punches;
+     // ?punchBody=legacy preserves the old partial-body fallback.
      if(COMBAT_SLOTS.has(entry.slot)&&
         !['kick','sideKick'].includes(entry.slot)&&
-        !localPunch&&(i===0||i>=14))continue;
+        !fullBodyPunch&&(i===0||i>=14))continue;
      // V80: the 0.9-second Mixamo run-to-stop file contains airborne
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
@@ -697,11 +701,12 @@
      node.quaternion.slerp(target,state.weight);
      node.updateMatrixWorld(true);
     }
-    if(localPunch){
+    if(fullBodyPunch){
      scene.updateMatrixWorld(true);
      supportFoot('left',state.clock,localPlant,state.localStrikeFeet);
      supportFoot('right',state.clock,localPlant,state.localStrikeFeet);
-     status.localPlaytest.fullBodyPunchFrames=
+     status.groundedPunchBodyFrames=(status.groundedPunchBodyFrames||0)+1;
+     if(localPunch)status.localPlaytest.fullBodyPunchFrames=
       (status.localPlaytest.fullBodyPunchFrames||0)+1;
     }
     if(boostClip&&this.sprinting&&this.flying&&state.v154Motion?.air>.015){

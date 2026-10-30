@@ -86,12 +86,14 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const fullBodyPunchFrames=s.localPlaytest.fullBodyPunchFrames;
    // Same imported clip, but no full-body flag: the old upper-body-only
    // routing must produce a measurably different lower-body pose.
-   s.localPlaytest.slots=[];
+   // The explicit rollback query makes the same baked punch use the
+   // original upper-body mask while preserving the saved local clip.
+   history.replaceState(null,'','?scene=dojo&studioPlaytest=local&punchBody=legacy');
    p.attackSerial+=1;p.attackElapsed=.05;p.punchT=.3;
    for(let i=0;i<10;i++){p.t+=1/60;p.animate(1/60);}
    const masked=pose(),legMotionRadians=Math.max(
     ...full.map((q,i)=>q.angleTo(masked[i])));
-   s.localPlaytest.slots=['punch1'];
+   history.replaceState(null,'','?scene=dojo&studioPlaytest=local');
    return {state:s.localPlaytest.state,slots:s.localPlaytest.slots,
     footAnchors,fullBodyPunchFrames,legMotionRadians,
     sourceFile:active.sourceFile,sourceDiffersFromIdle:angles.some(x=>x>.02),
@@ -113,14 +115,39 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   // Same browser and IndexedDB, but NO opt-in flag: original published
   // punch1 must remain exactly as before.
   await navigate('?scene=dojo');
-  const normal=await page.evaluate(()=>({
-   state:window.SkyClashPublishedActions.localPlaytest.state,
-   sourceFile:window.SkyClashPublishedActions.motionClips.punch1?.sourceFile,
-   indicator:!!document.getElementById('studioLocalMovesStatus')
-  }));
+  const normal=await page.evaluate(()=>{
+   const status=window.SkyClashPublishedActions, p=window.SkyClash.Game.player;
+   window.SkyClash.Game.enterDojo();window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.sprinting=false;p.dashing=false;p.jumping=false;p.flying=false;
+   p.punchT=.35;p.attackKind='punch';p.punchSide=1;
+   p.attackSerial=(p.attackSerial||0)+1;p.attackElapsed=.05;p.attackTotal=.42;
+   p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   for(let i=0;i<10;i++){p.t+=1/60;p.animate(1/60);}
+   const humanoid=p.vrmRig.vrm.humanoid;
+   const names=['hips','leftUpperLeg','leftLowerLeg','rightUpperLeg','rightLowerLeg'];
+   const pose=()=>names.map(n=>humanoid.getNormalizedBoneNode(n).quaternion.clone());
+   const publishedPose=pose();
+   const fullBody=p.v72StudioPack.localFullBodyPunchActive===true;
+   const count=status.groundedPunchBodyFrames||0;
+   history.replaceState(null,'','?scene=dojo&punchBody=legacy');
+   p.attackSerial++;p.punchT=.35;p.attackElapsed=.05;
+   for(let i=0;i<10;i++){p.t+=1/60;p.animate(1/60);}
+   const masked=pose(),legacy=p.v72StudioPack.localFullBodyPunchActive;
+   const difference=Math.max(...publishedPose.map((q,i)=>q.angleTo(masked[i])));
+   history.replaceState(null,'','?scene=dojo');
+   return {state:status.localPlaytest.state,
+    sourceFile:status.motionClips.punch1?.sourceFile,
+    indicator:!!document.getElementById('studioLocalMovesStatus'),
+    fullBody,count,legacy,difference};
+  });
   assert.equal(normal.state,'off');
   assert.notEqual(normal.sourceFile,'local-apply-to-game-test.fbx');
   assert(!normal.indicator);
+  assert(normal.fullBody&&normal.count>0,'Published Kairo still uses masked punches');
+  assert.equal(normal.legacy,false,'The documented legacy punch rollback must still work');
+  assert(normal.difference>.04,'Grounded published legs did not change versus upper-body mask');
   // Corrupt local DB record: opt-in may fail, but published combat survives.
   await page.evaluate(async()=>{
    // The bridge is purposefully NOT loaded in the default game; keep
