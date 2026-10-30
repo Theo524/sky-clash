@@ -82,7 +82,7 @@ assert(boot.includes("upperMode==='legacy'")&&boot.includes('SkyClashV72Arms.sta
  'Legacy walk-only arm path remains a manual rollback');
 assert(boot.includes('SkyClashPublishedGamePack.start(window)'));
 assert(html.includes('id="exportGamePack"'));
-assert(html.includes('js/v72-studio-game-export.js?v=720'));
+assert(html.includes('js/v72-studio-game-export.js?v=721'));
 assert(read('js/animation-studio.js').includes('GameExporter.bake(THREE,fbx,'));
 assert(read('js/v72-published-actions.js').includes('assets/animations/gameplay/studio-actions-v1.json'));
 console.log('PASS: V72 natural Mixamo elbows/wrists, attack-priority, real Studio FBX keyframe export and published-game decode');
