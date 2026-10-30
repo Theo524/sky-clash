@@ -446,6 +446,82 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
   assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
   await page.evaluate(()=>window.SkyClashStudioLiveBridge.clear());
+  // Studio's browser-local FBX/ZIP gallery must keep Rokoko Superhero
+  // clips independent from the originally imported Mixamo collection.
+  // No vendor FBX is bundled or published; these tiny ZIP fixtures only
+  // test import provenance, filtering, offline persistence and no apply.
+  const studioResponse=await page.goto(base+'animation-studio.html',
+   {waitUntil:'domcontentloaded',timeout:45000});
+  assert(studioResponse.ok());
+  await page.waitForFunction(()=>
+   document.getElementById('loadStatus')?.textContent.includes('Animation Studio ready'),
+   null,{timeout:120000});
+  const originalAssignments=await page.evaluate(()=>
+   localStorage.getItem('skyClashV58ActionAssignments'));
+  await page.evaluate(async()=>{
+   async function simulateImport(inputId,filename,entries){
+    const zip=new window.JSZip();
+    entries.forEach(([name,contents])=>zip.file(name,new Uint8Array(contents)));
+    const bytes=await zip.generateAsync({type:'uint8array'});
+    const file=new File([bytes],filename,{type:'application/zip',lastModified:123});
+    const transfer=new DataTransfer();transfer.items.add(file);
+    const input=document.getElementById(inputId);
+    input.files=transfer.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+   }
+   await simulateImport('rokokoFileInput','Superhero.zip',[
+    ['Superhero/SuperHeroFlying_mixamo.fbx',[1,2,3]],
+    ['Superhero/IronMan_Combat_mixamo.fbx',[4,5,6]],
+    ['Superhero/SuperHeroLanding_Takeoff_mixamo.fbx',[7,8,9]]
+   ]);
+  });
+  await page.waitForFunction(()=>
+   document.getElementById('sourceCountRokoko')?.textContent==='3',
+   null,{timeout:45000});
+  await page.evaluate(()=>document.querySelector('.source-tab[data-source="rokoko"]').click());
+  await page.waitForFunction(()=>document.getElementById('clipCount')?.textContent==='3');
+  const isolated=await page.evaluate(()=>({
+   rokoko:Number(document.getElementById('sourceCountRokoko').textContent),
+   mixamo:Number(document.getElementById('sourceCountMixamo').textContent),
+   providerLabels:[...document.querySelectorAll('.clip-source')].map(x=>x.textContent),
+   packOptions:[...document.getElementById('packFilter').options].map(x=>x.textContent),
+   assignments:localStorage.getItem('skyClashV58ActionAssignments')
+  }));
+  assert.equal(isolated.rokoko,3);
+  assert.equal(isolated.mixamo,0);
+  assert.deepEqual(isolated.providerLabels,['Rokoko','Rokoko','Rokoko']);
+  assert(isolated.packOptions.includes('Rokoko · Superhero'));
+  assert.equal(isolated.assignments,originalAssignments,
+   'Importing Rokoko motions must not modify selected game actions');
+  await page.evaluate(async()=>{
+   const zip=new window.JSZip();
+   zip.file('Boxing/Boxing (5).fbx',new Uint8Array([4,3,2,1]));
+   const bytes=await zip.generateAsync({type:'uint8array'});
+   const file=new File([bytes],'Sky-Clash-Clean-Boxing-40.zip',{lastModified:124});
+   const transfer=new DataTransfer();transfer.items.add(file);
+   const input=document.getElementById('fileInput');
+   input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+  await page.waitForFunction(()=>
+   document.getElementById('sourceCountMixamo')?.textContent==='1',
+   null,{timeout:45000});
+  await page.evaluate(()=>document.querySelector('.source-tab[data-source="all"]').click());
+  assert.equal(await page.locator('#clipGrid .clip-card').count(),4,
+   'All must combine both sources without reclassifying either one');
+  await page.reload({waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForFunction(()=>document.getElementById('sourceCountAll')?.textContent==='4',
+   null,{timeout:120000});
+  const reopened=await page.evaluate(async()=>({
+   rokoko:Number(document.getElementById('sourceCountRokoko').textContent),
+   mixamo:Number(document.getElementById('sourceCountMixamo').textContent),
+   saved:(await window.SkyClashMotionLibrary.info()).count,
+   assignments:localStorage.getItem('skyClashV58ActionAssignments')
+  }));
+  assert.equal(reopened.rokoko,3);
+  assert.equal(reopened.mixamo,1);
+  assert.equal(reopened.saved,2,'Both original ZIPs must remain private in IndexedDB');
+  assert.equal(reopened.assignments,originalAssignments);
+  assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
   await context.close();
   console.log('PASS real Kairo: empty fallback, saved local punch plays in V72, default untouched, corrupt pack fallback');
  }finally{await browser.close();}

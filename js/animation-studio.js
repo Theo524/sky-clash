@@ -27,6 +27,7 @@ const imported=[];
 const seen=new Set();
 const seenContent=new Set();
 let current=null, page=0, filtering=[], cancelled=false, indexing=false;
+let selectedSource='all';
 let isPlaying=true, rate=1, currentT=0, mainRig=null, selectedLoadToken=0;
 const workQueue=[];let busy=false,renderAllPreviews=false;
 let activeHovered=null, activeFrames=[];
@@ -39,7 +40,7 @@ const delay=()=>new Promise(ok=>requestAnimationFrame(ok));
 const niceSec=t=>Number.isFinite(t)?t.toFixed(2)+'s':'—';
 const shortName=x=>x.length>36?x.slice(0,33)+'…':x;
 
-function addEntry({file,zipEntry,origin,name,size,crc}){
+function addEntry({file,zipEntry,origin,name,size,crc,source}){
  if(imported.length>=MAX_FILES)return false;
  if(!/\.fbx$/i.test(name))return false;
  const id=Core.makeId(origin,name,size,crc);
@@ -47,11 +48,15 @@ function addEntry({file,zipEntry,origin,name,size,crc}){
  if(seen.has(id)||(contentKey&&seenContent.has(contentKey)))return false;
  seen.add(id);
  if(contentKey)seenContent.add(contentKey);
- const clip={id,origin,fileName:name,name:Core.displayName(name),size,crc,category:Core.category(name),file,zipEntry,frames:null,card:null,error:null,duration:null,boneCount:null,prepared:false};
+ const provider=Core.sourceGroup(origin,name,source);
+ const clip={id,origin,fileName:name,name:Core.displayName(name),size,crc,
+  source:provider,pack:Core.packGroup(origin,name,provider),
+  category:Core.category(name),file,zipEntry,
+  frames:null,card:null,error:null,duration:null,boneCount:null,prepared:false};
  imported.push(clip);
  return true;
 }
-async function importFiles(files,{restored=false}={}){
+async function importFiles(files,{restored=false,source=null}={}){
  if(!files.length)return;
  if(indexing){setStatus('Finish the current ZIP import first, or stop preview processing.');return;}
  indexing=true;cancelled=false;
@@ -60,11 +65,14 @@ async function importFiles(files,{restored=false}={}){
  $('cancelLoad').hidden=false;
  for(const file of files){
   if(cancelled)break;
+  // An explicit Rokoko import stays Rokoko even if the exported FBX
+  // contains the term "mixamo"; those are rig names, not provenance.
+  const fileSource=source||file.skyClashSource||null;
   let addedForFile=0;
   try{
    if(/\.fbx$/i.test(file.name)){
      if(file.size>MAX_FBX_BYTES){skipped++;continue;}
-     if(addEntry({file,origin:'Loose FBX',name:file.name,size:file.size,crc:file.lastModified})){
+     if(addEntry({file,origin:'Loose FBX',name:file.name,size:file.size,crc:file.lastModified,source:fileSource})){
       added++;addedForFile++;
      }
    }else if(/\.zip$/i.test(file.name)){
@@ -76,7 +84,7 @@ async function importFiles(files,{restored=false}={}){
        if(imported.length>=MAX_FILES){skipped+=entries.length;break;}
        const size=ent._data?.uncompressedSize||0;
        if(size>MAX_FBX_BYTES){skipped++;continue;}
-       if(addEntry({zipEntry:ent,origin:file.name,name:ent.name,size,crc:ent._data?.crc32||''})){
+       if(addEntry({zipEntry:ent,origin:file.name,name:ent.name,size,crc:ent._data?.crc32||'',source:fileSource})){
         added++;addedForFile++;
        }
      }
@@ -87,7 +95,7 @@ async function importFiles(files,{restored=false}={}){
    if(addedForFile&&!restored&&MotionLibrary){
     try{
      setStatus('Saving '+file.name+' for your next visit…');
-     const result=await MotionLibrary.save(file);
+     const result=await MotionLibrary.save(file,{source:fileSource});
      if(result.saved)saved++;
     }catch(e){
      console.warn('V69 motion cache could not save '+file.name,e);
@@ -107,7 +115,9 @@ async function importFiles(files,{restored=false}={}){
   saved?'Saved original packs in this browser for future visits.':'Drag a preview onto an action slot.';
  if(cacheErrors.length)msg+=' Cache not saved: '+cacheErrors.slice(0,2).join('; ')+'.';
  setStatus(msg);
- page=0;applyFilter();refreshActionSlots();
+ page=0;selectedSource=source==='rokoko'?'rokoko':selectedSource;
+ $('packFilter').value='all';
+ applyFilter();refreshActionSlots();
  updateSavedLibraryStatus();
 }
 async function updateSavedLibraryStatus(){
@@ -375,25 +385,74 @@ function refreshGrid(){
   img.src='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="176" height="126"><rect width="176" height="126" fill="#172337"/><path d="M73 32l17 11 19-11 M90 43l-3 32-14 27 M87 75l17 27" fill="none" stroke="#6395a4" stroke-width="8" stroke-linecap="round"/><circle cx="90" cy="20" r="11" fill="#6395a4"/></svg>');
   const sym=document.createElement('span');sym.className='preview-symbol';sym.textContent='▶ LOOP';
   const details=document.createElement('div');details.className='clip-details';
+  const provider=document.createElement('span');provider.className='clip-source '+item.source;
+  provider.textContent=item.source==='rokoko'?'Rokoko':item.source==='mixamo'?'Mixamo':'Other';
+  provider.title=item.pack;
   const name=document.createElement('span');name.className='clip-name';name.textContent=item.name;
   const meta=document.createElement('div');meta.className='clip-meta';
   const ct=document.createElement('span');ct.textContent=item.category;
   const sec=document.createElement('span');sec.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';meta.append(ct,sec);
   const tags=document.createElement('div');tags.className='clip-labels';
   for(const f of ['kairo','rin'])for(const [key,slot] of Object.entries(actionData[f]))if(slot&&Action.findImport([item],slot)===item){const tag=document.createElement('span');tag.className=f;tag.textContent=(f==='kairo'?'K':'R')+' · '+key;tags.appendChild(tag);}
-  details.append(name,meta,tags);const err=document.createElement('div');err.className='clip-failure';
+  details.append(provider,name,meta,tags);const err=document.createElement('div');err.className='clip-failure';
   b.append(img,sym,details,err);
   b.addEventListener('click',()=>select(item));
   b.addEventListener('dragstart',e=>{e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/plain',item.id);});
   item.card=b;grid.appendChild(b);updateCard(item);observer.observe(b);
  }
- $('emptyLibrary').hidden=imported.length>0;
+ $('emptyLibrary').hidden=filtering.length>0;
+ if(!filtering.length){
+  const empty=$('emptyLibrary').querySelector('p');
+  empty.textContent=imported.length?
+   'No animations match this source, pack or filter. Choose All or import a ZIP/FBX for this collection.':
+   'Import a ZIP or FBX to preview it here. Rokoko Superhero clips are kept separate from Mixamo; imports never replace action assignments.';
+ }
  $('pageControls').hidden=filtering.length<=PAGE_SIZE;
  $('pageInfo').textContent=`Page ${page+1} of ${Math.max(1,Math.ceil(filtering.length/PAGE_SIZE))}`;
  $('prevPage').disabled=page===0;$('nextPage').disabled=(page+1)*PAGE_SIZE>=filtering.length;
  $('clipCount').textContent=filtering.length;
 }
-function applyFilter(){const q=$('search').value,category=$('category').value,tag=$('tagFilter').value;filtering=imported.filter(i=>{const matching=Core.match(i,q,category,'all',{});const assigned=Object.values(actionData).some(group=>Object.values(group).some(ref=>ref&&Action.findImport([i],ref)===i));return matching&&(tag==='all'||(tag==='assigned'&&assigned)||(tag==='unassigned'&&!assigned));});page=Math.min(page,Math.max(0,Math.ceil(filtering.length/PAGE_SIZE)-1));refreshGrid();updateStats();}
+function updateSourceControls(){
+ const total={all:imported.length,mixamo:0,rokoko:0,other:0};
+ for(const clip of imported)total[clip.source]=(total[clip.source]||0)+1;
+ const ids={all:'sourceCountAll',mixamo:'sourceCountMixamo',
+  rokoko:'sourceCountRokoko',other:'sourceCountOther'};
+ for(const [source,id] of Object.entries(ids)){
+  $(id).textContent=total[source]||0;
+  const button=document.querySelector('.source-tab[data-source="'+source+'"]');
+  button.classList.toggle('is-active',selectedSource===source);
+  button.setAttribute('aria-pressed',String(selectedSource===source));
+ }
+ // One pack list per selected source, preserving the user's choice.
+ // Mixed-source All exposes all ZIPs without merging their identities.
+ const filter=$('packFilter'),previous=filter.value;
+ const packs=[...new Set(imported.filter(i=>selectedSource==='all'||
+  i.source===selectedSource).map(i=>i.pack))].sort((a,b)=>a.localeCompare(b));
+ filter.textContent='';
+ const all=document.createElement('option');all.value='all';all.textContent='All packs';
+ filter.appendChild(all);
+ for(const name of packs){
+  const item=document.createElement('option');item.value=name;
+  item.textContent=name;filter.appendChild(item);
+ }
+ filter.value=packs.includes(previous)?previous:'all';
+}
+function applyFilter(){
+ updateSourceControls();
+ const q=$('search').value,category=$('category').value,
+  tag=$('tagFilter').value,pack=$('packFilter').value;
+ filtering=imported.filter(i=>{
+  if(selectedSource!=='all'&&i.source!==selectedSource)return false;
+  if(pack!=='all'&&i.pack!==pack)return false;
+  const matching=Core.match(i,q,category,'all',{});
+  const assigned=Object.values(actionData).some(group=>Object.values(group)
+   .some(ref=>ref&&Action.findImport([i],ref)===i));
+  return matching&&(tag==='all'||(tag==='assigned'&&assigned)||
+   (tag==='unassigned'&&!assigned));
+ });
+ page=Math.min(page,Math.max(0,Math.ceil(filtering.length/PAGE_SIZE)-1));
+ refreshGrid();updateStats();
+}
 
 async function select(item){
  current=item;currentT=0;isPlaying=true;
@@ -401,7 +460,7 @@ async function select(item){
  const token=++selectedLoadToken;
  refreshGrid();updateSelectionUI();
  $('selectedTitle').textContent=item.name;
- $('selectedMeta').textContent=`${item.origin} · ${item.fileName} · ${(item.size/1024/1024).toFixed(1)} MB`;
+ $('selectedMeta').textContent=`${item.pack} · ${item.fileName} · ${(item.size/1024/1024).toFixed(1)} MB`;
  loadingOverlay('Loading 3D motion…');$('playPause').disabled=true;$('restart').disabled=true;$('scrub').disabled=true;
  try{
    await delay();const bytes=await bufferFor(item);if(token!==selectedLoadToken)return;
@@ -733,6 +792,11 @@ refreshActionSlots();
 
 // File import events
 $('fileInput').addEventListener('change',async e=>{await importFiles([...e.target.files]);e.target.value='';});
+$('rokokoFileInput').addEventListener('change',async e=>{
+ await importFiles([...e.target.files],{source:'rokoko'});
+ e.target.value='';
+});
+$('chooseRokoko').addEventListener('click',()=>{$('rokokoFileInput').click();});
 for(const id of ['chooseTop','chooseInside'])$(id).addEventListener('click',e=>{e.stopPropagation();$('fileInput').click();});
 const zone=$('dropzone');zone.addEventListener('click',e=>{if(e.target.closest('button'))return;$('fileInput').click();});
 zone.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('fileInput').click();}});
@@ -746,7 +810,14 @@ zone.addEventListener('drop',e=>importFiles([...e.dataTransfer.files]));
 document.addEventListener('drop',e=>{if(e.dataTransfer?.files.length&&!e.target.closest('.action-slot')){e.preventDefault();if(!zone.contains(e.target))importFiles([...e.dataTransfer.files]);}});
 $('cancelLoad').addEventListener('click',()=>{cancelled=true;workQueue.length=0;setStatus('Stopped thumbnail processing. Imported files remain available.');$('cancelLoad').hidden=true;progress(null);});
 $('generateAllPreviews').addEventListener('click',generateRemainingPreviews);
-for(const id of ['search','category','tagFilter'])$(id).addEventListener(id==='search'?'input':'change',()=>{page=0;applyFilter();});
+for(const id of ['search','category','tagFilter','packFilter'])
+ $(id).addEventListener(id==='search'?'input':'change',()=>{page=0;applyFilter();});
+for(const button of document.querySelectorAll('.source-tab')){
+ button.addEventListener('click',()=>{
+  selectedSource=button.dataset.source;page=0;
+  $('packFilter').value='all';applyFilter();
+ });
+}
 $('prevPage').addEventListener('click',()=>{page=Math.max(0,page-1);refreshGrid();});$('nextPage').addEventListener('click',()=>{page++;refreshGrid();});
 $('importMissingPacks').addEventListener('click',()=>{
  const cover=PackCatalog?.scan(imported);

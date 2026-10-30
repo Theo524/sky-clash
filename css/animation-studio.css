@@ -15,3 +15,23 @@
 
 /* V83: action slots follow preview directly; no duplicate quick assign box. */
 .inspector .action-editor{margin-top:9px;padding-top:10px}
+
+/* Independent authoring libraries: Rokoko clips are not Mixamo assignments. */
+.import-options{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.import-options button{white-space:nowrap}
+.source-tabs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.source-tabs button{font-size:12px;padding:8px 12px;border-radius:9px;color:var(--soft)}
+.source-tabs button span{font-variant-numeric:tabular-nums;opacity:.7;margin-left:4px}
+.source-tabs button.is-active{color:var(--mint);background:#214336;border-color:#62b494}
+.clip-source{display:inline-block;border-radius:4px;padding:2px 6px;
+ font-size:10px;font-weight:800;margin-bottom:6px;letter-spacing:.2px}
+.clip-source.rokoko{background:#43335b;color:#e6d1ff}
+.clip-source.mixamo{background:#25423e;color:#a5e7cd}
+.clip-source.other{background:#334157;color:#cee0f2}
+#packFilter{max-width:220px;min-width:120px;flex:0 1 220px;text-overflow:ellipsis}
+@media(max-width:610px){
+ .import-options{justify-content:flex-start}
+ .source-tabs{gap:5px}
+ .source-tabs button{padding:7px 9px;font-size:11px}
+ #packFilter{max-width:none;flex:1 1 100%}
+}

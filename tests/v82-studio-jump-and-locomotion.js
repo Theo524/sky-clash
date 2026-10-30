@@ -67,8 +67,8 @@ const upper=read('js/v76-upper-body.js');
 assert(upper.includes('f.sprinting||f.v80AnalogRun||f.charging'),
  'Old fighting idle upper body must not run underneath full-body normal run');
 const adapter=read('js/v72-published-actions.js');
-assert(adapter.includes("entry.slot==='runStop'&&(i===0||i>=14)"),
- 'Recorded boost stop must leave grounded hips and feet to physics');
+assert(adapter.includes("entry.slot==='runStop'&&!localRunStop&&(i===0||i>=14)"),
+ 'Published Boost stop remains masked while explicitly applied Kairo Studio stop owns its own recorded hips and feet');
 const studio=read('animation-studio.html');
 assert(!studio.includes('id="quickActionSlot"')&&!studio.includes('id="quickAssign"'),
  'V83 removes the duplicate quick assignment box by user request');
@@ -88,6 +88,6 @@ assert(editor.includes("bindClip(item,key)"),
 const boot=read('js/v66-game-boot.js'),index=read('index.html');
 assert(boot.includes('js/v71-mixamo-gameplay.js?v=820'));
 assert(boot.includes('js/v76-upper-body.js?v=820'));
-assert(boot.includes('js/v72-published-actions.js?v=820'));
+assert(boot.includes('js/v72-published-actions.js?v=829'));
 assert(index.includes('js/v66-game-boot.js?v=1560'));
 console.log('PASS V82: real Mixamo jumping up and grounded Boost stop, no competing gait, approved idle/run, quick Studio assignment');

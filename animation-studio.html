@@ -15,12 +15,12 @@
  <span class="privacy">● PRIVATE · FILES STAY IN YOUR BROWSER</span>
 </header>
 <main>
- <section class="intro"><div><div class="eyebrow">YOUR MIXAMO COLLECTION · WITHOUT RENAMING</div><h1>Create moves. <em>Play them.</em></h1><p>Import FBX or ZIP motions, assign or retune Kairo's attacks, walking, running, jumping and flight, then select <strong>Apply to Game &amp; Play</strong> to test immediately in Training. The public game and Rin stay untouched.</p></div>
-  <button id="chooseTop" class="primary">＋ Import FBX / ZIP</button>
+ <section class="intro"><div><div class="eyebrow">YOUR ANIMATION COLLECTIONS · ORIGINAL SOURCES PRESERVED</div><h1>Create moves. <em>Play them.</em></h1><p>Import FBX or ZIP motions, assign or retune Kairo's attacks, walking, running, jumping and flight, then select <strong>Apply to Game &amp; Play</strong> to test immediately in Training. The public game and Rin stay untouched.</p></div>
+  <div class="import-options"><button id="chooseTop" class="primary">＋ Import FBX / ZIP</button><button id="chooseRokoko" type="button" title="Add a Rokoko pack as a separate collection without assigning or replacing any Mixamo clips">＋ Import Rokoko Pack</button></div>
  </section>
- <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Import FBX or ZIP animations"><span class="drop-mark">↥</span><div><b>Drop your Mixamo ZIP packs or FBX files here</b><small>Or click to browse · Multiple files supported · Original filenames preserved</small></div><button id="chooseInside" type="button">Choose files</button></div>
- <input type="file" id="fileInput" accept=".fbx,.zip" multiple hidden>
- <div class="activity"><div id="loadStatus" role="status">Reopening your saved Mixamo motions…</div><div id="loadProgress" class="progress" aria-hidden="true"><span></span></div><button id="cancelLoad" hidden>Stop processing</button>
+ <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Import FBX or ZIP animations"><span class="drop-mark">↥</span><div><b>Drop Mixamo, Rokoko or other FBX / ZIP animations here</b><small>Or click to browse · Multiple files supported · Original filenames preserved</small></div><button id="chooseInside" type="button">Choose files</button></div>
+ <input type="file" id="fileInput" accept=".fbx,.zip" multiple hidden><input type="file" id="rokokoFileInput" accept=".fbx,.zip" multiple hidden>
+ <div class="activity"><div id="loadStatus" role="status">Reopening your saved animation collections…</div><div id="loadProgress" class="progress" aria-hidden="true"><span></span></div><button id="cancelLoad" hidden>Stop processing</button>
   <span id="savedLibraryStatus" aria-live="polite">Checking offline motion library…</span>
   <span id="packCoverage" title="The collection has four independently imported ZIP archives">0/230 clips from 4 source packs</span>
   <button id="importMissingPacks" type="button">＋ Import missing packs</button><button id="clearSavedLibrary" type="button" hidden title="Clears locally saved animation source files, not your assignments">Clear saved packs</button>
@@ -28,8 +28,14 @@
  <div class="workspace">
   <section class="library">
    <div class="section-head"><div><div class="eyebrow">01 / BROWSE</div><h2>Motion library <span id="clipCount">0</span></h2></div><div class="count" id="processedCount">No animations yet</div><button id="generateAllPreviews" type="button" hidden title="Render thumbnails for the entire imported collection; may take time on mobile devices">Render remaining previews</button></div>
-   <div class="filters"><label class="search-wrap">⌕ <input id="search" placeholder="Search names, categories or pack..." aria-label="Filter animations"></label><select id="category" aria-label="Category"><option value="all">All categories</option><option value="combat">Combat</option><option value="kicks">Kicks</option><option value="movement">Movement</option><option value="jumps">Jumps / Acrobatics</option><option value="magic">Magic / Energy</option><option value="reaction">Reactions</option><option value="other">Other</option></select><select id="tagFilter" aria-label="Action assignment status"><option value="all">All animations</option><option value="assigned">Assigned to an action</option><option value="unassigned">Not yet assigned</option></select></div>
-   <div id="emptyLibrary" class="empty"><span>◈</span><h3>Your animation wall starts here</h3><p>Import your downloaded files and animated thumbnails will appear. The gallery is paged so hundreds of clips won't freeze your device.</p></div>
+   <div class="source-tabs" role="group" aria-label="Animation source collection">
+     <button type="button" class="source-tab is-active" data-source="all" aria-pressed="true">All <span id="sourceCountAll">0</span></button>
+     <button type="button" class="source-tab" data-source="mixamo" aria-pressed="false">Mixamo <span id="sourceCountMixamo">0</span></button>
+     <button type="button" class="source-tab" data-source="rokoko" aria-pressed="false">Rokoko <span id="sourceCountRokoko">0</span></button>
+     <button type="button" class="source-tab" data-source="other" aria-pressed="false">Other <span id="sourceCountOther">0</span></button>
+    </div>
+    <div class="filters"><select id="packFilter" aria-label="Animation source pack"><option value="all">All packs</option></select><label class="search-wrap">⌕ <input id="search" placeholder="Search names, categories or pack..." aria-label="Filter animations"></label><select id="category" aria-label="Category"><option value="all">All categories</option><option value="combat">Combat</option><option value="kicks">Kicks</option><option value="movement">Movement</option><option value="jumps">Jumps / Acrobatics</option><option value="magic">Magic / Energy</option><option value="reaction">Reactions</option><option value="other">Other</option></select><select id="tagFilter" aria-label="Action assignment status"><option value="all">All animations</option><option value="assigned">Assigned to an action</option><option value="unassigned">Not yet assigned</option></select></div>
+   <div id="emptyLibrary" class="empty"><span>◈</span><h3>Your animation wall starts here</h3><p>Import a ZIP or FBX to preview it here. Rokoko Superhero animations stay in their own collection and do not change Kairo's assigned moves.</p></div>
    <div id="clipGrid" class="clip-grid" aria-label="Animation previews"></div>
    <div class="page-controls" id="pageControls" hidden><button id="prevPage">← Previous</button><span id="pageInfo">Page 1</span><button id="nextPage">Next →</button></div>
   </section>
@@ -68,14 +74,14 @@
 <script src="js/v78-studio-hip-bounce.js?v=780"></script>
 <script src="js/character-motion-preview.js?v=780"></script>
 <script src="assets/characters/master/model.js?v=610"></script>
-<script src="js/animation-studio-core.js?v=580"></script>
-<script src="js/v69-motion-library.js?v=690"></script>
+<script src="js/animation-studio-core.js?v=581"></script>
+<script src="js/v69-motion-library.js?v=691"></script>
 <script src="js/v70-fbx-repair.js?v=700"></script>
 <script src="js/v72-studio-game-export.js?v=721&fix=87"></script>
 <script src="js/v79-pack-catalog.js?v=791"></script>
 <script src="js/v79-gif-preview.js?v=790"></script>
 <script type="module">
-import("./js/animation-studio.js?v=835&fix=87&studioLocal=2").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=836&fix=87&studioLocal=2").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>
