@@ -76,142 +76,144 @@
   preview:new URLSearchParams(location.search).get('jumpArms')==='compact'?
    'compact-jump-guard':'existing-animation'});
  function script(src){
+  // One immutable query snapshot per module load; defaults were normalized above.
+  const params=new URLSearchParams(location.search);
   return new Promise((resolve,reject)=>{
-   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v76-upper-body')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(new URLSearchParams(location.search).get('movementLab'))&&src.includes('js/game.js')))?(new URLSearchParams(location.search).get('movementLab')==='step'?(new URLSearchParams(location.search).get('stance')==='unified'?'&fix=92':['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&fix=91':new URLSearchParams(location.search).get('stance')==='legacy90'?'&fix=90':'&fix=89'):new URLSearchParams(location.search).get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
+   const e=document.createElement('script');e.src=src+((src.includes('v71-mixamo-gameplay')||src.includes('v76-upper-body')||src.includes('v72-published-actions')||src.includes('v81-pose-transitions')||src.includes('v79-extra-actions')||(['walk','step'].includes(params.get('movementLab'))&&src.includes('js/game.js')))?(params.get('movementLab')==='step'?(params.get('stance')==='unified'?'&fix=92':['match','continuous'].includes(params.get('stance'))?'&fix=91':params.get('stance')==='legacy90'?'&fix=90':'&fix=89'):params.get('movementLab')==='walk'?'&fix=88':'&fix=87'):'')+
     (src.includes('v89-grounded-step')?
-   (new URLSearchParams(location.search).get('stance')==='unified'?'&stance=92':['match','continuous'].includes(new URLSearchParams(location.search).get('stance'))?'&stance=91':
-    new URLSearchParams(location.search).get('stance')==='legacy90'?'&stance=90':''):'');if(src.includes('v81-pose-transitions')&&
-      new URLSearchParams(location.search).get('stance')==='handoff')
+   (params.get('stance')==='unified'?'&stance=92':['match','continuous'].includes(params.get('stance'))?'&stance=91':
+    params.get('stance')==='legacy90'?'&stance=90':''):'');if(src.includes('v81-pose-transitions')&&
+      params.get('stance')==='handoff')
      e.src+='&fix=94';
-   if(new URLSearchParams(location.search).get('joystickRun')==='on'&&
-      new URLSearchParams(location.search).get('stance')==='handoff'&&
+   if(params.get('joystickRun')==='on'&&
+      params.get('stance')==='handoff'&&
       (src.includes('js/game.js')||src.includes('v71-mixamo-gameplay')||
        src.includes('v72-published-actions')))e.src+='&jrun=95';
    if(src.includes('v79-extra-actions')&&
-      new URLSearchParams(location.search).get('idleArms')==='steady')
+      params.get('idleArms')==='steady')
      e.src+='&idle=96';
    if(src.includes('v79-extra-actions')&&
-      new URLSearchParams(location.search).get('idleArms')==='anchored')
+      params.get('idleArms')==='anchored')
      e.src+='&idle=97';
    if(['v76-upper-body','v72-published-actions'].some(k=>src.includes(k))&&
-      new URLSearchParams(location.search).get('idleArms')==='anchored')
+      params.get('idleArms')==='anchored')
      e.src+='&arm=97';
    if(src.includes('v72-published-actions')&&
-      new URLSearchParams(location.search).get('airLab')==='jump')
+      params.get('airLab')==='jump')
      e.src+='&air=98';
    if(src.includes('v81-pose-transitions')&&
-      new URLSearchParams(location.search).get('airHands')==='stable')
+      params.get('airHands')==='stable')
      e.src+='&hands=99';
    // V100 needs the NEW cooperative versions of every former air-pose
    // writer. A refreshed boot script alone is insufficient when the old
    // V71/V76/V72/V81 URLs remain cached by GitHub Pages or the browser.
-   if(new URLSearchParams(location.search).get('animator')==='unified'&&
+   if(params.get('animator')==='unified'&&
       ['v71-mixamo-gameplay','v76-upper-body','v72-published-actions',
        'v81-pose-transitions'].some(k=>src.includes(k)))
      e.src+='&poseOwner=100';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpArms')==='compact')
+      params.get('jumpArms')==='compact')
      e.src+='&arms=101';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('airLegs')==='steady')
+      params.get('airLegs')==='steady')
      e.src+='&legs=102';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('movingJump')==='carry')
+      params.get('movingJump')==='carry')
      e.src+='&moving=103';
    // All V105 pieces (collision bundle, UE5 clip exposure, final owner)
    // must refresh together, or only part of the landing graph updates.
-   if(new URLSearchParams(location.search).get('landingLab')==='contact'&&
+   if(params.get('landingLab')==='contact'&&
       (src.includes('js/game.js')||src.includes('v72-published-actions')||
        src.includes('v100-pose-authority')))
      e.src+='&landing=105';
-   if(new URLSearchParams(location.search).get('landingLab')==='contact'&&
-      new URLSearchParams(location.search).get('landingFeet')==='plant'&&
+   if(params.get('landingLab')==='contact'&&
+      params.get('landingFeet')==='plant'&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&soles=106';
    if(src.includes('v100-pose-authority')&&
-      (new URLSearchParams(location.search).get('jumpStyle')==='expressive'||
-       new URLSearchParams(location.search).get('landingMove')==='pin'))
+      (params.get('jumpStyle')==='expressive'||
+       params.get('landingMove')==='pin'))
      e.src+='&performance=107';
    // V108 collision-to-air transition is both a physics input buffer
    // (compiled js/game.js) and a final-pose state (V100).
-   if(new URLSearchParams(location.search).get('jumpPrep')==='subtle'&&
+   if(params.get('jumpPrep')==='subtle'&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&anticipation=108';
-   if((new URLSearchParams(location.search).get('jumpPrep')==='readable'||
-       new URLSearchParams(location.search).get('landingMove')==='flow')&&
+   if((params.get('jumpPrep')==='readable'||
+       params.get('landingMove')==='flow')&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&groundflow=109';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpFacing')==='locked')
+      params.get('jumpFacing')==='locked')
      e.src+='&facing=110';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('flightLab')==='blend')
+      params.get('flightLab')==='blend')
      e.src+='&flight=111';
-   if(new URLSearchParams(location.search).get('jumpPrep')==='push'&&
+   if(params.get('jumpPrep')==='push'&&
       (src.includes('js/game.js')||src.includes('v100-pose-authority')))
      e.src+='&push=112';
    if(src.includes('v100-pose-authority')&&
-      (new URLSearchParams(location.search).get('flightStyle')==='controlled'||
-       new URLSearchParams(location.search).get('jumpFeet')==='hold'))
+      (params.get('flightStyle')==='controlled'||
+       params.get('jumpFeet')==='hold'))
      e.src+='&controlled=113';
    if(src.includes('v100-pose-authority')&&
-      (new URLSearchParams(location.search).get('jumpKnees')==='guided'||
-       new URLSearchParams(location.search).get('flightStyle')==='airborne'))
+      (params.get('jumpKnees')==='guided'||
+       params.get('flightStyle')==='airborne'))
      e.src+='&airborne=114';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpKnees')==='forward')
+      params.get('jumpKnees')==='forward')
      e.src+='&forward=115';
    // New V116 candidate loads ONLY when requested. The published V115
    // remains byte-for-byte selectable with jumpKnees=forward.
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpKnees')==='anatomic')
+      params.get('jumpKnees')==='anatomic')
      e.src+='&anatomic=116';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpPreview')==='v117')
+      params.get('jumpPreview')==='v117')
      e.src+='&torso=117';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpPreview')==='v118')
+      params.get('jumpPreview')==='v118')
      e.src+='&vrmFacing=118';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpPreview')==='v119')
+      params.get('jumpPreview')==='v119')
      e.src+='&toeSpring=119';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('jumpPreview')==='v120')
+      params.get('jumpPreview')==='v120')
      e.src+='&fluidArms=120';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('jumpPreview')==='v121')
+       params.get('jumpPreview')==='v121')
       e.src+='&takeoffHeading=121';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('jumpPreview')==='v122')
+       params.get('jumpPreview')==='v122')
       e.src+='&visibleToeHeading=122';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('jumpPreview')==='v123')
+       params.get('jumpPreview')==='v123')
       e.src+='&expressiveArc=123';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('jumpPreview')==='v124')e.src+='&idleFeet=124';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('jumpPreview')==='v125')e.src+='&coordinatedFeet=125';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v126')e.src+='&expressiveFlight=126';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v127')e.src+='&suspendedFlight=127';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v128')e.src+='&worldKneeFlight=128';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v129')e.src+='&worldGuardFlight=129';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v130')e.src+='&relaxedFlight=130';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v131')e.src+='&organicFlight=131';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v132')e.src+='&buoyantFlight=132';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v133')e.src+='&weightlessFlight=133';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v134')e.src+='&naturalFlight=134';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v135')e.src+='&softKneeFlight=135';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v136')e.src+='&wholeBodyFlight=136';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v137')e.src+='&balancedFlight=137';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v138')e.src+='&sereneFlight=138';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v140')e.src+='&referenceFlight=140';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v141')e.src+='&suspendedFlight=141';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v142')e.src+='&authoredFlight=142';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v143')e.src+='&livingFlight=143';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v144')e.src+='&naturalArms=144';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v145')e.src+='&verticalFlight=145';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v146')e.src+='&verticalFollow=146';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v147')e.src+='&directionalFlight=147';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v148')e.src+='&allFlight=148';
-    if(src.includes('v100-pose-authority')&&new URLSearchParams(location.search).get('flightPreview')==='v149')e.src+='&livingTravel=149';
+    if(src.includes('v100-pose-authority')&&params.get('jumpPreview')==='v124')e.src+='&idleFeet=124';
+    if(src.includes('v100-pose-authority')&&params.get('jumpPreview')==='v125')e.src+='&coordinatedFeet=125';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v126')e.src+='&expressiveFlight=126';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v127')e.src+='&suspendedFlight=127';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v128')e.src+='&worldKneeFlight=128';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v129')e.src+='&worldGuardFlight=129';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v130')e.src+='&relaxedFlight=130';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v131')e.src+='&organicFlight=131';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v132')e.src+='&buoyantFlight=132';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v133')e.src+='&weightlessFlight=133';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v134')e.src+='&naturalFlight=134';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v135')e.src+='&softKneeFlight=135';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v136')e.src+='&wholeBodyFlight=136';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v137')e.src+='&balancedFlight=137';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v138')e.src+='&sereneFlight=138';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v140')e.src+='&referenceFlight=140';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v141')e.src+='&suspendedFlight=141';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v142')e.src+='&authoredFlight=142';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v143')e.src+='&livingFlight=143';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v144')e.src+='&naturalArms=144';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v145')e.src+='&verticalFlight=145';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v146')e.src+='&verticalFollow=146';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v147')e.src+='&directionalFlight=147';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v148')e.src+='&allFlight=148';
+    if(src.includes('v100-pose-authority')&&params.get('flightPreview')==='v149')e.src+='&livingTravel=149';
     if(src.includes('v100-pose-authority')&&modernFlight)e.src+='&joystickFlight=150';
     if(src.includes('v100-pose-authority')&&v151Preview)e.src+='&freeTravelArms=151';
     if(src.includes('v100-pose-authority')&&(v152Preview||v153Preview||v155Preview))e.src+='&quietHover=152';
@@ -219,28 +221,28 @@
    // Only the opt-in banking preview needs the new V100 JavaScript cache.
    // The published V156 flight version is still the unchanged default.
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('flightBank')==='v157')
+      params.get('flightBank')==='v157')
      e.src+='&bank=157';
    if(src.includes('v100-pose-authority')&&
-      new URLSearchParams(location.search).get('flightBank')==='v158')
+      params.get('flightBank')==='v158')
      e.src+='&bank=158';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v159')
+       params.get('flightVertical')==='v159')
       e.src+='&vertical=159';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v160')
+       params.get('flightVertical')==='v160')
       e.src+='&vertical=160';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v161')
+       params.get('flightVertical')==='v161')
       e.src+='&vertical=161';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v162')
+       params.get('flightVertical')==='v162')
       e.src+='&vertical=162';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v163')
+       params.get('flightVertical')==='v163')
       e.src+='&vertical=163';
     if(src.includes('v100-pose-authority')&&
-       new URLSearchParams(location.search).get('flightVertical')==='v164')
+       params.get('flightVertical')==='v164')
       e.src+='&vertical=164';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);

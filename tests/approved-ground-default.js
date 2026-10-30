@@ -205,7 +205,78 @@ assert(boot.includes("&livingTravel=149"), 'V149 changing travel animation cache
 assert(boot.includes("&referenceFlight=140"));
 assert(boot.includes('if(stepLab)await script(\'js/v89-grounded-step.js?v=890\')'));
 assert(boot.includes('if(joystickLab)await script(\'js/v95-joystick-radius.js?v=950\')'));
-assert(boot.includes("new URLSearchParams(location.search).get('animator')==='unified'"),
+assert(boot.includes("params.get('animator')==='unified'"),
  'Keep V100 conditional; jump default intentionally enables it but flight remains optional');
 
 console.log('PASS unified public URL: approved V97 ground + V125 jump + V156 model-authored flight, explicit V153/V152 rollbacks.');
+
+// Execute the ACTUAL script loader in a DOM stub, not a second recreated
+// routing algorithm. Guard the V156 default and selected preview cache keys
+// while enforcing one query parse per script.
+const scriptBegin=boot.indexOf(' function script(src){');
+const scriptEnd=boot.indexOf(' let selected=null;',scriptBegin);
+assert(scriptBegin>0&&scriptEnd>scriptBegin,'Isolate the live module loader');
+const realScript=boot.slice(scriptBegin,scriptEnd);
+
+async function scriptURL(search,source){
+ const selected=new URLSearchParams(search);
+ const loaded=[];
+ let parses=0;
+ class CountedParams extends URLSearchParams {
+  constructor(...args){super(...args);parses++;}
+ }
+ const fp=selected.get('flightPreview');
+ const scope={
+  location:{search},URLSearchParams:CountedParams,
+  modernFlight:['v150','v151','v152','v153','v155'].includes(fp),
+  v151Preview:fp==='v151',v152Preview:fp==='v152',
+  v153Preview:fp==='v153',v155Preview:fp==='v155',
+  document:{
+   createElement:()=>({src:''}),
+   body:{appendChild:e=>{loaded.push(e.src);e.onload();}}
+  }
+ };
+ const load=vm.runInNewContext(realScript+'\nscript;',scope);
+ await load(source);
+ assert.equal(parses,1,'A script load should parse normalized URL exactly once');
+ assert.equal(loaded.length,1,'Each script() appends one module');
+ return loaded[0];
+}
+
+(async()=>{
+ const normal=simulate('').location.search;
+ const game=await scriptURL(normal,'js/game.js?v=1530&startup=104&stormFist=3');
+ for(const part of ['&fix=89','&jrun=95','&landing=105','&soles=106',
+   '&groundflow=109','&push=112'])
+  assert(game.includes(part),'Public game loader misses '+part);
+ const air=await scriptURL(normal,'js/v100-pose-authority.js?v=1560');
+ for(const part of ['&arms=101','&legs=102','&moving=103','&landing=105',
+   '&soles=106','&performance=107','&groundflow=109','&facing=110',
+   '&flight=111','&push=112','&controlled=113','&airborne=114',
+   '&anatomic=116','&coordinatedFeet=125'])
+  assert(air.includes(part),'V156 normal air loader misses '+part);
+ assert.equal(await scriptURL(normal,'js/v156-real-vrm-flight.js?v=1560'),
+   'js/v156-real-vrm-flight.js?v=1560','Normal Q animation asset unchanged');
+ const native=await scriptURL(normal,'js/v72-published-actions.js?v=820');
+ for(const part of ['&fix=89','&jrun=95','&arm=97','&air=98',
+   '&poseOwner=100','&landing=105'])
+  assert(native.includes(part),'Normal combat owner misses '+part);
+ const v164=await scriptURL(simulate('?flightVertical=v164').location.search,
+   'js/v100-pose-authority.js?v=1560');
+ assert(v164.includes('&vertical=164'),'Selected V164 stays opt-in');
+ const v153=await scriptURL(simulate('?flightPreview=v153').location.search,
+   'js/v100-pose-authority.js?v=1560');
+ for(const part of ['&joystickFlight=150','&quietHover=152','&streamlined=153'])
+  assert(v153.includes(part),'Historical V153 rollback misses '+part);
+ const v143=await scriptURL(simulate('?flightPreview=v143').location.search,
+   'js/v100-pose-authority.js?v=1560');
+ assert(v143.includes('&livingFlight=143'),'Historical V143 remains reachable');
+ const walk=await scriptURL('?movementLab=walk','js/v71-mixamo-gameplay.js?v=820');
+ assert(walk.includes('&fix=88'),'Historical V88 walk mode preserved');
+ const handoff=await scriptURL('?movementLab=step&stance=handoff&joystickRun=on&idleArms=anchored',
+   'js/v72-published-actions.js?v=820');
+ assert(handoff.includes('&fix=89')&&handoff.includes('&jrun=95')&&
+   handoff.includes('&arm=97'),'Explicit step and arm flags preserved');
+ console.log('PASS real boot module routing: V156 normal, V164, V143/V153 rollback, V88 walk, V97 stance, query parsed once');
+})().catch(error=>{console.error(error);process.exitCode=1});
+
