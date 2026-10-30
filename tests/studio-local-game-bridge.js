@@ -25,7 +25,7 @@ for(const slot of ['floating','flying','fallingIdle','landing','boost','guard'])
  assert.deepEqual(bridge.validate({...pack,motions:[{...entry,slot}]}),[slot]);
 }
 const airOwner=read('js/v100-pose-authority.js');
-assert(airOwner.includes("get('studioPlaytest')==='local'"));
+assert(airOwner.includes("get('studioPlaytest')!=='local'"));
 assert(airOwner.includes('local.slots.includes(slot)'));
 assert(!bridge.supportedSlots.includes('idle4'));
 const html=read('animation-studio.html'),studio=read('js/animation-studio.js');
