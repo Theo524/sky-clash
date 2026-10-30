@@ -744,7 +744,13 @@
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
      // anchor makes recorded hips and knees fight the ground solver.
-     const contact=localPunch&&entry.sampleSupport?entry:localPlant;
+     // Older saved Studio gamepacks (including action packs exported
+     // before this fix) only contain quaternions, not foot contacts.
+     // Do NOT invent two always-planted feet for those local motions:
+     // let their authored leg rotations play without a forced pin.
+     // Published/approved combat retains its existing contact behavior.
+     const contact=localPunch?(entry.sampleSupport?entry:
+       {sampleSupport:()=>({left:false,right:false})}):localPlant;
      supportFoot('left',state.clock,contact,state.localStrikeFeet);
      supportFoot('right',state.clock,contact,state.localStrikeFeet);
      status.groundedPunchBodyFrames=(status.groundedPunchBodyFrames||0)+1;
