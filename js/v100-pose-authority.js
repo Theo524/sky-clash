@@ -2374,6 +2374,42 @@
    !!phase&&!!clips?.[clipFor(phase)]&&
    !!context.SkyClashPoseAuthority?.ready;
  }
+  // V166 opt-in: let the accepted authored hover POSE breathe and
+  // counterbalance while the character floats. All motion is a gentle,
+  // bounded offset to the SAME real 20-joint VRM pose, not another pose
+  // owner, root-translation animation or synthetic keyframe replacement.
+  // Return small local joint angles (degrees) so tests can bound them.
+  function v166FlightBodyExpression(seconds,travel=0,entry=1){
+   const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
+   const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
+   const w=smooth(entry)*(1-.55*cruise);
+   // Two slow overlapping rhythms avoid the rigid matched-pair
+   // pendulum look. The arms react a little after the ribs, the hips
+   // counterbalance, and the knees relax rather than walking in air.
+   const breath=Math.sin(t*2.05-.35)+.22*Math.sin(t*1.07+.8);
+   const follow=Math.sin(t*2.05-.94);
+   const counter=Math.sin(t*2.05+.55);
+   const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
+   const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
+   set(0,-.65*counter,.65*follow);          // pelvis counters the rib cage
+   set(1,.80*breath,-.42*follow);            // lumbar/waist breath
+   set(2,1.25*breath,-.60*follow);           // visible rib-cage rise
+   set(3,.70*breath,-.20*follow);
+   set(4,-.45*breath,.16*follow);            // neck keeps gaze calm
+   set(5,-.32*breath,.14*follow);
+   set(6,-.95*follow,.65*breath);            // left shoulder / guard
+   set(10,-.83*counter,-.58*breath);         // right shoulder delayed
+   set(7,1.65*follow,-.48*breath);           // upper arms float loosely
+   set(11,1.46*counter,.43*breath);
+   set(8,-1.02*counter,.22*follow);
+   set(12,-.93*follow,-.22*counter);
+   set(14,-.68*counter,.25*breath);          // subtle hip/thigh follow
+   set(17,-.62*follow,-.24*breath);
+   set(15,.85*follow);
+   set(18,.78*counter);
+   return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
+    Math.hypot(j.x,j.z)))};
+  }
  function attach(THREE,f,status){
   if(!f||typeof f.animate!=='function'||f.v100PoseAuthority)return null;
   const old=f.animate;
@@ -3093,42 +3129,6 @@
      }
     }
    }
-  }
-  // V166 opt-in: let the accepted authored hover POSE breathe and
-  // counterbalance while the character floats. All motion is a gentle,
-  // bounded offset to the SAME real 20-joint VRM pose, not another pose
-  // owner, root-translation animation or synthetic keyframe replacement.
-  // Return small local joint angles (degrees) so tests can bound them.
-  function v166FlightBodyExpression(seconds,travel=0,entry=1){
-   const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
-   const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   const w=smooth(entry)*(1-.55*cruise);
-   // Two slow overlapping rhythms avoid the rigid matched-pair
-   // pendulum look. The arms react a little after the ribs, the hips
-   // counterbalance, and the knees relax rather than walking in air.
-   const breath=Math.sin(t*2.05-.35)+.22*Math.sin(t*1.07+.8);
-   const follow=Math.sin(t*2.05-.94);
-   const counter=Math.sin(t*2.05+.55);
-   const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
-   const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   set(0,-.65*counter,.65*follow);          // pelvis counters the rib cage
-   set(1,.80*breath,-.42*follow);            // lumbar/waist breath
-   set(2,1.25*breath,-.60*follow);           // visible rib-cage rise
-   set(3,.70*breath,-.20*follow);
-   set(4,-.45*breath,.16*follow);            // neck keeps gaze calm
-   set(5,-.32*breath,.14*follow);
-   set(6,-.95*follow,.65*breath);            // left shoulder / guard
-   set(10,-.83*counter,-.58*breath);         // right shoulder delayed
-   set(7,1.65*follow,-.48*breath);           // upper arms float loosely
-   set(11,1.46*counter,.43*breath);
-   set(8,-1.02*counter,.22*follow);
-   set(12,-.93*follow,-.22*counter);
-   set(14,-.68*counter,.25*breath);          // subtle hip/thigh follow
-   set(17,-.62*follow,-.24*breath);
-   set(15,.85*follow);
-   set(18,.78*counter);
-   return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
-    Math.hypot(j.x,j.z)))};
   }
   // V156: exact normalized 20-bone keyframe snapshots from the real
   // Kairo VRM. Executed ONLY inside the existing V100 final flight owner,
