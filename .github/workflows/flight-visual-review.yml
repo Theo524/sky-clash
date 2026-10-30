@@ -13,21 +13,6 @@ on:
         description: "Two isolated powered flight versions"
         required: false
         default: "v152,v156"
-  pull_request:
-    paths:
-      - 'js/v142-hover-keyframes.js'
-      - 'js/v143-hover-performance.js'
-      - 'js/v144-relaxed-arms.js'
-      - 'js/v145-vertical-flight.js'
-      - 'js/v146-vertical-followthrough.js'
-      - 'js/v147-horizontal-flight.js'
-      - 'js/v148-full-flight.js'
-      - 'js/v149-travel-performance.js'
-      - 'js/v150-joystick-flight.js'
-      - 'js/v151-travel-arms.js'
-      - 'js/v152-flight-silhouette.js'
-      - 'js/v153-streamlined-flight.js'
-
 permissions:
   contents: read
 
