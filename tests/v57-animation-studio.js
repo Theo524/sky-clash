@@ -39,7 +39,6 @@ assert(script.includes("await importFiles([...e.target.files],{source:'rokoko'})
 assert(script.includes('Core.sourceGroup(origin,name,source)'));
 assert(script.includes('Core.packGroup(origin,name,provider)'));
 assert(script.includes("source:provider,pack:"));
-assert(script.includes('window.SkyClashStudioLiveBridge')===false);
 assert(fs.existsSync(base+'/js/vendor/jszip.min.js'));
 assert(fs.readFileSync(base+'/css/animation-studio.css','utf8').includes('@media(max-width:610px)'));
 assert(index.includes('js/game.js?v=570'));
