@@ -21,7 +21,7 @@ for(const bad of [
 assert(bridge.supportedSlots.includes('punch1'));
 assert(bridge.supportedSlots.includes('kick'));
 assert.equal(bridge.baseVersion,1);
-for(const method of ['saveBase','loadBase','restoreBase'])
+for(const method of ['saveBase','loadBase','restoreBase','importBase'])
  assert.equal(typeof bridge[method],'function','Protected baseline API '+method);
 const bridgeSource=read('js/studio-live-bridge.js');
 assert(bridgeSource.includes("BASE_KEY='kairo-studio-approved-base-v1'"));
@@ -41,13 +41,15 @@ const boot=read('js/v66-game-boot.js'),runtimeSource=read('js/v72-published-acti
 const index=read('index.html');
 assert(html.includes('id="applyGameMoves"')&&html.includes('id="clearAppliedGameMoves"'));
 assert(html.includes('id="exportPunchSources"'));
-for(const control of ['saveStudioBase','restoreStudioBase','downloadStudioBase']){
+for(const control of ['saveStudioBase','restoreStudioBase','downloadStudioBase','importStudioBase']){
  assert(html.includes('id="'+control+'"'),'Missing Studio baseline control '+control);
  assert(studio.includes(control),'Missing baseline UI handler '+control);
 }
 assert(studio.includes('LiveBridge.saveBase()'));
 assert(studio.includes('LiveBridge.restoreBase()'));
 assert(studio.includes('LiveBridge.loadBase()'));
+assert(html.includes('id="studioBaseInput"'));
+assert(studio.includes('LiveBridge.importBase(data)'));
 assert(studio.includes('exportAssignedPunchSources'));
 assert(studio.includes("item.zipEntry.async('uint8array')"));
 assert(studio.includes("item.file.arrayBuffer()"));
