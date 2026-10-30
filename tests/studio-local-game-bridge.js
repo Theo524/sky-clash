@@ -68,4 +68,35 @@ assert.equal(runtime.choose({...fighter,attackKind:'skyUppercut'},available),'pu
 assert.equal(runtime.choose({...fighter,attackKind:'skyKick'},available),'kick');
 if(priorStatus===undefined)delete globalThis.SkyClashPublishedActions;
 else globalThis.SkyClashPublishedActions=priorStatus;
+// Exercise the actual V100 owner decision, not merely the URL wiring.
+const owner=require('../js/v100-pose-authority.js');
+const oldLocation=globalThis.location;
+const localLocation={search:'?animator=unified&studioPlaytest=local&flightLab=blend'};
+globalThis.location=localLocation;
+try{
+ const hero={hp:100,jumping:true,vel:{x:0,y:4,z:0}};
+ const local={state:'ready',slots:['jump']};
+ const ctx={location:localLocation,SkyClash:{Game:{heroes:{kairo_venn:hero}}},
+  SkyClashPublishedActions:{localPlaytest:local,
+   motionClips:{jump:{},fallingIdle:{},landing:{},flying:{},floating:{}}},
+  SkyClashPoseAuthority:{ready:true}};
+ assert.equal(owner.localStudioAirSlot(hero,ctx),'jump');
+ assert.equal(owner.ownsAir(hero,ctx),false,'Assigned jump must yield to Studio');
+ local.slots=['flying'];
+ assert.equal(owner.ownsAir(hero,ctx),true,'Unassigned jump keeps V100');
+ hero.jumping=false;hero.flying=true;hero.vel.x=4;
+ assert.equal(owner.localStudioAirSlot(hero,ctx),'flying');
+ assert.equal(owner.ownsAir(hero,ctx),false,'Assigned travel flight must be visible');
+ local.slots=['floating'];
+ assert.equal(owner.ownsAir(hero,ctx),true,'Hover slot must not replace travel flight');
+ hero.vel.x=0;
+ assert.equal(owner.localStudioAirSlot(hero,ctx),'floating');
+ assert.equal(owner.ownsAir(hero,ctx),false,'Assigned hover must be visible');
+ localLocation.search='?animator=unified&flightLab=blend';
+ assert.equal(owner.localStudioAirSlot(hero,ctx),null,'Normal game ignores local clips');
+ assert.equal(owner.ownsAir(hero,ctx),true,'Public flight remains V100');
+}finally{
+ if(oldLocation===undefined)delete globalThis.location;
+ else globalThis.location=oldLocation;
+}
 console.log('PASS local Kairo editor-to-playable bridge: valid exported bones, opt-in only, clear controls and fallback');
