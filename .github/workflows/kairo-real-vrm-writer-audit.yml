@@ -1,0 +1,56 @@
+name: Kairo Real VRM Bone Writer Audit
+on:
+  pull_request:
+    paths:
+      - 'tools/real-vrm-writer-audit.cjs'
+      - 'tools/real-vrm-writer-hook.cjs'
+      - '.github/workflows/kairo-real-vrm-writer-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  trace-real-kairo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Check audit syntax and workflow scope
+        run: |
+          node --check tools/real-vrm-writer-hook.cjs
+          node --check tools/real-vrm-writer-audit.cjs
+          node tests/ci-workflow-trigger-safety.js
+      - name: Install real Chromium for WebGL Kairo
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+      - name: Serve current checkout locally
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/real-kairo-ownership.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Measure real Kairo VRM writers across ground, V156 flight and combat
+        run: node tools/real-vrm-writer-audit.cjs
+      - name: Upload per-bone trace and provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-kairo-vrm-writer-ownership
+          path: visual-review-output/real-vrm-writers/
+          if-no-files-found: warn
+          retention-days: 21
