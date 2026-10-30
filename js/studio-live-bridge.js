@@ -4,7 +4,8 @@
  */
 (function(root){
  'use strict';
- const DB='sky-clash-studio-game-playtest',STORE='packs',KEY='kairo',MAX_BYTES=20*1024*1024;
+ const DB='sky-clash-studio-game-playtest',STORE='packs',KEY='kairo',
+  BASE_KEY='kairo-studio-approved-base-v1',MAX_BYTES=20*1024*1024;
  const SLOTS=Object.freeze(['idle','walk','run','jump','runStop','dodge',
   'punch1','punch2','punch3','uppercut','kick','meteor',
   'charge','superblast','hit','floating','flying','fallingIdle',
@@ -74,10 +75,47 @@
   if(!record)return null;
   return {pack:record.pack,slots:validate(record.pack),updatedAt:record.updatedAt};
  }
+ // A user-saved base is a separate immutable-ish browser snapshot, NOT
+ // the current working copy. Editing/applying/resetting the working pack
+ // can never overwrite it; only the explicit Save Base action can.
+ // No network upload and no auto-promotion into public game assets.
+ async function loadBase(){
+  const record=await transaction('readonly',(store,set)=>{
+   const request=store.get(BASE_KEY);
+   request.onsuccess=()=>set(request.result||null);
+  });
+  if(!record)return null;
+  return {pack:record.pack,slots:validate(record.pack),
+   updatedAt:record.updatedAt,version:1};
+ }
+ async function saveBase(){
+  const current=await load();
+  if(!current)throw Error('Apply Kairo moves before saving a base version');
+  const updatedAt=Date.now();
+  await transaction('readwrite',store=>{
+   store.put({id:BASE_KEY,pack:current.pack,updatedAt});
+  });
+  return {slots:current.slots,updatedAt,version:1};
+ }
+ async function importBase(pack){
+  const slots=validate(pack),updatedAt=Date.now();
+  await transaction('readwrite',store=>{
+   store.put({id:BASE_KEY,pack,updatedAt});
+  });
+  return {slots,updatedAt,version:1};
+ }
+  async function restoreBase(){
+  const baseline=await loadBase();
+  if(!baseline)throw Error('No saved base version in this browser');
+  const restored=await save(baseline.pack);
+  return {...restored,baseUpdatedAt:baseline.updatedAt};
+ }
  async function clear(){
+  // Reset working preview only; NEVER discard the protected base.
   await transaction('readwrite',store=>{store.delete(KEY);});
  }
- const api={save,load,clear,validate,supportedSlots:SLOTS};
+ const api={save,load,clear,saveBase,loadBase,restoreBase,importBase,validate,
+  supportedSlots:SLOTS,baseVersion:1};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashStudioLiveBridge=api;
 })(typeof window!=='undefined'?window:globalThis);

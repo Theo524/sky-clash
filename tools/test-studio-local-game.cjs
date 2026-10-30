@@ -152,6 +152,36 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(repeated.kickSlot,'kick');
   assert(Math.abs(repeated.kickClock-repeated.kickImpact)<.08,
    'Kairo roundhouse must sample source contact window rather than time-warped full clip');
+  // Second/third/fourth kicks reuse the SAME saved Mixamo full-body
+  // roundhouse, with a fresh serial, pose handoff and foot-contact state.
+  // The old implementation treated kick as NOT a new full-body strike.
+  const kicks=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,s=window.SkyClashPublishedActions;
+   const results=[];
+   p.hp=100;p.stun=0;p.downT=0;p.flying=false;p.jumping=false;
+   p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   for(let i=0;i<4;i++){
+    p.punchT=.72;p.attackKind='kick';p.attackVariant=i%2?'overhand':'hook';
+    p.attackSerial=(p.attackSerial||0)+1;p.attackElapsed=.10;p.attackTotal=.87;
+    p.t+=1/60;p.animate(1/60);
+    results.push({serial:p.attackSerial,slot:p.v72StudioPack.slot,
+     source:s.motionClips[p.v72StudioPack.slot]?.sourceFile,
+     key:p.v72StudioPack.localStrikeKey,
+     handoff:!!p.v72StudioPack.localEntryPose,
+     legs:p.v72StudioPack.localFullBodyKickActive,
+     anchors:Object.keys(p.v72StudioPack.localStrikeFeet).length});
+    p.punchT=0;p.attackElapsed=.87;p.t+=1/60;p.animate(1/60);
+   }
+   return results;
+  });
+  for(const kick of kicks){
+   assert.equal(kick.slot,'kick','An older published clip displaced the local kick');
+   assert.equal(kick.source,'local-roundhouse.fbx');
+   assert(kick.key.includes(String(kick.serial)+':kick'),'Kick serial was not reset');
+   assert(kick.handoff,'Repeated kick failed to capture previous full-body pose');
+   assert(kick.legs,'Repeated kick lost full-body leg ownership');
+   assert.equal(kick.anchors,0,'Old Studio kick must not force phantom two-foot anchors');
+  }
   // Same browser and IndexedDB, but NO opt-in flag: original published
   // punch1 must remain exactly as before.
   await navigate('?scene=dojo');
@@ -265,6 +295,29 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
    'Combined flight preview must keep the saved Studio punch3');
   assert.equal(combined.error,null);
+  // A saved Base is independent from normal Apply and Reset. Restore
+  // must replay the exact same baked data after another local pack was
+  // applied, and preserve the chosen Mixamo source names.
+  const protectedBase=await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge;
+   const original=await bridge.load();
+   const base=await bridge.saveBase();
+   await bridge.save({...original.pack,motions:[original.pack.motions[0]]});
+   await bridge.clear();
+   const empty=await bridge.load(),kept=await bridge.loadBase();
+   const recovered=await bridge.restoreBase(),active=await bridge.load();
+   return {empty:empty===null,kept:kept.slots,
+    savedSlots:base.slots,restoredSlots:recovered.slots,
+    identical:JSON.stringify(active.pack)===JSON.stringify(original.pack),
+    punch3:active.pack.motions.find(m=>m.slot==='punch3')?.sourceFile,
+    kick:active.pack.motions.find(m=>m.slot==='kick')?.sourceFile};
+  });
+  assert(protectedBase.empty,'Reset should clear working preview only');
+  assert.deepEqual(protectedBase.kept,protectedBase.savedSlots);
+  assert.deepEqual(protectedBase.restoredSlots,protectedBase.savedSlots);
+  assert(protectedBase.identical,'Restoring the Base must preserve all exact baked Mixamo data');
+  assert.equal(protectedBase.punch3,'local-repeated-punch3.fbx');
+  assert.equal(protectedBase.kick,'local-roundhouse.fbx');
   await navigate('?scene=dojo');
   const approvedFlight=await page.evaluate(()=>{
    const p=window.SkyClash.Game.player,a=window.SkyClashPoseAuthority;

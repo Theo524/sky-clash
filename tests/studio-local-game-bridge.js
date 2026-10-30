@@ -20,6 +20,14 @@ for(const bad of [
 ])assert.throws(()=>bridge.validate(bad));
 assert(bridge.supportedSlots.includes('punch1'));
 assert(bridge.supportedSlots.includes('kick'));
+assert.equal(bridge.baseVersion,1);
+for(const method of ['saveBase','loadBase','restoreBase','importBase'])
+ assert.equal(typeof bridge[method],'function','Protected baseline API '+method);
+const bridgeSource=read('js/studio-live-bridge.js');
+assert(bridgeSource.includes("BASE_KEY='kairo-studio-approved-base-v1'"));
+assert(bridgeSource.includes('store.delete(KEY)')&&
+ !bridgeSource.includes('store.delete(BASE_KEY)'),
+ 'Normal Reset must not destroy the saved base motion snapshot');
 for(const slot of ['floating','flying','fallingIdle','landing','boost','guard']){
  assert(bridge.supportedSlots.includes(slot),slot+' missing from local playtest');
  assert.deepEqual(bridge.validate({...pack,motions:[{...entry,slot}]}),[slot]);
@@ -33,33 +41,50 @@ const boot=read('js/v66-game-boot.js'),runtimeSource=read('js/v72-published-acti
 const index=read('index.html');
 assert(html.includes('id="applyGameMoves"')&&html.includes('id="clearAppliedGameMoves"'));
 assert(html.includes('id="exportPunchSources"'));
+for(const control of ['saveStudioBase','restoreStudioBase','downloadStudioBase','importStudioBase']){
+ assert(html.includes('id="'+control+'"'),'Missing Studio baseline control '+control);
+ assert(studio.includes(control),'Missing baseline UI handler '+control);
+}
+assert(studio.includes('LiveBridge.saveBase()'));
+assert(studio.includes('LiveBridge.restoreBase()'));
+assert(studio.includes('LiveBridge.loadBase()'));
+assert(html.includes('id="studioBaseInput"'));
+assert(studio.includes('LiveBridge.importBase(data)'));
 assert(studio.includes('exportAssignedPunchSources'));
 assert(studio.includes("item.zipEntry.async('uint8array')"));
 assert(studio.includes("item.file.arrayBuffer()"));
-assert(html.includes('js/studio-live-bridge.js?v=2'));
+assert(html.includes('js/studio-live-bridge.js?v=3'));
 assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo')"));
 assert(studio.includes('LiveBridge.save(result.pack)'));
 assert(studio.includes('GameExporter.bake(THREE,fbx,'));
 assert(studio.includes('if(actionFighter!==\'kairo\')'));
 assert(boot.includes("get('studioPlaytest')==='local'"));
-assert(boot.includes('js/studio-live-bridge.js?v=2'));
+assert(boot.includes('js/studio-live-bridge.js?v=3'));
 assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=9'));
+assert(index.includes('&studioLocal=10'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
 assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=827'));
+assert(boot.includes('js/v72-published-actions.js?v=828'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
+assert(runtimeSource.includes('const strikeKey=(fullBodyPunch||localKick)?'));
+assert(runtimeSource.includes("state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?"));
+assert(runtimeSource.includes('state.localFullBodyKickActive=localKick'));
+assert(runtimeSource.includes('if(fullBodyPunch||localKick)'));
+assert(runtimeSource.includes('const selective=localKick||localPunch&&entry.slot!=='));
+assert(runtimeSource.includes('const studioOwnsSlot=!options.choose'));
+assert(runtimeSource.includes('let native=studioOwnsSlot?null:status.nativeCombatPreview'));
+assert(runtimeSource.includes("status.localPlaytest.baseVersion=base?.version||null"));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
-assert(runtimeSource.includes('if(!localPunch||entry.sampleSupport)'));
-assert(runtimeSource.includes("const selective=localPunch&&entry.slot!=='punch1'"));
+assert(runtimeSource.includes('if((localPunch||localKick)?!!entry.sampleSupport:true)'));
+assert(runtimeSource.includes("const selective=localKick||localPunch&&entry.slot!=='punch1'"));
 assert(runtimeSource.includes("if(selective&&!initialSupport?.[side])continue"));
-assert(runtimeSource.includes('entry.sampleSupport(localPunchClock(entry,this.attackElapsed||0,'));
-assert(runtimeSource.includes('const contacts=localPunch?entry:localPlant'));
+assert(runtimeSource.includes('entry.sampleSupport(sourceTime):null'));
+assert(runtimeSource.includes('const contacts=localPunch||localKick?entry:localPlant'));
 assert(runtimeSource.includes("supportFoot('left',state.clock,contacts,state.localStrikeFeet)"));
 assert(runtimeSource.includes("supportFoot('right',state.clock,contacts,state.localStrikeFeet)"));
 // A 2.5s Mixamo clip with 1× authoring speed must progress only .55
@@ -118,7 +143,7 @@ const beats=runtime.recordedPunchBeats({frames,fps:30,seconds:95/30,bones:runtim
 assert(beats.length>=2&&beats[0]<1&&beats[beats.length-1]>1.6,
  'Multi-hit Mixamo clip should expose separated recorded punches');
 assert(runtimeSource.includes('const visibleBefore=status.localPlaytest?.state'));
-assert(runtimeSource.includes("entry.slot!=='punch1'?visibleBefore:null"));
+assert(runtimeSource.includes("state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?"));
 assert(runtimeSource.includes('state.localEntryAge/.085'));
 assert(runtimeSource.includes('node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase)'));
 assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,attackKind:'punch'})},
@@ -136,7 +161,7 @@ assert(!boot.includes("flags.set('studioPlaytest','local')"),
  'Never auto-publish local punches into ordinary game URLs');
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
-assert(html.includes('animation-studio.js?v=833&fix=87&studioLocal=2'));
+assert(html.includes('animation-studio.js?v=834&fix=87&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
 // when and ONLY when that slot was explicitly applied in the local pack.

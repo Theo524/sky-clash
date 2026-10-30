@@ -616,6 +616,67 @@ async function applyGameMoves(){
   btn.disabled=actionFighter!=='kairo';
  }
 }
+// The BASE is a deliberately saved, game-ready snapshot, not whatever
+// action-map references happen to be selected in the editor right now.
+// Users can experiment with Studio clips without losing a known-good set.
+async function saveStudioBase(){
+ const button=$('saveStudioBase');button.disabled=true;
+ try{
+  if(actionFighter!=='kairo')throw Error('Base v1 currently supports Kairo only.');
+  if(!LiveBridge?.saveBase)throw Error('Reload Studio to enable Base versions.');
+  const previous=await LiveBridge.loadBase();
+  if(previous&&!window.confirm('Replace the saved Kairo Base v1? This overwrites your previous protected snapshot.'))return;
+  const saved=await LiveBridge.saveBase();
+  setActionHelp('Protected Base v1 saved ('+saved.slots.length+
+   ' baked Kairo clips). Future Apply/Reset operations will not overwrite it. Use Download Base for a backup.');
+ }catch(e){setActionHelp('Could not save Base v1: '+e.message);}
+ finally{button.disabled=false;}
+}
+async function restoreStudioBase(){
+ const button=$('restoreStudioBase');button.disabled=true;
+ try{
+  if(actionFighter!=='kairo')throw Error('Base v1 currently supports Kairo only.');
+  if(!LiveBridge?.restoreBase)throw Error('Reload Studio to enable Base versions.');
+  const base=await LiveBridge.loadBase();
+  if(!base)throw Error('No protected Base v1 exists in this browser yet. Save a working applied pack first.');
+  if(!window.confirm('Restore Base v1 ('+base.slots.length+' Kairo clips)? This replaces the current local playtest, but not your Studio assignments.'))return;
+  const result=await LiveBridge.restoreBase();
+  setActionHelp('Restored protected Base v1 ('+result.slots.length+' real Kairo motion clips). Opening Training with base animations…');
+  window.location.assign('index.html?studioPlaytest=local&scene=dojo');
+ }catch(e){setActionHelp('Could not restore Base v1: '+e.message);}
+ finally{button.disabled=false;}
+}
+async function downloadStudioBase(){
+ const button=$('downloadStudioBase');button.disabled=true;
+ try{
+  if(!LiveBridge?.loadBase)throw Error('Reload Studio to enable Base versions.');
+  const saved=await LiveBridge.loadBase();
+  if(!saved)throw Error('No protected Base v1 saved yet.');
+  // This is a real playable motion pack, not an assignment-map JSON.
+  const data=JSON.stringify(saved.pack);
+  const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+  const a=document.createElement('a');a.href=url;
+  a.download='sky-clash-kairo-base-v1-game-motions.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  setActionHelp('Downloaded your protected Base v1 ('+saved.slots.length+
+   ' baked clips). Keep this backup if you switch browsers or clear site data.');
+ }catch(e){setActionHelp('Could not download Base v1: '+e.message);}
+ finally{button.disabled=false;}
+}
+async function importStudioBaseFile(file){
+ try{
+  if(!LiveBridge?.importBase)throw Error('Reload Studio to import Base backups.');
+  const data=JSON.parse(await file.text());
+  // Import only baked Kairo motion data; an assignment-map JSON is not
+  // enough and cannot silently replace any previously protected Base.
+  const old=await LiveBridge.loadBase();
+  if(old&&!window.confirm('Replace existing protected Base v1 with this backup?'))return;
+  const saved=await LiveBridge.importBase(data);
+  setActionHelp('Imported protected Base v1 ('+saved.slots.length+
+   ' real Kairo motion clips) from backup. Click Restore Base v1 to play it. Your existing working pack and Studio assignments are unchanged.');
+ }catch(e){setActionHelp('Could not import Base backup: '+e.message);}
+}
 async function clearAppliedGameMoves(){
  const btn=$('clearAppliedGameMoves');btn.disabled=true;
  try{
@@ -656,6 +717,15 @@ $('exportGamePack').addEventListener('click',exportGamePack);
 $('exportPunchSources').addEventListener('click',exportAssignedPunchSources);
 $('applyGameMoves').addEventListener('click',applyGameMoves);
 $('clearAppliedGameMoves').addEventListener('click',clearAppliedGameMoves);
+$('saveStudioBase').addEventListener('click',saveStudioBase);
+$('restoreStudioBase').addEventListener('click',restoreStudioBase);
+$('downloadStudioBase').addEventListener('click',downloadStudioBase);
+$('importStudioBase').addEventListener('click',()=>$('studioBaseInput').click());
+$('studioBaseInput').addEventListener('change',async e=>{
+ const file=e.target.files?.[0];
+ if(file)await importStudioBaseFile(file);
+ e.target.value='';
+});
 $('importActions').addEventListener('click',()=>$('actionMapInput').click());
 $('actionMapInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='sky-clash-action-map'||data.version!==1)throw Error('This is not a V58 action map');const v=Action.sanitize(data.assignments);actionData.kairo=v.kairo;actionData.rin=v.rin;saveActions();refreshActionSlots();setActionHelp('Imported '+Action.count(v)+' action assignments, but this JSON contains NO Mixamo animation data. Reimport the original FBX/ZIP packs, then click Apply to Game & Play. Export Action Map alone does not update the game.');}catch(err){setActionHelp('Could not import map: '+err.message);}e.target.value='';});
 $('clearActions').addEventListener('click',()=>{if(!confirm('Clear all '+displayActor()+' action assignments?'))return;actionData[actionFighter]={};saveActions();activeAction='idle';refreshActionSlots();applyFilter();});

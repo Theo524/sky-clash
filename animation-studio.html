@@ -51,7 +51,7 @@
       <label>Motion speed <span id="tuneSpeedValue">1.00×</span><input id="tuneSpeed" type="range" min="0.25" max="2" step="0.05" value="1"></label>
       <label>Facing adjustment <span id="tuneYawValue">0°</span><input id="tuneYaw" type="range" min="-180" max="180" step="5" value="0"></label>
     </div>
-    <div class="export-actions"><button id="exportActions" class="primary alt">↓ Export action map JSON</button><button id="applyGameMoves" type="button" class="primary">▶ Apply to Game &amp; Play</button><button id="clearAppliedGameMoves" type="button">Reset local moves</button><button id="exportGamePack" type="button" class="primary alt">↓ Export for Game (motion data)</button><button id="exportPunchSources" type="button" title="Download the original assigned Kairo Mixamo punch FBXs from this browser’s saved Studio library">↓ Download assigned punch FBXs</button><button id="importActions">↑ Import map</button><button id="clearActions">Reset this fighter</button><input id="actionMapInput" type="file" accept=".json" hidden></div>
+    <div class="export-actions"><button id="exportActions" class="primary alt">↓ Export action map JSON</button><button id="applyGameMoves" type="button" class="primary">▶ Apply to Game &amp; Play</button><button id="clearAppliedGameMoves" type="button">Reset local moves</button><button id="saveStudioBase" type="button" title="Protect the currently applied game-ready Kairo motion clips from future experiments">★ Save current as Base v1</button><button id="restoreStudioBase" type="button" title="Restore your saved working Kairo animation base into the local game">↺ Restore Base v1</button><button id="downloadStudioBase" type="button" title="Download the saved base animation data as a backup">↓ Download Base</button><button id="importStudioBase" type="button" title="Import a previously downloaded real Kairo Base game-motions JSON backup">↑ Import Base Backup</button><input id="studioBaseInput" type="file" accept=".json" hidden><button id="exportGamePack" type="button" class="primary alt">↓ Export for Game (motion data)</button><button id="exportPunchSources" type="button" title="Download the original assigned Kairo Mixamo punch FBXs from this browser’s saved Studio library">↓ Download assigned punch FBXs</button><button id="importActions">↑ Import map</button><button id="clearActions">Reset this fighter</button><input id="actionMapInput" type="file" accept=".json" hidden></div>
     <div class="action-help" id="actionHelp" role="status">Apply to Game & Play bakes Kairo's assigned actions and opens Training using them. Changes stay only in this browser and do not alter the public game or Rin. Use the Original Game link to exit the preview. Export for Game still downloads a permanent JSON pack you can publish separately.</div>
    </div>
   </section>
@@ -62,7 +62,7 @@
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
 <script src="js/character-actions-core.js?v=791"></script>
-<script src="js/studio-live-bridge.js?v=2"></script>
+<script src="js/studio-live-bridge.js?v=3"></script>
 <script src="js/v66-character-source.js?v=680"></script>
 <script src="js/v68-humanoid-retarget.js?v=680"></script>
 <script src="js/v78-studio-hip-bounce.js?v=780"></script>
@@ -75,7 +75,7 @@
 <script src="js/v79-pack-catalog.js?v=791"></script>
 <script src="js/v79-gif-preview.js?v=790"></script>
 <script type="module">
-import("./js/animation-studio.js?v=833&fix=87&studioLocal=2").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=834&fix=87&studioLocal=2").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>
