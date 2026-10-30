@@ -71,6 +71,11 @@ assets are not altered. Experimental native V3 remains opt-in.
   leg-rotation drive peak at the fourth combo's existing hit moment:
   `1×` advances one recorded source second per gameplay second, not
   the entire 2.5-second Mixamo file squeezed into a ~0.87-second attack.
+  Later locally applied punches now initialize grounded foot anchors
+  only where the recorded Mixamo frame says a sole is supporting weight.
+  For older Studio exports without that metadata, later punches do not
+  invent contact pins. This prevents stale two-shoe constraints when
+  Punch 2 or Punch 3 lifts a leg; Punch 1 retains its existing setup.
   Physics, damage, cooldowns, hit frames, Rin and the published game
   animation defaults are unchanged. Punch2, Punch3 and
   Uppercut make a brief ~85ms transition from the last visible body pose
