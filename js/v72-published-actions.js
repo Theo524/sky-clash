@@ -1100,6 +1100,15 @@
      status.localPlaytest.state='ready';
      status.localPlaytest.slots=Object.keys(localActions);
      status.localPlaytest.updatedAt=saved.updatedAt;
+     try{
+      const base=await bridge.loadBase?.();
+      status.localPlaytest.baseVersion=base?.version||null;
+      status.localPlaytest.baseSavedAt=base?.updatedAt||null;
+      status.localPlaytest.baseSlots=base?.slots||[];
+     }catch(e){
+      // A damaged/old saved Base must not disable the active valid pack.
+      status.localPlaytest.baseError=String(e);
+     }
     }catch(err){
      status.localPlaytest.state='fallback';
      status.localPlaytest.error=String(err);
@@ -1135,6 +1144,13 @@
      'Kairo: '+status.localPlaytest.slots.length+' local moves active':
      'Local moves not loaded — original game active';
     notice.appendChild(title);
+    if(status.localPlaytest.baseVersion){
+     const protectedBase=context.document.createElement('div');
+     protectedBase.textContent='Base v1 protected · '+
+      status.localPlaytest.baseSlots.length+' saved clips';
+     protectedBase.style.cssText='margin-top:3px;color:#a9eac6';
+     notice.appendChild(protectedBase);
+    }
     if(flags.get('flightBody')==='alive'){
      const flightNote=context.document.createElement('div');
      flightNote.textContent='Flight body preview on · uses Studio floating/flying if assigned';
@@ -1177,6 +1193,9 @@
       const report={
        page:context.location?.pathname||'game',
        playtest:status.localPlaytest.state,
+       baseVersion:status.localPlaytest.baseVersion||null,
+       baseSavedAt:status.localPlaytest.baseSavedAt||null,
+       baseSlots:status.localPlaytest.baseSlots||[],
        activeSlot:status.active,
        activeSource:active?.sourceFile||null,
        sourceSeconds:active?.seconds||null,
