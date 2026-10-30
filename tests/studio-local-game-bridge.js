@@ -54,7 +54,7 @@ assert(studio.includes('exportAssignedPunchSources'));
 assert(studio.includes("item.zipEntry.async('uint8array')"));
 assert(studio.includes("item.file.arrayBuffer()"));
 assert(html.includes('js/studio-live-bridge.js?v=3'));
-assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo')"));
+assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive')"));
 assert(studio.includes('LiveBridge.save(result.pack)'));
 assert(studio.includes('GameExporter.bake(THREE,fbx,'));
 assert(studio.includes('if(actionFighter!==\'kairo\')'));
@@ -64,10 +64,10 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=10'));
+assert(index.includes('&studioLocal=11'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
-assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=828'));
+assert(boot.includes("?'&studioLocal=4':''"));
+assert(boot.includes('js/v72-published-actions.js?v=829'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes('const strikeKey=(fullBodyPunch||localKick)?'));
@@ -161,7 +161,7 @@ assert(!boot.includes("flags.set('studioPlaytest','local')"),
  'Never auto-publish local punches into ordinary game URLs');
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
-assert(html.includes('animation-studio.js?v=834&fix=87&studioLocal=2'));
+assert(html.includes('animation-studio.js?v=835&fix=87&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
 // when and ONLY when that slot was explicitly applied in the local pack.
