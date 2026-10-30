@@ -16,6 +16,13 @@ on:
       - '.github/workflows/assistant-readiness.yml'
   push:
     branches: [main]
+    paths:
+      - 'AGENTS.md'
+      - 'README.md'
+      - 'docs/ASSISTANT-*.md'
+      - 'tools/assistant-checkup.cjs'
+      - 'tests/assistant-checkup.js'
+      - '.github/workflows/assistant-readiness.yml'
   workflow_dispatch:
 permissions:
   contents: read
