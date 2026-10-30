@@ -108,7 +108,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const current=await window.SkyClashStudioLiveBridge.load();
    const first=current.pack.motions[0],others=[
     {...first,slot:'punch3',sourceFile:'local-repeated-punch3.fbx'},
-    {...first,slot:'kick',sourceFile:'local-roundhouse.fbx',seconds:2.5}
+    {...first,slot:'kick',sourceFile:'local-roundhouse.fbx'}
    ];
    await window.SkyClashStudioLiveBridge.save({
     ...current.pack,motions:[first,...others]
