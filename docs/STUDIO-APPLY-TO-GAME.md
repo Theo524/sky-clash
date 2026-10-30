@@ -18,7 +18,9 @@ published V87 combat pack could override those punch/kick slots.
    actual game in Training with ?studioPlaytest=local&scene=dojo.
 5. The game shows **Kairo: N local moves active**. Expand
    **Inspect loaded Mixamo clips** to verify the actual source FBX
-   for every slot, its original length and the saved speed. Test
+   for every slot, its original length and the saved speed. Use
+   **Copy animation report** to capture the current clip, source and
+   game attack state for debugging without exporting keyframes. Test
    individual punches in Training. Use Edit moves to revise, or
    Original game for the published default.
 
