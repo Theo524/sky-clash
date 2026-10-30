@@ -447,6 +447,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
+    localLandingWasActive:false,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -532,7 +533,26 @@
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
     state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
+    state.localLandingWasActive=false;
    }
+   // The compiled fighter gives landing only .48 seconds before
+   // gameplay returns to idle. For THIS explicitly applied Studio
+   // landing, make its full recorded 1x duration playable. The public
+   // published pipeline and Kairo's physics/ground contact remain intact.
+   const appliedLanding=!options.choose&&
+    this===root.SkyClash?.Game?.heroes?.kairo_venn&&
+    status.localPlaytest?.state==='ready'&&
+    status.localPlaytest.slots.includes('landing')&&actions.landing;
+   if(appliedLanding&&this.landingMotionT>0&&!state.localLandingWasActive&&
+      !this.sprinting&&!this.dashing&&
+      (this.v109LandingDuration||.48)>.22){
+    const span=Math.min(1.25,Math.max(this.landingMotionT,
+     actions.landing.seconds/(actions.landing.speed||1)));
+    this.landingMotionT=span;
+    this.v109LandingDuration=span;
+    status.localPlaytest.localLandingDuration=+span.toFixed(3);
+   }
+   state.localLandingWasActive=this.landingMotionT>0;
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
    const outgoingHips=(priorNative||status.nativeCombatSet)&&state.bones?.[0]?state.bones[0].position.clone():null;
