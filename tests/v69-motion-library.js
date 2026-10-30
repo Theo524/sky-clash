@@ -13,10 +13,10 @@ assert(/js\/animation-studio\.js\?v=\d+/.test(html),'Expected a cache-busted stu
 assert(html.includes('id="savedLibraryStatus"'));
 assert(html.includes('id="clearSavedLibrary"'));
 assert(studio.includes('restoreMotionLibrary();'));
-assert(studio.includes('await MotionLibrary.save(file)'));
+assert(studio.includes('await MotionLibrary.save(file,{source:fileSource})'));
 assert(studio.includes("const originals=await MotionLibrary.list()"));
 assert(studio.includes('explainFBXError(e)'));
-assert(studio.includes('const result=await MotionLibrary.save(file)'));
+assert(studio.includes('const result=await MotionLibrary.save(file,{source:fileSource})'));
 assert(studio.includes("if(addedForFile&&!restored&&MotionLibrary)"),'restoring must not duplicate cached packs');
 assert(studio.includes("origin:file.name"),'ZIP animation catalog origin must retain source filename');
 assert(studio.includes("crc:ent._data?.crc32||''"),'ZIP entries keep original CRC to reconnect saved actions');
