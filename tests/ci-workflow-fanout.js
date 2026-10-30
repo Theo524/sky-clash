@@ -80,5 +80,30 @@ assert(focusedFlight.includes("      - 'js/v100-pose-authority.js'")&&
  !focusedFlight.includes("      - 'tests/ci-quick-preview.js'")&&
  focusedFlight.includes('  workflow_dispatch:'),
  'Flight real-VRM visual QA remains motion-focused and manually runnable');
+// Ordinary Studio changes run their targeted integration tests, not
+// whole-game legacy suites, Pose Lab captures or multi-minute Storm Fist films.
+for(const name of ['kairo-storm-fist-v3-review','v66-character','pose-lab-browser',
+ 'animation-ownership']){
+ const yaml=read(name);
+ for(const editor of ['animation-studio.html','js/animation-studio.js']){
+  assert(!yaml.includes("      - '"+editor+"'"),
+   name+' must not start for ordinary action-editor edits');
+ }
+}
+assert(!read('kairo-storm-fist-v3-review').includes("      - 'js/v72-published-actions.js'"),
+ 'Editor integration in V72 must never generate full Storm Fist video');
+assert(!read('kairo-storm-fist-v3-review').includes("      - 'js/v81-pose-transitions.js'"),
+ 'Pose-transition code may use manual video review, not PR video by default');
+assert(!read('v66-character').includes("      - 'js/v72-*'"),
+ 'A V72 local combat edit should run targeted studio checks, not all V66 tests');
+assert(!read('animation-ownership').includes("      - 'js/**'")&&
+ !read('animation-ownership').includes("      - 'tests/**'"),
+ 'Ownership CI needs narrowly scoped animation scripts rather than every JS/test file');
+assert(read('studio-local-game').includes("      - 'js/v72-published-actions.js'")&&
+ read('studio-local-game').includes("      - 'js/v72-studio-game-export.js'"),
+ 'Local editor and game runtime changes must retain targeted verification');
+assert(read('kairo-storm-fist-v3-review').includes('  workflow_dispatch:')&&
+ read('pose-lab-browser').includes('  workflow_dispatch:'),
+ 'Keep costly real-model capture available on demand');
 console.log('PASS: '+all.length+' concurrency guards, '+heavy.length+
  ' cached WebGL workflows, targeted visual fan-out, and full V66 safety retained');
