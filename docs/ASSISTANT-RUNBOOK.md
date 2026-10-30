@@ -12,8 +12,8 @@ V66 and animation-ownership CI independently cover the broad regression contract
 
 Expensive real-Kairo browser QA is now focused: Storm Fist V3 capture runs on combat
 pack, combat owner and relevant combat-source edits; V4 four-kick film is manual.
-V164 flight WebGL runs on flight data and owner edits, not generic boot/test changes.
-Manually dispatch visual capture when changing the recording tool or reviewing new motion.
+V164 flight WebGL runs on flight data, the pose owner and capture-tool edits, not generic boot/test changes.
+Manually dispatch other focused visual captures when reviewing new motion.
 Passing CI cannot establish aesthetic approval.
 
 Latest verdict: all Storm Fist arms, including the jab, were rejected for
