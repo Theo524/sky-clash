@@ -1,0 +1,61 @@
+name: Studio → Game Local Kairo Playtest
+on:
+  pull_request:
+    paths:
+      - 'animation-studio.html'
+      - 'index.html'
+      - 'js/animation-studio.js'
+      - 'js/studio-live-bridge.js'
+      - 'js/v66-game-boot.js'
+      - 'js/v72-published-actions.js'
+      - 'tests/studio-local-game-bridge.js'
+      - 'tools/test-studio-local-game.cjs'
+      - '.github/workflows/studio-local-game.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  test-local-kairo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Check syntax and existing animation contracts
+        run: |
+          node --check js/studio-live-bridge.js
+          node --check js/v66-game-boot.js
+          node --check js/v72-published-actions.js
+          node --check tools/test-studio-local-game.cjs
+          node tests/studio-local-game-bridge.js
+          node tests/v72-studio-publishing.js
+          node tests/native-combat-playtest-loader.js
+          node tests/animation-ownership-contract.js
+          node tests/approved-ground-default.js
+          node tests/ci-workflow-trigger-safety.js
+      - name: Install real Chromium for Kairo WebGL and local IndexedDB
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+      - name: Serve exact checkout and real Kairo VRM
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/studio-local-game.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Test editor motion in actual Kairo combat and original fallback
+        run: node tools/test-studio-local-game.cjs

@@ -307,8 +307,12 @@
   // Shared V155 authored shape feeds either existing owner, never both.
   if(v155Preview||boostMode==='v155')
    await script('js/v155-organic-flight.js?v=1550');
+  // The local action pack is loaded ONLY on explicit editor playtest URLs.
+  if(new URLSearchParams(location.search).get('studioPlaytest')==='local')
+   await script('js/studio-live-bridge.js?v=1');
   await script('js/v72-published-actions.js?v=820&jabPlaytest=1&stormFist=3'+
-   (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':''));
+   (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':'')+
+   (new URLSearchParams(location.search).get('studioPlaytest')==='local'?'&studioLocal=1':''));
   await window.SkyClashPublishedGamePack.start(window);
   await script('js/v79-extra-actions.js?v=810');
   await window.SkyClashV79ExtraActions.start(window);
