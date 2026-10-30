@@ -79,6 +79,9 @@ async function run(browser,variant){
     nativeLoaded:window.SkyClashPublishedActions?.nativePlaytest?.state||null,
     nativeRevision:window.SkyClashPublishedActions?.nativeCombatSet?.revision||null};
   },{bones,variant});
+  console.log('AUDIT REGISTRATION',variant,JSON.stringify(result.registered));
+  for(const sample of result.states)console.log('AUDIT RAW',variant,sample.phase,JSON.stringify({pose:sample.pose,owned:sample.owned,changed:sample.totalChanges,stages:sample.stages,lastWriter:sample.lastWriter}));
+  fs.writeFileSync(path.join(out,variant+'.json'),JSON.stringify(result,null,2));
   assert.equal(intercepted,1,'Did not intercept exactly one game boot');
   assert(result.bones.length===22,'Missing full normalized bone set');
   for(const name of ['jump','fall','landing','v156-cruise','v156-hover']){
