@@ -73,6 +73,12 @@ async function run(browser,variant){
     p.attackKind='punch';p.punchSide=1;p.punchT=.24;p.attackElapsed=.08;
     p.attackTotal=.45;p.attackSerial=(p.attackSerial||0)+1;
    });
+   sample('real-melee',12,()=>{
+    p.lastMelee=-20;p.meleeCd=0;p.attackSerial=0;p.comboCycle=0;p.combo=0;
+    p.t=12;e.hp=100;e.stun=0;e.invulnT=0;
+    e.pos.set(p.pos.x,p.floor,p.pos.z+1.45);
+    sky.Combat.melee(p,e,variant==='storm-v3');
+   });
    sample('ground-return',12,()=>{});
    return {variant,realVRM:true,webGL:true,registered:trace.registrations,
     model:window.HERO_VRM_URL||null,bones:trace.nodes,states,
@@ -80,21 +86,27 @@ async function run(browser,variant){
     nativeRevision:window.SkyClashPublishedActions?.nativeCombatSet?.revision||null};
   },{bones,variant});
   console.log('AUDIT REGISTRATION',variant,JSON.stringify(result.registered));
-  for(const sample of result.states)console.log('AUDIT RAW',variant,sample.phase,JSON.stringify({pose:sample.pose,owned:sample.owned,changed:sample.totalChanges,stages:sample.stages,lastWriter:sample.lastWriter}));
+  console.log('AUDIT NATIVE PACK',variant,result.nativeLoaded,result.nativeRevision);
+  for(const sample of result.states)console.log('AUDIT STATE',variant,sample.phase,
+   'finalV100='+bones.slice(0,20).filter(b=>sample.lastWriter[b]==='v100-pose-authority.js').length,
+   'native='+sample.native,'clip='+sample.nativeClip);
   fs.writeFileSync(path.join(out,variant+'.json'),JSON.stringify(result,null,2));
   assert.equal(intercepted,1,'Did not intercept exactly one game boot');
   assert(result.bones.length===22,'Missing full normalized bone set');
   for(const name of ['jump','fall','landing','v156-cruise','v156-hover']){
    const state=result.states.find(x=>x.phase===name);
    assert(state.owned,'Expected V100 to own '+name+'; got '+state.pose);
-   assert(Object.values(state.lastWriter).some(s=>s.includes('v100-')),
-    'No real Kairo joint mutations from V100 in '+name);
+   for(const bone of bones.slice(0,20))
+    assert.equal(state.lastWriter[bone],'v100-pose-authority.js',
+     name+' final tracked writer changed on '+bone);
   }
   for(const sample of result.states){
    assert(sample.totalChanges>0,'No measured joint changes in '+sample.phase);
    console.log('REAL KAIRO',variant,sample.phase,
     'pose='+sample.pose,'owners='+sample.stages.map(s=>s.name+':'+s.changed).join(','));
   }
+  if(variant==='storm-v3')assert.equal(result.nativeRevision,'storm-fist-v3',
+   'Storm Fist V3 review pack must actually load');
   assert(!errors.length,'Page errors: '+errors.join(' | '));
   fs.writeFileSync(path.join(out,variant+'.json'),JSON.stringify(result,null,2));
   return {variant,registered:result.registered,
