@@ -11,18 +11,18 @@ const out=path.resolve(process.env.KAIRO_SYNC_PROFILE_OUTPUT||'visual-review-out
 const bones=require('../docs/KAIRO-RIG-CONTRACT.v1.json').targetBoneNames;
 const hash=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(root,p))).digest('hex');
 const scenarios=[
- {name:'idle',count:24,h:0},
- {name:'walk',count:24,h:0,vz:3},
- {name:'run',count:24,h:0,vz:6,run:true},
- {name:'jump',count:24,h:1,vy:8,jump:true},
- {name:'fall',count:24,h:2,vy:-7,jump:true},
- {name:'landing',count:24,h:0,landing:.45},
- {name:'v156-hover',count:24,h:2},
- {name:'v156-cruise',count:24,h:2,vz:5},
- {name:'boost',count:24,h:2,vz:6,boost:true},
- {name:'guard',count:24,h:0,guard:true},
- {name:'attack',count:24,h:0,attack:true},
- {name:'ground-return',count:24,h:0}
+ {name:'idle',count:12,h:0},
+ {name:'walk',count:12,h:0,vz:3},
+ {name:'run',count:12,h:0,vz:6,run:true},
+ {name:'jump',count:12,h:1,vy:8,jump:true},
+ {name:'fall',count:12,h:2,vy:-7,jump:true},
+ {name:'landing',count:12,h:0,landing:.45},
+ {name:'v156-hover',count:12,h:2},
+ {name:'v156-cruise',count:12,h:2,vz:5},
+ {name:'boost',count:12,h:2,vz:6,boost:true},
+ {name:'guard',count:12,h:0,guard:true},
+ {name:'attack',count:12,h:0,attack:true},
+ {name:'ground-return',count:12,h:0}
 ];
 const targets=[
  {id:'default-30',fps:30,query:'?scene=dojo'},
@@ -130,7 +130,7 @@ async function run(browser,spec){
    };
    for(const phase of scenarios){
     reset(phase);
-    for(let i=0;i<8;i++){f.t+=dt;f.animate(dt);}
+    for(let i=0;i<4;i++){f.t+=dt;f.animate(dt);}
     const sample={phase:phase.name,frames:phase.count,simulatedFps:spec.fps,
      timing:{},syncOrigins:{},boneWrites:{},events:[],writesSinceSync:0,
      totalMs:0,maxFrameMs:0,ownerState:null,ownsAir:false,errors:[]};
