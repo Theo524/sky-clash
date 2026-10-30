@@ -67,6 +67,29 @@ const sourceEnd=runtime.localPunchClock(localPunch,.55,.55);
 assert(Math.abs(sourceEnd-sourceBegin-.55)<1e-9,'Mixamo punch accelerated');
 assert(Math.abs(runtime.localPunchClock({...localPunch,speed:.5},.55,.55)-
  runtime.localPunchClock({...localPunch,speed:.5},0,.55)-.275)<1e-9);
+// The user's Roundhouse Kick is a 2.5s real Mixamo source. At 1× the
+// local 0.87s gameplay action must cover 0.87 SOURCE seconds, not 2.5s.
+const roundhouse={slot:'kick',seconds:2.5,kickImpact:.87,speed:1};
+const kickStart=runtime.localKickClock(roundhouse,0,.87);
+const kickEnd=runtime.localKickClock(roundhouse,.87,.87);
+assert(Math.abs(kickEnd-kickStart-.87)<1e-8,'Local Mixamo roundhouse accelerated');
+assert(Math.abs(runtime.localKickClock(roundhouse,.41,.87)-.87)<1e-8,
+ 'Recorded kick should align with the original gameplay contact');
+assert(Math.abs(runtime.localKickClock({...roundhouse,speed:.5},.87,.87)-
+ runtime.localKickClock({...roundhouse,speed:.5},0,.87)-.435)<1e-8);
+// Detect real leg-rotation motion, not the source's idle lead-in.
+const kickFrames=76,kickStride=20*4,kickData=new Int16Array(kickFrames*kickStride);
+for(let i=0;i<kickFrames;i++){
+ for(let b=0;b<20;b++)kickData[i*kickStride+b*4+3]=32767;
+ const angle=1.2*Math.max(0,1-Math.abs(i-26)/4);
+ for(const bone of [17,18]){
+  kickData[i*kickStride+bone*4]=Math.round(Math.sin(angle/2)*32767);
+  kickData[i*kickStride+bone*4+3]=Math.round(Math.cos(angle/2)*32767);
+ }
+}
+const detectedKick=runtime.recordedKickImpact(
+ {slot:'kick',frames:kickFrames,fps:30,seconds:2.5,bones:runtime.BONES},kickData);
+assert(detectedKick>.70&&detectedKick<1.03,'Roundhouse contact must follow its leg-drive peak');
 // The user's Combo Punch is almost 3 seconds and has multiple source
 // strikes. A one-hit gameplay slot must pick the FIRST substantial beat,
 // not enter mid-way through the third punch. Do not alter Punch1.
@@ -112,7 +135,18 @@ const available={punch3:{},kick:{},uppercut:{},meteor:{}};
 globalThis.SkyClashPublishedActions={localPlaytest:{state:'ready',slots:['uppercut','meteor']}};
 assert.equal(runtime.choose({...fighter,attackKind:'skyUppercut'},available),'uppercut');
 assert.equal(runtime.choose({...fighter,attackKind:'skyKick'},available),'meteor');
+// The third Kairo combo beat alternates hook/overhand EVERY new combo.
+// When Studio punch3 is assigned, no repeat may use published overhand.
+const withOverhand={punch1:{},punch2:{},punch3:{},overhand:{},kick:{}};
+globalThis.SkyClashPublishedActions={localPlaytest:{state:'ready',slots:['punch3','kick']}};
+for(const variant of ['hook','overhand','hook','overhand','hook']){
+ assert.equal(runtime.choose({...fighter,attackKind:'hook',attackVariant:variant,
+  attackSerial:(fighter.attackSerial||0)+1},withOverhand),'punch3',
+  'Repeated third beat must consistently use Studio punch3, not published overhand');
+}
 globalThis.SkyClashPublishedActions={localPlaytest:{state:'off',slots:[]}};
+assert.equal(runtime.choose({...fighter,attackKind:'hook',attackVariant:'overhand'},
+ withOverhand),'overhand','Published overhand routing must remain unchanged');
 assert.equal(runtime.choose({...fighter,attackKind:'skyUppercut'},available),'punch3');
 assert.equal(runtime.choose({...fighter,attackKind:'skyKick'},available),'kick');
 if(priorStatus===undefined)delete globalThis.SkyClashPublishedActions;
