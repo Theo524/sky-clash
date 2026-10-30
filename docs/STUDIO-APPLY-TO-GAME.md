@@ -31,10 +31,14 @@ assets are not altered. Experimental native V3 remains opt-in.
   browsers/devices or private sessions; clearing site data removes them.
 - Only Kairo is wired into local gameplay. Rin's editor and JSON export
   remain usable but do NOT yet apply into his live fighting controller.
-- The existing V72 runtime supports these 15 Kairo slots: idle, walk,
-  run, jump, runStop, dodge, punch1, punch2, punch3, uppercut, kick,
-  meteor, charge, superblast, hit. Editor-only idle3/4/5 etc are
-  skipped for live Kairo and reported to the user.
+- The Kairo local playtest now supports 21 slots: idle, walk, run, jump,
+  runStop, dodge, punch1, punch2, punch3, uppercut, kick, meteor,
+  charge, superblast, hit, floating, flying, fallingIdle, landing,
+  boost and guard. Editor-only idle variants and fallToRoll are skipped.
+  An assigned local jump, fall, landing or flight clip causes V100 to
+  yield only for that specific Kairo state; the released animations
+  remain in charge of any unassigned air state. Hover uses `floating`;
+  powered travel over 3 speed uses `flying`. Physics are unchanged.
 - The existing combat state machine chooses moves; assigning punch1
   does not create new input buttons, hitboxes, range or hit timings.
   In local playtest only, an assigned Uppercut or Meteor takes priority
@@ -43,10 +47,8 @@ assets are not altered. Experimental native V3 remains opt-in.
 - **Grounded Kairo punches in both the published V87 game and local
   playtesting** now use authored hip and leg movement alongside the arms.
   V72's existing two-bone foot correction anchors soles at strike entry.
-  This deliberately updates the default boxing silhouette following user
-  feedback. Add `?punchBody=legacy` to the game URL to restore the old
-  upper-body-only punch mask if its stance needs visual comparison.
-  Hitboxes, input, physics, Rin and unapproved native combat remain unchanged.
+  This is the single grounded punch behavior without an extra legacy
+  rollback flag. Hitboxes, input, physics, Rin and native combat remain unchanged.
 - Other owners (V81 finger/pose transitions, V100 approved air poses)
   are unchanged. An animation test cannot prove aesthetic acceptance.
 - studioActions=off still disables V72. Invalid or absent local data

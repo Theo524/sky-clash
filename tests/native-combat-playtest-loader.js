@@ -86,7 +86,7 @@ async function main(){
  await new Promise(resolve=>setTimeout(resolve,0));
  assert(!fallback.nativeCombatPreview);assert.equal(fallback.nativePlaytest.state,'fallback');
  const boot=fs.readFileSync(require.resolve('../js/v66-game-boot.js'),'utf8');
- assert(boot.includes('js/v72-published-actions.js?v=820&jabPlaytest=1'));
+ assert(boot.includes('js/v72-published-actions.js?v=822&jabPlaytest=1'));
  assert(boot.includes('js/v81-pose-transitions.js?v=810&jabPlaytest=1'));
  assert(fs.readFileSync(require.resolve('../index.html'),'utf8').includes('selectedBFlightReady=164&jabPlaytest=1'));
  console.log('PASS experimental jab loading: opt-in only, cached clients refreshed, bounded fetch/body read, invalid/offline/timeout fallback');

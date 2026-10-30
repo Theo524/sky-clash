@@ -7,7 +7,8 @@
  const DB='sky-clash-studio-game-playtest',STORE='packs',KEY='kairo',MAX_BYTES=20*1024*1024;
  const SLOTS=Object.freeze(['idle','walk','run','jump','runStop','dodge',
   'punch1','punch2','punch3','uppercut','kick','meteor',
-  'charge','superblast','hit']);
+  'charge','superblast','hit','floating','flying','fallingIdle',
+  'landing','boost','guard']);
  const allowed=new Set(SLOTS);
  function validate(pack){
   if(!pack||pack.schema!=='sky-clash.studio-gamepack.v1'||

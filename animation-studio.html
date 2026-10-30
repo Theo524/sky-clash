@@ -15,7 +15,7 @@
  <span class="privacy">● PRIVATE · FILES STAY IN YOUR BROWSER</span>
 </header>
 <main>
- <section class="intro"><div><div class="eyebrow">YOUR MIXAMO COLLECTION · WITHOUT RENAMING</div><h1>Preview it. <em>Assign it.</em></h1><p>Import FBX files or ZIPs, browse looping previews, then drag a motion into a named fighter action. Preview assignments on the actual character before changing gameplay.</p></div>
+ <section class="intro"><div><div class="eyebrow">YOUR MIXAMO COLLECTION · WITHOUT RENAMING</div><h1>Create moves. <em>Play them.</em></h1><p>Import FBX or ZIP motions, assign or retune Kairo's attacks, walking, running, jumping and flight, then select <strong>Apply to Game &amp; Play</strong> to test immediately in Training. The public game and Rin stay untouched.</p></div>
   <button id="chooseTop" class="primary">＋ Import FBX / ZIP</button>
  </section>
  <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Import FBX or ZIP animations"><span class="drop-mark">↥</span><div><b>Drop your Mixamo ZIP packs or FBX files here</b><small>Or click to browse · Multiple files supported · Original filenames preserved</small></div><button id="chooseInside" type="button">Choose files</button></div>
@@ -61,8 +61,8 @@
 <script src="js/vendor/jszip.min.js"></script>
 <script src="js/vendor/three.min.js"></script>
 <script src="js/vendor/vrmkit.js"></script>
-<script src="js/character-actions-core.js?v=790"></script>
-<script src="js/studio-live-bridge.js?v=1"></script>
+<script src="js/character-actions-core.js?v=791"></script>
+<script src="js/studio-live-bridge.js?v=2"></script>
 <script src="js/v66-character-source.js?v=680"></script>
 <script src="js/v68-humanoid-retarget.js?v=680"></script>
 <script src="js/v78-studio-hip-bounce.js?v=780"></script>
@@ -75,7 +75,7 @@
 <script src="js/v79-pack-catalog.js?v=791"></script>
 <script src="js/v79-gif-preview.js?v=790"></script>
 <script type="module">
-import("./js/animation-studio.js?v=830&fix=86&studioLocal=1").catch(err=>{console.error("Animation Studio failed to start",err);
+import("./js/animation-studio.js?v=831&fix=86&studioLocal=2").catch(err=>{console.error("Animation Studio failed to start",err);
  const el=document.getElementById("loadStatus");if(el)el.textContent="Preview engine could not load. Check your internet connection or try Chrome / Edge. Details: "+(err?.message||"Unknown error");
 });
 </script>

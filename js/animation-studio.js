@@ -450,7 +450,7 @@ function bindClip(item,key){
  if(!item){setActionHelp('Import some FBX or ZIP files and select a clip first.');return;}
  Action.assign(actionData,actionFighter,key,item);
  activeAction=key;saveActions();refreshActionSlots();applyFilter();
- setActionHelp('Assigned '+item.name+' → '+displayActor()+' / '+(Action.slots[actionFighter].find(s=>s[0]===key)||[])[1]+'. This preview does not replace live combat.');
+ setActionHelp('Assigned '+item.name+' → '+displayActor()+' / '+(Action.slots[actionFighter].find(s=>s[0]===key)||[])[1]+'. Use Apply to Game & Play to test the assigned move in Training.');
  select(item).then(()=>switchView('character')).catch(e=>setActionHelp('Could not preview: '+e.message));
 }
 function refreshActionSlots(){
@@ -532,7 +532,7 @@ function gamePackNotes(result){
  let message='';
  if(result.missing.length)message+=' Missing source files: '+result.missing.slice(0,2).join(', ')+'.';
  if(result.unsupported.length)message+=' Failed conversions: '+result.unsupported.slice(0,2).join('; ')+'.';
- if(result.skipped.length)message+=' Editor-only slots not applied: '+result.skipped.join(', ')+'.';
+ if(result.skipped.length)message+=' Not playable in this mode: '+result.skipped.join(', ')+'.';
  return message;
 }
 async function exportGamePack(){

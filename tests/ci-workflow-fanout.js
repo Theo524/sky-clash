@@ -52,8 +52,8 @@ assert(ownership.includes('node tests/animation-ownership-contract.js')&&
  ownership.includes('node tests/v100-single-pose-authority.js'),
  'V100 pose ownership safety must remain automatic');
 assert(!read('kairo-quick-flight-stills').includes("      - 'js/v100-pose-authority.js'")&&
- read('kairo-v164-selected-flight-stills').includes("      - 'js/v100-pose-authority.js'"),
- 'Only current V164 WebGL checks should run for shared V100 animation edits');
+ !read('kairo-v164-selected-flight-stills').includes('  pull_request:'),
+ 'V164 WebGL capture is explicit opt-in rather than a default V100 PR job');
 assert(!read('kairo-v159-vertical-flight').includes("      - 'js/v100-pose-authority.js'"),
  'Full V159 MP4 should run on demand, not for every V100 edit');
 assert(!read('flight-visual-review').includes("      - 'js/v156-real-vrm-flight.js'"),
@@ -74,12 +74,10 @@ assert(kick.includes('  workflow_dispatch:')&&!kick.includes('  pull_request:')&
  kick.includes('STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick'),
  'Focused four-kick film remains available on demand, never duplicated per PR');
 const focusedFlight=read('kairo-v164-selected-flight-stills');
-assert(focusedFlight.includes("      - 'js/v100-pose-authority.js'")&&
- focusedFlight.includes("      - 'js/v164-selected-kairo-real-flight.js'")&&
- !focusedFlight.includes("      - 'js/v66-game-boot.js'")&&
- !focusedFlight.includes("      - 'tests/ci-quick-preview.js'")&&
- focusedFlight.includes('  workflow_dispatch:'),
- 'Flight real-VRM visual QA remains motion-focused and manually runnable');
+assert(!focusedFlight.includes('  pull_request:')&&
+ focusedFlight.includes('  workflow_dispatch:')&&
+ !focusedFlight.includes("      - 'js/v66-game-boot.js'"),
+ 'Flight real-VRM visual QA must remain manually runnable without automatic filming');
 // Ordinary Studio changes run their targeted integration tests, not
 // whole-game legacy suites, Pose Lab captures or multi-minute Storm Fist films.
 for(const name of ['kairo-storm-fist-v3-review','v66-character','pose-lab-browser',
@@ -105,5 +103,9 @@ assert(read('studio-local-game').includes("      - 'js/v72-published-actions.js'
 assert(read('kairo-storm-fist-v3-review').includes('  workflow_dispatch:')&&
  read('pose-lab-browser').includes('  workflow_dispatch:'),
  'Keep costly real-model capture available on demand');
+for(const name of ['kairo-v164-selected-flight-stills','flight-visual-review','jump-visual-review']){
+ assert(!read(name).includes('  pull_request:')&&read(name).includes('  workflow_dispatch:'),
+  name+' must be manually dispatched, not film on a routine PR');
+}
 console.log('PASS: '+all.length+' concurrency guards, '+heavy.length+
  ' cached WebGL workflows, targeted visual fan-out, and full V66 safety retained');

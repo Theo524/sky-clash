@@ -249,7 +249,7 @@ async function scriptURL(search,source){
  for(const part of ['&fix=89','&jrun=95','&landing=105','&soles=106',
    '&groundflow=109','&push=112'])
   assert(game.includes(part),'Public game loader misses '+part);
- const air=await scriptURL(normal,'js/v100-pose-authority.js?v=1560');
+ const air=await scriptURL(normal,'js/v100-pose-authority.js?v=1561');
  for(const part of ['&arms=101','&legs=102','&moving=103','&landing=105',
    '&soles=106','&performance=107','&groundflow=109','&facing=110',
    '&flight=111','&push=112','&controlled=113','&airborne=114',
@@ -262,14 +262,14 @@ async function scriptURL(search,source){
    '&poseOwner=100','&landing=105'])
   assert(native.includes(part),'Normal combat owner misses '+part);
  const v164=await scriptURL(simulate('?flightVertical=v164').location.search,
-   'js/v100-pose-authority.js?v=1560');
+   'js/v100-pose-authority.js?v=1561');
  assert(v164.includes('&vertical=164'),'Selected V164 stays opt-in');
  const v153=await scriptURL(simulate('?flightPreview=v153').location.search,
-   'js/v100-pose-authority.js?v=1560');
+   'js/v100-pose-authority.js?v=1561');
  for(const part of ['&joystickFlight=150','&quietHover=152','&streamlined=153'])
   assert(v153.includes(part),'Historical V153 rollback misses '+part);
  const v143=await scriptURL(simulate('?flightPreview=v143').location.search,
-   'js/v100-pose-authority.js?v=1560');
+   'js/v100-pose-authority.js?v=1561');
  assert(v143.includes('&livingFlight=143'),'Historical V143 remains reachable');
  const walk=await scriptURL('?movementLab=walk','js/v71-mixamo-gameplay.js?v=820');
  assert(walk.includes('&fix=88'),'Historical V88 walk mode preserved');
@@ -308,7 +308,7 @@ const historicalModules=[
  'hover-keyframes','hover-performance','relaxed-arms','vertical-flight',
  'vertical-followthrough','horizontal-flight','full-flight','travel-performance'
 ].map((part,i)=>'js/v'+(142+i)+'-'+part+'.js?v='+(142+i)+'0');
-const ownerModule='js/v100-pose-authority.js?v=1560';
+const ownerModule='js/v100-pose-authority.js?v=1561';
 (async()=>{
  for(let stage=142;stage<=149;stage++){
   const query=simulate('?flightPreview=v'+stage).location.search;
