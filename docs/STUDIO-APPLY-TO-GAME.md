@@ -56,6 +56,15 @@ assets are not altered. Experimental native V3 remains opt-in.
   powered travel over 3 speed uses `flying`. Physics are unchanged.
 - The existing combat state machine chooses moves; assigning punch1
   does not create new input buttons, hitboxes, range or hit timings.
+  The local playback of a multi-strike Mixamo source such as **Combo Punch**
+  now selects its first substantial recorded fist movement for the one-hit
+  `punch2` slot, instead of cutting into a later strike in the middle of
+  the file. The original FBX source and 1× source rate are unchanged.
+  Punch1 remains exactly as previously approved. Punch2, Punch3 and
+  Uppercut make a brief ~85ms transition from the last visible body pose
+  at their entry, so chained attacks do not snap elbows/hips/legs between
+  unrelated source poses. This is visual-only: a three-second Combo Punch
+  still does not create three separate gameplay hit events.
   In local playtest only, an assigned Uppercut or Meteor takes priority
   over the generic punch3/kick fallback on the corresponding follow-up.
   A local motion plays when its corresponding V72 gameplay state occurs.
