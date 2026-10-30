@@ -611,7 +611,7 @@ async function applyGameMoves(){
   setActionHelp('Applied '+result.count+' actual Mixamo game clips to this browser. Opening Training…'+gamePackNotes(result));
   // Opt-in URL is the entire release boundary. Visiting index.html alone
   // always restores approved published combat, jump, idle and flight.
-  window.location.assign('index.html?studioPlaytest=local&scene=dojo');
+  window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive');
  }catch(e){setActionHelp('Could not apply moves: '+e.message);
   btn.disabled=actionFighter!=='kairo';
  }
@@ -642,7 +642,7 @@ async function restoreStudioBase(){
   if(!window.confirm('Restore Base v1 ('+base.slots.length+' Kairo clips)? This replaces the current local playtest, but not your Studio assignments.'))return;
   const result=await LiveBridge.restoreBase();
   setActionHelp('Restored protected Base v1 ('+result.slots.length+' real Kairo motion clips). Opening Training with base animations…');
-  window.location.assign('index.html?studioPlaytest=local&scene=dojo');
+  window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive');
  }catch(e){setActionHelp('Could not restore Base v1: '+e.message);}
  finally{button.disabled=false;}
 }

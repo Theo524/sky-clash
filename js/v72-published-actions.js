@@ -256,6 +256,18 @@
   return Math.max(0,Math.min(entry.seconds,impact+
    (Math.max(0,elapsed)-contact)*(entry.speed||1)));
  }
+ // Prefer the first settled, two-foot-support moment of the exact
+ // saved Mixamo run-stop. Its first airborne stride is inappropriate
+ // when the gameplay root has already stopped. Never invent keyframes.
+ function localStopContactTime(entry){
+  const marks=entry?.footContacts;
+  if(typeof marks!=='string'||!marks.length||!entry.fps)return 0;
+  const first=Math.floor(marks.length*.16);
+  const end=Math.floor(marks.length*.75);
+  for(let i=first;i<end;i++)if(marks[i]==='3')
+   return Math.min((entry.seconds||0)*.7,i/entry.fps);
+  return 0;
+ }
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -435,6 +447,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
+    localLandingWasActive:false,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -520,7 +533,26 @@
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
     state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
+    state.localLandingWasActive=false;
    }
+   // The compiled fighter gives landing only .48 seconds before
+   // gameplay returns to idle. For THIS explicitly applied Studio
+   // landing, make its full recorded 1x duration playable. The public
+   // published pipeline and Kairo's physics/ground contact remain intact.
+   const appliedLanding=!options.choose&&
+    this===root.SkyClash?.Game?.heroes?.kairo_venn&&
+    status.localPlaytest?.state==='ready'&&
+    status.localPlaytest.slots.includes('landing')&&actions.landing;
+   if(appliedLanding&&this.landingMotionT>0&&!state.localLandingWasActive&&
+      !this.sprinting&&!this.dashing&&
+      (this.v109LandingDuration||.48)>.22){
+    const span=Math.min(1.25,Math.max(this.landingMotionT,
+     actions.landing.seconds/(actions.landing.speed||1)));
+    this.landingMotionT=span;
+    this.v109LandingDuration=span;
+    status.localPlaytest.localLandingDuration=+span.toFixed(3);
+   }
+   state.localLandingWasActive=this.landingMotionT>0;
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
    const outgoingHips=(priorNative||status.nativeCombatSet)&&state.bones?.[0]?state.bones[0].position.clone():null;
@@ -692,7 +724,10 @@
       state.slot=null;state.releasingIdle=true;
       // Retain the LAST published idle keyframe and fade its influence.
      }else{
-      state.slot=slot;state.clock=0;
+      state.slot=slot;state.clock=
+       slot==='runStop'&&status.localPlaytest?.state==='ready'&&
+       status.localPlaytest.slots.includes('runStop')?
+        localStopContactTime(actions.runStop):0;
       // V85: V81 is the final crossfade owner for the primary gameplay
       // states. Do not double-blend the recorded pose with procedural arms.
       state.weight=options.choose||new URLSearchParams(root.location?.search||'')
@@ -717,6 +752,12 @@
      this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
      !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
     const fullBodyPunch=groundedPunch;
+    const localLanding=!options.choose&&this.characterId==='kairo_venn'&&
+     entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes('landing');
+    const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
+     entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes('runStop')&&!!entry.sampleSupport;
     const localPunch=fullBodyPunch&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes(entry.slot);
     // When an applied Studio pack supplies floating/flying, V100 yields
@@ -820,8 +861,10 @@
       }
       if(slot==='boost')rate*=boostClip?boostClip.boostRate(speed):
         Math.max(.8,Math.min(1.5,speed/21));
-      if(slot==='landing')rate*=2.1; // play the genuine landing within the physics recovery
-      if(slot==='runStop'&&new URLSearchParams(root.location?.search||'')
+      // Locally applied landings are 1x full-body recorded motion.
+      // The contact controller extends their one-shot playback window.
+      if(slot==='landing'&&!localLanding)rate*=2.1;
+      if(slot==='runStop'&&!localRunStop&&new URLSearchParams(root.location?.search||'')
         .get('animationV85')!=='legacy')
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
@@ -861,9 +904,9 @@
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
      // this optional clip only supplies its braking upper-body gesture.
-     if((entry.slot==='runStop'&&(i===0||i>=14))||
+     if((entry.slot==='runStop'&&!localRunStop&&(i===0||i>=14))||
         (!options.choose&&entry.slot==='guard'&&(i===0||i>=14))||
-        (!options.choose&&entry.slot==='landing'&&i===0))continue;
+        (!options.choose&&entry.slot==='landing'&&!localLanding&&i===0))continue;
      // V92: the approved idle arms are now owned by V76 throughout
      // standing, first-step and walking. V72 still owns the approved
      // hips/spine/head/legs. Do not let TWO different idle sources
@@ -899,6 +942,16 @@
      node.updateMatrixWorld(true);
     }
     if(handoff>=1)state.localEntryPose=null;
+    if(localLanding){
+     status.localPlaytest.localLandingFrames=
+      (status.localPlaytest.localLandingFrames||0)+1;
+     status.localPlaytest.localLandingClock=+state.clock.toFixed(3);
+    }
+    if(localRunStop){
+     status.localPlaytest.localStopFrames=
+      (status.localPlaytest.localStopFrames||0)+1;
+     status.localPlaytest.localStopClock=+state.clock.toFixed(3);
+    }
     if(fullBodyPunch||localKick){
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
@@ -1213,6 +1266,8 @@
         footCorrection:fighter.v72StudioPack?.nativeSupportCorrection||0,
         fullBodyPunch:!!fighter.v72StudioPack?.localFullBodyPunchActive,
         fullBodyKick:!!fighter.v72StudioPack?.localFullBodyKickActive,
+        localLandingFrames:status.localPlaytest.localLandingFrames||0,
+        localStopFrames:status.localPlaytest.localStopFrames||0,
         contactAnchors:Object.keys(fighter.v72StudioPack?.localStrikeFeet||{}).length
        }:null,
        installedClips:status.localPlaytest.slots.map(slot=>{
@@ -1250,7 +1305,7 @@
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,recordedKickImpact,localKickClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
+ const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,recordedKickImpact,localKickClock,localStopContactTime,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);
