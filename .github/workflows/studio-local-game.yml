@@ -9,7 +9,9 @@ on:
       - 'js/v66-game-boot.js'
       - 'js/v72-published-actions.js'
       - 'js/v72-studio-game-export.js'
+      - 'js/v100-pose-authority.js'
       - 'tests/studio-local-game-bridge.js'
+      - 'tests/v166-flight-body-expression.js'
       - 'tools/test-studio-local-game.cjs'
       - '.github/workflows/studio-local-game.yml'
   workflow_dispatch:
@@ -39,6 +41,7 @@ jobs:
           node --check js/v72-published-actions.js
           node --check tools/test-studio-local-game.cjs
           node tests/studio-local-game-bridge.js
+          node tests/v166-flight-body-expression.js
           node tests/v72-studio-publishing.js
           node tests/native-combat-playtest-loader.js
           node tests/animation-ownership-contract.js
