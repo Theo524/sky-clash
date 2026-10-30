@@ -1049,7 +1049,9 @@
       const seconds=Number(entry.seconds||0).toFixed(2);
       item.textContent=name+' — '+(entry.sourceFile||'unknown source')+
        ' ('+seconds+'s, '+entry.speed+'×)'+
-       (entry.sampleSupport?' · foot contact captured':'');
+       (entry.sampleSupport?' · foot contact captured':'')+
+       (name==='punch2'&&entry.attackBeats?.length>1?
+        ' · '+entry.attackBeats.length+' original strikes; first beat selected':'');
       item.style.cssText='margin:4px 0;overflow-wrap:anywhere';
       details.appendChild(item);
      }
