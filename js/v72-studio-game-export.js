@@ -75,10 +75,17 @@
   action.play();
   const frames=Math.max(3,Math.min(MAX_FRAMES,Math.round(clip.duration*FPS)+1));
   const values=new Int16Array(frames*MAP.length*4);
+  // Record when each source sole actually supports weight. Quaternion-only
+  // retarget cannot recover these contact moments afterward. Keeping a
+  // moving Mixamo foot unpinned avoids impossible two-foot IK constraints.
+  const sourceFeet=[bones.get('leftfoot'),bones.get('rightfoot')];
+  const soleSamples=sourceFeet.map(()=>[]);
   const current=new THREE.Quaternion(),q=new THREE.Quaternion();
   for(let frame=0;frame<frames;frame++){
    mixer.setTime(clip.duration*frame/(frames-1));
    fbx.updateMatrixWorld(true);
+   for(let foot=0;foot<2;foot++)
+    if(sourceFeet[foot])soleSamples[foot].push(sourceFeet[foot].getWorldPosition(new THREE.Vector3()));
    for(let i=0;i<MAP.length;i++){
     const [src]=MAP[i],bone=bones.get(src),inv=original.get(src);
     if(bone&&inv)q.copy(bone.getWorldQuaternion(current)).multiply(inv).normalize();
@@ -95,6 +102,26 @@
    }
   }
   mixer.stopAllAction();
+  let footContacts;
+  if(sourceFeet.every(Boolean)){
+   const floor=Math.min(...soleSamples[0].map(p=>p.y),...soleSamples[1].map(p=>p.y));
+   const head=bones.get('head'),headY=head?head.getWorldPosition(new THREE.Vector3()).y:floor+170;
+   const height=Math.max(1,Math.abs(headY-floor));
+   const lowLimit=floor+height*.055,stillLimit=height*.32;
+   let contacts='';
+   for(let i=0;i<frames;i++){
+    let bits=0;
+    for(let foot=0;foot<2;foot++){
+     const positions=soleSamples[foot],a=positions[Math.max(0,i-1)],
+       b=positions[Math.min(frames-1,i+1)],sample=positions[i];
+     const seconds=(Math.min(frames-1,i+1)-Math.max(0,i-1))/FPS;
+     const velocity=a.distanceTo(b)/Math.max(seconds,1/FPS);
+     if(sample.y<=lowLimit&&velocity<=stillLimit)bits|=(1<<foot);
+    }
+    contacts+=String(bits);
+   }
+   footContacts=contacts;
+  }
   const bytes=new Uint8Array(values.length*2),view=new DataView(bytes.buffer);
   for(let i=0;i<values.length;i++)view.setInt16(i*2,values[i],true);
   return {
@@ -104,6 +131,7 @@
    speed:Math.max(.25,Math.min(2,Number(opts.speed)||1)),
    yaw:Math.max(-180,Math.min(180,Number(opts.yaw)||0)),
    bones:MAP.map(x=>x[1]),side:[side.x,side.z],
+   ...(footContacts?{footContacts}:{}),
    encoding:'int16-le-xyzw-world-bind-delta-base64',
    data:encode(bytes)
   };
