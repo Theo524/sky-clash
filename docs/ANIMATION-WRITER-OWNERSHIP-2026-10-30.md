@@ -20,6 +20,34 @@ The test reuses the existing parented Three.js humanoid fixture from tests/v100-
 
 The automated script takes observations during idle, grounded movement, attack, guard, jump, fall, landing, airborne Boost and ground recovery. For jump/fall/landing it asserts zero tracked older-layer mutations and nonzero V100 mutations. The actual counts and bone names come from the test output, not this document.
 
+## Measured mutation calls in the synthetic parented rig
+
+These counts were emitted by the **passing** Animation Ownership run
+https://github.com/Theo524/sky-clash/actions/runs/41075393861 (October 30,
+2026). Each number is a tracked quaternion/position method invocation,
+**not** a unique joint, visible transform, visual quality rating or proof
+of real-VRM compatibility. A dash means no tracked calls in that sample.
+
+| Sample | V76 | V72 | V79 adapter | V81 | V100 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Idle | 181 | 300 | 60 | 1722 | 60 |
+| Grounded movement | 160 | 240 | — | 1720 | — |
+| Attack | — | — | — | 845 | — |
+| Guard | — | 156 | — | 1008 | — |
+| Jump | — | — | — | — | 680 |
+| Fall | — | — | — | — | 440 |
+| Landing | — | — | — | — | 440 |
+| Air Boost | 84 | 240 | — | 1032 | — |
+| Ground recovery | 142 | 240 | — | 1718 | — |
+
+The idle sample includes 60 calls credited to V100 even though it does not
+claim air ownership at the end of that sample. This is a possible
+handoff/startup-area follow-up, **not** proof of a bug. The attack fixture
+does not activate a native Storm Fist clip, so the absence of V72 calls
+there must not be generalized to actual fighting. The next real-model trace
+should log the final writer per named bone and capture the first ground
+frames, actual native combat, and approved V156 flight.
+
 ## Important gaps
 
 - Normal **V156 flight is not measured** by this fixture. The accepted V156 authored flight data is tied to the exact normalized Kairo VRM0 rig. Using synthetic bone transforms triggers an intentional compatibility rejection; never bypass it.
