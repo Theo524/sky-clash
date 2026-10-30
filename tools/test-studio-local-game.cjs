@@ -263,7 +263,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Saved Studio floating clip must visibly breathe on combined URL');
   assert.equal(combined.punchSlot,'punch3');
   assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
-   'Switching to flight preview must not discard user's applied punch3');
+   'Combined flight preview must keep the saved Studio punch3');
   assert.equal(combined.error,null);
   await navigate('?scene=dojo');
   const approvedFlight=await page.evaluate(()=>{
