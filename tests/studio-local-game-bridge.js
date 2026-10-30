@@ -70,6 +70,20 @@ assert(boot.includes("?'&studioLocal=4':''"));
 assert(boot.includes('js/v72-published-actions.js?v=829'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
+assert(runtimeSource.includes('function localStopContactTime(entry)'));
+assert(runtimeSource.includes("if(slot==='landing'&&!localLanding)rate*=2.1"));
+assert(runtimeSource.includes("entry.slot==='landing'&&!localLanding&&i===0"));
+assert(runtimeSource.includes("entry.slot==='runStop'&&!localRunStop&&(i===0||i>=14)"));
+assert(runtimeSource.includes('this.landingMotionT=span;'));
+assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive')"),
+ 'Apply/Restore may not silently discard the accepted flight body option');
+const runStop=runtime.localStopContactTime({
+ seconds:.9,fps:30,footContacts:'0000001111333333333333333333'
+});
+assert(Math.abs(runStop-10/30)<1e-9,
+ 'Imported run-to-stop must begin at first two-foot contact, not a freefall frame');
+assert.equal(runtime.localStopContactTime({seconds:.9,fps:30}),0,
+ 'Old no-contact clips must preserve their original playback');
 assert(runtimeSource.includes('const strikeKey=(fullBodyPunch||localKick)?'));
 assert(runtimeSource.includes("state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?"));
 assert(runtimeSource.includes('state.localFullBodyKickActive=localKick'));
