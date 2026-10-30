@@ -16,8 +16,19 @@ published V87 combat pack could override those punch/kick slots.
 4. Click **Apply to Game & Play**. The editor bakes assigned motions,
    saves a playable pack locally in browser IndexedDB, and opens the
    actual game in Training with ?studioPlaytest=local&scene=dojo.
-5. The game shows **Kairo: N local moves active**. Test the controls.
-   Use Edit moves to revise, or Original game for the default.
+5. The game shows **Kairo: N local moves active**. Expand
+   **Inspect loaded Mixamo clips** to verify the actual source FBX
+   for every slot, its original length and the saved speed. Test
+   individual punches in Training. Use Edit moves to revise, or
+   Original game for the published default.
+
+**An exported action-map JSON is only a set of file references**. It is
+NOT playable animation data. Import that map, then import the original
+Mixamo ZIP/FBX sources before **Apply to Game & Play**. For the user's
+16-slot sample map, `fallToRoll`, `idle3` and `idle4` are editor-only,
+so at most 13 of those entries are eligible for this local game preview.
+If any eligible source is missing or cannot be baked, Studio now reports
+the missing names and does NOT silently open Training with old moves.
 
 No manual JSON export, GitHub commit, server account, or upload is
 needed for local gameplay playtesting. Loading the normal base game
@@ -46,7 +57,15 @@ assets are not altered. Experimental native V3 remains opt-in.
   A local motion plays when its corresponding V72 gameplay state occurs.
 - **Grounded Kairo punches in both the published V87 game and local
   playtesting** now use authored hip and leg movement alongside the arms.
-  V72's existing two-bone foot correction anchors soles at strike entry.
+  Newly applied local Mixamo punches keep source-speed timing around
+  their actual arm-strike window: 1× means one source second per gameplay
+  second, not compressing a multi-second Boxing clip into ~0.55s. The
+  original game owns hit times and cooldowns, so this is a visual
+  playback correction, not a combat-balance change.
+  New Studio exports include source-foot contact samples. The existing
+  two-bone foot correction now releases a moving foot instead of
+  locking both shoes to the floor throughout a local stepping punch.
+  Older published clips without that metadata retain their prior fallback.
   This is the single grounded punch behavior without an extra legacy
   rollback flag. Hitboxes, input, physics, Rin and native combat remain unchanged.
 - Other owners (V81 finger/pose transitions, V100 approved air poses)
