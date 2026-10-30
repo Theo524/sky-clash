@@ -2620,7 +2620,7 @@ try{
  v137PelvisBalancedFlightRegression();
  v138ReferenceHoverRegression();
  const boot=read('js/v66-game-boot.js');
- assert(boot.includes('js/v100-pose-authority.js?v=1560'));
+ assert(boot.includes('js/v100-pose-authority.js?v=1561'));
  assert(boot.includes('SkyClashV100Animator.start(window)'));
  const files=['js/v71-mixamo-gameplay.js','js/v76-upper-body.js',
   'js/v72-published-actions.js','js/v81-pose-transitions.js'];
