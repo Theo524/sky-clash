@@ -155,6 +155,39 @@
   status.nativeCombatPreview=decoded;
   return {clipId:decoded.clipId,durationSeconds:.55,impactSeconds:.24};
  }
+ // Locate the real recorded arm action without changing Mixamo keyframes.
+ // Boxing FBXs can include seconds of idle lead-in or recovery.
+ function recordedPunchImpact(entry,samples){
+  const armBones=[6,7,8,10,11,12],stride=entry.bones.length*4;
+  if(!samples||entry.frames<3)return (entry.seconds||0)*.5;
+  const activity=Array(entry.frames).fill(0);
+  for(let frame=1;frame<entry.frames;frame++){
+   let amount=0;
+   for(const bone of armBones){
+    const prev=((frame-1)*stride+bone*4),cur=frame*stride+bone*4;
+    let dot=0;
+    for(let axis=0;axis<4;axis++)dot+=samples[prev+axis]*samples[cur+axis]/(32767*32767);
+    amount+=2*Math.acos(Math.min(1,Math.abs(dot)));
+   }
+   activity[frame]=amount;
+  }
+  const first=Math.max(1,Math.floor(entry.frames*.08));
+  const last=Math.max(first,Math.ceil(entry.frames*.92));
+  let best=first,bestEnergy=-1;
+  for(let i=first;i<last;i++){
+   const energy=(activity[i-1]||0)+activity[i]+(activity[i+1]||0);
+   if(energy>bestEnergy){bestEnergy=energy;best=i;}
+  }
+  return bestEnergy<.002?(entry.seconds||0)*.5:best/entry.fps;
+ }
+ function localPunchClock(entry,elapsed,total){
+  // Source seconds per gameplay second, never an accelerated full-clip
+  // squeeze. The existing game still owns hit timings and cooldowns.
+  const duration=Math.max(.01,Number(total)||.55);
+  const strike=Number.isFinite(entry.attackImpact)?entry.attackImpact:(entry.seconds||0)*.5;
+  const sourceTime=strike+(Math.max(0,elapsed)-duration*.45)*(entry.speed||1);
+  return Math.max(0,Math.min(entry.seconds,sourceTime));
+ }
  function decode(THREE,entry){
   if(!entry||entry.character!=='kairo'||entry.frames<3||entry.frames>420||
     entry.fps!==30||JSON.stringify(entry.bones)!==JSON.stringify(BONES)||
@@ -169,6 +202,12 @@
   const qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
   return {
    ...entry,
+   attackImpact:recordedPunchImpact(entry,d),
+   sampleSupport:typeof entry.footContacts==='string'&&
+    entry.footContacts.length===entry.frames&&/^[0-3]+$/.test(entry.footContacts)?
+     seconds=>{const i=Math.min(entry.frames-1,Math.max(0,Math.round(seconds*entry.fps)));
+      const bits=Number(entry.footContacts[i]);
+      return {left:!!(bits&1),right:!!(bits&2)};}:null,
    sample(seconds,out,loop){
     let frame=seconds*entry.fps,last=entry.frames-1;
     frame=loop?((frame%last)+last)%last:Math.max(0,Math.min(last,frame));
@@ -228,10 +267,9 @@
    if(kind.includes('hook')||kind.includes('upper'))
     return fighter.attackVariant==='overhand'&&actions.overhand?'overhand':
       actions.punch3?'punch3':actions.uppercut?'uppercut':null;
-   const serial=Number(fighter.attackSerial||0);
-   return (fighter.punchSide===1&&actions.punch1?'punch1':null)||
-      (serial%2===0&&actions.punch2?'punch2':null)||
-      (actions.punch1?'punch1':actions.punch2?'punch2':null);
+   return fighter.punchSide===1?
+     (actions.punch1?'punch1':actions.punch2?'punch2':null):
+     (actions.punch2?'punch2':actions.punch1?'punch1':null);
   }
   if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
   if(fighter.charging)return actions.charge?'charge':null;
@@ -615,7 +653,9 @@
       // entire 2-3 second file squeezed into a split second.
       const from=Number.isFinite(entry.attackStart)?entry.attackStart:0;
       const to=Number.isFinite(entry.attackEnd)?entry.attackEnd:entry.seconds;
-      state.clock=from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
+      state.clock=localPunch?
+       localPunchClock(entry,progress*(this.attackTotal||.55),this.attackTotal||.55):
+       from+(Math.max(from,Math.min(to,entry.seconds))-from)*progress;
      }else{
       let rate=entry.speed;
       if(slot==='walk'||slot==='run'){
@@ -702,8 +742,11 @@
     }
     if(fullBodyPunch){
      scene.updateMatrixWorld(true);
-     supportFoot('left',state.clock,localPlant,state.localStrikeFeet);
-     supportFoot('right',state.clock,localPlant,state.localStrikeFeet);
+     // A Mixamo step needs a free swinging foot; an always-on two-foot
+     // anchor makes recorded hips and knees fight the ground solver.
+     const contact=localPunch&&entry.sampleSupport?entry:localPlant;
+     supportFoot('left',state.clock,contact,state.localStrikeFeet);
+     supportFoot('right',state.clock,contact,state.localStrikeFeet);
      status.groundedPunchBodyFrames=(status.groundedPunchBodyFrames||0)+1;
      if(localPunch)status.localPlaytest.fullBodyPunchFrames=
       (status.localPlaytest.fullBodyPunchFrames||0)+1;
@@ -935,7 +978,7 @@
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,start,BONES,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
+ const api={decode,choose,attach,BONES,recordedPunchImpact,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);
