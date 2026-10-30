@@ -319,6 +319,7 @@
     nativeKey:null,nativeEntry:null,nativeEntryHips:null,nativeAge:0,nativeFeet:{},
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
+    localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
@@ -348,7 +349,7 @@
   // Contact correction belongs to this same full-body owner. The authored
   // bend plane is retained while a marked support sole stays in world space;
   // no physics root, velocity, hit volume or gameplay clock is changed.
-  function supportFoot(side,time,clip){
+  function supportFoot(side,time,clip,feet=state.nativeFeet){
    const contacts=clip.sampleSupport(time);
    if(!contacts)return;
    const upper=state.bones[side==='left'?14:17],lower=state.bones[side==='left'?15:18],
@@ -357,15 +358,15 @@
    const planted=contacts[side];
    const a=upper.getWorldPosition(new THREE.Vector3()),b=lower.getWorldPosition(new THREE.Vector3()),
     c=foot.getWorldPosition(new THREE.Vector3());
-   let contact=state.nativeFeet[side];
+   let contact=feet[side];
    if(planted){
-    if(!contact||!contact.planted)contact=state.nativeFeet[side]={point:c.clone(),weight:1,planted:true};
+    if(!contact||!contact.planted)contact=feet[side]={point:c.clone(),weight:1,planted:true};
     contact.weight=1;
    }else{
     if(!contact)return;
     contact.planted=false;
     contact.weight*=Math.exp(-Math.max(0,state.nativeFrameDt||0)*45);
-    if(contact.weight<.01){delete state.nativeFeet[side];return;}
+    if(contact.weight<.01){delete feet[side];return;}
    }
    const goal=c.clone().lerp(contact.point,contact.weight),axis=goal.clone().sub(a),l1=a.distanceTo(b),l2=b.distanceTo(c);
    const distance=axis.length();if(distance<1e-5||l1<1e-5||l2<1e-5)return;
@@ -390,6 +391,7 @@
    foot.updateMatrixWorld(true);
    state.nativeSupportCorrection=Math.max(state.nativeSupportCorrection,c.distanceTo(foot.getWorldPosition(new THREE.Vector3())));
   }
+  const localPlant={sampleSupport:()=>({left:true,right:true})};
   fighter.animate=function(dt){
    // Fighter instances survive rematches/dojo resets. A reset discards old
    // world contact anchors and animation events even if guarding resumes
@@ -398,6 +400,7 @@
     state.nativeEpoch=this.nativeCombatEpoch;state.nativeKey=null;
     state.nativeFeet={};state.nativeEntry=null;state.nativeEntryHips=null;
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
+    state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
    }
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -569,7 +572,31 @@
     }
     const entry=slot?actions[slot]:options.choose?
       (state.releasingExtra?state.releaseEntry:null):(state.releasingIdle?actions.idle:null);
-    if(!entry){state.weight=0;return;}
+    if(!entry){state.weight=0;state.localStrikeKey=null;
+     state.localStrikeFeet={};state.localFullBodyPunchActive=false;return;}
+    // Only manually applied grounded Kairo punches use full-body source
+    // samples. Public boxing keeps its existing upper-body mask.
+    const localPunch=!options.choose&&this.characterId==='kairo_venn'&&
+     status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes(entry.slot)&&
+     ['punch1','punch2','punch3','uppercut'].includes(entry.slot)&&
+     this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
+     !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
+    const strikeKey=localPunch?String(this.attackSerial||0)+':'+entry.slot:null;
+    if(state.localStrikeKey!==strikeKey){
+     state.localStrikeKey=strikeKey;state.localStrikeFeet={};
+     if(strikeKey){
+      // Anchor pre-strike world soles; do not plant after the imported
+      // hip/leg retarget has already dragged them across the floor.
+      state.rig.vrm.scene.updateMatrixWorld(true);
+      for(const [side,index] of [['left',16],['right',19]]){
+       const foot=state.bones[index];
+       if(foot)state.localStrikeFeet[side]={
+        point:foot.getWorldPosition(new THREE.Vector3()),weight:1,planted:true};
+      }
+     }
+    }
+    state.localFullBodyPunchActive=localPunch;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
     if(state.releasingIdle||state.releasingExtra){
      state.weight*=Math.exp(-elapsed*(state.releasingExtra?12:15));
@@ -641,7 +668,7 @@
      // planted, but allow real kicks to animate both legs and the torso.
      if(COMBAT_SLOTS.has(entry.slot)&&
         !['kick','sideKick'].includes(entry.slot)&&
-        (i===0||i>=14))continue;
+        !localPunch&&(i===0||i>=14))continue;
      // V80: the 0.9-second Mixamo run-to-stop file contains airborne
      // root/foot shapes when played without FBX translation. Let the
      // existing ground-contact/skid controller own the hips, knees and feet;
@@ -669,6 +696,13 @@
      if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
      node.quaternion.slerp(target,state.weight);
      node.updateMatrixWorld(true);
+    }
+    if(localPunch){
+     scene.updateMatrixWorld(true);
+     supportFoot('left',state.clock,localPlant,state.localStrikeFeet);
+     supportFoot('right',state.clock,localPlant,state.localStrikeFeet);
+     status.localPlaytest.fullBodyPunchFrames=
+      (status.localPlaytest.fullBodyPunchFrames||0)+1;
     }
     if(boostClip&&this.sprinting&&this.flying&&state.v154Motion?.air>.015){
      const owner=root.SkyClashV100Animator,rig=state.rig;

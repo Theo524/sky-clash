@@ -36,7 +36,11 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=1'));
+assert(index.includes('&studioLocal=2'));
+assert(boot.includes("?'&studioLocal=2':''"));
+assert(runtimeSource.includes('!localPunch&&(i===0||i>=14)'));
+assert(runtimeSource.includes("supportFoot('left',state.clock,localPlant,state.localStrikeFeet)"));
+assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
 assert(html.includes('animation-studio.js?v=830&fix=86&studioLocal=1'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
