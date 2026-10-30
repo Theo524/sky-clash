@@ -3,14 +3,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 on:
-  pull_request:
-    paths:
-      - 'js/v100-pose-authority.js'
-      - 'js/v164-selected-kairo-real-flight.js'
-      - 'assets/animations/kairo/flight-library.v1.json'
-      - 'js/v156-real-vrm-flight.js'
-      - 'js/v158-real-vrm-flight.js'
-      - 'tools/capture-flight-video.cjs'
   workflow_dispatch:
     inputs:
       previews:
