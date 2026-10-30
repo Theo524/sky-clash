@@ -172,6 +172,7 @@ async function collect(browser,profile){
     phases};
   },{bones,scenarios,profile});
   assert(result.realVRM&&result.normalizedBones.length===20,'No actual Kairo rig');
+  assert(result.rawSupported,'Actual Kairo raw VRM bone mapping required');
   assert(!pageErrors.length,'Browser errors: '+pageErrors.slice(0,3).join('; '));
   const origins=new Set();
   for(const p of result.phases){
@@ -184,6 +185,7 @@ async function collect(browser,profile){
       (result.rawSupported?'/rawChanged='+x.rawSyncsWithChanges:'')).join(','));
   }
   assert(origins.has('game.js'),'Base VRMRig sync source not attributed');
+  assert(!origins.has('unattributed'),'VRM sync caller could not be identified');
   assert([...origins].some(x=>x.startsWith('v')),'No later animation sync caller attributed');
   if(profile.id==='storm-v3')
    assert.equal(result.nativeRevision,'storm-fist-v3',
