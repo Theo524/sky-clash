@@ -295,6 +295,90 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
    'Combined flight preview must keep the saved Studio punch3');
   assert.equal(combined.error,null);
+  // Real Kairo + VRM: a locally assigned landing must complete at
+  // 1x with hips AND legs, while run-to-stop must start at supported
+  // recorded foot contact rather than leave Ninja Boost's old torso
+  // over procedural legs. The sample clips below are existing shipped
+  // FBX-baked poses; no private user motion assets enter this repo.
+  await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge,original=await bridge.load();
+   const source=await (await fetch('assets/animations/gameplay/v86-ue5-converted-actions.json')).json();
+   const landing=source.motions.find(m=>m.slot==='landing');
+   const stop=source.motions.find(m=>m.slot==='runStop');
+   if(!landing||!stop)throw Error('Missing shipped real Mixamo landing/stop fixtures');
+   await bridge.save({...original.pack,motions:[
+    ...original.pack.motions,
+    {...landing,sourceFile:'studio-landing-test.fbx'},
+    {...stop,sourceFile:'studio-grounded-stop-test.fbx',
+     footContacts:'0'.repeat(11)+'3'.repeat(stop.frames-11)}
+   ]});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
+  const groundRecovery=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player,s=window.SkyClashPublishedActions;
+   g.enterDojo();g.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.jumping=false;p.flying=false;p.dropping=false;p.acro=null;
+   p.pos.y=0;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   p.landingMotionT=.48;p.v109LandingDuration=.48;
+   const hum=p.vrmRig.vrm.humanoid;
+   const hip=hum.getNormalizedBoneNode('hips');
+   const thigh=hum.getNormalizedBoneNode('leftUpperLeg');
+   const landingBefore=hip.quaternion.clone();
+   for(let i=0;i<45;i++){
+    p.t+=1/60;p.animate(1/60);
+    p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
+   }
+   const landingResult={slot:p.v72StudioPack.slot,
+    duration:s.localPlaytest.localLandingDuration,
+    frames:s.localPlaytest.localLandingFrames,
+    clock:s.localPlaytest.localLandingClock,
+    hipDifference:landingBefore.angleTo(hip.quaternion),
+    source:s.motionClips.landing.sourceFile};
+   p.landingMotionT=0;p.v109LandingDuration=0;
+   p._v82WasBoost=true;p.sprinting=false;p.skidT=.38;
+   p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   p.t+=1/60;p.animate(1/60);
+   const firstLeg=thigh.quaternion.clone(),firstClock=p.v72StudioPack.clock;
+   for(let i=0;i<12;i++){p.t+=1/60;p.animate(1/60);}
+   return {landing:landingResult,runStop:{
+    slot:p.v72StudioPack.slot,
+    source:s.motionClips.runStop.sourceFile,
+    firstClock,lastClock:p.v72StudioPack.clock,
+    thighChange:firstLeg.angleTo(thigh.quaternion),
+    frames:s.localPlaytest.localStopFrames,
+    rootY:p.pos.y,
+    sourceSeconds:s.motionClips.runStop.seconds
+   },state:s.localPlaytest.state,error:s.error};
+  });
+  assert.equal(groundRecovery.state,'ready');
+  assert.equal(groundRecovery.landing.slot,'landing',
+   'Local landing is hidden by another pose owner');
+  assert.equal(groundRecovery.landing.source,'studio-landing-test.fbx');
+  assert(groundRecovery.landing.duration>=1.09,'Full landing timer was cut short');
+  assert(groundRecovery.landing.clock>.65&&groundRecovery.landing.clock<.9,
+   'Studio landing must play uncompressed at 1x, not 2.1x');
+  assert(groundRecovery.landing.frames>=40,'Landing did not own enough live frames');
+  assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
+  assert.equal(groundRecovery.runStop.slot,'runStop');
+  assert.equal(groundRecovery.runStop.source,'studio-grounded-stop-test.fbx');
+  assert(groundRecovery.runStop.firstClock>.33&&groundRecovery.runStop.firstClock<.45,
+   'Run stop started on unsupported airborne feet');
+  assert(groundRecovery.runStop.lastClock>groundRecovery.runStop.firstClock);
+  assert(groundRecovery.runStop.thighChange>.005,
+   'Run stop retained old procedural legs instead of source full-body motion');
+  assert(groundRecovery.runStop.frames>5);
+  assert.equal(groundRecovery.runStop.rootY,0,
+   'The visual stop must not move physics root');
+  assert.equal(groundRecovery.error,null);
+  await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
+   await bridge.save({...current.pack,
+    motions:current.pack.motions.filter(m=>!['landing','runStop'].includes(m.slot))});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
   // A saved Base is independent from normal Apply and Reset. Restore
   // must replay the exact same baked data after another local pack was
   // applied, and preserve the chosen Mixamo source names.
