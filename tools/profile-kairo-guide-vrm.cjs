@@ -195,7 +195,9 @@ async function run(browser,spec){
  ]});
  try{
   const results=[];
-  for(const spec of targets)results.push(await run(browser,spec));
+  const selected=process.env.KAIRO_PROFILE_FULL==='1'?targets:
+   targets.filter(x=>x.id==='default-60');
+  for(const spec of selected)results.push(await run(browser,spec));
   const summary={
    description:'Read-only guide/bridge/VRM-sync call and time samples for real Kairo',
    caveats:['headless SwiftShader timing is noisy and includes profiling overhead',

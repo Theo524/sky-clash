@@ -32,8 +32,9 @@ instruments **instance methods in that isolated page only**:
 - quaternion/position method mutations on the 20 normalized Kairo body bones
 
 It records per-phase counts and instrumented inclusive timings plus whether
-VRM sync happened inside the bridge or afterward. It covers 30, 60, 120 Hz
-normal game and an opt-in first-step/stance lab at 60 Hz, sampling idle,
+VRM sync happened inside the bridge or afterward. It measures the default game at 60 Hz in automatic CI. Set
+KAIRO_PROFILE_FULL=1 to collect the full 30, 60, 120 Hz normal-game
+matrix and the opt-in first-step/stance lab at 60 Hz, sampling idle,
 walk, run, jump, fall, landing, hover, V156 cruise, Boost, guard, attack
 and ground recovery. Each phase is driven deterministically using
 Fighter.animate rather than player input, to isolate animation cost.

@@ -43,7 +43,7 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
-      - name: Measure real Kairo guide/bridge/VRM sync at 30/60/120 FPS
+      - name: Measure real Kairo default 60 FPS guide/bridge/VRM sync
         run: node tools/profile-kairo-guide-vrm.cjs
       - name: Preserve per-phase call and timing data
         if: always()
