@@ -11,6 +11,7 @@ const Core=window.SkyClashStudioCore;
 const Action=window.SkyClashActionCore;
 const MotionLibrary=window.SkyClashMotionLibrary;
 const GameExporter=window.SkyClashGamePackExporter;
+const LiveBridge=window.SkyClashStudioLiveBridge;
 const PackCatalog=window.SkyClashPackCatalog;
 const GIFPreview=window.SkyClashGIFPreview;
 const $=id=>document.getElementById(id);
@@ -488,6 +489,8 @@ function refreshActionSlots(){
   $('tuneSpeed').value=ref.speed;$('tuneYaw').value=ref.yaw;
   $('tuneSpeedValue').textContent=ref.speed.toFixed(2)+'×';$('tuneYawValue').textContent=ref.yaw+'°';}
  $('previewFighterName').textContent=displayActor();
+ $('applyGameMoves').disabled=actionFighter!=='kairo';
+ $('applyGameMoves').title=actionFighter==='kairo'?'Apply baked Kairo moves in this browser and open Training':'Rin live-playtest integration is not available yet';
 }
 function exportActionMap(){
  const payload={format:'sky-clash-action-map',version:1,createdAt:new Date().toISOString(),note:'Action-slot assignments ONLY. Does not contain FBX data. Reimport FBX/ZIP files to preview; nothing is installed into live combat automatically.',assignments:Action.sanitize(actionData)};
@@ -495,46 +498,81 @@ function exportActionMap(){
  const a=document.createElement('a');a.href=url;a.download='sky-clash-action-map.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);
  setActionHelp('Exported the Kairo/Rin action map. Keep it with your source ZIPs. This is not yet a playable animation build.');
 }
+// Both the JSON download and one-click local playtest use identical FBX baking.
+async function buildAssignedGamePack(){
+ if(!GameExporter)throw Error('V72 game motion exporter unavailable. Reload Animation Studio.');
+ const motions=[],missing=[],unsupported=[],skipped=[];
+ const assignments=Object.entries(actionData[actionFighter]||{});
+ const supported=new Set(LiveBridge?.supportedSlots||[]);
+ for(const [slot,ref] of assignments){
+  if(actionFighter!=='kairo'||!supported.has(slot)){
+   skipped.push(slot);continue;
+  }
+  const item=Action.findImport(imported,ref);
+  if(!item){missing.push(ref.name);continue;}
+  try{
+   setActionHelp('Baking '+ref.name+' for '+displayActor()+' game moves…');
+   await delay();
+   const binary=await bufferFor(item);
+   const fbx=loader.parse(binary,'');
+   motions.push(GameExporter.bake(THREE,fbx,{
+    slot,character:actionFighter,sourceArchive:item.origin,
+    sourceFile:item.fileName,sourceId:item.id,speed:ref.speed,yaw:ref.yaw
+   }));
+  }catch(e){unsupported.push(ref.name+': '+(e?.message||'cannot bake'));}
+ }
+ if(!motions.length)
+  throw Error('No playable Kairo actions found. Reimport your assigned FBX/ZIP files and try again.'+
+   (missing.length?' Missing: '+missing.slice(0,2).join(', '):'')+
+   (unsupported.length?' Conversion: '+unsupported.slice(0,2).join('; '):''));
+ return {pack:GameExporter.pack(motions),count:motions.length,missing,unsupported,skipped};
+}
+function gamePackNotes(result){
+ let message='';
+ if(result.missing.length)message+=' Missing source files: '+result.missing.slice(0,2).join(', ')+'.';
+ if(result.unsupported.length)message+=' Failed conversions: '+result.unsupported.slice(0,2).join('; ')+'.';
+ if(result.skipped.length)message+=' Editor-only slots not applied: '+result.skipped.join(', ')+'.';
+ return message;
+}
 async function exportGamePack(){
- if(!GameExporter){setActionHelp('V72 export module unavailable. Refresh Animation Studio.');return;}
  const btn=$('exportGamePack');btn.disabled=true;
- let count=0,missing=[],unsupported=[];
  try{
-  const motions=[];
-  const assignments=Object.entries(actionData[actionFighter]||{});
-  for(const [slot,ref] of assignments){
-   const item=Action.findImport(imported,ref);
-   if(!item){missing.push(ref.name);continue;}
-   try{
-    setActionHelp('Baking '+ref.name+' for permanent '+displayActor()+' game motion…');
-    await delay();
-    const binary=await bufferFor(item);
-    const fbx=loader.parse(binary,'');
-    const motion=GameExporter.bake(THREE,fbx,{
-     slot,character:actionFighter,sourceArchive:item.origin,
-     sourceFile:item.fileName,sourceId:item.id,speed:ref.speed,yaw:ref.yaw
-    });
-    motions.push(motion);count++;
-   }catch(e){unsupported.push(ref.name+': '+(e?.message||'cannot bake'));}
-  }
-  if(!motions.length){
-   setActionHelp('No usable assigned FBX files found. Assign motions, restore/import the source ZIPs, and retry. '+unsupported.slice(0,2).join('; '));
-   return;
-  }
-  const pack=GameExporter.pack(motions);
-  const fileName='sky-clash-'+actionFighter+'-game-actions-v1.json';
-  const url=URL.createObjectURL(new Blob([JSON.stringify(pack)],{type:'application/json'}));
+  if(actionFighter!=='kairo')throw Error('Rin gameplay publishing is not yet connected. Choose Kairo.');
+  const result=await buildAssignedGamePack();
+  const fileName='sky-clash-kairo-game-actions-v1.json';
+  const url=URL.createObjectURL(new Blob([JSON.stringify(result.pack)],{type:'application/json'}));
   const a=document.createElement('a');a.href=url;a.download=fileName;
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),1500);
-  let message='Exported '+count+' real Mixamo animations to '+fileName+'. ';
-  message+='For permanent GitHub hosting, upload this JSON to assets/animations/gameplay/studio-actions-v1.json; it will survive browser resets.';
-  if(missing.length)message+=' Missing source files: '+missing.slice(0,2).join(', ')+'.';
-  if(unsupported.length)message+=' Failed conversions: '+unsupported.slice(0,2).join('; ')+'.';
-  setActionHelp(message);
+  setActionHelp('Exported '+result.count+' game animations. To permanently publish for everyone, commit the JSON to assets/animations/gameplay/studio-actions-v1.json.'+gamePackNotes(result));
  }catch(e){setActionHelp('Game export failed: '+e.message);}
  finally{btn.disabled=false;}
 }
+async function applyGameMoves(){
+ const btn=$('applyGameMoves');btn.disabled=true;
+ try{
+  if(actionFighter!=='kairo')throw Error('Local gameplay moves currently support Kairo only.');
+  if(!LiveBridge)throw Error('Local game bridge failed to load. Refresh the editor.');
+  const result=await buildAssignedGamePack();
+  await LiveBridge.save(result.pack);
+  setActionHelp('Applied '+result.count+' Kairo moves to this browser. Opening Training…'+gamePackNotes(result));
+  // Opt-in URL is the entire release boundary. Visiting index.html alone
+  // always restores approved published combat, jump, idle and flight.
+  window.location.assign('index.html?studioPlaytest=local&scene=dojo');
+ }catch(e){setActionHelp('Could not apply moves: '+e.message);
+  btn.disabled=actionFighter!=='kairo';
+ }
+}
+async function clearAppliedGameMoves(){
+ const btn=$('clearAppliedGameMoves');btn.disabled=true;
+ try{
+  if(!LiveBridge)throw Error('Local game bridge unavailable.');
+  await LiveBridge.clear();
+  setActionHelp('Local game moves reset. The original published game is unchanged.');
+ }catch(e){setActionHelp('Could not reset local moves: '+e.message);}
+ finally{btn.disabled=false;}
+}
+
 async function showCharacter(){
  if(viewMode!=='character'||!mainRig||!current)return;
  const token=++charToken;$('viewerOverlay').hidden=false;$('viewerOverlay').textContent='Loading '+displayActor()+' model for preview…';
@@ -562,6 +600,8 @@ $('tuneYaw').addEventListener('input',e=>{const ref=actionData[actionFighter][ac
 $('removeAssigned').addEventListener('click',()=>{if(!activeAction)return;delete actionData[actionFighter][activeAction];saveActions();activeAction='';refreshActionSlots();applyFilter();});
 $('exportActions').addEventListener('click',exportActionMap);
 $('exportGamePack').addEventListener('click',exportGamePack);
+$('applyGameMoves').addEventListener('click',applyGameMoves);
+$('clearAppliedGameMoves').addEventListener('click',clearAppliedGameMoves);
 $('importActions').addEventListener('click',()=>$('actionMapInput').click());
 $('actionMapInput').addEventListener('change',async e=>{const f=e.target.files?.[0];if(!f)return;try{const data=JSON.parse(await f.text());if(data.format!=='sky-clash-action-map'||data.version!==1)throw Error('This is not a V58 action map');const v=Action.sanitize(data.assignments);actionData.kairo=v.kairo;actionData.rin=v.rin;saveActions();refreshActionSlots();setActionHelp('Imported '+Action.count(v)+' action assignments. Import the matching FBX/ZIP files to preview.');}catch(err){setActionHelp('Could not import map: '+err.message);}e.target.value='';});
 $('clearActions').addEventListener('click',()=>{if(!confirm('Clear all '+displayActor()+' action assignments?'))return;actionData[actionFighter]={};saveActions();activeAction='idle';refreshActionSlots();applyFilter();});

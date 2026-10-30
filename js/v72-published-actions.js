@@ -738,9 +738,11 @@
  async function start(context=root){
   const flags=new URLSearchParams(context.location?.search||'');
   const mode=flags.get('combatAnim');
+  const localRequested=flags.get('studioPlaytest')==='local';
   const requested=mode==='blender-jab-v1'||mode==='storm-fist-v1'||mode==='storm-fist-v3';
   const status={ready:false,active:'none',frames:0,error:null,source:PATH,
-   nativePlaytest:{requested,mode,state:requested?'unavailable':'off'}};
+   nativePlaytest:{requested,mode,state:requested?'unavailable':'off'},
+   localPlaytest:{requested:localRequested,state:localRequested?'unavailable':'off',slots:[]}};
   status.registerNativeCombatPreview=pack=>registerNativeCombatPreview(context.THREE,status,pack);
   status.clearNativeCombatPreview=()=>{status.nativeCombatPreview=null;};
   status.registerNativeCombatSet=pack=>registerNativeCombatSet(context.THREE,status,pack);
@@ -748,6 +750,7 @@
   context.SkyClashPublishedActions=status;
   if(flags.get('studioActions')==='off'){
    if(requested)status.nativePlaytest.state='disabled';
+   if(localRequested)status.localPlaytest.state='disabled';
    return status;
   }
   try{
@@ -821,6 +824,29 @@
      }
     }catch(e){status.combatError=String(e);console.warn('V87 recorded combat unavailable',e);}
    }
+   // Editor → game bridge: read the baked pack only on the explicit
+   // studioPlaytest=local URL. The public default and all published assets
+   // remain untouched. Decode all slots first so one bad file cannot leave
+   // the live fighter with a partially replaced combat set.
+   if(localRequested){
+    try{
+     const bridge=context.SkyClashStudioLiveBridge;
+     if(!bridge)throw Error('Local Studio bridge is not loaded');
+     const saved=await bridge.load();
+     if(!saved)throw Error('No applied moves in this browser. Open Animation Studio and select Apply to Game.');
+     const localActions={};
+     for(const entry of saved.pack.motions)
+      localActions[entry.slot]=decode(context.THREE,entry);
+     Object.assign(actions,localActions);
+     status.localPlaytest.state='ready';
+     status.localPlaytest.slots=Object.keys(localActions);
+     status.localPlaytest.updatedAt=saved.updatedAt;
+    }catch(err){
+     status.localPlaytest.state='fallback';
+     status.localPlaytest.error=String(err);
+     (context.console||console).warn('Local Studio moves unavailable; published combat preserved',err);
+    }
+   }
    // Pass the actual approved idle recording (NOT the old fighting-idle
    // fallback) to the continuous V76 upper-body owner for the V92 lab.
    // This is the same clip already used by V72 for torso and legs.
@@ -835,6 +861,29 @@
    if(count){
     status.ready=true;status.actions=Object.keys(actions);status.characters=count;
     await loadNativeCombatPlaytest(context,status);
+   }
+   // Show the user whether their local, per-browser test is active and
+   // provide a one-tap return to original published Sky Clash.
+   if(localRequested&&context.document?.body){
+    const old=context.document.getElementById('studioLocalMovesStatus');
+    if(old)old.remove();
+    const notice=context.document.createElement('aside');
+    notice.id='studioLocalMovesStatus';
+    notice.setAttribute('role','status');
+    notice.style.cssText='position:fixed;z-index:99999;top:8px;right:8px;max-width:290px;padding:8px 11px;border-radius:8px;background:#0b1b28ee;color:#e6f9ff;font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 10px #0009';
+    const title=context.document.createElement('div');
+    title.textContent=status.localPlaytest.state==='ready'?
+     'Kairo: '+status.localPlaytest.slots.length+' local moves active':
+     'Local moves not loaded — original game active';
+    notice.appendChild(title);
+    for(const [label,url] of [['Edit moves','animation-studio.html'],
+      ['Original game','index.html']]){
+     const link=context.document.createElement('a');
+     link.textContent=label;link.href=url;
+     link.style.cssText='color:#8ae8db;display:inline-block;margin:5px 11px 0 0;text-decoration:underline';
+     notice.appendChild(link);
+    }
+    context.document.body.appendChild(notice);
    }
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
