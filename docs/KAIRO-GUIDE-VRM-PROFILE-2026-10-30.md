@@ -56,5 +56,57 @@ ground, V125 jump, V156 flight, and Rin remain the baseline.
 
 Pre-cleanup playable backup: backup/playable-2026-10-30.
 
-_Results will be appended from the actual GitHub Actions run, with a
-run ID and observed numbers. No optimization will be merged this phase._
+## Actual 60 FPS Kairo measurements
+
+The instrumented 60 FPS baseline passed in
+[GitHub Actions run 41084816088](https://github.com/Theo524/sky-clash/actions/runs/41084816088).
+Its downloadable **real-kairo-guide-vrm-profile** artifact contains
+the 12 per-state JSON samples plus summary.json. Each state measured
+12 animation frames after 4 warm-up frames using actual Kairo VRM0
+and software WebGL.
+
+| Sample | VRMRig bridge calls / frame | Total VRM sync calls / frame | Post-bridge sync calls / frame | Post-bridge normalized-bone mutation calls / 12 frames |
+| --- | ---: | ---: | ---: | ---: |
+| Idle | 1 | 4.00 | 3.00 | 480 |
+| Walk | 1 | 5.00 | 4.00 | 1,152 |
+| Run | 1 | 4.08 | 3.08 | 408 |
+| Jump | 1 | 2.00 | 1.00 | 426 |
+| Fall | 1 | 2.00 | 1.00 | 327 |
+| Landing | 1 | 2.00 | 1.00 | 240 |
+| V156 hover | 1 | 3.00 | 2.00 | 594 |
+| V156 cruise | 1 | 3.00 | 2.00 | 600 |
+| Boost | 1 | 4.00 | 3.00 | 1,104 |
+| Guard | 1 | 3.00 | 2.00 | 677 |
+| Attack flags | 1 | 3.00 | 2.00 | 246 |
+| Ground return | 1 | 4.00 | 3.00 | 948 |
+
+The post-bridge mutation counts are *changed* quaternion/position
+method calls, not the number of distinct bones or guaranteed visibly
+different full poses. They are aggregated across all twelve frames.
+The scripted "attack" sample sets attack flags; it does not validate
+every native melee clip.
+
+Inclusive **instrumented** per-frame bridge times ranged from roughly
+0.82 ms (jump/fall) to 2.83 ms (walk) in this particular CI run.
+Those measurements include the profiler's own overhead, and can vary
+substantially with CI host load; they are NOT production frame-time
+benchmarks or a meaningful estimate of FPS improvement.
+
+**Key findings:**
+1. The procedural guide-to-VRM bridge already ran **once per frame**
+   in every tested state. No duplicate bridge call was observed.
+2. An additional 1–4 VRM syncs per frame appeared after the bridge.
+   Those same states also had many later *actual* normalized-bone
+   writes. Extra syncs are potential investigation targets, **not
+   proven redundant**.
+3. The next defensible optimization experiment would attribute each
+   post-bridge sync to V72/V81/V89/V100 and compare mesh/skin,
+   expression and finger state *between syncs* before suppressing even
+   one. Preserve the baseline, exact Kairo poses and native combat.
+4. The optional step-lab 60 FPS and normal 30/120 FPS cases remain
+   available through KAIRO_PROFILE_FULL=1 but **were not run** in
+   this first baseline check.
+
+**Decision: NO runtime change.** Retain the current guide update and
+all later syncs until their effects and required ordering are verified.
+
