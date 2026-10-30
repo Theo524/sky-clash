@@ -309,8 +309,8 @@
    await script('js/v155-organic-flight.js?v=1550');
   // The local action pack is loaded ONLY on explicit editor playtest URLs.
   if(new URLSearchParams(location.search).get('studioPlaytest')==='local')
-   await script('js/studio-live-bridge.js?v=1');
-  await script('js/v72-published-actions.js?v=821&jabPlaytest=1&stormFist=3'+
+   await script('js/studio-live-bridge.js?v=2');
+  await script('js/v72-published-actions.js?v=822&jabPlaytest=1&stormFist=3'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':'')+
    (new URLSearchParams(location.search).get('studioPlaytest')==='local'?'&studioLocal=3':''));
   await window.SkyClashPublishedGamePack.start(window);
@@ -369,7 +369,7 @@
     await script('js/v163-real-kairo-vertical-keyframes.js?v=1630');
    if(new URLSearchParams(location.search).get('flightVertical')==='v164')
     await script('js/v164-selected-kairo-real-flight.js?v=1640');
-   await script('js/v100-pose-authority.js?v=1560');
+   await script('js/v100-pose-authority.js?v=1561');
    window.SkyClashV100Animator.start(window);
   }
   // Release the model/recording startup barrier ONLY after all wrappers
