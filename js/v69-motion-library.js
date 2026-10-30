@@ -42,23 +42,35 @@
   if(!row?.blob||!row.name)return null;
   // File's original lastModified preserves the import catalog's ID so
   // saved action assignments reconnect to exactly the same FBX/ZIP.
-  return new File([row.blob],row.name,{type:row.type||'application/octet-stream',lastModified:row.lastModified||0});
+  const file=new File([row.blob],row.name,{type:row.type||'application/octet-stream',lastModified:row.lastModified||0});
+  // Retain explicit source provenance across browser restarts without
+  // renaming the original file or changing assignment reference IDs.
+  if(row.source)file.skyClashSource=row.source;
+  return file;
  }
  async function list(){
   const rows=await records();
   return rows.filter(r=>r?.blob).sort((a,b)=>a.added-b.added).map(toFile).filter(Boolean);
  }
- async function save(file){
+ async function save(file,{source=null}={}){
   if(!file||!/\.(fbx|zip)$/i.test(file.name))throw Error('Expected original FBX or ZIP file');
   if(file.size>MAX_BYTES)throw Error('Motion pack exceeds 400 MB cache limit');
   const rows=await records(),id=key(file);
-  if(rows.some(r=>r.id===id))return {saved:false,bytes:rows.reduce((t,r)=>t+(r.size||0),0),count:rows.length};
+  const existing=rows.find(r=>r.id===id);
+  if(existing){
+   if(source&&existing.source!==source){
+    const db=await open();
+    await transact(db,'readwrite',store=>{store.put({...existing,source});});
+   }
+   return {saved:false,bytes:rows.reduce((t,r)=>t+(r.size||0),0),count:rows.length};
+  }
   const bytes=rows.reduce((t,r)=>t+(r.size||0),0);
   if(bytes+file.size>MAX_BYTES)throw Error('Offline motion cache is full (400 MB). Clear old packs or use fewer ZIP files.');
   const db=await open();
   await transact(db,'readwrite',store=>{
    store.put({id,name:file.name,type:file.type||'application/octet-stream',
-    size:file.size,lastModified:file.lastModified||0,added:Date.now(),blob:file});
+    size:file.size,lastModified:file.lastModified||0,added:Date.now(),blob:file,
+    source:source||file.skyClashSource||null});
   });
   return {saved:true,bytes:bytes+file.size,count:rows.length+1};
  }
