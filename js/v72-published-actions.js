@@ -577,13 +577,12 @@
     // Recorded Kairo punches use hips/legs for weight transfer. The old
     // mask discarded them, leaving fists disconnected from the stance.
     // Grounded V87 boxing and locally assigned punches now own all 20 bones.
-    // ?punchBody=legacy restores the old upper-body-only behavior.
+    // One full-body default; no additional URL rollback switch.
     const groundedPunch=!options.choose&&this.characterId==='kairo_venn'&&
      ['punch1','punch2','punch3','overhand','uppercut'].includes(entry.slot)&&
      this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
      !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
-    const fullBodyPunch=groundedPunch&&
-     new URLSearchParams(root.location?.search||'').get('punchBody')!=='legacy';
+    const fullBodyPunch=groundedPunch;
     const localPunch=fullBodyPunch&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes(entry.slot);
     const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
@@ -669,7 +668,7 @@
     scene.updateMatrixWorld(true);scene.getWorldQuaternion(sceneQ);
     for(let i=0;i<BONES.length;i++){
      // Source hips and legs now accompany grounded Kairo punches;
-     // ?punchBody=legacy preserves the old partial-body fallback.
+     // Airborne punches keep their existing masks.
      if(COMBAT_SLOTS.has(entry.slot)&&
         !['kick','sideKick'].includes(entry.slot)&&
         !fullBodyPunch&&(i===0||i>=14))continue;
@@ -811,7 +810,8 @@
    for(const entry of pack.motions){
     if(entry.character!=='kairo')continue; // Rin runtime mapping later.
     if(!['idle','walk','run','jump','runStop','dodge','punch1','punch2','punch3',
-          'uppercut','kick','meteor','charge','superblast','hit'].includes(entry.slot))continue;
+          'uppercut','kick','meteor','charge','superblast','hit',
+           'floating','flying','fallingIdle','landing','boost','guard'].includes(entry.slot))continue;
     actions[entry.slot]=decode(context.THREE,entry);
    }
    // V81: user-supplied Magic pack, offline-baked into true
