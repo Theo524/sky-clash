@@ -2378,11 +2378,12 @@
   // counterbalance while the character floats. All motion is a gentle,
   // bounded offset to the SAME real 20-joint VRM pose, not another pose
   // owner, root-translation animation or synthetic keyframe replacement.
-  // Return small local joint angles (degrees) so tests can bound them.
+  // Make the movement readable at gameplay camera distance while
+  // keeping the approved flight pose and root position untouched.
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   const w=smooth(entry)*(1-.55*cruise);
+   const w=smooth(entry)*(1-.48*cruise);
    // Two slow overlapping rhythms avoid the rigid matched-pair
    // pendulum look. The arms react a little after the ribs, the hips
    // counterbalance, and the knees relax rather than walking in air.
@@ -2391,22 +2392,22 @@
    const counter=Math.sin(t*2.05+.55);
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
    const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   set(0,-.65*counter,.65*follow);          // pelvis counters the rib cage
-   set(1,.80*breath,-.42*follow);            // lumbar/waist breath
-   set(2,1.25*breath,-.60*follow);           // visible rib-cage rise
-   set(3,.70*breath,-.20*follow);
-   set(4,-.45*breath,.16*follow);            // neck keeps gaze calm
-   set(5,-.32*breath,.14*follow);
-   set(6,-.95*follow,.65*breath);            // left shoulder / guard
-   set(10,-.83*counter,-.58*breath);         // right shoulder delayed
-   set(7,1.65*follow,-.48*breath);           // upper arms float loosely
-   set(11,1.46*counter,.43*breath);
-   set(8,-1.02*counter,.22*follow);
-   set(12,-.93*follow,-.22*counter);
-   set(14,-.68*counter,.25*breath);          // subtle hip/thigh follow
-   set(17,-.62*follow,-.24*breath);
-   set(15,.85*follow);
-   set(18,.78*counter);
+   set(0,-2.1*counter,1.6*follow);          // pelvis counters the rib cage
+   set(1,2.1*breath,-1.1*follow);            // lumbar/waist breath
+   set(2,3.7*breath,-1.5*follow);           // visible rib-cage rise
+   set(3,2.15*breath,-.65*follow);
+   set(4,-1.10*breath,.38*follow);            // neck keeps gaze calm
+   set(5,-.85*breath,.38*follow);
+   set(6,-2.45*follow,1.65*breath);            // left shoulder / guard
+   set(10,-2.25*counter,-1.55*breath);         // right shoulder delayed
+   set(7,5.3*follow,-1.55*breath);           // upper arms float loosely
+   set(11,4.8*counter,1.4*breath);
+   set(8,-3.25*counter,.6*follow);
+   set(12,-3.0*follow,-.60*counter);
+   set(14,-1.85*counter,.70*breath);          // subtle hip/thigh follow
+   set(17,-1.70*follow,-.70*breath);
+   set(15,2.2*follow);
+   set(18,2.0*counter);
    return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
     Math.hypot(j.x,j.z)))};
   }
