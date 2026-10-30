@@ -1,6 +1,6 @@
 (function(){
  const t={installed:false,registrations:[],current:null,active:false,phase:null,rows:{},last:{},nodes:[]};
- const label=()=>{const stack=new Error().stack||'';const hit=stack.match(/\/js\/(v[0-9]+-[a-z0-9-]+\.js)/i);return hit?hit[1]:'unknown-'+t.registrations.length;};
+ const label=()=>{const stack=new Error().stack||'';const names=[...stack.matchAll(/\/js\/(v[0-9]+-[a-z0-9-]+\.js)/ig)].map(m=>m[1]);return names.find(n=>n!=='v66-game-boot.js')||'unknown-'+t.registrations.length;};
  t.install=function(){
   const f=window.SkyClash?.Game?.heroes?.kairo_venn||window.SkyClash?.Game?.player;
   if(!f||typeof f.animate!=='function')throw Error('Missing Kairo before animation registration');
