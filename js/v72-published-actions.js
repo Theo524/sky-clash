@@ -180,11 +180,49 @@
   }
   return bestEnergy<.002?(entry.seconds||0)*.5:best/entry.fps;
  }
+ // A long Mixamo Combo Punch can include multiple physical strikes.
+ // Select the FIRST complete high-energy arm beat for a single gameplay
+ // hit instead of cutting into the strongest (often later) strike.
+ // No synthetic bones/keyframes, only timestamps in the original clip.
+ function recordedPunchBeats(entry,samples){
+  if(!samples||entry.frames<4)return [];
+  const stride=entry.bones.length*4,arms=[6,7,8,10,11,12];
+  const movement=new Float32Array(entry.frames),energy=new Float32Array(entry.frames);
+  for(let frame=1;frame<entry.frames;frame++){
+   let amount=0;
+   for(const bone of arms){
+    const a=((frame-1)*stride+bone*4),b=(frame*stride+bone*4);
+    let dot=0;
+    for(let j=0;j<4;j++)dot+=samples[a+j]*samples[b+j]/(32767*32767);
+    amount+=2*Math.acos(Math.min(1,Math.abs(dot)));
+   }
+   movement[frame]=amount;
+  }
+  const first=Math.max(2,Math.floor(entry.frames*.08)),
+    last=Math.min(entry.frames-1,Math.ceil(entry.frames*.92));
+  let peak=0;
+  for(let i=first;i<last;i++){
+   energy[i]=movement[i-1]+movement[i]+movement[i+1];
+   peak=Math.max(peak,energy[i]);
+  }
+  if(peak<.002)return [];
+  const minFrames=Math.ceil(entry.fps*.32),beats=[];
+  for(let i=first;i<last;i++){
+   if(energy[i]<peak*.72||energy[i]<energy[i-1]||energy[i]<energy[i+1])continue;
+   if(beats.length&&i-beats[beats.length-1]<minFrames){
+    if(energy[i]>energy[beats[beats.length-1]])beats[beats.length-1]=i;
+   }else beats.push(i);
+  }
+  return beats.map(i=>i/entry.fps);
+ }
  function localPunchClock(entry,elapsed,total){
   // Source seconds per gameplay second, never an accelerated full-clip
   // squeeze. The existing game still owns hit timings and cooldowns.
   const duration=Math.max(.01,Number(total)||.55);
-  const strike=Number.isFinite(entry.attackImpact)?entry.attackImpact:(entry.seconds||0)*.5;
+  const firstBeat=entry.slot==='punch2'&&Array.isArray(entry.attackBeats)&&
+   entry.attackBeats.length>1?entry.attackBeats[0]:null;
+  const strike=Number.isFinite(firstBeat)?firstBeat:
+   Number.isFinite(entry.attackImpact)?entry.attackImpact:(entry.seconds||0)*.5;
   const sourceTime=strike+(Math.max(0,elapsed)-duration*.45)*(entry.speed||1);
   return Math.max(0,Math.min(entry.seconds,sourceTime));
  }
@@ -203,6 +241,7 @@
   return {
    ...entry,
    attackImpact:recordedPunchImpact(entry,d),
+   attackBeats:entry.slot==='punch2'?recordedPunchBeats(entry,d):[],
    sampleSupport:typeof entry.footContacts==='string'&&
     entry.footContacts.length===entry.frames&&/^[0-3]+$/.test(entry.footContacts)?
      seconds=>{const i=Math.min(entry.frames-1,Math.max(0,Math.round(seconds*entry.fps)));
@@ -1025,7 +1064,9 @@
        installedClips:status.localPlaytest.slots.map(slot=>{
         const m=actions[slot];
         return {slot,source:m.sourceFile,seconds:m.seconds,speed:m.speed,
-         impact:m.attackImpact,footContacts:!!m.sampleSupport};
+         impact:m.attackImpact,selectedImpact:m.slot==='punch2'&&m.attackBeats?.length>1?
+          m.attackBeats[0]:m.attackImpact,beatCount:m.attackBeats?.length||1,
+         footContacts:!!m.sampleSupport};
        })
       };
       try{
@@ -1054,7 +1095,7 @@
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,BONES,recordedPunchImpact,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
+ const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);
