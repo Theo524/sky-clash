@@ -2356,6 +2356,17 @@
  function ownsAir(f,context=root){
   const clips=context.SkyClashPublishedActions?.motionClips;
   const phase=stateOf(f);
+  // In explicit local Studio playtests, yield only Kairo's assigned air
+  // state to V72; all other states keep their approved V100 poses.
+  const local=context.SkyClashPublishedActions?.localPlaytest;
+  if(local?.state==='ready'&&
+     new URLSearchParams(context.location?.search||'').get('studioPlaytest')==='local'&&
+     f===context.SkyClash?.Game?.heroes?.kairo_venn){
+   const slot=phase==='jump'?'jump':phase==='fall'?'fallingIdle':
+    phase==='landing'?'landing':phase==='flight'?
+    (Math.hypot(f.vel?.x||0,f.vel?.z||0)>3?'flying':'floating'):null;
+   if(slot&&local.slots.includes(slot))return false;
+  }
   return isPreview(context)&&
    f===context.SkyClash?.Game?.heroes?.kairo_venn&&
    !!phase&&!!clips?.[clipFor(phase)]&&
