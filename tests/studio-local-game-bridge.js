@@ -143,7 +143,7 @@ const beats=runtime.recordedPunchBeats({frames,fps:30,seconds:95/30,bones:runtim
 assert(beats.length>=2&&beats[0]<1&&beats[beats.length-1]>1.6,
  'Multi-hit Mixamo clip should expose separated recorded punches');
 assert(runtimeSource.includes('const visibleBefore=status.localPlaytest?.state'));
-assert(runtimeSource.includes("entry.slot!=='punch1'?visibleBefore:null"));
+assert(runtimeSource.includes("state.localEntryPose=(localKick||localPunch&&entry.slot!=='punch1')?"));
 assert(runtimeSource.includes('state.localEntryAge/.085'));
 assert(runtimeSource.includes('node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase)'));
 assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,attackKind:'punch'})},
