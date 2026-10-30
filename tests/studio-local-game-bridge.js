@@ -66,6 +66,7 @@ assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,att
  {punch1:{},punch2:{}}),'punch2','Cross should use the assigned punch2 consistently');
 assert(studio.includes('if(result.missing.length||result.unsupported.length)'));
 assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
+assert(runtimeSource.includes('Copy animation report'));
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
 assert(html.includes('animation-studio.js?v=832&fix=87&studioLocal=2'));
