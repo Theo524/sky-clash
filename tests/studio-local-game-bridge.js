@@ -55,9 +55,10 @@ assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
 assert(runtimeSource.includes('!fullBodyPunch&&(i===0||i>=14)'));
-assert(runtimeSource.includes('const contact=localPunch&&entry.sampleSupport?entry:localPlant'));
-assert(runtimeSource.includes("supportFoot('left',state.clock,contact,state.localStrikeFeet)"));
-assert(runtimeSource.includes("supportFoot('right',state.clock,contact,state.localStrikeFeet)"));
+assert(runtimeSource.includes('if(!localPunch||entry.sampleSupport)'));
+assert(runtimeSource.includes('const contacts=localPunch?entry:localPlant'));
+assert(runtimeSource.includes("supportFoot('left',state.clock,contacts,state.localStrikeFeet)"));
+assert(runtimeSource.includes("supportFoot('right',state.clock,contacts,state.localStrikeFeet)"));
 // A 2.5s Mixamo clip with 1× authoring speed must progress only .55
 // source seconds during a .55s combat beat, not 2.5 seconds.
 const localPunch={seconds:2.5,attackImpact:1.25,speed:1};
