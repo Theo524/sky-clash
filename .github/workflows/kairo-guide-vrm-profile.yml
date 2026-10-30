@@ -1,0 +1,55 @@
+name: Kairo Guide-to-VRM Sync Profile
+on:
+  pull_request:
+    paths:
+      - 'tools/profile-kairo-guide-vrm.cjs'
+      - '.github/workflows/kairo-guide-vrm-profile.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  profile-real-kairo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Check profiler and existing animation ownership policy
+        run: |
+          node --check tools/profile-kairo-guide-vrm.cjs
+          node tests/animation-ownership-contract.js
+          node tests/ci-workflow-trigger-safety.js
+      - name: Install pinned Playwright Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then
+            npx playwright install-deps chromium
+          fi
+      - name: Serve exactly the checked-out game
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-guide-vrm-profile.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8765/index.html >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
+      - name: Measure real Kairo default 60 FPS guide/bridge/VRM sync
+        run: node tools/profile-kairo-guide-vrm.cjs
+      - name: Preserve per-phase call and timing data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-kairo-guide-vrm-profile
+          path: visual-review-output/kairo-guide-vrm-profile/
+          retention-days: 21
+          if-no-files-found: warn
