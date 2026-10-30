@@ -310,7 +310,7 @@
   // The local action pack is loaded ONLY on explicit editor playtest URLs.
   if(new URLSearchParams(location.search).get('studioPlaytest')==='local')
    await script('js/studio-live-bridge.js?v=2');
-  await script('js/v72-published-actions.js?v=822&jabPlaytest=1&stormFist=3'+
+  await script('js/v72-published-actions.js?v=823&jabPlaytest=1&stormFist=3'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':'')+
    (new URLSearchParams(location.search).get('studioPlaytest')==='local'?'&studioLocal=3':''));
   await window.SkyClashPublishedGamePack.start(window);
