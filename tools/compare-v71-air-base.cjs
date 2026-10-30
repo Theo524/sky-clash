@@ -130,7 +130,8 @@ function compare(a,b){
   assert.equal(x.phase,y.phase);assert.equal(x.frame,y.frame);
   const r=report.phases[x.phase]||(report.phases[x.phase]={
    frames:0,airFrames:0,maxDegrees:0,worstBone:null,
-   maxWorldCm:0,maxJointPositionCm:0,maxGuideCm:0,ownerMismatches:0});
+   maxWorldCm:0,maxJointPositionCm:0,maxGuideCm:0,
+   maxGuideBodyDeg:0,ownerMismatches:0});
   r.frames++;if(x.ownsAir)r.airFrames++;
   if(x.ownsAir!==y.ownsAir||x.owner!==y.owner){
    r.ownerMismatches++;report.ownerMismatches++;
@@ -146,18 +147,21 @@ function compare(a,b){
     distanceCm(x.landmarks[k],y.landmarks[k]));
   r.maxGuideCm=Math.max(r.maxGuideCm,
    distanceCm(x.guide[0],y.guide[0]));
+  r.maxGuideBodyDeg=Math.max(r.maxGuideBodyDeg,
+   angle(x.guide[1],y.guide[1]));
  }
  const all=Object.values(report.phases);
  report.maxDegrees=Math.max(...all.map(x=>x.maxDegrees));
  report.maxWorldCm=Math.max(...all.map(x=>x.maxWorldCm));
  report.maxJointPositionCm=Math.max(...all.map(x=>x.maxJointPositionCm));
+ report.maxGuideBodyDeg=Math.max(...all.map(x=>x.maxGuideBodyDeg));
  const air=['jump','fall','landing','hover','cruise','brake'];
  const ground=['idle','walk','run','ground-recover','boost','guard','attack','ground-return'];
  report.airMaxDegrees=Math.max(...air.map(x=>report.phases[x].maxDegrees));
  report.groundMaxDegrees=Math.max(...ground.map(x=>report.phases[x].maxDegrees));
  report.airSampleCount=air.reduce((n,x)=>n+report.phases[x].airFrames,0);
  report.safeToExploreFurther=report.ownerMismatches===0&&report.maxDegrees<1&&
-  report.maxWorldCm<1&&report.maxJointPositionCm<1;
+  report.maxWorldCm<1&&report.maxJointPositionCm<1&&report.maxGuideBodyDeg<1;
  return report;
 }
 (async()=>{
@@ -171,10 +175,16 @@ function compare(a,b){
    const normal=await capture(browser,fps,'baseline');
    const early=await capture(browser,fps,'skip-base');
    const summary=compare(normal,early);results.push(summary);
+   for(const [name,row] of Object.entries(summary.phases))
+    console.log('V71 PHASE',fps,name,'maxDeg='+row.maxDegrees.toFixed(3),
+     'worldCm='+row.maxWorldCm.toFixed(3),
+     'guideBodyDeg='+row.maxGuideBodyDeg.toFixed(3),
+     'ownersDifferent='+row.ownerMismatches);
    console.log('V71 RESULT',fps,'maxDeg='+summary.maxDegrees.toFixed(3),
     'airDeg='+summary.airMaxDegrees.toFixed(3),
     'groundDeg='+summary.groundMaxDegrees.toFixed(3),
     'worldCm='+summary.maxWorldCm.toFixed(3),
+    'guideBodyDeg='+summary.maxGuideBodyDeg.toFixed(3),
     'plausible='+summary.safeToExploreFurther);
   }
   const report={tested:'V71 skip underlying base when V100 owns air',

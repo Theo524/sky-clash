@@ -52,5 +52,33 @@ actual gameplay physics/transition review and player approval. All
 default V156 flight, V125 jump, V97 ground and V72 combat must remain.
 The original backup is backup/playable-2026-10-30.
 
-Measurements and the resulting go/no-go conclusion will be added after
-the A/B workflow completes.
+## Observed result — first real-Kairo browser run
+
+The comparison completed successfully in GitHub Actions on 2026-10-30:
+https://github.com/Theo524/sky-clash/actions/runs/41081341288
+
+The modified V71 branch was actually exercised 115 times at 30 FPS and
+122 times each at 60 and 120 FPS. It compared 282 frames per variant
+at every frame rate, on the actual Kairo VRM. Larger differences are
+inconsistent with a drop-in, visually equivalent removal.
+
+| Rate | Maximum tracked joint angular difference | Maximum world-space landmark difference | Decision |
+| --- | ---: | ---: | --- |
+| 30 FPS | 3.973 degrees | 11.751 cm | No-go |
+| 60 FPS | 11.946 degrees | 10.263 cm | No-go |
+| 120 FPS | 23.855 degrees | 7.400 cm | No-go |
+
+The test explicitly does not establish exactly which part of each
+difference comes from the candidate vs initial model timing or other
+uncontrolled browser factors. But it fails the numeric equivalence gate,
+so **do not skip V71's predecessor call on the playable default**.
+
+The comparison script was subsequently enhanced to measure the procedural
+guide/body quaternion as well, and to print per-phase discrepancies.
+The resulting later CI run supersedes the first for those extra diagnostics.
+
+**Decision: KEEP THE ORIGINAL GAME IMPLEMENTATION.** The V71 gait is
+already yielded in air; its predecessor is part of the procedural guide
+rig/VRM update chain. A more promising future optimization would
+profile direct guide-to-VRM copying separately without skipping
+Fighter.animate wholesale, once real transition and rendering tests exist.
