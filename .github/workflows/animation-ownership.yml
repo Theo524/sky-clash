@@ -116,6 +116,8 @@ jobs:
         run: node tests/approved-ground-default.js
       - name: Block unreviewed animation wrapper registrations
         run: node tests/animation-ownership-contract.js
+      - name: Attribute Kairo normalized-joint writes to actual nested animation layers
+        run: node tests/animation-writer-runtime-audit.js
       - name: Preserve V100 multi-controller airborne ownership
         run: node tests/v100-single-pose-authority.js
       - name: Check V116 forward whole-leg geometry across mirrored VRM rigs
