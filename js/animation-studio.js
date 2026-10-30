@@ -499,13 +499,14 @@ function exportActionMap(){
  setActionHelp('Exported the Kairo/Rin action map. Keep it with your source ZIPs. This is not yet a playable animation build.');
 }
 // Both the JSON download and one-click local playtest use identical FBX baking.
-async function buildAssignedGamePack(){
+async function buildAssignedGamePack({playtest=false}={}){
  if(!GameExporter)throw Error('V72 game motion exporter unavailable. Reload Animation Studio.');
  const motions=[],missing=[],unsupported=[],skipped=[];
  const assignments=Object.entries(actionData[actionFighter]||{});
- const supported=new Set(LiveBridge?.supportedSlots||[]);
+ const supported=new Set(playtest?LiveBridge?.supportedSlots||[]:
+  Action.slots[actionFighter].map(x=>x[0]));
  for(const [slot,ref] of assignments){
-  if(actionFighter!=='kairo'||!supported.has(slot)){
+  if((playtest&&actionFighter!=='kairo')||!supported.has(slot)){
    skipped.push(slot);continue;
   }
   const item=Action.findImport(imported,ref);
@@ -522,7 +523,7 @@ async function buildAssignedGamePack(){
   }catch(e){unsupported.push(ref.name+': '+(e?.message||'cannot bake'));}
  }
  if(!motions.length)
-  throw Error('No playable Kairo actions found. Reimport your assigned FBX/ZIP files and try again.'+
+  throw Error('No usable assigned animations found. Reimport your assigned FBX/ZIP files and try again.'+
    (missing.length?' Missing: '+missing.slice(0,2).join(', '):'')+
    (unsupported.length?' Conversion: '+unsupported.slice(0,2).join('; '):''));
  return {pack:GameExporter.pack(motions),count:motions.length,missing,unsupported,skipped};
@@ -537,9 +538,8 @@ function gamePackNotes(result){
 async function exportGamePack(){
  const btn=$('exportGamePack');btn.disabled=true;
  try{
-  if(actionFighter!=='kairo')throw Error('Rin gameplay publishing is not yet connected. Choose Kairo.');
   const result=await buildAssignedGamePack();
-  const fileName='sky-clash-kairo-game-actions-v1.json';
+  const fileName='sky-clash-'+actionFighter+'-game-actions-v1.json';
   const url=URL.createObjectURL(new Blob([JSON.stringify(result.pack)],{type:'application/json'}));
   const a=document.createElement('a');a.href=url;a.download=fileName;
   document.body.appendChild(a);a.click();a.remove();
@@ -553,7 +553,7 @@ async function applyGameMoves(){
  try{
   if(actionFighter!=='kairo')throw Error('Local gameplay moves currently support Kairo only.');
   if(!LiveBridge)throw Error('Local game bridge failed to load. Refresh the editor.');
-  const result=await buildAssignedGamePack();
+  const result=await buildAssignedGamePack({playtest:true});
   await LiveBridge.save(result.pack);
   setActionHelp('Applied '+result.count+' Kairo moves to this browser. Opening Training…'+gamePackNotes(result));
   // Opt-in URL is the entire release boundary. Visiting index.html alone
