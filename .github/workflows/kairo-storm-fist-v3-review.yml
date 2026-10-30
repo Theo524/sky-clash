@@ -4,14 +4,8 @@ on:
     paths:
       - 'assets/animations/kairo/storm-fist.v3.json'
       - 'tools/verify-kairo-storm-fist.cjs'
-      - 'js/v72-published-actions.js'
-      - 'js/v81-pose-transitions.js'
       - 'src/15-anime-feel-v165.js'
-      - 'src/45-fighter-controller.js'
       - 'src/60-combat.js'
-      - 'src/70-input.js'
-      - 'src/95-game.js'
-      - '.github/workflows/kairo-storm-fist-v3-review.yml'
   workflow_dispatch:
 permissions:
   contents: read

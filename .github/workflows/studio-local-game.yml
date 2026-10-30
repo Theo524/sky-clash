@@ -8,6 +8,7 @@ on:
       - 'js/studio-live-bridge.js'
       - 'js/v66-game-boot.js'
       - 'js/v72-published-actions.js'
+      - 'js/v72-studio-game-export.js'
       - 'tests/studio-local-game-bridge.js'
       - 'tools/test-studio-local-game.cjs'
       - '.github/workflows/studio-local-game.yml'

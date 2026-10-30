@@ -10,7 +10,6 @@ on:
     paths:
       - 'pose-lab.html'
       - 'js/kairo-pose-lab.js'
-      - 'animation-studio.html'
       - 'tools/test-kairo-pose-lab.cjs'
   workflow_dispatch:
 permissions:
