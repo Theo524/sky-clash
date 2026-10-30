@@ -47,10 +47,10 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=6'));
+assert(index.includes('&studioLocal=7'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
 assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=824'));
+assert(boot.includes('js/v72-published-actions.js?v=825'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
@@ -67,6 +67,34 @@ const sourceEnd=runtime.localPunchClock(localPunch,.55,.55);
 assert(Math.abs(sourceEnd-sourceBegin-.55)<1e-9,'Mixamo punch accelerated');
 assert(Math.abs(runtime.localPunchClock({...localPunch,speed:.5},.55,.55)-
  runtime.localPunchClock({...localPunch,speed:.5},0,.55)-.275)<1e-9);
+// The user's Combo Punch is almost 3 seconds and has multiple source
+// strikes. A one-hit gameplay slot must pick the FIRST substantial beat,
+// not enter mid-way through the third punch. Do not alter Punch1.
+const combo={slot:'punch2',seconds:2.97,speed:1,
+ attackImpact:1.8,attackBeats:[.833,1.8,2.267]};
+assert(Math.abs(runtime.localPunchClock(combo,.55*.45,.55)-.833)<.0001);
+const opening={...combo,slot:'punch1',attackImpact:.633};
+assert(Math.abs(runtime.localPunchClock(opening,.55*.45,.55)-.633)<.0001,
+ 'The working first Mixamo punch must remain unchanged');
+// Check the actual beat detector against original-format (non-keyframed)
+// synthetic quaternion input. Two distinct arm bursts stay separate.
+const frames=96,stride=20*4,encoded=new Int16Array(frames*stride);
+for(let i=0;i<frames;i++){
+ for(let b=0;b<20;b++)encoded[i*stride+b*4+3]=32767;
+ const pulse=at=>Math.max(0,1-Math.abs(i-at)/4);
+ const angle=.9*pulse(20)+1.2*pulse(61);
+ for(const b of [7,11]){
+  encoded[i*stride+b*4]=Math.round(Math.sin(angle/2)*32767);
+  encoded[i*stride+b*4+3]=Math.round(Math.cos(angle/2)*32767);
+ }
+}
+const beats=runtime.recordedPunchBeats({frames,fps:30,seconds:95/30,bones:runtime.BONES},encoded);
+assert(beats.length>=2&&beats[0]<1&&beats[beats.length-1]>1.6,
+ 'Multi-hit Mixamo clip should expose separated recorded punches');
+assert(runtimeSource.includes('const visibleBefore=status.localPlaytest?.state'));
+assert(runtimeSource.includes("entry.slot!=='punch1'?visibleBefore:null"));
+assert(runtimeSource.includes('state.localEntryAge/.085'));
+assert(runtimeSource.includes('node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase)'));
 assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,attackKind:'punch'})},
  {punch1:{},punch2:{}}),'punch2','Cross should use the assigned punch2 consistently');
 assert(studio.includes('if(result.missing.length||result.unsupported.length)'));

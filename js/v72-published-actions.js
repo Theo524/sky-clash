@@ -180,11 +180,49 @@
   }
   return bestEnergy<.002?(entry.seconds||0)*.5:best/entry.fps;
  }
+ // A long Mixamo Combo Punch can include multiple physical strikes.
+ // Select the FIRST complete high-energy arm beat for a single gameplay
+ // hit instead of cutting into the strongest (often later) strike.
+ // No synthetic bones/keyframes, only timestamps in the original clip.
+ function recordedPunchBeats(entry,samples){
+  if(!samples||entry.frames<4)return [];
+  const stride=entry.bones.length*4,arms=[6,7,8,10,11,12];
+  const movement=new Float32Array(entry.frames),energy=new Float32Array(entry.frames);
+  for(let frame=1;frame<entry.frames;frame++){
+   let amount=0;
+   for(const bone of arms){
+    const a=((frame-1)*stride+bone*4),b=(frame*stride+bone*4);
+    let dot=0;
+    for(let j=0;j<4;j++)dot+=samples[a+j]*samples[b+j]/(32767*32767);
+    amount+=2*Math.acos(Math.min(1,Math.abs(dot)));
+   }
+   movement[frame]=amount;
+  }
+  const first=Math.max(2,Math.floor(entry.frames*.08)),
+    last=Math.min(entry.frames-1,Math.ceil(entry.frames*.92));
+  let peak=0;
+  for(let i=first;i<last;i++){
+   energy[i]=movement[i-1]+movement[i]+movement[i+1];
+   peak=Math.max(peak,energy[i]);
+  }
+  if(peak<.002)return [];
+  const minFrames=Math.ceil(entry.fps*.32),beats=[];
+  for(let i=first;i<last;i++){
+   if(energy[i]<peak*.72||energy[i]<energy[i-1]||energy[i]<energy[i+1])continue;
+   if(beats.length&&i-beats[beats.length-1]<minFrames){
+    if(energy[i]>energy[beats[beats.length-1]])beats[beats.length-1]=i;
+   }else beats.push(i);
+  }
+  return beats.map(i=>i/entry.fps);
+ }
  function localPunchClock(entry,elapsed,total){
   // Source seconds per gameplay second, never an accelerated full-clip
   // squeeze. The existing game still owns hit timings and cooldowns.
   const duration=Math.max(.01,Number(total)||.55);
-  const strike=Number.isFinite(entry.attackImpact)?entry.attackImpact:(entry.seconds||0)*.5;
+  const firstBeat=entry.slot==='punch2'&&Array.isArray(entry.attackBeats)&&
+   entry.attackBeats.length>1?entry.attackBeats[0]:null;
+  const strike=Number.isFinite(firstBeat)?firstBeat:
+   Number.isFinite(entry.attackImpact)?entry.attackImpact:(entry.seconds||0)*.5;
   const sourceTime=strike+(Math.max(0,elapsed)-duration*.45)*(entry.speed||1);
   return Math.max(0,Math.min(entry.seconds,sourceTime));
  }
@@ -203,6 +241,7 @@
   return {
    ...entry,
    attackImpact:recordedPunchImpact(entry,d),
+   attackBeats:entry.slot==='punch2'?recordedPunchBeats(entry,d):[],
    sampleSupport:typeof entry.footContacts==='string'&&
     entry.footContacts.length===entry.frames&&/^[0-3]+$/.test(entry.footContacts)?
      seconds=>{const i=Math.min(entry.frames-1,Math.max(0,Math.round(seconds*entry.fps)));
@@ -358,6 +397,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
+    localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
@@ -439,6 +479,7 @@
     state.nativeFeet={};state.nativeEntry=null;state.nativeEntryHips=null;
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
+    state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
    }
    const priorNative=state.nativePreviewActive;
    const outgoing=(priorNative||status.nativeCombatSet)&&state.bones?state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -461,6 +502,13 @@
       (status.nativeCombatSet?(this.hp<=0||this.launched||this.spiked||this.stun>0||
        this.downT>0||this.superHitT>0||this.slamming||this.blockHeld||this.blocking):nativeBlocked))
     state.nativePreviewCancelled=true;
+   // Snapshot the PREVIOUS visible pose before old.call() overwrites it
+   // with procedural bones. Only on a new local attack; no frame-level
+   // allocation or extra skeleton owner during ordinary gameplay.
+   const serial=Number(this.attackSerial||0);
+   const visibleBefore=status.localPlaytest?.state==='ready'&&this.punchT>0&&
+    serial!==state.localHandoffSerial&&state.bones?
+    state.bones.map(b=>b?b.quaternion.clone():null):null;
    old.call(this,dt);
    // Also applies to the V79 optional-action wrapper, which reuses
    // this attach() function. One authoritative pose during air.
@@ -626,7 +674,10 @@
     const strikeKey=fullBodyPunch?String(this.attackSerial||0)+':'+entry.slot:null;
     if(state.localStrikeKey!==strikeKey){
      state.localStrikeKey=strikeKey;state.localStrikeFeet={};
+     state.localEntryPose=localPunch&&entry.slot!=='punch1'?visibleBefore:null;
+     state.localEntryAge=0;
      if(strikeKey){
+      state.localHandoffSerial=serial;
       // Anchor pre-strike world soles; do not plant after the imported
       // hip/leg retarget has already dragged them across the floor.
       state.rig.vrm.scene.updateMatrixWorld(true);
@@ -639,6 +690,13 @@
     }
     state.localFullBodyPunchActive=fullBodyPunch;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
+    if(state.localEntryPose)state.localEntryAge+=elapsed;
+    // V81 sees chained punches as the SAME attack state, so it does not
+    // soften a punch1 -> punch2 -> punch3 switch. This short handoff is
+    // within V72's existing 20-bone owner, without altering Punch1.
+    const handoff=state.localEntryPose&&localPunch?
+     Math.min(1,state.localEntryAge/.085):1;
+    const handoffEase=handoff*handoff*(3-2*handoff);
     if(state.releasingIdle||state.releasingExtra){
      state.weight*=Math.exp(-elapsed*(state.releasingExtra?12:15));
      if(state.weight<.005){state.weight=0;state.releasingIdle=false;
@@ -738,8 +796,13 @@
      const angle=node.quaternion.angleTo(target),limit=i===0?Math.PI:2.7;
      if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
      node.quaternion.slerp(target,state.weight);
+     if(handoffEase<1&&state.localEntryPose?.[i]){
+      const applied=node.quaternion.clone();
+      node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
+     }
      node.updateMatrixWorld(true);
     }
+    if(handoff>=1)state.localEntryPose=null;
     if(fullBodyPunch){
      scene.updateMatrixWorld(true);
      // A Mixamo step needs a free swinging foot; an always-on two-foot
@@ -986,7 +1049,9 @@
       const seconds=Number(entry.seconds||0).toFixed(2);
       item.textContent=name+' — '+(entry.sourceFile||'unknown source')+
        ' ('+seconds+'s, '+entry.speed+'×)'+
-       (entry.sampleSupport?' · foot contact captured':'');
+       (entry.sampleSupport?' · foot contact captured':'')+
+       (name==='punch2'&&entry.attackBeats?.length>1?
+        ' · '+entry.attackBeats.length+' original strikes; first beat selected':'');
       item.style.cssText='margin:4px 0;overflow-wrap:anywhere';
       details.appendChild(item);
      }
@@ -1025,7 +1090,9 @@
        installedClips:status.localPlaytest.slots.map(slot=>{
         const m=actions[slot];
         return {slot,source:m.sourceFile,seconds:m.seconds,speed:m.speed,
-         impact:m.attackImpact,footContacts:!!m.sampleSupport};
+         impact:m.attackImpact,selectedImpact:m.slot==='punch2'&&m.attackBeats?.length>1?
+          m.attackBeats[0]:m.attackImpact,beatCount:m.attackBeats?.length||1,
+         footContacts:!!m.sampleSupport};
        })
       };
       try{
@@ -1054,7 +1121,7 @@
   }catch(err){status.error=String(err);console.warn('Published Studio pack skipped; V71 walk remains',err);}
   return status;
  }
- const api={decode,choose,attach,BONES,recordedPunchImpact,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
+ const api={decode,choose,attach,BONES,recordedPunchImpact,recordedPunchBeats,localPunchClock,start,decodeNativeCombatPreview,registerNativeCombatPreview,registerNativeCombatSet,nativeAttackId};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashPublishedGamePack=api;
 })(typeof window!=='undefined'?window:globalThis);
