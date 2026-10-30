@@ -126,6 +126,14 @@ assert.equal(runtime.choose({...({hp:100,vel:{x:0,z:0},punchT:.3,punchSide:0,att
 assert(studio.includes('if(result.missing.length||result.unsupported.length)'));
 assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
 assert(runtimeSource.includes('Copy animation report'));
+assert(runtimeSource.includes("get('flightBody')==='alive'"));
+assert(runtimeSource.includes("status.localPlaytest.slots.includes(entry.slot)"));
+assert(runtimeSource.includes('root.SkyClashV100Animator?.v166FlightBodyExpression('));
+assert(runtimeSource.includes("status.localPlaytest.flightBodyOwner=flightExpression?'V72 Studio flight':'unavailable'"));
+assert(boot.includes("params.get('flightBody')==='alive'"));
+assert(boot.includes("e.src+='&body=167'"));
+assert(!boot.includes("flags.set('studioPlaytest','local')"),
+ 'Never auto-publish local punches into ordinary game URLs');
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
 assert(html.includes('animation-studio.js?v=833&fix=87&studioLocal=2'));
