@@ -9,11 +9,31 @@ heights, or affect Rin, punches, Boost, jumps, landings or guard.
 
 - Baseline: https://theo524.github.io/sky-clash/?scene=dojo
 - Living flight: https://theo524.github.io/sky-clash/?scene=dojo&flightBody=alive
+- **Living flight + your own saved Studio punches and floating/flying:**
+  https://theo524.github.io/sky-clash/?scene=dojo&studioPlaytest=local&flightBody=alive
 - Isolated V156 stance: https://theo524.github.io/sky-clash/?scene=dojo&flightPreview=v156&flightBody=alive
 
 The preview is selected by **`flightBody=alive`**. Removing that flag
-restores precisely the previous authored 20-bone V156 Q stance. No source
-clips or global game build version are changed.
+restores precisely the previous authored 20-bone V156 Q stance.
+
+**Important:** The standalone flight-preview URL does NOT load any
+user-assigned Studio punches. Previously that switch unintentionally made
+the player's punches look old/bad again, because `studioPlaytest=local`
+was missing. For a combined test use BOTH query flags, after applying
+moves in Animation Studio in the SAME browser. The in-game corner must
+read **Kairo: N local moves active**; if it says **original game active**,
+the Studio animations have not been loaded.
+
+When Studio has an explicitly assigned `floating` or `flying` action,
+V100 intentionally yields to the V72 local animation. V166's original
+breathing layer never ran on that path. The combined preview now applies
+the SAME bounded body movement inside that existing V72 owner after
+sampling the real imported Mixamo full-body pose; V100 remains the
+owner when no local flight asset is assigned. Both paths are opt-in.
+The movement now reaches ~5° at peak on the most expressive arm joints
+instead of only ~1° that was invisible at game camera distance.
+
+No source clips or public default posture are changed.
 
 ## Intent and behavior
 
