@@ -1,10 +1,6 @@
 name: Storm Fist V4 Kicks - Visual Review
 on:
-  pull_request:
-    paths:
-      - 'assets/animations/kairo/storm-fist.v3.json'
-      - 'tools/kairo-storm-fist-kicks.py'
-      - '.github/workflows/storm-fist-v4-kick-visual.yml'
+  # Older four-kick review; run manually when doing focused kick QA.
   workflow_dispatch:
 permissions:
   contents: read

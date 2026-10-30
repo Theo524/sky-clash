@@ -1,5 +1,21 @@
 # Sky Clash — assistant operations handbook
 
+## Fast development loop (2026-10-30)
+
+Playable baseline: `main`; pre-cleanup rollback: `backup/playable-2026-10-30` (`5ffecbe`).
+Keep V156 normal flight, V125 jump, Kairo, Rin and existing V72/V81/V100 owners.
+Experimental PR #146 remains separate from the playable baseline.
+
+For `src/*.js` changes, run `python3 tools/build.py` to regenerate `js/game.js`.
+Run focused Node tests during development, then `node tools/assistant-checkup.cjs --strict --smoke`.
+V66 and animation-ownership CI independently cover the broad regression contracts.
+
+Expensive real-Kairo browser QA is now focused: Storm Fist V3 capture runs on combat
+pack, combat owner and relevant combat-source edits; V4 four-kick film is manual.
+V164 flight WebGL runs on flight data, the pose owner and capture-tool edits, not generic boot/test changes.
+Manually dispatch other focused visual captures when reviewing new motion.
+Passing CI cannot establish aesthetic approval.
+
 Latest verdict: all Storm Fist arms, including the jab, were rejected for
 body crossings and weird shapes. Follow the current-state kung fu correction;
 older instructions to preserve the jab are superseded. After author/bake run
@@ -35,9 +51,9 @@ served Pages URL with the same smoke test.
 
 ## QUICK START: real-VRM keyframed up/down flight & fast tool pipeline
 
-**Latest (2026-10-26):** player requested to PLAYTEST `https://theo524.github.io/sky-clash/?flightVertical=v163` and persist tooling knowledge for new chats. Read [V163 guide](KAIRO-V163-PLAYABLE-PREVIEW.md), [tool audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) and [Pose Lab workflow](KAIRO-POSE-LAB-WORKFLOW.md) first. Only V156 Q **forward** is approved; V163 up/down remains experimental.
+**Latest (2026-10-26):** player requested to PLAYTEST `https://theo524.github.io/sky-clash/?flightVertical=v163` and persist tooling knowledge for new chats. Read retired V163 notes in Git history, [tool audit](REPOSITORY-ANIMATION-TOOLS-AUDIT-2026-10-26.md) and [Pose Lab workflow](KAIRO-POSE-LAB-WORKFLOW.md) first. Only V156 Q **forward** is approved; V163 up/down remains experimental.
 
-**Author:** four candidate 20-bone 5-keyframe real Kairo animations baked with `tools/author-kairo-vertical-keyframes.cjs` in Pose Lab/Playwright which is now **available on main**, merged as [PR #129](https://github.com/Theo524/sky-clash/pull/129). Success 40410045312, artifact 12693475823 stores original keyframe JSON and 3-angle render screenshots. Exact Kairo VRM SHA above. Use the editor's `authorWorldPose` / `flightGeometry` to adjust segment anatomy and get meaningful leg/arm poses; no guessed Euler runtime layers. The player should not be asked to operate dev tools.
+**Author:** four candidate 20-bone 5-keyframe real Kairo animations baked with `tools/author-kairo-vertical-keyframes.cjs` in Pose Lab/Playwright (now retired from main; source remains in Git history), merged as [PR #129](https://github.com/Theo524/sky-clash/pull/129). Success 40410045312, artifact 12693475823 stores original keyframe JSON and 3-angle render screenshots. Exact Kairo VRM SHA above. Use the editor's `authorWorldPose` / `flightGeometry` to adjust segment anatomy and get meaningful leg/arm poses; no guessed Euler runtime layers. The player should not be asked to operate dev tools.
 
 **Preview and inspect:** `js/v163-real-kairo-vertical-keyframes.js` stores source-recorded full-quaternion pose targets and exact five keyframe timing weights, and `js/v100-pose-authority.js` alone applies them when `flightVertical=v163`. Real-game `tools/capture-flight-video.cjs` has `VISUAL_V163_QA=1` for **pure** up/down and forward+up/down, neutral, Boost. `.github/workflows/kairo-quick-flight-stills.yml` runs actual model 3-view contact sheets and has automated PR triggers; full H.264 video still available. Download and visually inspect the artifacts, not just numerical checks.
 
