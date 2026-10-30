@@ -2374,6 +2374,42 @@
    !!phase&&!!clips?.[clipFor(phase)]&&
    !!context.SkyClashPoseAuthority?.ready;
  }
+  // V166 opt-in: let the accepted authored hover POSE breathe and
+  // counterbalance while the character floats. All motion is a gentle,
+  // bounded offset to the SAME real 20-joint VRM pose, not another pose
+  // owner, root-translation animation or synthetic keyframe replacement.
+  // Return small local joint angles (degrees) so tests can bound them.
+  function v166FlightBodyExpression(seconds,travel=0,entry=1){
+   const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
+   const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
+   const w=smooth(entry)*(1-.55*cruise);
+   // Two slow overlapping rhythms avoid the rigid matched-pair
+   // pendulum look. The arms react a little after the ribs, the hips
+   // counterbalance, and the knees relax rather than walking in air.
+   const breath=Math.sin(t*2.05-.35)+.22*Math.sin(t*1.07+.8);
+   const follow=Math.sin(t*2.05-.94);
+   const counter=Math.sin(t*2.05+.55);
+   const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
+   const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
+   set(0,-.65*counter,.65*follow);          // pelvis counters the rib cage
+   set(1,.80*breath,-.42*follow);            // lumbar/waist breath
+   set(2,1.25*breath,-.60*follow);           // visible rib-cage rise
+   set(3,.70*breath,-.20*follow);
+   set(4,-.45*breath,.16*follow);            // neck keeps gaze calm
+   set(5,-.32*breath,.14*follow);
+   set(6,-.95*follow,.65*breath);            // left shoulder / guard
+   set(10,-.83*counter,-.58*breath);         // right shoulder delayed
+   set(7,1.65*follow,-.48*breath);           // upper arms float loosely
+   set(11,1.46*counter,.43*breath);
+   set(8,-1.02*counter,.22*follow);
+   set(12,-.93*follow,-.22*counter);
+   set(14,-.68*counter,.25*breath);          // subtle hip/thigh follow
+   set(17,-.62*follow,-.24*breath);
+   set(15,.85*follow);
+   set(18,.78*counter);
+   return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
+    Math.hypot(j.x,j.z)))};
+  }
  function attach(THREE,f,status){
   if(!f||typeof f.animate!=='function'||f.v100PoseAuthority)return null;
   const old=f.animate;
@@ -3249,6 +3285,31 @@
     qTarget.copy(st.from[i]).slerp(qRaw,entry).normalize();
     st.nodes[i].quaternion.copy(qTarget);
    }
+   // V166 player-review-only living hover. The approved V156 Q
+   // quaternions above are re-sampled EVERY tick, so these small
+   // rotations never accumulate or alter the original authored stance.
+   // Retain the same hover bob, pelvis location and fighter physics.
+   const bodyMode=new URLSearchParams(root.location?.search||'')
+    .get('flightBody')==='alive';
+   if(bodyMode){
+    const living=v166FlightBodyExpression(st.elapsed,travel,
+     smooth(st.elapsed/.72));
+    const radians=Math.PI/180;
+    for(let i=0;i<BONES.length;i++){
+     const joint=living.joints[i];
+     if(!joint.x&&!joint.z)continue;
+     qTarget.setFromEuler(flowEuler.set(joint.x*radians,0,
+      joint.z*radians,'XYZ'));
+     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+    }
+    status.flightBodyExpression='V166 gentle living hover preview';
+    status.flightBodyDegrees=+living.maxDegrees.toFixed(2);
+    status.flightBodyBreath=+living.breath.toFixed(3);
+   }else{
+    status.flightBodyExpression='off';
+    status.flightBodyDegrees=0;
+    status.flightBodyBreath=0;
+   }
    // V157 optional bank, inside the SAME V100 final VRM pose owner.
    // Hips roll the complete authored Q silhouette; the head counters
    // just enough to keep Kairo's travel gaze. Elbows/knees stay authored.
@@ -3419,6 +3480,7 @@
    status.flightAuthoredTravel=+travel.toFixed(3);
    status.flightAuthoredBones=BONES.length;
    status.flightAuthoredVariant=clip.id;
+   if(bodyMode)status.flightStyle='V166 living V156 Q flight pose (preview)';
    if(verticalEnabled)status.flightStyle='V159 authored climb/dive with independent gaze'+
     (bankEnabled?' + banking':'');
    if(new URLSearchParams(root.location?.search||'').get('flightVertical')==='v160')
@@ -4002,7 +4064,9 @@
     flightVerticalFlowBones:0,flightVerticalBodyLeanDeg:0,
     flightVerticalKeyframeUp:0,flightVerticalKeyframeDown:0,
     flightVerticalKeyframeBlend:0,flightVerticalKeyframeSource:'none',
-    flightBankTurnRate:0,flightBankLateral:0,airFacingStyle:'original recorded yaw',
+    flightBankTurnRate:0,flightBankLateral:0,
+    flightBodyExpression:'off',flightBodyDegrees:0,flightBodyBreath:0,
+    airFacingStyle:'original recorded yaw',
     airFacingSourceYawDeg:0,airFacingDriftDeg:0,landingDuration:.48,
     landingFlow:'STATIC V106',movingFootPin:'off',movingFootSlipCm:0,
     movingFootPinFrames:0,
@@ -4029,6 +4093,7 @@
     v159VerticalIntent,v159VerticalStep,v160VerticalStep,
     v161VerticalFlow,v161VerticalPose,
     v162VerticalFlow,v162UprightVerticalPose,
+    v166FlightBodyExpression,
     controlledFlightPose,airborneFlightPose,v126FlightPose,v127SuspendedFlightPose,
     v128FlightPose,v128CorrectFlightLegs,v129FlightPose,v129CorrectFlightGuard,
     v130FlightPose,v131FlightPose,v132FlightPose,v133FlightPose,
