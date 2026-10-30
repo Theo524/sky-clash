@@ -43,10 +43,10 @@ assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
 assert(runtimeSource.includes('studioLocalMovesStatus'));
-assert(index.includes('&studioLocal=4'));
+assert(index.includes('&studioLocal=5'));
 assert(boot.includes('js/v100-pose-authority.js?v=1561'));
 assert(boot.includes("?'&studioLocal=3':''"));
-assert(boot.includes('js/v72-published-actions.js?v=822'));
+assert(boot.includes('js/v72-published-actions.js?v=823'));
 assert(!runtimeSource.includes("get('punchBody')"));
 assert(runtimeSource.includes('const fullBodyPunch=groundedPunch'));
 assert(runtimeSource.includes("['punch1','punch2','punch3','overhand','uppercut']"));
@@ -68,7 +68,7 @@ assert(studio.includes('if(result.missing.length||result.unsupported.length)'));
 assert(runtimeSource.includes('Inspect loaded Mixamo clips'));
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));
 assert(runtimeSource.includes('status.localPlaytest.slots.includes(entry.slot)'));
-assert(html.includes('animation-studio.js?v=831&fix=86&studioLocal=2'));
+assert(html.includes('animation-studio.js?v=832&fix=87&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
 // when and ONLY when that slot was explicitly applied in the local pack.
