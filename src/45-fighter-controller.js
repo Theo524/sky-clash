@@ -689,19 +689,6 @@ class Fighter {
             hspeed>1.3&&!this.sprinting&&!this.dashing;
           this.v109LandingSpeed=flow?hspeed:0;
           this.v109LandingDuration=flow?.205:.48;
-          // A local Studio landing is a real ~1.1-second one-shot FBX.
-          // The old .48s timer (with V72's 2.1x sampler and masked
-          // pelvis) erased most of its authored weight absorption.
-          // Extend only THIS player's explicitly applied landing, never
-          // the published default, Rim/Rin or boost/damage physics.
-          const local=window.location?.search?.includes('studioPlaytest=local')&&
-            this===Game.heroes?.kairo_venn&&
-            window.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
-            window.SkyClashPublishedActions.localPlaytest.slots.includes('landing')&&
-            window.SkyClashPublishedActions.motionClips?.landing;
-          if(local&&!flow&&!this.sprinting&&!this.dashing)
-           this.v109LandingDuration=Math.min(1.25,
-            Math.max(this.v109LandingDuration,local.seconds));
           this.landingMotionT=this.v109LandingDuration;
           if(flow){this.vel.x*=.52;this.vel.z*=.52;}
         }else this.startAcro('landing', speed > 9 ? 0.42 : 0.30, this.landingVariant === 0 ? -1 : 1);
