@@ -1,0 +1,141 @@
+name: Authentic Karate Kick Retarget - Real Kairo VRM
+on:
+  push:
+    branches: [feature/kairo-authentic-karate-kicks]
+    paths:
+      - 'tools/retarget-kairo-karate.py'
+      - 'tools/verify-kairo-storm-fist.cjs'
+      - 'tools/kairo-storm-fist-kicks.py'
+      - 'tools/author-kairo-storm-fist.py'
+      - '.github/workflows/kairo-authentic-kick-retarget.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rebuild-kicks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-1.56.1
+      - name: Prepare real Kairo Chromium/WebGL
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          if ! node -e "const {chromium}=require('playwright');chromium.launch({headless:true,args:['--no-sandbox']}).then(b=>b.close()).catch(()=>process.exit(1))"; then npx playwright install-deps chromium; fi
+          node --check tools/capture-kairo-combat-anchor.cjs
+          node --check tools/bake-kairo-storm-fist.cjs
+          node --check tools/verify-kairo-storm-fist.cjs
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Rebundle real playable JavaScript from updated src files
+        run: python3 tools/build.py
+      - name: Serve local game for authoring (does not deploy)
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/storm-kicks-server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS --max-time 2 http://127.0.0.1:8765/index.html >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/index.html >/dev/null
+      - name: Capture approved standing skeleton on actual VRM
+        run: node tools/capture-kairo-combat-anchor.cjs
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/blender-4.5.15-linux-x64.tar.xz
+          key: official-blender-4.5.15-kairo-storm-kicks-v1
+      - name: Install checksum-verified official Blender
+        run: |
+          set -euo pipefail
+          version=4.5.15
+          archive="blender-${version}-linux-x64.tar.xz"
+          base=https://download.blender.org/release/Blender4.5
+          cd "$RUNNER_TEMP"
+          if [ ! -s "$archive" ]; then
+            curl --fail --location --retry 2 --connect-timeout 20 --max-time 540 "$base/$archive" -o "$archive"
+          fi
+          curl --fail --location --retry 2 --connect-timeout 20 --max-time 90 "$base/blender-${version}.sha256" -o checksum.txt
+          grep " $archive" checksum.txt | sha256sum --check --
+          tar -xJf "$archive"
+          test -x "$RUNNER_TEMP/blender-${version}-linux-x64/blender"
+          echo "$RUNNER_TEMP/blender-${version}-linux-x64" >> "$GITHUB_PATH"
+      - name: Obtain independently recorded karate mocap, SHA pinned
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/kairo-cmu-kicks
+          ref=09a07f54f3bbb58797325f009282d0b2048a2871
+          for n in 04 07 11; do
+            curl --fail --location --retry 3 --max-time 90 "https://raw.githubusercontent.com/una-dinosauria/cmu-mocap/$ref/data/135/135_${n}.bvh" -o "/tmp/kairo-cmu-kicks/135_${n}.bvh"
+            test -s "/tmp/kairo-cmu-kicks/135_${n}.bvh"
+          done
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_04.bvh)" = 1b695a78de95f891c4cd51f8e51d8922f1725c83
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_07.bvh)" = 2fa6fc86aa241bb8ae497e8ed248084155fb6da1
+          test "$(git hash-object /tmp/kairo-cmu-kicks/135_11.bvh)" = 70ab99d59261df82bfd0a6bd8c5d7fdb781c29e3
+      - name: Author all clips on the measured Blender control rig
+        env:
+          KAIRO_KARATE_BVH_DIR: /tmp/kairo-cmu-kicks
+        run: |
+          blender --background --factory-startup --python tools/author-kairo-storm-fist.py
+          test -s visual-review-output/kairo-combat-foundation/blender-storm-fist.json
+      - name: Bake CMU-derived hip, hand, foot and knee trajectories onto Kairo VRM
+        run: node tools/bake-kairo-storm-fist.cjs
+      - name: Verify authentic-motion pack, joint clearances, ownership and feel
+        run: |
+          set -euo pipefail
+          NATIVE_COMBAT_SET=assets/animations/kairo/storm-fist.v3.json node tests/native-combat-set.js
+          node tools/verify-kairo-arm-clearance.cjs --pack assets/animations/kairo/storm-fist.v3.json --anchor assets/animations/reference/kairo-combat-anchor.v1.json
+          node tests/storm-fist-feel.js
+      - name: Replay actual Kairo game at 30/60/120 FPS
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_FILM: '0'
+          STORM_QA_OUTPUT: visual-review-output/karate-retarget-game-validation
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Commit reproducibly baked animation to candidate branch only
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/animations/kairo/storm-fist.v3.json js/game.js
+          if git diff --cached --quiet; then
+            echo "Baked motion unchanged; visual QA only; no asset commit necessary"
+          else
+            git commit -m "art(kairo): retarget genuine karate footwork and torso movement onto VRM"
+            git fetch origin feature/kairo-authentic-karate-kicks
+            git rebase origin/feature/kairo-authentic-karate-kicks
+            git push origin HEAD:feature/kairo-authentic-karate-kicks
+          fi
+      - name: Film real Kairo mocap kicks continuously from gameplay front and side
+        env:
+          STORM_QA_COMBAT_FLAG: storm-fist-v3
+          STORM_QA_VISUAL_ONLY: '1'
+          STORM_QA_SKIP_SEQUENCE: '1'
+          STORM_QA_SKIP_MOVES: '0'
+          STORM_QA_MOVES: rising-kick,roundhouse,side-kick,sky-kick
+          STORM_QA_VIDEO_FPS: '30'
+          STORM_QA_CONTINUOUS_MOVES: '1'
+          STORM_QA_OUTPUT: visual-review-output/karate-retarget-visual
+        run: node tools/verify-kairo-storm-fist.cjs
+      - name: Preserve validation reports and real-Kairo footage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storm-fist-karate-retarget-real-kairo-evidence
+          path: |
+            visual-review-output/karate-retarget-game-validation/
+            visual-review-output/karate-retarget-visual/
+            visual-review-output/kairo-combat-foundation/storm-fist-bake-report.json
+          retention-days: 21
+          if-no-files-found: warn

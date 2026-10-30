@@ -45,16 +45,19 @@
   if(!f||typeof f.animate!=='function'||f.v81PoseTransitions)return null;
   const old=f.animate;
   const st={rig:null,mode:null,elapsed:1,blend:1,nodes:[],
-   previous:[],fingerNodes:[],fingerRest:[],handGrip:0,frames:0,
+   previous:[],fingerNodes:[],fingerRest:[],handGrip:0,
+   thumbNodes:[],thumbRest:[],jabThumbGrip:0,jabCurlWeight:0,frames:0,
     airWristAnchor:null,previousHips:null,nativeRelease:false};
-  const y=new THREE.Vector3(0,1,0),extra=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
+  const y=new THREE.Vector3(0,1,0),z=new THREE.Vector3(0,0,1),
+   extra=new THREE.Quaternion(),curlY=new THREE.Quaternion(),
+   curlZ=new THREE.Quaternion(),airTarget=new THREE.Quaternion(),
    headWorld=new THREE.Quaternion(),parentWorld=new THREE.Quaternion(),
    euler=new THREE.Euler();
   function capture(rig){
    const humanoid=rig.vrm?.humanoid;if(!humanoid)throw Error('V81: normalized humanoid required');
    st.nodes=names.map(n=>humanoid.getNormalizedBoneNode(n));
    st.previous=st.nodes.map(node=>node?node.quaternion.clone():new THREE.Quaternion());
-   st.fingerNodes=[];st.fingerRest=[];
+   st.fingerNodes=[];st.fingerRest=[];st.thumbNodes=[];st.thumbRest=[];
    for(const side of ['left','right']){
     const sign=side==='left'?-1:1;
     for(const finger of fingers)for(const [segment,angle] of segments){
@@ -64,9 +67,18 @@
       st.fingerRest.push(node.quaternion.clone());
      }
     }
+    // Thumb stays with the EXISTING V81 finger owner. Only the private
+    // V3 jab uses a thumb tuck; other moves keep their existing hand pose.
+    for(const [segment,angle] of [['Proximal',.45],['Intermediate',.58],['Distal',.35]]){
+     const node=humanoid.getNormalizedBoneNode(side+'Thumb'+segment);
+     if(node){
+      st.thumbNodes.push({node,sign,angle});
+      st.thumbRest.push(node.quaternion.clone());
+     }
+    }
    }
    st.rig=rig;st.mode=null;st.elapsed=1;st.blend=1;
-    st.airWristAnchor=null;
+    st.airWristAnchor=null;st.jabThumbGrip=0;st.jabCurlWeight=0;
   }
   f.animate=function(dt){
    const rig=this.vrmRig,safe=clamp(Number.isFinite(dt)?dt:0,0,.065);
@@ -153,12 +165,36 @@
       next==='jump'||next==='fall'?.52:next==='landing'?.40:0;
     // Source-controlled jump/fall uses the V73 VRoid native fingers;
     // never overlay V81's artificial pinching/curl on these two states.
-    const fingerTarget=stabilize&&naturalAir?0:grip;
-    st.handGrip+=(fingerTarget-st.handGrip)*(1-Math.exp(-safe*13));
+    // Preview only: original-jab lacks recorded finger rotations in its
+    // 20-bone Mixamo archive. Strengthen the one existing finger owner near
+    // the strike, including thumb tuck; never add an animation wrapper or
+    // affect default combat / other V3 actions.
+    const jabFist=stormV3&&!!nativeAttack&&
+      this.v72StudioPack?.nativeClipId==='original-jab';
+    const fingerTarget=stabilize&&naturalAir?0:(jabFist?1.28:grip);
+    st.handGrip+=(fingerTarget-st.handGrip)*
+      (1-Math.exp(-safe*(jabFist?30:13)));
+    // Kairo's normalized finger flexion is around local Z, NOT the
+    // lateral-spread Y rotation used by older guard states. Blend the
+    // rotation itself on entry and recovery so there is no fist-axis snap.
+    st.jabCurlWeight+=((jabFist?1:0)-st.jabCurlWeight)*
+      (1-Math.exp(-safe*25));
     for(let i=0;i<st.fingerNodes.length;i++){
      const {node,sign,angle}=st.fingerNodes[i];
-     extra.setFromAxisAngle(y,sign*angle*st.handGrip);
+     curlY.setFromAxisAngle(y,sign*angle*st.handGrip);
+     if(st.jabCurlWeight>.0005){
+      curlZ.setFromAxisAngle(z,-sign*angle*st.handGrip);
+      extra.slerpQuaternions(curlY,curlZ,st.jabCurlWeight).normalize();
+     }else extra.copy(curlY);
      node.quaternion.copy(st.fingerRest[i]).multiply(extra);
+    }
+    st.jabThumbGrip+=((jabFist?1:0)-st.jabThumbGrip)*
+      (1-Math.exp(-safe*24));
+    if(st.jabThumbGrip>.0005)for(let i=0;i<st.thumbNodes.length;i++){
+     const {node,sign,angle}=st.thumbNodes[i];
+     extra.setFromAxisAngle(y,sign*angle*st.jabThumbGrip);
+     curlZ.setFromAxisAngle(z,-sign*angle*.55*st.jabThumbGrip);
+     node.quaternion.copy(st.thumbRest[i]).multiply(extra).multiply(curlZ);
     }
     if(stabilize&&naturalAir&&st.airWristAnchor){
       const maxWristTurn=.48; // ~27.5 deg relative to last visible wrist

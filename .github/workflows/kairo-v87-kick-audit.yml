@@ -1,0 +1,46 @@
+name: V87 Existing Mixamo Kick Source Audit - Real Kairo
+on:
+  push:
+    branches: [feature/kairo-authentic-karate-kicks]
+    paths:
+      - 'tools/audit-kairo-existing-kicks.cjs'
+      - '.github/workflows/kairo-v87-kick-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-recorded-motions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated browser QA dependencies
+        run: |
+          set -euo pipefail
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install chromium
+          node --check tools/audit-kairo-existing-kicks.cjs
+          command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+      - name: Build local game only (no publishing or deployment)
+        run: python3 tools/build.py
+      - name: Serve local game for recorded full-body Kairo comparison
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/kairo-v87-audit-server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/index.html >/dev/null && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8765/index.html >/dev/null
+      - name: Capture V87 existing Side Kick and Roundhouse on real Kairo
+        run: node tools/audit-kairo-existing-kicks.cjs
+      - name: Upload front/side normal/slow footage for human review
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: v87-original-recorded-kicks-on-real-kairo
+          path: visual-review-output/v87-on-real-kairo/
+          retention-days: 21
+          if-no-files-found: warn

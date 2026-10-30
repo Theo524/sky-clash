@@ -586,6 +586,14 @@ async function captureShowcase(page){
 }
 
 async function captureMoves(page){
+ // Review-only camera option: hide the training dummy's mesh so Kairo's
+ // own full-body kick silhouette is never obscured by hit reactions.
+ // The opponent remains active for identical actual combat physics.
+ if(process.env.STORM_QA_HIDE_OPPONENT==='1')await page.evaluate(()=>{
+  const rig=window.__stormQA?.e?.vrmRig?.vrm;
+  if(!rig?.scene)throw Error('Review opponent rig unavailable');
+  rig.scene.visible=false;
+ });
  const dir=path.join(output,'move-frames');fs.mkdirSync(dir,{recursive:true});
  await page.evaluate(()=>{const panel=document.getElementById('walkLabStatus');if(panel)panel.open=false;});
  const available=await page.evaluate(()=>Object.keys(window.SkyClashPublishedActions.nativeCombatSet.clips));
@@ -595,8 +603,7 @@ async function captureMoves(page){
   {front:[1.75,1.65,2.05],side:[2.65,1.65,.1]}:
   {front:[2.9,1.65,3.25],side:[4.1,1.65,.1]};
  const all=[];
- for(const id of ids){
-  const timing=await page.evaluate(id=>{
+ const startMove=async id=>page.evaluate(id=>{
    const q=window.__stormQA,{p,e,s,reset,tick}=q;
    reset(1.45,id==='original-hook'?1:id==='original-overhand'?2:0);
    p.lastMelee=p.t;
@@ -637,6 +644,8 @@ async function captureMoves(page){
    const scale=p.punchT>0?p.attackTotal/clip.durationSeconds:1;
    return {duration:clip.durationSeconds*scale,impact:clip.impactSeconds*scale};
   },id);
+ for(const id of ids){
+  const timing=await startMove(id);
   const {duration,impact}=timing;
   const times=id==='guard'?[0,.06,.15,.3,.45,.59,.72,.9]:
    [0,impact*.45,impact*.85,impact,Math.min(duration,impact+.06),duration*.78,duration,duration+.16].sort((a,b)=>a-b);
@@ -670,6 +679,46 @@ async function captureMoves(page){
   }
   all.push({id,times,observations});
   console.log('Captured runtime move',id);
+  // Film the same actual gameplay move at a fixed simulation clock.
+  // The eight-pose contact gallery above is NOT sufficient to judge timing,
+  // choreography, foot sliding, or visual flow.
+  if(process.env.STORM_QA_CONTINUOUS_MOVES==='1' &&
+     ['original-jab','original-cross','original-hook','original-overhand',
+      'rising-kick','roundhouse','side-kick','sky-kick'].includes(id)){
+   await startMove(id);
+   const movieDir=path.join(output,'continuous-frames',id);
+   fs.mkdirSync(movieDir,{recursive:true});
+   const frames=Math.ceil((duration+.12)*videoFps);
+   for(let n=0;n<=frames;n++){
+    const time=n/videoFps;
+    await page.evaluate(({id,time})=>{
+     const q=window.__stormQA;
+     while(q.moveElapsed<time-1e-9){
+      const step=Math.min(1/120,time-q.moveElapsed);
+      q.tick(step);q.moveElapsed+=step;
+     }
+     document.getElementById('stormQaLabel').textContent=id+' · '+time.toFixed(3)+'s';
+    },{id,time});
+    for(const [view,cameraOffset]of Object.entries(views)){
+     await page.evaluate(offset=>{
+      const {p,s}=window.__stormQA,cam=s.camera;
+      cam.position.set(p.pos.x+offset[0],p.pos.y+offset[1],p.pos.z+offset[2]);
+      cam.lookAt(p.pos.x,p.pos.y+1.05,p.pos.z+.28);
+      cam.fov=40;cam.updateProjectionMatrix();window.__stormQA.render();
+     },cameraOffset);
+     await page.screenshot({
+      path:path.join(movieDir,view+'-'+String(n).padStart(4,'0')+'.jpg'),
+      type:'jpeg',quality:80
+     });
+    }
+   }
+   for(const view of Object.keys(views)){
+    encodeMovie(movieDir,view,id+'-'+view+'-continuous',videoFps);
+   }
+   fs.rmSync(movieDir,{recursive:true,force:true});
+   console.log('Filmed real Kairo continuous move',id,'frames',frames+1,'fps',videoFps);
+  }
+
  }
  for(const view of Object.keys(views)){
   execFileSync('ffmpeg',['-hide_banner','-loglevel','error','-y','-framerate','1',
