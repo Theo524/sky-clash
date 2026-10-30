@@ -101,6 +101,55 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(applied.error,null);
   assert(applied.fullBodyPunchFrames>0,'Local grounded punch not full-body');
   assert.equal(applied.footAnchors,2,'Missing strike foot anchors');
+  // Real Kairo/real VRM repeated-combo regression: published V87 overhand
+  // must never displace a locally assigned punch3 on the second cycle.
+  // Use real baked quaternion data, not invented skeleton keyframes.
+  await page.evaluate(async()=>{
+   const current=await window.SkyClashStudioLiveBridge.load();
+   const first=current.pack.motions[0],others=[
+    {...first,slot:'punch3',sourceFile:'local-repeated-punch3.fbx'},
+    {...first,slot:'kick',sourceFile:'local-roundhouse.fbx',seconds:2.5}
+   ];
+   await window.SkyClashStudioLiveBridge.save({
+    ...current.pack,motions:[first,...others]
+   });
+  });
+  await navigate('?scene=dojo&studioPlaytest=local');
+  const repeated=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,s=window.SkyClashPublishedActions;
+   window.SkyClash.Game.enterDojo();
+   window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.sprinting=false;p.dashing=false;p.jumping=false;p.flying=false;
+   p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   const runs=[];
+   for(const variant of ['hook','overhand','hook','overhand']){
+    p.punchT=.50;p.attackKind='hook';p.attackVariant=variant;
+    p.punchSide=1;p.attackSerial=(p.attackSerial||0)+1;
+    p.attackElapsed=.09;p.attackTotal=.68;p.t+=1/60;
+    p.animate(1/60);
+    runs.push({variant,slot:p.v72StudioPack.slot,full:p.v72StudioPack.localFullBodyPunchActive,
+     source:s.motionClips[p.v72StudioPack.slot]?.sourceFile});
+    p.punchT=0;p.attackElapsed=.68;p.t+=1/60;p.animate(1/60);
+   }
+   p.attackKind='kick';p.attackVariant='hook';p.punchSide=0;
+   p.punchT=.7;p.attackTotal=.87;p.attackElapsed=.41;
+   p.attackSerial=(p.attackSerial||0)+1;p.t+=1/60;p.animate(1/60);
+   return {runs,kickSlot:p.v72StudioPack.slot,kickClock:p.v72StudioPack.clock,
+    kickImpact:s.motionClips.kick.kickImpact,localState:s.localPlaytest.state,error:s.error};
+  });
+  assert.equal(repeated.localState,'ready');
+  assert.equal(repeated.error,null);
+  for(const run of repeated.runs){
+   assert.equal(run.slot,'punch3','Repeated VRM Kairo hook/overhand chose wrong clip');
+   assert.equal(run.source,'local-repeated-punch3.fbx');
+   assert(run.full,'Repeated Studio hook must retain authored full-body legs');
+  }
+  assert.equal(repeated.kickSlot,'kick');
+  assert(Math.abs(repeated.kickClock-repeated.kickImpact)<.08,
+   'Kairo roundhouse must sample source contact window rather than time-warped full clip');
   // Same browser and IndexedDB, but NO opt-in flag: original published
   // punch1 must remain exactly as before.
   await navigate('?scene=dojo');
