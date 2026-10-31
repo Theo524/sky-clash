@@ -16,6 +16,7 @@ const PackCatalog=window.SkyClashPackCatalog;
 const GIFPreview=window.SkyClashGIFPreview;
 const $=id=>document.getElementById(id);
 const loader=new FBXLoader();
+const FBXRecovery=window.SkyClashFBXAnimationRecovery;
 const PAGE_SIZE=16;
 const MAX_FILES=500;
 const MAX_FBX_BYTES=30*1024*1024;
@@ -168,6 +169,17 @@ async function bufferFor(item){
  if(result?.repaired)item.repaired=true;
  return result?.buffer||buffer;
 }
+// Rokoko / Unreal FBX may contain real curves even when Three r158
+// returns no playable AnimationClip. Recover them only if necessary.
+async function parseStudioFBX(item,buffer){
+ const fbx=loader.parse(buffer,'');
+ if(FBXRecovery&&!FBXRecovery.playable(fbx)){
+  const result=await FBXRecovery.recover(THREE,buffer,fbx);
+  item.recovered=!!result.recovered;
+  if(item.recovered)item.recoveredBones=result.bones;
+ }
+ return fbx;
+}
 const UNREAL_TO_MIXAMO=Object.freeze({
  pelvis:'hips',spine01:'spine',spine02:'spine1',spine03:'spine2',
  neck01:'neck',claviclel:'leftshoulder',upperarml:'leftarm',
@@ -243,7 +255,7 @@ function poseRig(stage,time,allowTravel=false){
 function setupRig(stage,fbx){
  cleanupRig(stage);
  const clip=fbx.animations?.find(c=>Number.isFinite(c.duration)&&c.duration>0.001);
- if(!clip)throw Error('This FBX has no playable animation track');
+ if(!clip)throw Error('This FBX has no playable animation track. Base character models may contain no action: choose an animated FBX instead.');
  const wrap=new THREE.Group();stage.rigCenter.add(wrap);wrap.add(fbx);
  // Source FBX meshes are not required (Mixamo exports are often 'Without Skin').
  // Keeping a consistent diagnostic mannequin makes every clip comparable.
@@ -326,7 +338,7 @@ async function processQueue(){
   try{
    await delay();
    const input=await bufferFor(item);
-   const object=loader.parse(input,'');
+   const object=await parseStudioFBX(item,input);
    const rig=setupRig(thumbStage,object);setRigDisplay(rig,'master');
    item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    const nFrames=8,frames=[];
@@ -354,6 +366,7 @@ const observer=new IntersectionObserver(entries=>{
 function updateCard(item){const card=item.card;if(!card||!card.isConnected)return;
  const img=card.querySelector('img');if(item.frames?.length){img.src=item.frames[0];img.classList.remove('is-pending');}
  if(item.repaired&&img)img.title='V70: safe FBX footer newline removed for preview only';
+ if(item.recovered&&img)img.title='FBX animation recovered from original keyframes';
  const err=card.querySelector('.clip-failure');if(err){err.textContent=item.error?'Preview failed: '+shortName(item.error):'';err.title=item.error||'';}
  const meta=card.querySelector('.clip-meta');if(meta)meta.lastElementChild.textContent=item.duration?niceSec(item.duration):item.error?'Unavailable':'Processing…';
 }
@@ -464,11 +477,11 @@ async function select(item){
  loadingOverlay('Loading 3D motion…');$('playPause').disabled=true;$('restart').disabled=true;$('scrub').disabled=true;
  try{
    await delay();const bytes=await bufferFor(item);if(token!==selectedLoadToken)return;
-   const fbx=loader.parse(bytes,'');if(token!==selectedLoadToken)return;
+   const fbx=await parseStudioFBX(item,bytes);if(token!==selectedLoadToken)return;
    const rig=setupRig(mainStage,fbx);setRigDisplay(rig,viewMode);
    mainRig=rig;item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
-   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · Native Mixamo tracks checked${item.repaired?' · FBX footer automatically repaired':''}${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
+   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · ${item.recovered?'Recovered original FBX keyframes (Rokoko / other)':'Native FBX tracks checked'}${item.repaired?' · FBX footer automatically repaired':''}${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+explainFBXError(e));$('selectedStatus').textContent='The original file is kept. Try another export or animation; Kairo and live combat are unaffected.';mainRig=null;}}
@@ -621,7 +634,7 @@ async function buildAssignedGamePack({playtest=false}={}){
    setActionHelp('Baking '+ref.name+' for '+displayActor()+' game moves…');
    await delay();
    const binary=await bufferFor(item);
-   const fbx=loader.parse(binary,'');
+   const fbx=await parseStudioFBX(item,binary);
    motions.push(GameExporter.bake(THREE,fbx,{
     slot,character:actionFighter,sourceArchive:item.origin,
     sourceFile:item.fileName,sourceId:item.id,speed:ref.speed,yaw:ref.yaw
@@ -834,7 +847,7 @@ $('downloadPreviewGIF').addEventListener('click',async()=>{
   // visible in the gallery. A selected clip always deserves its own GIF.
   while(busy)await delay();
   if(!item.frames?.length){
-   const buffer=await bufferFor(item),fbx=loader.parse(buffer,'');
+   const buffer=await bufferFor(item),fbx=await parseStudioFBX(item,buffer);
    const rig=setupRig(thumbStage,fbx);setRigDisplay(rig,'master');
    const frames=[];for(let i=0;i<8;i++){
     poseRig(thumbStage,rig.clip.duration*(i+.22)/8,false);
