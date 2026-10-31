@@ -5,6 +5,8 @@ on:
       - 'animation-studio.html'
       - 'index.html'
       - 'js/animation-studio.js'
+      - 'js/v171-fbx-animation-recovery.js'
+      - 'tests/v171-fbx-animation-recovery.js'
       - 'js/studio-live-bridge.js'
       - 'js/v66-game-boot.js'
       - 'js/v72-published-actions.js'
@@ -38,9 +40,11 @@ jobs:
         run: |
           node --check js/studio-live-bridge.js
           node --check js/v66-game-boot.js
+          node --check js/v171-fbx-animation-recovery.js
           node --check js/v72-published-actions.js
           node --check tools/test-studio-local-game.cjs
           node tests/studio-local-game-bridge.js
+          node tests/v171-fbx-animation-recovery.js
           node tests/v166-flight-body-expression.js
           node tests/v72-studio-publishing.js
           node tests/native-combat-playtest-loader.js
