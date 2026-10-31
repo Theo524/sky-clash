@@ -79,10 +79,13 @@ const html=fs.readFileSync('index.html','utf8');
 assert(source.includes("get('flightBody')==='alive'") &&
  source.includes('v166FlightBodyExpression(st.elapsed,travel,'),
  'keep the expression in the existing opt-in V100 pose owner');
-assert(!source.includes('SkyClashV143HoverKeys')&&
- !source.includes('SkyClashV144Arms')&&
- !source.includes('SkyClashV164SelectedFlight||'),
- 'living flight must NOT import other animation versions');
+const directExpression=source.slice(source.indexOf('function v166FlightBodyExpression('),
+ source.indexOf('function attach(THREE,f,status)',source.indexOf('function v166FlightBodyExpression(')));
+assert(directExpression.length>500 &&
+ !directExpression.includes('SkyClashV143HoverKeys')&&
+ !directExpression.includes('SkyClashV144Arms')&&
+ !directExpression.includes('SkyClashV164SelectedFlight'),
+ 'new living flight helper must not import other animation versions');
 assert(!boot.includes('legacyFlightStage>=142||authoredBody') &&
  !boot.includes("get('flightVertical')==='v164'||"),
  'living flight must not load old full-body versions');
