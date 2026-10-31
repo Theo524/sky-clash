@@ -178,6 +178,19 @@ async function parseStudioFBX(item,buffer){
   item.recovered=!!result.recovered;
   if(item.recovered)item.recoveredBones=result.bones;
  }
+ // Some Rokoko/Maya FBXs start their take at t=27s, not at zero.
+ // Preserve the actual animation window, but make Play start at frame one.
+ // Do not alter the published Mixamo clips or any original FBX bytes.
+ if(item.source==='rokoko'&&fbx.animations?.length&&!item.recovered)
+  for(const clip of fbx.animations){
+   if(!clip.tracks?.length)continue;
+   const first=Math.min(...clip.tracks.filter(t=>t.times?.length).map(t=>t.times[0]));
+   if(first>1&&Number.isFinite(first)&&first<150){
+    for(const track of clip.tracks)track.shift(-first);
+    clip.resetDuration();
+    item.normalizedTakeStart=first;
+   }
+  }
  return fbx;
 }
 const UNREAL_TO_MIXAMO=Object.freeze({
@@ -298,7 +311,17 @@ function setupRig(stage,fbx){
    const mesh=new THREE.Mesh(jointGeo,mat);mesh.scale.setScalar(key==='head'?.155:key==='hips'?.11:.07);wrap.add(mesh);joints.push({bone,mesh});
  }
  if(!segments.length){stage.rigCenter.remove(wrap);throw Error('Bone hierarchy not recognized');}
- const inspection=window.SkyClashMixamoMaster?.inspectClip(clip,bones);
+ // The diagnostic expects canonical Mixamo names. Unreal/Arnold tracks
+ // target the same bones via names like "pelvis" and "spine_01"; inspect
+ // those normalized aliases without altering the actual AnimationMixer
+ // bindings or renaming any bones in the source.
+ const validationClip={duration:clip.duration,tracks:clip.tracks.map(track=>{
+  const dot=track.name.indexOf('.');
+  return {name:dot<0?norm(track.name):
+    norm(track.name.slice(0,dot))+track.name.slice(dot),
+   times:track.times,values:track.values};
+ })};
+ const inspection=window.SkyClashMixamoMaster?.inspectClip(validationClip,bones);
  if(!inspection?.valid)throw Error('Mixamo track validation failed: '+(inspection?.warnings.join('; ')||'No valid humanoid motion'));
  const master=window.SkyClashMixamoMaster?.create(THREE,bones,fbx);
  if(!master)throw Error('Clean master model unavailable. Refresh the Animation Studio.');
@@ -481,7 +504,7 @@ async function select(item){
    const rig=setupRig(mainStage,fbx);setRigDisplay(rig,viewMode);
    mainRig=rig;item.duration=rig.clip.duration;item.boneCount=rig.bones.size;
    $('scrub').value=0;$('scrub').disabled=false;$('playPause').disabled=false;$('restart').disabled=false;$('playPause').textContent='Ⅱ Pause';hideOverlay();
-   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · ${item.recovered?'Recovered original FBX keyframes (Rokoko / other)':'Native FBX tracks checked'}${item.repaired?' · FBX footer automatically repaired':''}${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
+   $('selectedStatus').textContent=`${niceSec(rig.clip.duration)} · ${rig.inspection.animatedBones} animated bones · ${item.recovered?'Recovered original FBX keyframes (Rokoko / other)':item.normalizedTakeStart?'Source take aligned to frame zero':'Native FBX tracks checked'}${item.repaired?' · FBX footer automatically repaired':''}${rig.inspection.warnings.length?' · Warning: '+rig.inspection.warnings.join('; '):' · no binding warnings'}.`;
    updateCard(item);
    if(viewMode==='character')await showCharacter();
  }catch(e){console.warn(e);if(token===selectedLoadToken){loadingOverlay('Could not preview this FBX: '+explainFBXError(e));$('selectedStatus').textContent='The original file is kept. Try another export or animation; Kairo and live combat are unaffected.';mainRig=null;}}
