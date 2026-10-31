@@ -1,5 +1,24 @@
 # Sky Clash — current state
 
+## Flight-body expression — player adjustment requested 2026-10-31
+
+The player dislikes exaggerated forward/backward V166 torso pitching. For the
+opt-in `flightBody=alive` review, keep the **V156 Q torso upright** with only
+quiet breathing and distribute animation mainly to independently phased
+shoulders, upper/lower arms, wrists, thighs, knees and ankles. Keep movement
+gentle in both hover and cruise, not a walking cycle. The shared
+`v166FlightBodyExpression` is consumed by V100 for published Q flight and by
+V72 only when an explicitly applied Studio floating/flying clip owns that
+state. Do not add another pose writer. No changes to normal public defaults,
+Rin, Kairo's source VRM, V164 B selections, Mixamo, Base v1 or flight physics.
+
+The proposed toned-down version is a **player review candidate, not an accepted
+motion**. A numeric stability/continuous-rotation test protects the original
+Q bytes and smoothness; only real 3-view gameplay and player feedback can
+establish whether arms and legs look natural. Preserve the pre-change main
+commit as straightforward rollback for this opt-in expression.
+
+
 This is the concise handoff. Inspect the current checkout and remote status before claiming a PR, CI run or deployment is current. Historical details belong in [project context](PROJECT-CONTEXT.md); [AGENTS.md](../AGENTS.md) and the [runbook](ASSISTANT-RUNBOOK.md) contain working rules.
 
 ## Storm Fist quality overhaul — active work
