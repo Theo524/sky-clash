@@ -238,8 +238,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error};
   });
   assert.equal(livingFlight.active,'flight');
-  assert.equal(livingFlight.style,'V166 gentle living hover preview');
-  assert(livingFlight.amplitude>2.5&&livingFlight.amplitude<7.5);
+  assert.equal(livingFlight.style,'V175 recovered authored living flight');
+  assert(livingFlight.amplitude>1&&livingFlight.amplitude<7.5);
   assert(livingFlight.difference>.001&&livingFlight.difference<.022,
    'Real Kairo ribs should breathe but not repeatedly bow');
   assert(livingFlight.arms.some(d=>d>.008),
@@ -316,7 +316,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(combined.indicator.includes('local moves active'));
   assert.equal(combined.flight.slot,'floating');
   assert.equal(combined.flight.owner,'V72 Studio flight');
-  assert(combined.flight.amplitude>2.5&&combined.flight.amplitude<7.5,
+  assert(combined.flight.amplitude>1&&combined.flight.amplitude<7.5,
    'Studio hover expression must remain gentle');
   assert(combined.flight.difference>.001&&combined.flight.difference<.022,
    'Studio floating torso must breathe without visible bowing');

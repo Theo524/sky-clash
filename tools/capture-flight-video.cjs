@@ -46,6 +46,7 @@ const uri=preview=>'http://127.0.0.1:'+port+
      preview==='v162'?'v156&flightVertical=v162':
      preview==='v163'?'v156&flightVertical=v163':
      preview==='v164'?'v156&flightVertical=v164':
+     preview==='v175'?'v156&flightBody=alive':
      preview==='v168'?'v156&flightBody=alive':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});

@@ -938,6 +938,9 @@
        localFlightQ.setFromEuler(localFlightEuler.set(j.x*deg,0,j.z*deg,'XYZ'));
        node.quaternion.premultiply(localFlightQ).normalize();
       }
+      if(j.q){
+       node.quaternion.multiply(localFlightQ.fromArray(j.q)).normalize();
+      }
      }
      node.updateMatrixWorld(true);
     }
