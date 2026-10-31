@@ -404,6 +404,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     source:s.motionClips.landing.sourceFile};
    p.landingMotionT=0;p.v109LandingDuration=0;
    p.wasFlying=false;p.jumping=false;p.dropping=false;
+   // The physical dojo floor need not be y=0. The run-stop test must
+   // prove the animation does not move the current physics root.
+   const rootYBeforeStop=p.pos.y;
    p._v82WasBoost=true;p.sprinting=false;p.skidT=.38;
    p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
    p.t+=1/60;p.animate(1/60);
@@ -415,7 +418,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     firstClock,lastClock:p.v72StudioPack.clock,
     thighChange:firstLeg.angleTo(thigh.quaternion),
     frames:s.localPlaytest.localStopFrames,
-    rootY:p.pos.y,
+    rootY:p.pos.y,rootYBeforeStop,
     sourceSeconds:s.motionClips.runStop.seconds
    },state:s.localPlaytest.state,error:s.error};
   });
@@ -448,8 +451,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(groundRecovery.runStop.thighChange>.005,
    'Run stop retained old procedural legs instead of source full-body motion');
   assert(groundRecovery.runStop.frames>5);
-  assert.equal(groundRecovery.runStop.rootY,0,
-   'The visual stop must not move physics root');
+  assert.equal(groundRecovery.runStop.rootY,
+   groundRecovery.runStop.rootYBeforeStop,
+   'The visual stop must not move physics root above its actual floor');
   assert.equal(groundRecovery.error,null);
   await page.evaluate(async()=>{
    const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
