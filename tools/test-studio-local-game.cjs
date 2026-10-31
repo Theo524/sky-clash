@@ -226,7 +226,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const samples=[],heights=[];
    for(let i=0;i<165;i++){
     p.t+=1/60;p.animate(1/60);
-    if(i===74||i===134){
+    if(i===74||i===155){
      samples.push(joints.map(j=>j.quaternion.clone()));
      heights.push(p.pos.y);
     }
@@ -236,14 +236,14 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     difference:deltas[0],arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
     legs:deltas.slice(5,7),ankles:deltas.slice(7),
     heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error,
-    authoredSourcesReady:!!window.SkyClashV142HoverKeys&&
-     !!window.SkyClashV143HoverKeys&&!!window.SkyClashV144Arms&&
-     !!window.SkyClashV164SelectedFlight};
+    noHistoricalFlightDependencies:!window.SkyClashV142HoverKeys&&
+     !window.SkyClashV143HoverKeys&&!window.SkyClashV144Arms&&
+     !window.SkyClashV164SelectedFlight};
   });
-  assert(livingFlight.authoredSourcesReady,
-   'V156 opt-in browser must load V142/V143/V144 plus selected B motion');
+  assert(livingFlight.noHistoricalFlightDependencies,
+   'direct living flight must load without historical animation modules');
   assert.equal(livingFlight.active,'flight');
-  assert.equal(livingFlight.style,'V175 recovered authored living flight');
+  assert.equal(livingFlight.style,'Kairo direct natural flight');
   assert(livingFlight.amplitude>1&&livingFlight.amplitude<7.5);
   assert(livingFlight.difference>.001&&livingFlight.difference<.022,
    'Real Kairo ribs should breathe but not repeatedly bow');

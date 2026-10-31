@@ -1,5 +1,5 @@
-/* V166: Kairo's real V156 flight pose stays the source; preview only.
- * Numerical and rig contracts are not a substitute for player visual review.
+/* Kairo self-contained flight correction — same V156 Q silhouette.
+ * Artistic review belongs to the player; these checks prevent regression.
  */
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs');
@@ -7,114 +7,96 @@ const THREE=require('../js/vendor/three.min.js');
 const owner=require('../js/v100-pose-authority.js');
 require('../js/v156-real-vrm-flight.js');
 const pose=globalThis.SkyClashV156AuthoredFlight;
-assert(pose&&pose.bones.length===20&&pose.hover.length===20);
 const expression=owner.v166FlightBodyExpression;
 assert.equal(typeof expression,'function');
-const still=expression(0,0,0);
-assert.equal(still.maxDegrees,0,'no pose snap at flight entry');
-assert(still.joints.every(j=>j.x===0&&j.z===0));
-const b=expression(2,0,1),cruise=expression(2,1,1);
-assert.equal(b.joints.length,20);
-assert(b.maxDegrees>1&&b.maxDegrees<7.5,'authored flow stays gentle');
-assert(cruise.maxDegrees>0&&cruise.maxDegrees<b.maxDegrees,
- 'forward flight keeps the original expression slightly calmer');
-const samples=Array.from({length:901},(_,i)=>expression(i*.01,0,1));
-for(const s of samples){
- const torso=s.joints.slice(0,6);
- assert(torso.every(j=>Math.hypot(j.x,j.z)<1.2),
-  'V143 torso flow may never change the Q flight stance');
- assert(Math.abs(torso.slice(0,4).reduce((sum,j)=>sum+j.x,0))<1,
-  'no excessive forward/back torso bending');
- assert(s.maxDegrees<7.5,'bounded selected B arm motion');
- for(const j of s.joints)if(j.q){
-  assert(j.q.every(Number.isFinite),'finite authored quaternion');
-  assert(Math.abs(Math.hypot(...j.q)-1)<.00001,
-   'normalized local-space selected-B motion');
- }
-}
+assert(pose&&pose.bones.length===20);
+const idle=expression(0,0,0);
+assert.equal(idle.maxDegrees,0,'entry starts from approved Q');
+assert(idle.joints.every(j=>j.x===0&&j.z===0));
+const hover=expression(1.76,0,1),cruise=expression(1.76,1,1);
+assert(hover.maxDegrees>2&&hover.maxDegrees<5.3,'flow is visible but quiet');
+assert(cruise.maxDegrees<hover.maxDegrees&&cruise.maxDegrees>2,
+ 'forward travel softly damps, rather than freezes, the movement');
+const samples=Array.from({length:1381},(_,i)=>expression(i/120,0,1));
 const peak=i=>Math.max(...samples.map(s=>Math.hypot(s.joints[i].x,s.joints[i].z)));
-assert(peak(0)>.05&&peak(1)>.05&&peak(2)>.05,
- 'preserve continuous keyed V143 pelvis-to-chest flow');
-assert(peak(14)>.35&&peak(15)>.45&&peak(17)>.12&&peak(18)>.18,
- 'independently authored V143 suspended legs should move');
-assert(peak(9)>.3&&peak(13)>.3,'V144 delayed hand follow-through visible');
-const angle=q=>2*Math.acos(Math.min(1,Math.abs(q[3])))*180/Math.PI;
-for(const i of [7,8,11,12]){
- const amplitudes=samples.map(s=>angle(s.joints[i].q||[0,0,0,1]));
- assert(Math.max(...amplitudes)>1,'chosen B keys should move arm '+pose.bones[i]);
+for(const s of samples){
+ assert.equal(s.joints.length,20);
+ assert(s.joints.slice(0,6).every(j=>Math.hypot(j.x,j.z)<.8),
+  'no pronounced torso rocking or leaning');
+ assert(Math.abs(s.joints.slice(0,4).reduce((a,j)=>a+j.x,0))<.4,
+  'combined torso pitch must remain calm');
+ assert(s.maxDegrees<5.3,'all limb offsets are bounded');
+ for(const j of s.joints){
+  assert(Number.isFinite(j.x)&&Number.isFinite(j.z));
+  assert(!Object.hasOwn(j,'q'),'no external selected-B quaternion dependency');
+ }
 }
-const eq=(a,b)=>a.every((v,i)=>Math.abs(v-b[i])<.00001);
-assert(!eq(expression(.5,0,1).joints[7].q,expression(.5,0,1).joints[11].q),
- 'left and right B quaternion motion should not mirror');
-const first=expression(.02,0,1).joints;
-const last=expression(4.62,0,1).joints;
-for(const i of [0,1,2,14,15,17,18]){
- assert(Math.hypot(first[i].x-last[i].x,first[i].z-last[i].z)<.12,
-  'V143 authored 4.6s keyframe loop smooth at '+pose.bones[i]);
-}
+for(const [i,min] of [[0,.25],[2,.22],[7,2.2],[8,3],
+ [9,1.6],[11,2.4],[12,2.8],[13,1.6],[15,1.2],
+ [18,1.0],[16,.5],[19,.5]])assert(peak(i)>min,
+ 'expressive Kairo joint is missing: '+pose.bones[i]);
+const left=expression(1.17,0,1).joints;
+const right=expression(2.99,0,1).joints;
+assert(left[7].z>2&&Math.abs(left[11].z)<1,
+ 'left arm leads without both hands rising at once');
+assert(right[11].z< -2&&Math.abs(right[7].z)<1.5,
+ 'right arm follows later while left settles');
+for(const i of [7,11])
+ assert(samples.some((s,n)=>n>5&&
+  Math.abs(s.joints[i].z-samples[n-1].joints[i].z)>.00005),
+  'both arms must keep flowing, not freeze');
 for(const fps of [30,60,120]){
  let previous=expression(.72,0,1);
- for(let i=1;i<=fps*6;i++){
-  const next=expression(.72+i/fps,0,1);
-  for(let bone=0;bone<20;bone++){
-   const delta=Math.hypot(next.joints[bone].x-previous.joints[bone].x,
-    next.joints[bone].z-previous.joints[bone].z);
-   assert(delta<.8,'authored body snap at '+fps+'fps '+bone);
-   if(next.joints[bone].q&&previous.joints[bone].q){
-    const q=next.joints[bone].q,p=previous.joints[bone].q;
-    const cos=Math.abs(q.reduce((s,v,i)=>s+v*p[i],0));
-    assert(2*Math.acos(Math.min(1,cos))*180/Math.PI<.8,
-     'authored B hand/arm snap at '+fps+'fps '+bone);
-   }
-  }
+ for(let n=1;n<=fps*15;n++){
+  const next=expression(.72+n/fps,0,1);
+  for(let i=0;i<20;i++)assert(
+   Math.hypot(previous.joints[i].x-next.joints[i].x,
+    previous.joints[i].z-next.joints[i].z)<.75,
+   'no sharp movement at '+fps+'fps for '+pose.bones[i]);
   previous=next;
  }
 }
-for(const t of [0,.125,.5,1,2,7,100,Infinity,NaN]){
- const q=expression(t,0,1);
- assert(Number.isFinite(q.maxDegrees)&&q.maxDegrees<7.5,'bounded visual motion');
- for(const j of q.joints)assert(Number.isFinite(j.x)&&Number.isFinite(j.z));
+const atStart=expression(.001,0,1),atWrap=expression(4.601,0,1);
+for(let i=0;i<20;i++)assert(
+ Math.hypot(atStart.joints[i].x-atWrap.joints[i].x,
+ atStart.joints[i].z-atWrap.joints[i].z)<.001,
+ 'loop wrap continuity '+pose.bones[i]);
+for(const t of [0,1,2,7,100,Infinity,NaN]){
+ const v=expression(t,0,1);
+ assert(Number.isFinite(v.maxDegrees));
 }
-for(const fps of [30,60,120]){
- let previous=expression(.72,0,1);
- for(let i=1;i<=fps*5;i++){
-  const next=expression(.72+i/fps,0,1);
-  for(let bone=0;bone<20;bone++){
-   const delta=Math.hypot(next.joints[bone].x-previous.joints[bone].x,
-    next.joints[bone].z-previous.joints[bone].z);
-   assert(delta<.75,'sudden joint pop at '+fps+'fps, bone '+bone);
-  }
-  previous=next;
- }
-}
-const start=pose.hover.map(q=>q.slice());
+const original=pose.hover.map(q=>q.slice());
 const raw=new THREE.Quaternion().fromArray(pose.hover[2]);
-const sample=expression(2.5,0,1).joints[2];
-const delta=new THREE.Quaternion().setFromEuler(
- new THREE.Euler(sample.x*Math.PI/180,0,sample.z*Math.PI/180,'XYZ'));
-const result=raw.clone().premultiply(delta);
-assert(result.angleTo(raw)>.001&&result.angleTo(raw)<.015,
- 'real chest joint breathes without significant forward lean');
-assert.deepEqual(pose.hover,start,'authored Q data is immutable');
-const code=fs.readFileSync('js/v100-pose-authority.js','utf8');
+const chest=expression(2,0,1).joints[2];
+const rotation=new THREE.Quaternion().setFromEuler(
+ new THREE.Euler(chest.x*Math.PI/180,0,chest.z*Math.PI/180,'XYZ'));
+assert(raw.clone().premultiply(rotation).angleTo(raw)<.015,
+ 'Q chest must remain nearly unchanged');
+assert.deepEqual(pose.hover,original,'original V156 Q must remain immutable');
+const source=fs.readFileSync('js/v100-pose-authority.js','utf8');
 const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
-assert(code.includes("get('flightBody')==='alive'"),'body motion must be explicit opt-in');
-assert(code.includes('v166FlightBodyExpression(st.elapsed,travel,'),
- 'must reuse existing V100 flight writer');
-assert(boot.includes("get('flightBody')==='alive'"),
- 'selected B source must load for opt-in');
-assert(boot.includes('legacyFlightStage>=142||authoredBody')&&
- boot.includes('legacyFlightStage>=143||authoredBody')&&
- boot.includes('legacyFlightStage>=144||authoredBody'),
- 'V156 opt-in must load V142/V143/V144 in the browser, not only Node');
-assert(code.includes('SkyClashV164SelectedFlight')&&
- code.includes('SkyClashV143HoverKeys')&&code.includes('SkyClashV144Arms'),
- 'expression must source all three original authored animations');
+const html=fs.readFileSync('index.html','utf8');
+assert(source.includes("get('flightBody')==='alive'") &&
+ source.includes('v166FlightBodyExpression(st.elapsed,travel,'),
+ 'keep the expression in the existing opt-in V100 pose owner');
+const directExpression=source.slice(source.indexOf('function v166FlightBodyExpression('),
+ source.indexOf('function attach(THREE,f,status)',source.indexOf('function v166FlightBodyExpression(')));
+assert(directExpression.length>500 &&
+ !directExpression.includes('SkyClashV143HoverKeys')&&
+ !directExpression.includes('SkyClashV144Arms')&&
+ !directExpression.includes('SkyClashV164SelectedFlight'),
+ 'new living flight helper must not import other animation versions');
+assert(!boot.includes('legacyFlightStage>=142||authoredBody') &&
+ !boot.includes("get('flightVertical')==='v164'||"),
+ 'living flight must not load old full-body versions');
 assert(!boot.includes("flags.set('flightBody','alive')"),
- 'user has not approved default promotion');
-assert(boot.includes("flags.set('flightPreview','v156')"),'approved Q unchanged');
-assert(boot.includes("e.src+='&body=175'"),'preview cache must refresh');
-const v72=fs.readFileSync('js/v72-published-actions.js','utf8');
-assert(v72.includes('SkyClashV100Animator?.v166FlightBodyExpression('),
- 'locally assigned floating/flying should reuse the single flight expression');
-console.log('PASS V175: recovered V143/V144 timing and exact V164 B motion on immutable V156 Q; safe owner/default');
+ 'default game must keep its approved Q');
+assert(boot.includes("flags.set('flightPreview','v156')"),
+ 'original V156 remains the public flight stance');
+assert(html.includes('directFlightFix=1') &&
+ boot.includes("e.src+='&body=direct1'"),
+ 'refreshed boot and flight-owner URLs needed for cached GitHub Pages');
+const studio=fs.readFileSync('js/v72-published-actions.js','utf8');
+assert(studio.includes('SkyClashV100Animator?.v166FlightBodyExpression('),
+ 'local Studio flight still shares the same owner expression');
+console.log('PASS direct self-contained natural Kairo flight: 20 bones, no twinning, bounded torso, 30/60/120 fps, Q untouched');

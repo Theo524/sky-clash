@@ -248,7 +248,7 @@
     // approved loader URL, with no new pose activated by default.
     if(src.includes('v100-pose-authority')&&
        params.get('flightBody')==='alive')
-      e.src+='&body=175';
+      e.src+='&body=direct1';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });
@@ -342,17 +342,13 @@
    const flightPreview=new URLSearchParams(location.search).get('flightPreview');
    const legacyFlightStage=/^v14[2-9]$/.test(flightPreview)?
     Number(flightPreview.slice(1)):0;
-   // V175 reuses the original V143/V144 *keyframes* over authored Q,
-   // but v156 is not a legacy/modernFlight selector. Load these exact
-   // source modules in dependency order ONLY for the explicit body flag.
-   // Without this, the V100 owner falls back during hover in Chromium.
-   const authoredBody=new URLSearchParams(location.search)
-    .get('flightBody')==='alive';
-   if(modernFlight||legacyFlightStage>=142||authoredBody)
+   // Historical flight clips stay available for their own previews;
+   // the direct living-flight correction uses NO external motion files.
+   if(modernFlight||legacyFlightStage>=142)
     await script('js/v142-hover-keyframes.js?v=1420');
-   if(modernFlight||legacyFlightStage>=143||authoredBody)
+   if(modernFlight||legacyFlightStage>=143)
     await script('js/v143-hover-performance.js?v=1430');
-   if(modernFlight||legacyFlightStage>=144||authoredBody)
+   if(modernFlight||legacyFlightStage>=144)
     await script('js/v144-relaxed-arms.js?v=1440');
    if(modernFlight||legacyFlightStage>=145)
     await script('js/v145-vertical-flight.js?v=1450');
@@ -378,8 +374,7 @@
     await script('js/v158-real-vrm-flight.js?v=1580');
    if(new URLSearchParams(location.search).get('flightVertical')==='v163')
     await script('js/v163-real-kairo-vertical-keyframes.js?v=1630');
-   if(new URLSearchParams(location.search).get('flightVertical')==='v164'||
-      new URLSearchParams(location.search).get('flightBody')==='alive')
+   if(new URLSearchParams(location.search).get('flightVertical')==='v164')
     await script('js/v164-selected-kairo-real-flight.js?v=1640');
    await script('js/v100-pose-authority.js?v=1561');
    window.SkyClashV100Animator.start(window);
