@@ -79,14 +79,25 @@ jobs:
                   def angle(a,b):
                       dot=min(1,abs(sum(x*y for x,y in zip(a,b))))
                       return 2*math.acos(dot)
-                  frame={r['frame']:r for r in c['timeline']}
-                  # Early in hover only the left arm adjusts. After it
-                  # settles the right arm adjusts, never both together.
-                  assert angle(frame[30]['leftUpperArmQ'],frame[48]['leftUpperArmQ'])>.015
-                  assert angle(frame[30]['rightUpperArmQ'],frame[48]['rightUpperArmQ'])<.016
-                  assert angle(frame[105]['rightUpperArmQ'],frame[132]['rightUpperArmQ'])>.015
-                  assert angle(frame[105]['leftUpperArmQ'],frame[132]['leftUpperArmQ'])<.016
-          print('PASS real Kairo one-arm-at-a-time choreography over nine seconds; original Q remains default')
+                  hover=[r for r in active if r['stage']=='hover']
+                  assert len(hover)>140,'must inspect continuous flight flow'
+                  def peak_movement(joint):
+                      return max(angle(a[joint],b[joint])
+                          for a in hover[::20] for b in hover[::20])
+                  assert .004<peak_movement('chestQ')<.04, \
+                      'torso should flow gently, not lock rigid or bow'
+                  assert peak_movement('leftUpperArmQ')>.03
+                  assert peak_movement('rightUpperArmQ')>.025
+                  # Movement on BOTH arms should have different rhythms.
+                  # Do not require one arm to freeze while the other acts.
+                  def velocity_series(joint):
+                      return [angle(a[joint],b[joint])
+                          for a,b in zip(hover,hover[1:])]
+                  l,r=velocity_series('leftUpperArmQ'),velocity_series('rightUpperArmQ')
+                  assert any(x>.00001 for x in l) and any(x>.00001 for x in r)
+                  assert max(abs(a-b) for a,b in zip(l,r))>.0003, \
+                      'both arms have identical step timing'
+          print('PASS real Kairo continuous staggered arm/body flow over nine seconds; original Q remains default')
           PY
       - uses: actions/upload-artifact@v4
         if: always()

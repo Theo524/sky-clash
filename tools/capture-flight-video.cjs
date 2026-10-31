@@ -275,6 +275,7 @@ async function capture(browser,preview){
      flightBlend:owner.flightBlend||0,
      flightBodyExpression:owner.flightBodyExpression||'off',
      flightBodyDegrees:owner.flightBodyDegrees||0,
+     chestQ:h.getNormalizedBoneNode('chest')?.quaternion.toArray()||null,
      leftUpperArmQ:h.getNormalizedBoneNode('leftUpperArm')?.quaternion.toArray()||null,
      rightUpperArmQ:h.getNormalizedBoneNode('rightUpperArm')?.quaternion.toArray()||null,
      flightBankDegrees:owner.flightBankDegrees??0,

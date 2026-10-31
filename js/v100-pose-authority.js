@@ -2383,54 +2383,54 @@
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
+   // Keep the approved V156 Q hover or cruise pose as the source at
+   // EVERY frame. This adds small continuous, interconnected motion,
+   // not a different guard silhouette or a staged one-arm pose switch.
    const w=smooth(entry)*(1-.12*cruise);
-   // A staged 8.8-second breathing hover, not two mirrored pendulums.
-   // One arm makes a small lateral adjustment while the other rests;
-   // delayed elbow/hand follow-through finishes BEFORE the other starts.
-   // Smoothstep rise/hold/release means no jerks at loop wrap.
-   const phase=t%8.8;
-   const pulse=(start,rise,fall,end)=>
-    smooth((phase-start)/(rise-start))*
-    (1-smooth((phase-fall)/(end-fall)));
-   const left=pulse(.55,1.65,2.45,3.65);
-   const leftElbow=pulse(.85,1.95,2.85,4.10);
-   const leftWrist=pulse(1.10,2.15,3.05,4.20);
-   const right=pulse(4.45,5.65,6.35,7.70);
-   const rightElbow=pulse(4.75,5.95,6.75,8.15);
-   const rightWrist=pulse(4.95,6.15,7.05,8.30);
-   // Separate non-mirrored leg rhythms, not a walking/kicking cycle.
-   const breath=Math.sin(t*1.54-.35)+.18*Math.sin(t*.77+.7);
-   const lLeg=Math.sin(t*.75+.20)+.18*Math.sin(t*.31+.70);
-   const rLeg=Math.sin(t*.52+2.1)+.17*Math.sin(t*.29+1.40);
-   const lKnee=Math.sin(t*.82-.60),rKnee=Math.sin(t*.57+2.20);
-   const lAnkle=Math.sin(t*.82-1.1),rAnkle=Math.sin(t*.57+1.45);
+   // Hip/chest weight shift propagates into shoulders and arms, with
+   // asynchronous left/right timing and wrist/elbow follow-through.
+   // The sum of slow rhythms hides a synchronized pendulum loop.
+   const breath=Math.sin(t*1.30-.35)+.18*Math.sin(t*.74+.8);
+   const sway=Math.sin(t*.82+.1)+.15*Math.sin(t*.41+.7);
+   const left=Math.sin(t*.88-.75)+.21*Math.sin(t*.51+.65);
+   const right=Math.sin(t*.61+1.55)+.16*Math.sin(t*1.04-.30);
+   const elbowL=Math.sin(t*.88-1.10)+.20*Math.sin(t*.51+.35);
+   const elbowR=Math.sin(t*.61+1.13)+.18*Math.sin(t*1.04-.58);
+   const wristL=Math.sin(t*.88-1.48)+.18*Math.sin(t*.51+.05);
+   const wristR=Math.sin(t*.61+.72)+.15*Math.sin(t*1.04-.90);
+   const legL=Math.sin(t*.64+.25)+.14*Math.sin(t*.36+.7);
+   const legR=Math.sin(t*.51+2.15)+.14*Math.sin(t*.29+1.4);
+   const kneeL=Math.sin(t*.64-.50),kneeR=Math.sin(t*.51+1.55);
+   const ankleL=Math.sin(t*.64-.95),ankleR=Math.sin(t*.51+1.1);
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
    const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   // V156 Q source silhouette remains upright; no large trunk pitch.
-   set(0,-.16*lLeg,.18*breath);
-   set(1,.14*breath,-.12*Math.sin(t*.45-.2));
-   set(2,.25*breath,-.16*Math.sin(t*.43+.5));
-   set(3,.13*breath,-.08*rLeg);
-   set(4,-.10*breath,.05*lLeg);
-   set(5,-.08*breath,.05*rLeg);
-   // Outward arcs dominate arm movement, not simultaneous up/down x.
-   // Follow-through is progressively later from upper arm to hand.
-   set(6,-.25*left,.45*left);
-   set(7,-1.8*left,4.7*left);
-   set(8,-1.30*leftElbow,2.6*leftElbow);
-   set(9,1.2*leftWrist,-.90*leftWrist);
-   set(10,.18*right,-.35*right);
-   set(11,-1.1*right,-3.8*right);
-   set(12,-1.1*rightElbow,-2.25*rightElbow);
-   set(13,-1.05*rightWrist,.85*rightWrist);
-   // Small independent thigh, knee, ankle flex keeps air legs alive
-   // without introducing synchronized pedalling or root movement.
-   set(14,-1.15*lLeg,.35*rLeg);
-   set(15,2.35*lKnee,.22*lLeg);
-   set(16,-1.05*lAnkle,.17*lLeg);
-   set(17,-.95*rLeg,-.33*lLeg);
-   set(18,1.90*rKnee,-.25*rLeg);
-   set(19,-.92*rAnkle,-.14*rLeg);
+   // Very gentle torso sway: life without repeated chest bowing.
+   // Resting and animated Q quaternions are never overwritten.
+   set(0,-.12*legL,.25*sway);
+   set(1,.16*breath,-.21*sway);
+   set(2,.24*breath,.30*sway);
+   set(3,.12*breath,-.07*sway);
+   set(4,-.08*breath,-.10*sway);
+   set(5,-.06*breath,-.14*sway);
+   // Arms follow body flow but at independent periods; motion travels
+   // down each limb into the elbow, wrist, then hand. Horizontal arcs
+   // dominate; no two hands pumping vertically together.
+   set(6,-.20*left,.55*sway+.35*left);
+   set(7,-.48*left,3.2*left+.60*sway);
+   set(8,-.27*elbowL,1.75*elbowL+.30*sway);
+   set(9,.18*wristL,.95*wristL);
+   set(10,.22*right,-.45*sway+.30*right);
+   set(11,.40*right,-2.9*right+.45*sway);
+   set(12,.28*elbowR,-1.65*elbowR+.20*sway);
+   set(13,-.18*wristR,-.88*wristR);
+   // Knees and feet float with slightly different phases while
+   // retaining their approved bent/held position from the authored Q.
+   set(14,-1.2*legL,.32*sway);
+   set(15,2.3*kneeL,.10*legR);
+   set(16,-1.0*ankleL,.12*legL);
+   set(17,-1.05*legR,-.30*sway);
+   set(18,2.0*kneeR,.10*legL);
+   set(19,-.90*ankleR,-.12*legR);
    return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
     Math.hypot(j.x,j.z)))};
   }

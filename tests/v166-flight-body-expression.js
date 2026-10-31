@@ -15,54 +15,68 @@ assert.equal(still.maxDegrees,0,'no pose snap at flight entry');
 assert(still.joints.every(j=>j.x===0&&j.z===0));
 const b=expression(2,0,1),cruise=expression(2,1,1);
 assert.equal(b.joints.length,20);
-assert(b.maxDegrees>3&&b.maxDegrees<5.5,'left-arm adjustment visible but relaxed');
+assert(b.maxDegrees>3&&b.maxDegrees<5.6,'natural full-body movement is readable');
 assert(cruise.maxDegrees<b.maxDegrees&&cruise.maxDegrees>b.maxDegrees*.85,
- 'cruise should preserve soft, non-mechanical secondary motion');
-const samples=Array.from({length:881},(_,i)=>expression(i*.01,0,1));
+ 'forward cruise must retain the same flowing Q stance');
+const samples=Array.from({length:2401},(_,i)=>expression(i*.01,0,1));
 for(const sample of samples){
  const torso=sample.joints.slice(0,6);
  assert(torso.every(j=>Math.hypot(j.x,j.z)<.55),
-  'flight must not rock Kairo torso/neck away from Q');
+  'torso should sway gently but never pitch away from Q');
  assert(Math.abs(torso.slice(0,4).reduce((sum,j)=>sum+j.x,0))<1,
   'pelvis and rib pitch must remain almost upright');
- assert(sample.maxDegrees<5.6,'no exaggerated arm pumping');
+ assert(sample.maxDegrees<5.6,'preserve the authored V156 flight silhouette');
 }
 const peak=i=>Math.max(...samples.map(s=>Math.hypot(s.joints[i].x,s.joints[i].z)));
-assert(peak(7)>4.8&&peak(11)>3.8,'both hands should receive occasional adjustment');
-assert(peak(8)>2.7&&peak(12)>2.3,'elbows follow independently');
-assert(peak(9)>1.4&&peak(13)>1.2,'wrists follow later than elbows');
-assert(peak(15)>2&&peak(18)>1.8,'knees retain separate motion');
-assert(peak(16)>1&&peak(19)>.85,'feet/ankles have understated follow-through');
-// Do NOT simply phase-shift two oscillating arms: enforce disjoint
-// movement windows, with the full upper-arm, forearm and wrist chain
-// settled on one side before the other side starts.
-for(const s of samples){
- const left=[6,7,8,9].some(i=>Math.hypot(s.joints[i].x,s.joints[i].z)>.015);
- const right=[10,11,12,13].some(i=>Math.hypot(s.joints[i].x,s.joints[i].z)>.015);
- assert(!(left&&right),'the arms must never pump/adjust simultaneously');
+assert(peak(2)>.3&&peak(0)>.2,
+ 'breathing should propagate gently through ribs and pelvis, not be rigid');
+assert(peak(7)>4&&peak(11)>3.4,
+ 'both arms should move visibly within their original stance');
+assert(peak(8)>2.2&&peak(12)>1.9,'elbows should follow their own timing');
+assert(peak(9)>1.05&&peak(13)>.95,'wrists should continue the arm flow');
+assert(peak(15)>2&&peak(18)>1.8,'knees should float independently');
+assert(peak(16)>.9&&peak(19)>.8,'ankles should respond without kicking');
+// The previous approach made one arm completely stop before the other.
+// True overlap: both sides continue gently at DIFFERENT times, with
+// different rhythms rather than identical simultaneous bobbing.
+const velocity=i=>samples.slice(1).map((s,k)=>({
+ x:s.joints[i].x-samples[k].joints[i].x,
+ z:s.joints[i].z-samples[k].joints[i].z}));
+const corr=(a,b)=>{
+ const avg=a.reduce((s,n)=>s+n,0)/a.length;
+ const mean=b.reduce((s,n)=>s+n,0)/b.length;
+ let covariance=0,varianceA=0,varianceB=0;
+ for(let i=0;i<a.length;i++){
+  const da=a[i]-avg,db=b[i]-mean;
+  covariance+=da*db;varianceA+=da*da;varianceB+=db*db;
+ }
+ return covariance/Math.sqrt(varianceA*varianceB);
+};
+const leftVel=velocity(7),rightVel=velocity(11);
+assert(Math.abs(corr(leftVel.map(v=>v.x),rightVel.map(v=>v.x)))<.6,
+ 'hands may not rise and fall together like a mirror pair');
+assert(Math.abs(corr(leftVel.map(v=>v.z),rightVel.map(v=>v.z)))<.75,
+ 'arm arcs must stay offset without fully stopping either side');
+for(const i of [7,11]){
+ for(let start=0;start<2100;start+=75){
+  const movement=samples.slice(start,start+150).map(q=>q.joints[i].z);
+  assert(Math.max(...movement)-Math.min(...movement)>.22,
+   'no rigid stop-and-wait interval in the flight expression: '+pose.bones[i]);
+ }
 }
-for(const [t,active,inactive] of [[2,7,11],[5.8,11,7]]){
- const q=expression(t,0,1).joints;
- assert(Math.hypot(q[active].x,q[active].z)>3,
-  'one arm makes an independent deliberate adjustment');
- assert(Math.hypot(q[inactive].x,q[inactive].z)<.01,
-  'other upper arm rests, not mirroring adjustment');
-}
-for(const [upper,elbow,wrist] of [[7,8,9],[11,12,13]]){
- const leadTime=samples.findIndex(q=>Math.hypot(q.joints[upper].x,q.joints[upper].z)>1);
- const elbowTime=samples.findIndex(q=>Math.hypot(q.joints[elbow].x,q.joints[elbow].z)>1);
- const wristTime=samples.findIndex(q=>Math.hypot(q.joints[wrist].x,q.joints[wrist].z)>.3);
- assert(leadTime<elbowTime&&elbowTime<wristTime,
-  'upper arm must lead elbow then wrist (overlapping follow-through)');
-}
+const phaseLag=(lead,follow)=>{
+ const a=samples.slice(0,1000).map(s=>s.joints[lead].z);
+ const b=samples.slice(0,1000).map(s=>s.joints[follow].z);
+ const at=lag=>corr(a.slice(0,a.length-lag),b.slice(lag));
+ return {zero:at(0),delayed:at(45)};
+};
+assert(phaseLag(7,8).delayed>phaseLag(7,8).zero,
+ 'left forearm motion should follow its upper arm');
+assert(phaseLag(11,12).delayed>phaseLag(11,12).zero,
+ 'right forearm motion should follow its upper arm');
 for(const index of [0,1,2,3,4,5])
  assert(samples.some(s=>Math.hypot(s.joints[index].x,s.joints[index].z)>.08),
-  'stable body must still breathe subtly: '+pose.bones[index]);
-const beforeWrap=expression(8.8-1/60,0,1).joints;
-const afterWrap=expression(8.8+1/60,0,1).joints;
-for(let i=0;i<20;i++)assert(
- Math.hypot(beforeWrap[i].x-afterWrap[i].x,beforeWrap[i].z-afterWrap[i].z)<.2,
- 'smooth loop phase boundary: '+pose.bones[i]);
+  'natural body flow must reach every torso joint: '+pose.bones[index]);
 for(const t of [0,.125,.5,1,2,7,100,Infinity,NaN]){
  const q=expression(t,0,1);
  assert(Number.isFinite(q.maxDegrees)&&q.maxDegrees<5.6,'bounded visual motion');
@@ -97,8 +111,8 @@ assert(code.includes('v166FlightBodyExpression(st.elapsed,travel,'),
 assert(!boot.includes("flags.set('flightBody','alive')"),
  'user has not approved default promotion');
 assert(boot.includes("flags.set('flightPreview','v156')"),'approved Q unchanged');
-assert(boot.includes("e.src+='&body=170'"),'preview cache must refresh');
+assert(boot.includes("e.src+='&body=174'"),'preview cache must refresh');
 const v72=fs.readFileSync('js/v72-published-actions.js','utf8');
 assert(v72.includes('SkyClashV100Animator?.v166FlightBodyExpression('),
  'locally assigned floating/flying should reuse the single flight expression');
-console.log('PASS V166: reference-based asymmetric non-pumping hover, arm timing and limb overlap, unchanged V156 Q and public defaults');
+console.log('PASS V166: natural layered torso/limb flow, asynchronous arms, no rigid waits or twinning, preserved original Q and ownership');
