@@ -226,7 +226,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const samples=[],heights=[];
    for(let i=0;i<165;i++){
     p.t+=1/60;p.animate(1/60);
-    if(i===74||i===134){
+    if(i===74||i===155){
      samples.push(joints.map(j=>j.quaternion.clone()));
      heights.push(p.pos.y);
     }
