@@ -2383,31 +2383,42 @@
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   const w=smooth(entry)*(1-.48*cruise);
-   // Two slow overlapping rhythms avoid the rigid matched-pair
-   // pendulum look. The arms react a little after the ribs, the hips
-   // counterbalance, and the knees relax rather than walking in air.
-   const breath=Math.sin(t*2.05-.35)+.22*Math.sin(t*1.07+.8);
-   const follow=Math.sin(t*2.05-.94);
-   const counter=Math.sin(t*2.05+.55);
+   // Player review: keep the V156 Q torso nearly still, and let the
+   // extremities breathe independently. Preserve some life in cruise.
+   // This is only sampled by the currently active V100/V72 pose owner.
+   const w=smooth(entry)*(1-.25*cruise);
+   const breath=Math.sin(t*1.54-.35)+.18*Math.sin(t*.77+.7);
+   const armL=Math.sin(t*1.68-.8)+.18*Math.sin(t*.83+.4);
+   const armR=Math.sin(t*1.62-.14)+.17*Math.sin(t*.93+1.1);
+   const elbowL=Math.sin(t*1.68-1.35),elbowR=Math.sin(t*1.62-.72);
+   const legL=Math.sin(t*1.18+.20),legR=Math.sin(t*1.08-.80);
+   const kneeL=Math.sin(t*1.18-.42),kneeR=Math.sin(t*1.08-1.42);
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
    const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   set(0,-2.1*counter,1.6*follow);          // pelvis counters the rib cage
-   set(1,2.1*breath,-1.1*follow);            // lumbar/waist breath
-   set(2,3.7*breath,-1.5*follow);           // visible rib-cage rise
-   set(3,2.15*breath,-.65*follow);
-   set(4,-1.10*breath,.38*follow);            // neck keeps gaze calm
-   set(5,-.85*breath,.38*follow);
-   set(6,-2.45*follow,1.65*breath);            // left shoulder / guard
-   set(10,-2.25*counter,-1.55*breath);         // right shoulder delayed
-   set(7,5.3*follow,-1.55*breath);           // upper arms float loosely
-   set(11,4.8*counter,1.4*breath);
-   set(8,-3.25*counter,.6*follow);
-   set(12,-3.0*follow,-.60*counter);
-   set(14,-1.85*counter,.70*breath);          // subtle hip/thigh follow
-   set(17,-1.70*follow,-.70*breath);
-   set(15,2.2*follow);
-   set(18,2.0*counter);
+   // Under 1 degree of combined waist/rib pitch: no repeated bowing.
+   set(0,-.16*legL,.18*breath);      // pelvis only counterbalances
+   set(1,.14*breath,-.12*armL);      // subtle waist breathing
+   set(2,.25*breath,-.16*armR);      // ribs stay upright
+   set(3,.13*breath,-.08*legR);
+   set(4,-.10*breath,.05*armL);     // head/neck keep steady gaze
+   set(5,-.08*breath,.05*armR);
+   // Gentle staggered shoulder / upper arm / forearm / hand motion.
+   set(6,-.52*armL,.42*breath);
+   set(7,2.6*armL,-.55*breath);
+   set(8,-1.45*elbowL,.25*armL);
+   set(9,-.52*elbowL,.16*armL);
+   set(10,-.50*armR,-.42*breath);
+   set(11,2.5*armR,.55*breath);
+   set(12,-1.40*elbowR,-.25*armR);
+   set(13,-.50*elbowR,-.16*armR);
+   // Relaxed, non-synchronized thigh, knee and ankle follow-through.
+   // No faux running or foot planting in the air.
+   set(14,-1.28*legL,.40*legR);
+   set(15,1.85*kneeL,.20*legR);
+   set(16,-.55*kneeL,.15*legL);
+   set(17,-1.22*legR,-.40*legL);
+   set(18,1.80*kneeR,-.20*legL);
+   set(19,-.52*kneeR,-.15*legR);
    return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
     Math.hypot(j.x,j.z)))};
   }
