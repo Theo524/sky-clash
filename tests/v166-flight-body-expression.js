@@ -101,7 +101,12 @@ const boot=fs.readFileSync('js/v66-game-boot.js','utf8');
 assert(code.includes("get('flightBody')==='alive'"),'body motion must be explicit opt-in');
 assert(code.includes('v166FlightBodyExpression(st.elapsed,travel,'),
  'must reuse existing V100 flight writer');
-assert(boot.includes("get('flightBody')==='alive'"),'selected B source must load for opt-in');
+assert(boot.includes("get('flightBody')==='alive'"),
+ 'selected B source must load for opt-in');
+assert(boot.includes('legacyFlightStage>=142||authoredBody')&&
+ boot.includes('legacyFlightStage>=143||authoredBody')&&
+ boot.includes('legacyFlightStage>=144||authoredBody'),
+ 'V156 opt-in must load V142/V143/V144 in the browser, not only Node');
 assert(code.includes('SkyClashV164SelectedFlight')&&
  code.includes('SkyClashV143HoverKeys')&&code.includes('SkyClashV144Arms'),
  'expression must source all three original authored animations');

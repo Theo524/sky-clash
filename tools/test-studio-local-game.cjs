@@ -235,8 +235,13 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    return {active:a.active,style:a.flightBodyExpression,amplitude:a.flightBodyDegrees,
     difference:deltas[0],arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
     legs:deltas.slice(5,7),ankles:deltas.slice(7),
-    heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error};
+    heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error,
+    authoredSourcesReady:!!window.SkyClashV142HoverKeys&&
+     !!window.SkyClashV143HoverKeys&&!!window.SkyClashV144Arms&&
+     !!window.SkyClashV164SelectedFlight};
   });
+  assert(livingFlight.authoredSourcesReady,
+   'V156 opt-in browser must load V142/V143/V144 plus selected B motion');
   assert.equal(livingFlight.active,'flight');
   assert.equal(livingFlight.style,'V175 recovered authored living flight');
   assert(livingFlight.amplitude>1&&livingFlight.amplitude<7.5);
