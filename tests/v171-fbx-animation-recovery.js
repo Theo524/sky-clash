@@ -38,16 +38,16 @@ function binaryNode(name,props,children=[],start=0){
 }
 function fixture(animated=true){
  const MODEL=1000,STACK=2000,LAYER=3000,NODE=4000;
- const objects=[['Model',[MODEL,'mixamorig:Hips\0\1Model','LimbNode']],
-  ['AnimationStack',[STACK,'clip\0\1AnimStack','']],
-  ['AnimationLayer',[LAYER,'Layer\0\1AnimLayer','']]];
+ const objects=[['Model',[MODEL,'mixamorig:Hips\0\x01Model','LimbNode']],
+  ['AnimationStack',[STACK,'clip\0\x01AnimStack','']],
+  ['AnimationLayer',[LAYER,'Layer\0\x01AnimLayer','']]];
  const links=[['C',['OO',LAYER,STACK]]];
  if(animated){
-  objects.push(['AnimationCurveNode',[NODE,'R\0\1AnimCurveNode','']]);
+  objects.push(['AnimationCurveNode',[NODE,'R\0\x01AnimCurveNode','']]);
   links.push(['C',['OO',NODE,LAYER]],['C',['OP',NODE,MODEL,'Lcl Rotation']]);
   for(let i=0;i<3;i++){
    const id=5000+i,axis='XYZ'[i];
-   objects.push(['AnimationCurve',[id,'\0\1AnimCurve',''],[
+   objects.push(['AnimationCurve',[id,'\0\x01AnimCurve',''],[
     ['KeyTime',[{type:'times',values:[8n*TICK,9n*TICK]}]],
     ['KeyValueFloat',[{type:'values',values:i===0?[0,90]:[0,0]}]]
    ]]);
