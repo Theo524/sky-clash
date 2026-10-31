@@ -48,7 +48,8 @@ jobs:
       - name: Capture normal flight vs living-limb preview from three views
         env:
           VISUAL_CAPTURE_MODE: stills
-          VISUAL_PREVIEWS: v156,v168
+          VISUAL_PREVIEWS: v156,v175
+          VISUAL_LIVING_QA: '1'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real WebGL expression and original baseline
@@ -58,10 +59,10 @@ jobs:
           p=pathlib.Path('visual-review-output/flight-stills')
           data=json.loads((p/'motion-metrics.json').read_text())
           captures={c['preview']:c for c in data['captures']}
-          assert set(captures)=={'v156','v168'}
+          assert set(captures)=={'v156','v175'}
           for name,c in captures.items():
               assert c['info']['realVRM'] and c['info']['webgl']
-              assert len(c['timeline'])==60 and len(c['files'])==27
+              assert len(c['timeline'])==216 and len(c['files'])==27
               for view in ('front','side','back'):
                   assert (p/f'comparison-{view}.png').stat().st_size>10000
               for f in c['files']: assert (p/f).stat().st_size>2500
@@ -72,9 +73,31 @@ jobs:
               else:
                   active=[r for r in flight if r['flightBodyExpression']!='off']
                   assert len(active)>15,'opt-in body expression never reaches visible VRM'
-                  assert max(r['flightBodyDegrees'] for r in active)>3.0
+                  assert max(r['flightBodyDegrees'] for r in active)>1.5
                   assert all(0<=r['flightBodyDegrees']<7.5 for r in active)
-          print('PASS real Kairo V156 vs living wrist/arm/knee/ankle VRM + 3-view capture')
+                  import math
+                  def angle(a,b):
+                      dot=min(1,abs(sum(x*y for x,y in zip(a,b))))
+                      return 2*math.acos(dot)
+                  hover=[r for r in active if r['stage']=='hover']
+                  assert len(hover)>140,'must inspect continuous flight flow'
+                  def peak_movement(joint):
+                      return max(angle(a[joint],b[joint])
+                          for a in hover[::20] for b in hover[::20])
+                  assert .001<peak_movement('chestQ')<.05, \
+                      'torso should flow gently, not lock rigid or bow'
+                  assert peak_movement('leftUpperArmQ')>.015
+                  assert peak_movement('rightUpperArmQ')>.015
+                  # Movement on BOTH arms should have different rhythms.
+                  # Do not require one arm to freeze while the other acts.
+                  def velocity_series(joint):
+                      return [angle(a[joint],b[joint])
+                          for a,b in zip(hover,hover[1:])]
+                  l,r=velocity_series('leftUpperArmQ'),velocity_series('rightUpperArmQ')
+                  assert any(x>.00001 for x in l) and any(x>.00001 for x in r)
+                  assert max(abs(a-b) for a,b in zip(l,r))>.0003, \
+                      'both arms have identical step timing'
+          print('PASS real Kairo recovered V143 body/V144 hand timing and V164 B arm flow over original Q')
           PY
       - uses: actions/upload-artifact@v4
         if: always()

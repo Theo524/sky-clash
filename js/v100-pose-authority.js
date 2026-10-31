@@ -2380,49 +2380,110 @@
   // owner, root-translation animation or synthetic keyframe replacement.
   // Make the movement readable at gameplay camera distance while
   // keeping the approved flight pose and root position untouched.
+  // V175 draft: keep every V156 Q silhouette key, but recover the
+  // player-liked *motion differences* from V143/V144 and the exact
+  // real-Kairo B arm-gesture keyframes selected for V164. No other
+  // game state or animation owner writes these offsets.
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   // Keep V156 Q torso nearly upright, but don't damp arms and legs
-   // into invisibility during powered cruise. A single expression feeds
-   // whichever existing pose writer owns this flight state.
-   const w=smooth(entry)*(1-.16*cruise);
-   const breath=Math.sin(t*1.54-.35)+.18*Math.sin(t*.77+.7);
-   const armL=Math.sin(t*1.68-.8)+.18*Math.sin(t*.83+.4);
-   const armR=Math.sin(t*1.62-.14)+.17*Math.sin(t*.93+1.1);
-   const elbowL=Math.sin(t*1.68-1.35),elbowR=Math.sin(t*1.62-.72);
-   const wristL=Math.sin(t*1.3-1.12),wristR=Math.sin(t*1.24-.37);
-   const legL=Math.sin(t*1.18+.20),legR=Math.sin(t*1.08-.80);
-   const kneeL=Math.sin(t*1.18-.42),kneeR=Math.sin(t*1.08-1.42);
-   const ankleL=Math.sin(t*1.18-1.05),ankleR=Math.sin(t*1.08-2.05);
+   const w=smooth(entry)*(1-.12*cruise);
+   const old142=root.SkyClashV142HoverKeys||
+    (typeof module!=='undefined'&&module.exports?
+     require('./v142-hover-keyframes.js'):null);
+   const old143=root.SkyClashV143HoverKeys||
+    (typeof module!=='undefined'&&module.exports?
+     require('./v143-hover-performance.js'):null);
+   const old144=root.SkyClashV144Arms||
+    (typeof module!=='undefined'&&module.exports?
+     require('./v144-relaxed-arms.js'):null);
+   const selected=root.SkyClashV164SelectedFlight||
+    (typeof module!=='undefined'&&module.exports?
+     require('./v164-selected-kairo-real-flight.js'):null);
+   if(!old142||!old143||!old144||
+      selected?.modelSha256!==
+       '775b8d8dee887b686f1fbd38300bf83d4385965746589a8fd6a2706bd7193d72'||
+      selected.bones?.join('|')!==BONES.join('|')||
+      selected.clips?.arms?.frames?.length!==21)
+    throw Error('V175 expression needs original V143/V144 and player-selected V164 B keyframes');
+   const k=old143.sample(t),base=old142.sample(t),
+    arms=old144.sample(t),neutral=old144.sample(0);
+   const d=name=>k[name]-base[name];
+   const deg=180/Math.PI;
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
-   const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   // The accepted torso/neck remain steady (<1 degree combined pitch).
-   set(0,-.16*legL,.18*breath);
-   set(1,.14*breath,-.12*armL);
-   set(2,.25*breath,-.16*armR);
-   set(3,.13*breath,-.08*legR);
-   set(4,-.10*breath,.05*armL);
-   set(5,-.08*breath,.05*armR);
-   // Upper arms move hands through space; delayed elbows and wrists
-   // make the movement visible without a mechanical synchronized swing.
-   set(6,-.85*armL,.50*breath);
-   set(7,5.8*armL,-.78*breath);
-   set(8,-3.6*elbowL,.38*armL);
-   set(9,2.5*wristL,.30*elbowL);
-   set(10,-.80*armR,-.50*breath);
-   set(11,5.6*armR,.78*breath);
-   set(12,-3.4*elbowR,-.38*armR);
-   set(13,2.4*wristR,-.30*elbowR);
-   // Asymmetric thigh, knee, ankle follow-through; no air running.
-   set(14,-2.55*legL,.58*legR);
-   set(15,3.5*kneeL,.32*legR);
-   set(16,-1.45*ankleL,.20*legL);
-   set(17,-2.45*legR,-.58*legL);
-   set(18,3.4*kneeR,-.32*legL);
-   set(19,-1.4*ankleR,-.20*legR);
-   return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
-    Math.hypot(j.x,j.z)))};
+   const set=(i,x,z=0)=>{joints[i]={x:x*w,z:z*w};};
+   // V143 whole-body timing, scaled down so V156 Q never bends into
+   // the old V142 silhouette. Lateral movement remains perceptible,
+   // forward/back pitch stays under one degree across the torso.
+   set(0,deg*(.17*d('hipsX')+.08*k.bodyF),
+     deg*(.30*d('hipsZ')+.15*k.bodyS));
+   set(1,deg*(.22*d('spineX')+.065*k.chestF),
+     deg*(.30*d('spineZ')-.11*k.bodyS));
+   set(2,deg*(.20*d('chestX')+.06*k.chestF),
+     deg*(.28*d('chestZ')-.13*k.chestS));
+   set(3,deg*(.12*d('chestX')),-deg*.07*k.chestS);
+   set(4,-deg*.09*d('neckX'),deg*.08*k.bodyS);
+   set(5,-deg*.09*k.chestF,-deg*.10*k.bodyS);
+   // Original V144 4.6s authored elbow and wrist follow-through is
+   // sampled as *differences*, never used to replace V156 arm positions.
+   const ad=name=>arms[name]-neutral[name];
+   set(6,0,7*ad('leftElbowO'));
+   set(7,2*ad('leftElbowY'),8*ad('leftElbowO'));
+   set(8,6*ad('leftElbowY'),7*ad('leftHandF'));
+   set(9,11*ad('leftHandY'),7*ad('leftHandO'));
+   set(10,0,-7*ad('rightElbowO'));
+   set(11,-2*ad('rightElbowY'),-8*ad('rightElbowO'));
+   set(12,-6*ad('rightElbowY'),-7*ad('rightHandF'));
+   set(13,-11*ad('rightHandY'),-7*ad('rightHandO'));
+   // V143's keyed leg drift, not a running or mirrored leg cycle.
+   set(14,deg*.65*d('leftKnee'),deg*.12*k.bodyS);
+   set(15,deg*.60*d('leftShin'),deg*.09*k.bodyS);
+   set(16,-deg*.27*d('leftShin'),deg*.06*k.chestS);
+   set(17,deg*.65*d('rightKnee'),-deg*.12*k.bodyS);
+   set(18,deg*.65*d('rightShin'),-deg*.08*k.bodyS);
+   set(19,-deg*.30*d('rightShin'),-deg*.06*k.chestS);
+   // Sample EXACT B authored quaternion frames, relative to frame 0.
+   // B timing was symmetric by default; phase the right side later
+   // so its rising and settling do not twin the left hand.
+   // Critically, q = inverse(B0) * Bt is a LOCAL motion delta,
+   // not B's full pose, and is postmultiplied onto current V156 Q.
+   const frames=selected.clips.arms.frames;
+   const norm=q=>{const n=Math.hypot(...q)||1;return q.map(v=>v/n);};
+   const interpolate=(a,b,t)=>{
+    let dot=a.reduce((sum,v,i)=>sum+v*b[i],0),end=b;
+    if(dot<0){end=b.map(v=>-v);dot=-dot;}
+    if(dot>.9995)return norm(a.map((v,i)=>v*(1-t)+end[i]*t));
+    const theta=Math.acos(clamp(dot,-1,1)),sin=Math.sin(theta);
+    const left=Math.sin((1-t)*theta)/sin,right=Math.sin(t*theta)/sin;
+    return norm(a.map((v,i)=>left*v+right*end[i]));
+   };
+   const sample=(i,time)=>{
+    const age=((time%2)+2)%2;
+    let hi=1;while(hi<frames.length-1&&frames[hi].time<age)hi++;
+    const lo=frames[hi-1],next=frames[hi];
+    return interpolate(lo.quaternions[i],next.quaternions[i],
+     clamp((age-lo.time)/(next.time-lo.time||1),0,1));
+   };
+   const multiply=(p,q)=>[
+    p[3]*q[0]+p[0]*q[3]+p[1]*q[2]-p[2]*q[1],
+    p[3]*q[1]-p[0]*q[2]+p[1]*q[3]+p[2]*q[0],
+    p[3]*q[2]+p[0]*q[1]-p[1]*q[0]+p[2]*q[3],
+    p[3]*q[3]-p[0]*q[0]-p[1]*q[1]-p[2]*q[2]];
+   // V164 already supplies the selected B arms if explicitly active;
+   // don't double-apply the same sourced motion in that comparison.
+   const isBAlreadyActive=new URLSearchParams(root.location?.search||'')
+    .get('flightVertical')==='v164';
+   if(!isBAlreadyActive)for(const i of [7,8,11,12]){
+    const original=norm(frames[0].quaternions[i]);
+    const current=sample(i,t+(i>=10?.65:0));
+    const delta=norm(multiply(
+     [-original[0],-original[1],-original[2],original[3]],current));
+    joints[i].q=interpolate([0,0,0,1],delta,.54*w);
+   }
+   const maxDegrees=Math.max(...joints.map(j=>Math.max(
+    Math.hypot(j.x,j.z),
+    j.q?2*Math.acos(clamp(Math.abs(j.q[3]),-1,1))*deg:0)));
+   return {joints,breath:k.chestF*w,maxDegrees};
   }
  function attach(THREE,f,status){
   if(!f||typeof f.animate!=='function'||f.v100PoseAuthority)return null;
@@ -3311,12 +3372,17 @@
     const radians=Math.PI/180;
     for(let i=0;i<BONES.length;i++){
      const joint=living.joints[i];
-     if(!joint.x&&!joint.z)continue;
-     qTarget.setFromEuler(flowEuler.set(joint.x*radians,0,
-      joint.z*radians,'XYZ'));
-     st.nodes[i].quaternion.premultiply(qTarget).normalize();
+     if(joint.x||joint.z){
+      qTarget.setFromEuler(flowEuler.set(joint.x*radians,0,
+       joint.z*radians,'XYZ'));
+      st.nodes[i].quaternion.premultiply(qTarget).normalize();
+     }
+     if(joint.q){
+      // Retain the selected B motion in its authentic local VRM space.
+      st.nodes[i].quaternion.multiply(qTarget.fromArray(joint.q)).normalize();
+     }
     }
-    status.flightBodyExpression='V166 gentle living hover preview';
+    status.flightBodyExpression='V175 recovered authored living flight';
     status.flightBodyDegrees=+living.maxDegrees.toFixed(2);
     status.flightBodyBreath=+living.breath.toFixed(3);
    }else{

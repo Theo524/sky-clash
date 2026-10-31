@@ -28,9 +28,13 @@ if(!versions.length||versions.length>3||versions.some(s=>!/^v\d{3}$/.test(s))
  throw new Error('Provide 1–3 distinct safe preview IDs like v119,v120');
 
 const views={front:0,side:Math.PI/2,back:Math.PI};
-const count=60;
-// Process all 60 actual flight ticks; screenshot only nine representative moments.
-const quickFrames=Object.freeze([10,24,29,34,40,44,48,55,59]);
+const livingReview=process.env.VISUAL_LIVING_QA==='1';
+const count=livingReview?216:60;
+// Long review covers both deliberately distinct arm adjustments, not
+// just the first 2.5 seconds. Keep every existing V164 capture unchanged.
+const quickFrames=Object.freeze(livingReview?
+ [26,48,65,92,105,132,155,181,199]:
+ [10,24,29,34,40,44,48,55,59]);
 const quickSet=new Set(quickFrames);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const uri=preview=>'http://127.0.0.1:'+port+
@@ -42,6 +46,7 @@ const uri=preview=>'http://127.0.0.1:'+port+
      preview==='v162'?'v156&flightVertical=v162':
      preview==='v163'?'v156&flightVertical=v163':
      preview==='v164'?'v156&flightVertical=v164':
+     preview==='v175'?'v156&flightBody=alive':
      preview==='v168'?'v156&flightBody=alive':preview);
 const readdir=p=>fs.readdirSync(p);
 fs.mkdirSync(output,{recursive:true});
@@ -73,6 +78,16 @@ function motionDescriptor(i){
  // then Boost interrupt and settle. Only pose velocity is prescribed:
  // no animation modifies Kairo's real gameplay physics.
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
+ if(livingReview){
+  if(i<4)return {...common,name:'ground',height:0};
+  // Keep both arm-action comparisons entirely in hover: otherwise
+  // V156's natural hover-to-cruise blend would affect both arms and
+  // falsely look like synchronized flight expression.
+  if(i<192)return {...common,name:'hover'};
+  if(i<211)return {...common,name:'cruise',forward:6.2};
+  if(i<214)return {...common,name:'boost',forward:6.2};
+  return {...common,name:'recover'};
+ }
  if(process.env.VISUAL_V163_QA==='1'){
   // V163 must pass PURE vertical without forward cruise masking bad poses.
   if(i<4)return {...common,name:'ground',height:0};
@@ -261,6 +276,9 @@ async function capture(browser,preview){
      flightBlend:owner.flightBlend||0,
      flightBodyExpression:owner.flightBodyExpression||'off',
      flightBodyDegrees:owner.flightBodyDegrees||0,
+     chestQ:h.getNormalizedBoneNode('chest')?.quaternion.toArray()||null,
+     leftUpperArmQ:h.getNormalizedBoneNode('leftUpperArm')?.quaternion.toArray()||null,
+     rightUpperArmQ:h.getNormalizedBoneNode('rightUpperArm')?.quaternion.toArray()||null,
      flightBankDegrees:owner.flightBankDegrees??0,
      flightVerticalDegrees:owner.flightVerticalDegrees??0,
      flightVerticalTarget:owner.flightVerticalTarget??0,

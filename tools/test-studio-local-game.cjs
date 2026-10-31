@@ -235,11 +235,16 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    return {active:a.active,style:a.flightBodyExpression,amplitude:a.flightBodyDegrees,
     difference:deltas[0],arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
     legs:deltas.slice(5,7),ankles:deltas.slice(7),
-    heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error};
+    heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error,
+    authoredSourcesReady:!!window.SkyClashV142HoverKeys&&
+     !!window.SkyClashV143HoverKeys&&!!window.SkyClashV144Arms&&
+     !!window.SkyClashV164SelectedFlight};
   });
+  assert(livingFlight.authoredSourcesReady,
+   'V156 opt-in browser must load V142/V143/V144 plus selected B motion');
   assert.equal(livingFlight.active,'flight');
-  assert.equal(livingFlight.style,'V166 gentle living hover preview');
-  assert(livingFlight.amplitude>2.5&&livingFlight.amplitude<7.5);
+  assert.equal(livingFlight.style,'V175 recovered authored living flight');
+  assert(livingFlight.amplitude>1&&livingFlight.amplitude<7.5);
   assert(livingFlight.difference>.001&&livingFlight.difference<.022,
    'Real Kairo ribs should breathe but not repeatedly bow');
   assert(livingFlight.arms.some(d=>d>.008),
@@ -281,16 +286,28 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const joints=['chest','leftUpperArm','rightUpperArm','leftHand','rightHand',
     'leftLowerLeg','rightLowerLeg','leftFoot','rightFoot']
     .map(name=>humanoid.getNormalizedBoneNode(name));
-   const samples=[];
-   for(let i=0;i<165;i++){
+   // The researched animation intentionally has quiet intervals.
+   // Do not judge a single final frame; walk one complete 8.8s gesture
+   // cycle, checking that each actual VRM joint changes at some point.
+   const pair=[],cycle=[],amplitudes=[];
+   for(let i=0;i<540;i++){
     p.t+=1/60;p.animate(1/60);
-    if(i===74||i===134)samples.push(joints.map(j=>j.quaternion.clone()));
+    amplitudes.push(s.localPlaytest.flightBodyDegrees||0);
+    if(i===74||i===134)pair.push(joints.map(j=>j.quaternion.clone()));
+    if(i%30===0)cycle.push(joints.map(j=>j.quaternion.clone()));
    }
-   const deltas=samples[0].map((q,i)=>q.angleTo(samples[1][i]));
+   const deltaPair=pair[0].map((q,i)=>q.angleTo(pair[1][i]));
+   const excursion=joints.map((_,i)=>{
+    let most=0;
+    for(let a=0;a<cycle.length;a++)
+     for(let b=a+1;b<cycle.length;b++)
+      most=Math.max(most,cycle[a][i].angleTo(cycle[b][i]));
+    return most;
+   });
    const flight={slot:p.v72StudioPack.slot,owner:s.localPlaytest.flightBodyOwner,
-    amplitude:s.localPlaytest.flightBodyDegrees,difference:deltas[0],
-    arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
-    legs:deltas.slice(5,7),ankles:deltas.slice(7)};
+    amplitude:Math.max(...amplitudes),difference:deltaPair[0],
+    arms:excursion.slice(1,3),wrists:excursion.slice(3,5),
+    legs:excursion.slice(5,7),ankles:excursion.slice(7)};
    p.pos.y=0;p.punchT=.35;p.attackKind='hook';p.attackVariant='overhand';
    p.punchSide=1;p.attackSerial=(p.attackSerial||0)+1;
    p.attackElapsed=.08;p.attackTotal=.68;p.t+=1/60;p.animate(1/60);
@@ -304,7 +321,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(combined.indicator.includes('local moves active'));
   assert.equal(combined.flight.slot,'floating');
   assert.equal(combined.flight.owner,'V72 Studio flight');
-  assert(combined.flight.amplitude>2.5&&combined.flight.amplitude<7.5,
+  assert(combined.flight.amplitude>1&&combined.flight.amplitude<7.5,
    'Studio hover expression must remain gentle');
   assert(combined.flight.difference>.001&&combined.flight.difference<.022,
    'Studio floating torso must breathe without visible bowing');
