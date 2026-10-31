@@ -337,6 +337,96 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
    'Combined flight preview must keep the saved Studio punch3');
   assert.equal(combined.error,null);
+  // Actual gravity descent: explicitly assigned Falling Idle must win
+  // from the moment the player cancels powered flight, including wrists,
+  // over the V100 published falling writer and the V81 wrist clamp.
+  // Use a REAL shipped source clip under temporary test IndexedDB only.
+  await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
+   const source=await (await fetch('assets/animations/gameplay/v86-ue5-converted-actions.json')).json();
+   const fall=source.motions.find(m=>m.slot==='fallingIdle');
+   if(!fall)throw Error('Missing real baked UE5 Falling Idle test fixture');
+   await bridge.save({...current.pack,motions:[
+    ...current.pack.motions,
+    {...fall,sourceFile:'studio-assigned-falling-idle-test.fbx'}
+   ]});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
+  const realFalling=await page.evaluate(()=>{
+   const p=window.SkyClash.Game.player,s=window.SkyClashPublishedActions;
+   window.SkyClash.Game.enterDojo();window.SkyClash.Game.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.landingMotionT=0;p.acro=null;p.jumping=false;p.dropping=true;
+   p.pos.y=p.floor+9;p.wasFlying=true;
+   p.vel.set(0,-2.5,0);p.moveIntent.set(0,0,0);p.vert=0;
+   const hum=p.vrmRig.vrm.humanoid;
+   const wrists=['leftHand','rightHand'].map(n=>hum.getNormalizedBoneNode(n));
+   const initial=wrists.map(x=>x.quaternion.clone()),samples=[];
+   for(let i=0;i<65;i++){
+    p.update(1/60);
+    if([5,14,30,48,63].includes(i))samples.push({
+     frame:i,slot:p.v72StudioPack.slot,
+     owner:window.SkyClashPoseAuthority.active,
+     transition:window.SkyClashPoseTransitions.active,
+     airHands:window.SkyClashPoseTransitions.airHands,
+     step:p.v89Step?.mode,
+     source:s.motionClips[p.v72StudioPack.slot]?.sourceFile,
+     falling:p.dropping,flying:p.flying,
+     landingT:p.landingMotionT,
+     sourceClock:p.v72StudioPack.clock,
+     wrists:wrists.map((w,j)=>w.quaternion.angleTo(initial[j])),
+     wristQuaternions:wrists.map(w=>w.quaternion.toArray())
+    });
+   }
+   return {state:s.localPlaytest.state,samples,
+    source:s.motionClips.fallingIdle.sourceFile,
+    frames:s.localPlaytest.slots,
+    error:s.error,transitionError:window.SkyClashPoseTransitions.error,
+    ownerError:window.SkyClashPoseAuthority.error};
+  });
+  assert.equal(realFalling.state,'ready');
+  assert.equal(realFalling.source,'studio-assigned-falling-idle-test.fbx');
+  assert(realFalling.frames.includes('fallingIdle'),'the assigned Falling Idle slot was not in the saved pack');
+  // The final captured frame may already have crossed ground contact.
+  // The landing controller is RIGHT to take ownership at that point.
+  // Check the saved Falling Idle *while physically airborne* instead.
+  const airborneFall=realFalling.samples.filter(s=>s.flying&&s.falling);
+  assert(airborneFall.length>=2,'test never observed a real midair gravity fall');
+  for(const sample of airborneFall){
+   assert.equal(sample.slot,'fallingIdle','real gravity fall did not select Studio Falling Idle');
+   assert.equal(sample.source,'studio-assigned-falling-idle-test.fbx');
+   assert.equal(sample.owner,'yielded-to-combat-or-flight',
+    'published V100 falling controller overwrote the assigned Studio clip');
+   assert.equal(sample.transition,'fall');
+   assert.equal(sample.airHands,'Studio Falling Idle wrists preserved',
+    'V81 still clamped the assigned Falling Idle wrists');
+   assert(sample.step==null||sample.step==='inactive',
+    'grounded first-step controller interfered with Falling Idle');
+  }
+  // Real source motion must be visible on the actual VRM wrist nodes,
+  // not merely a source label that a later controller overwrites.
+  const qAngle=(a,b)=>2*Math.acos(Math.min(1,Math.abs(
+   a.reduce((sum,v,i)=>sum+v*b[i],0))));
+  const wristMotion=Math.max(...airborneFall.slice(1).flatMap(s=>
+   s.wristQuaternions.map((q,i)=>qAngle(
+    airborneFall[0].wristQuaternions[i],q))));
+  assert(wristMotion>.035,
+   'Assigned Falling Idle did not animate Kairo visible wrist joints');
+  assert(airborneFall.at(-1).sourceClock>.15,
+   'Studio Falling Idle did not advance its authored source clock');
+  assert.equal(realFalling.error,null);
+  assert.equal(realFalling.transitionError,null);
+  assert.equal(realFalling.ownerError,null);
+  // Put this temporary browser fixture away before the next landing
+  // suite section; never modify the player's real local saved data.
+  await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
+   await bridge.save({...current.pack,motions:
+    current.pack.motions.filter(m=>m.slot!=='fallingIdle')});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
   // Real Kairo + VRM: a locally assigned landing must complete at
   // 1x with hips AND legs, while run-to-stop must start at supported
   // recorded foot contact rather than leave Ninja Boost's old torso
@@ -395,6 +485,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      movingSamples.push({frame:i,slot:p.v72StudioPack.slot,
       timer:p.landingMotionT,clock:p.v72StudioPack.clock,
       grounded:p.pos.y<=p.floor+.025,
+      stepMode:p.v89Step?.mode||null,
       jumping:p.jumping,dropping:p.dropping});
    }
    const movingLanding={samples:movingSamples,
@@ -433,6 +524,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
   assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
    'Real contact routed to jump/fall instead of assigned Studio landing');
+  for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0))
+   assert(sample.stepMode==null||sample.stepMode==='inactive',
+    'V89 grounded first-step writer overrode assigned Studio landing');
   assert(groundRecovery.movingLanding.duration>=1.09,
    'Moving contact truncated assigned landing to .205s');
   assert(groundRecovery.movingLanding.samples[0].jumping||

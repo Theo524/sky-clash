@@ -19,6 +19,14 @@
  const fingers=['Index','Middle','Ring','Little'];
  const segments=[['Proximal',1.08],['Intermediate',1.13],['Distal',.55]];
  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+ // Studio clips are authored poses. V81 blends their handoff but must
+ // not reinterpret a player's recorded limb movement afterward.
+ function appliedStudioSlot(f,slot){
+  const local=root.SkyClashPublishedActions?.localPlaytest;
+  return !!(f===root.SkyClash?.Game?.heroes?.kairo_venn&&
+   new URLSearchParams(root.location?.search||'').get('studioPlaytest')==='local'&&
+   local?.state==='ready'&&local.slots.includes(slot));
+ }
  function stateOf(f){
   if(f.hp<=0||f.downT>0||f.spiked||f.launched)return 'damage';
   // Native reactions must have a real state boundary on stun exit. Treating
@@ -28,9 +36,7 @@
   if(f.blockHeld||f.blocking)return 'guard';
   // Match the Studio landing owner on the first collision frame while
   // the old drop/jump flag is still clearing.
-  const local=root.SkyClashPublishedActions?.localPlaytest;
-  if(f.characterId==='kairo_venn'&&local?.state==='ready'&&
-     local.slots.includes('landing')&&f.landingMotionT>0&&
+  if(appliedStudioSlot(f,'landing')&&f.landingMotionT>0&&
      !f.flying&&!f.sprinting&&!f.dashing)return 'landing';
   if(f.dropping)return 'fall';
   if(f.jumping)return f.vel?.y<0?'fall':'jump';
@@ -97,8 +103,12 @@
     // a natural limited wrist excursion. Recorded shoulders, elbows, torso,
     // legs, facial expressions and all physics remain owned as before.
     const params=new URLSearchParams(root.location?.search||'');
+    const authoredFall=next==='fall'&&appliedStudioSlot(this,'fallingIdle');
+    const authoredLanding=next==='landing'&&appliedStudioSlot(this,'landing');
+    // V99's fixed wrist limit was intended for the published fall.
+    // It visibly rewrites the wrists of a Studio-assigned Falling Idle.
     const stabilize=params.get('airLab')==='jump'&&params.get('airHands')==='stable'&&
-      this===root.SkyClash?.Game?.heroes?.kairo_venn;
+      this===root.SkyClash?.Game?.heroes?.kairo_venn&&!authoredFall;
     const naturalAir=next==='jump'||next==='fall';
     if(stabilize&&naturalAir){
       if(!st.airWristAnchor){
@@ -120,11 +130,11 @@
     // Faster transitions into combat; no masking strike/contact frames.
     // Studio landing includes its own impact and recovery. Don't hide
     // the first .23s behind another crossfade.
-    const localLanding=next==='landing'&&
-     root.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
-     root.SkyClashPublishedActions.localPlaytest.slots.includes('landing');
-    const seconds=next==='landing'?(localLanding?.075:.23):
-      next==='guard'?.16:next==='boost-stop'?.14:next==='fall'?.20:.18;
+    // Show the authored Studio fall sooner, but still soften the switch
+    // from flight during its first 60ms; public fall remains 200ms.
+    const seconds=next==='landing'?(authoredLanding?.075:.23):
+      next==='guard'?.16:next==='boost-stop'?.14:
+      next==='fall'?(authoredFall?.06:.20):.18;
     // V87: strikes should enter fast but not snap in one frame from
     // the preceding stance; damage reactions remain instantaneous.
     // The private native jab already contains its authored entry/recovery.
@@ -184,7 +194,8 @@
         }
       }
     }
-    status.airHands=stabilize&&naturalAir?'V99 native fingers + steady wrists':'normal';
+    status.airHands=authoredFall?'Studio Falling Idle wrists preserved':
+      stabilize&&naturalAir?'V99 native fingers + steady wrists':'normal';
     // Clip changes shouldn't tilt Kairo's gaze toward the floor while
     // locomoting. Constrain *world* head pitch, not its local pitch (which
     // inherits hips + spine tilt). Original Studio idle, attacks and guard
