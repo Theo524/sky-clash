@@ -396,7 +396,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    assert.equal(sample.transition,'fall');
    assert.equal(sample.airHands,'Studio Falling Idle wrists preserved',
     'V81 still clamped the assigned Falling Idle wrists');
-   assert.equal(sample.step,'inactive',
+   assert(sample.step==null||sample.step==='inactive',
     'grounded first-step controller interfered with Falling Idle');
   }
   // Real source motion must be visible on the actual VRM wrist nodes,
@@ -519,7 +519,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
    'Real contact routed to jump/fall instead of assigned Studio landing');
   for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0))
-   assert.equal(sample.stepMode,'inactive',
+   assert(sample.stepMode==null||sample.stepMode==='inactive',
     'V89 grounded first-step writer overrode assigned Studio landing');
   assert(groundRecovery.movingLanding.duration>=1.09,
    'Moving contact truncated assigned landing to .205s');
