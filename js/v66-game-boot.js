@@ -104,6 +104,13 @@
    if(src.includes('v81-pose-transitions')&&
       params.get('airHands')==='stable')
      e.src+='&hands=99';
+   // Refresh all three Studio-only handoff owners after their corrections,
+   // without altering the public V156 Q flight or user-saved motion packs.
+   if(params.get('studioPlaytest')==='local'&&
+      (src.includes('v81-pose-transitions')||
+       src.includes('v89-grounded-step')||
+       src.includes('v72-published-actions')))
+     e.src+='&studioAirOwner=177';
    // Refresh only Studio landing owners, preserving public flight and combat.
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v72-published-actions')||

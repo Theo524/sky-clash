@@ -1275,7 +1275,15 @@
         fullBodyPunch:!!fighter.v72StudioPack?.localFullBodyPunchActive,
         fullBodyKick:!!fighter.v72StudioPack?.localFullBodyKickActive,
         localLandingFrames:status.localPlaytest.localLandingFrames||0,
+        localLandingDuration:status.localPlaytest.localLandingDuration||null,
+        localLandingClock:status.localPlaytest.localLandingClock||null,
         localStopFrames:status.localPlaytest.localStopFrames||0,
+        falling:!!fighter.dropping||!!fighter.jumping&&(fighter.vel?.y||0)<-1,
+        landingMotionT:+(fighter.landingMotionT||0).toFixed(3),
+        v81State:context.SkyClashPoseTransitions?.active||null,
+        v81AirHands:context.SkyClashPoseTransitions?.airHands||null,
+        v89Mode:fighter.v89Step?.mode||null,
+        v100State:context.SkyClashPoseAuthority?.active||null,
         contactAnchors:Object.keys(fighter.v72StudioPack?.localStrikeFeet||{}).length
        }:null,
        installedClips:status.localPlaytest.slots.map(slot=>{

@@ -236,4 +236,12 @@ try{
  if(oldLocation===undefined)delete globalThis.location;
  else globalThis.location=oldLocation;
 }
+const transitionSource=fs.readFileSync('js/v81-pose-transitions.js','utf8');
+const stepSource=fs.readFileSync('js/v89-grounded-step.js','utf8');
+assert(transitionSource.includes("appliedStudioSlot(this,'fallingIdle')"),
+ 'assigned Falling Idle must bypass V99 wrist clamp');
+assert(transitionSource.includes("next==='fall'?(authoredFall?.06:.20)"),
+ 'assigned Falling Idle needs a short entry blend, not a 200ms mask');
+assert(stepSource.includes('!(f.landingMotionT>0&&'),
+ 'grounded step solver must yield to assigned Studio landing');
 console.log('PASS local Kairo editor-to-playable bridge: valid exported bones, opt-in only, clear controls and fallback');
