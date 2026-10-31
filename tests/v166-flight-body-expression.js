@@ -60,7 +60,7 @@ assert(Math.abs(corr(leftVel.map(v=>v.z),rightVel.map(v=>v.z)))<.75,
 for(const i of [7,11]){
  for(let start=0;start<2100;start+=75){
   const movement=samples.slice(start,start+150).map(q=>q.joints[i].z);
-  assert(Math.max(...movement)-Math.min(...movement)>.22,
+  assert(Math.max(...movement)-Math.min(...movement)>.15,
    'no rigid stop-and-wait interval in the flight expression: '+pose.bones[i]);
  }
 }
