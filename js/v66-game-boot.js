@@ -104,6 +104,11 @@
    if(src.includes('v81-pose-transitions')&&
       params.get('airHands')==='stable')
      e.src+='&hands=99';
+   // Refresh only Studio landing owners, preserving public flight and combat.
+   if(params.get('studioPlaytest')==='local'&&
+      (src.includes('v72-published-actions')||
+       src.includes('v81-pose-transitions')))
+     e.src+='&studioLanding=176';
    // V100 needs the NEW cooperative versions of every former air-pose
    // writer. A refreshed boot script alone is insufficient when the old
    // V71/V76/V72/V81 URLs remain cached by GitHub Pages or the browser.

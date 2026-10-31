@@ -379,13 +379,37 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     clock:s.localPlaytest.localLandingClock,
     hipDifference:landingBefore.angleTo(hip.quaternion),
     source:s.motionClips.landing.sourceFile};
+   // Release the previous landing's one-shot latch before simulating
+   // another physical touchdown in this same disposable test scene.
    p.landingMotionT=0;p.v109LandingDuration=0;
+   p.t+=1/60;p.animate(1/60);
+   // Cross flight's real 25cm threshold under downward momentum;
+   // the first contact frame still has jumping/dropping flagged.
+   p.wasFlying=true;p.jumping=true;p.dropping=true;p.acro=null;
+   p.pos.y=p.floor+.33;p.vel.set(3.1,-11,0);p.vert=0;
+   p.moveIntent.set(0,0,0);p._v82WasBoost=false;
+   const movingSamples=[];
+   for(let i=0;i<74;i++){
+    p.update(1/60);
+    if([0,5,20,52,70].includes(i))
+     movingSamples.push({frame:i,slot:p.v72StudioPack.slot,
+      timer:p.landingMotionT,clock:p.v72StudioPack.clock,
+      grounded:p.pos.y<=p.floor+.025,
+      jumping:p.jumping,dropping:p.dropping});
+   }
+   const movingLanding={samples:movingSamples,
+    duration:s.localPlaytest.localLandingDuration,
+    frames:s.localPlaytest.localLandingFrames,
+    clock:s.localPlaytest.localLandingClock,
+    source:s.motionClips.landing.sourceFile};
+   p.landingMotionT=0;p.v109LandingDuration=0;
+   p.wasFlying=false;p.jumping=false;p.dropping=false;
    p._v82WasBoost=true;p.sprinting=false;p.skidT=.38;
    p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
    p.t+=1/60;p.animate(1/60);
    const firstLeg=thigh.quaternion.clone(),firstClock=p.v72StudioPack.clock;
    for(let i=0;i<12;i++){p.t+=1/60;p.animate(1/60);}
-   return {landing:landingResult,runStop:{
+   return {landing:landingResult,movingLanding,runStop:{
     slot:p.v72StudioPack.slot,
     source:s.motionClips.runStop.sourceFile,
     firstClock,lastClock:p.v72StudioPack.clock,
@@ -404,6 +428,18 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Studio landing must play uncompressed at 1x, not 2.1x');
   assert(groundRecovery.landing.frames>=40,'Landing did not own enough live frames');
   assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
+  assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
+   'Real contact routed to jump/fall instead of assigned Studio landing');
+  assert(groundRecovery.movingLanding.duration>=1.09,
+   'Moving contact truncated assigned landing to .205s');
+  assert(groundRecovery.movingLanding.samples[0].jumping||
+    groundRecovery.movingLanding.samples[0].dropping,
+   'Test must exercise airborne flags still set at contact');
+  assert(groundRecovery.movingLanding.samples[3].clock>.5,
+   'Moving Studio landing did not advance its 1x recorded clip');
+  assert.equal(groundRecovery.movingLanding.source,'studio-landing-test.fbx');
+  assert(groundRecovery.movingLanding.frames>=55,
+   'Moving landing ended before the authored performance');
   assert.equal(groundRecovery.runStop.slot,'runStop');
   assert.equal(groundRecovery.runStop.source,'studio-grounded-stop-test.fbx');
   assert(groundRecovery.runStop.firstClock>.33&&groundRecovery.runStop.firstClock<.45,
