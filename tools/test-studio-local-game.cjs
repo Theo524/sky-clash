@@ -366,7 +366,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const initial=wrists.map(x=>x.quaternion.clone()),samples=[];
    for(let i=0;i<65;i++){
     p.update(1/60);
-    if([5,25,50,63].includes(i))samples.push({
+    if([5,14,30,48,63].includes(i))samples.push({
      frame:i,slot:p.v72StudioPack.slot,
      owner:window.SkyClashPoseAuthority.active,
      transition:window.SkyClashPoseTransitions.active,
@@ -374,7 +374,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      step:p.v89Step?.mode,
      source:s.motionClips[p.v72StudioPack.slot]?.sourceFile,
      falling:p.dropping,
-     wrists:wrists.map((w,j)=>w.quaternion.angleTo(initial[j]))
+     sourceClock:p.v72StudioPack.clock,
+     wrists:wrists.map((w,j)=>w.quaternion.angleTo(initial[j])),
+     wristQuaternions:wrists.map(w=>w.quaternion.toArray())
     });
    }
    return {state:s.localPlaytest.state,samples,
@@ -397,6 +399,17 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    assert.equal(sample.step,'inactive',
     'grounded first-step controller interfered with Falling Idle');
   }
+  // Real source motion must be visible on the actual VRM wrist nodes,
+  // not merely a source label that a later controller overwrites.
+  const qAngle=(a,b)=>2*Math.acos(Math.min(1,Math.abs(
+   a.reduce((sum,v,i)=>sum+v*b[i],0))));
+  const wristMotion=Math.max(...realFalling.samples.slice(1).flatMap(s=>
+   s.wristQuaternions.map((q,i)=>qAngle(
+    realFalling.samples[0].wristQuaternions[i],q))));
+  assert(wristMotion>.035,
+   'Assigned Falling Idle did not animate Kairo visible wrist joints');
+  assert(realFalling.samples.at(-1).sourceClock>.7,
+   'Studio Falling Idle was stopped before its source could loop');
   assert.equal(realFalling.error,null);
   assert.equal(realFalling.transitionError,null);
   assert.equal(realFalling.ownerError,null);
@@ -466,6 +479,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      movingSamples.push({frame:i,slot:p.v72StudioPack.slot,
       timer:p.landingMotionT,clock:p.v72StudioPack.clock,
       grounded:p.pos.y<=p.floor+.025,
+      stepMode:p.v89Step?.mode||null,
       jumping:p.jumping,dropping:p.dropping});
    }
    const movingLanding={samples:movingSamples,
@@ -504,6 +518,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
   assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
    'Real contact routed to jump/fall instead of assigned Studio landing');
+  for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0))
+   assert.equal(sample.stepMode,'inactive',
+    'V89 grounded first-step writer overrode assigned Studio landing');
   assert(groundRecovery.movingLanding.duration>=1.09,
    'Moving contact truncated assigned landing to .205s');
   assert(groundRecovery.movingLanding.samples[0].jumping||
