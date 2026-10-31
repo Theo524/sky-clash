@@ -89,7 +89,7 @@ for(const fps of [30,60,120]){
 }
 const start=pose.hover.map(q=>q.slice());
 const raw=new THREE.Quaternion().fromArray(pose.hover[2]);
-const sample=expression(1,0,1).joints[2];
+const sample=expression(2.5,0,1).joints[2];
 const delta=new THREE.Quaternion().setFromEuler(
  new THREE.Euler(sample.x*Math.PI/180,0,sample.z*Math.PI/180,'XYZ'));
 const result=raw.clone().premultiply(delta);
