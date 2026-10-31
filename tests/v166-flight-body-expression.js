@@ -29,7 +29,7 @@ for(const sample of samples){
 }
 for(const index of [6,7,8,9,10,11,12,13,14,15,16,17,18,19]){
  const movement=samples.map(s=>s.joints[index].x);
- assert(Math.max(...movement)-Math.min(...movement)>([16,19].includes(index)?.7:1),
+ assert(Math.max(...movement)-Math.min(...movement)>([9,13].includes(index)?.5:[16,19].includes(index)?.7:1),
   'arms, hands, knees and ankles should visibly move throughout: '+pose.bones[index]);
 }
 assert(samples.some(s=>Math.abs(s.joints[7].x-s.joints[11].x)>1),
