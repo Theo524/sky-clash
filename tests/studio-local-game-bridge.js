@@ -170,7 +170,7 @@ assert(runtimeSource.includes("status.localPlaytest.slots.includes(entry.slot)")
 assert(runtimeSource.includes('root.SkyClashV100Animator?.v166FlightBodyExpression('));
 assert(runtimeSource.includes("status.localPlaytest.flightBodyOwner=flightExpression?'V72 Studio flight':'unavailable'"));
 assert(boot.includes("params.get('flightBody')==='alive'"));
-assert(boot.includes("e.src+='&body=168'"));
+assert(boot.includes("e.src+='&body=169'"));
 assert(!boot.includes("flags.set('studioPlaytest','local')"),
  'Never auto-publish local punches into ordinary game URLs');
 assert(read('js/v72-studio-game-export.js').includes('footContacts'));

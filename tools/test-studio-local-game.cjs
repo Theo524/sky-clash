@@ -220,8 +220,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.jumping=false;p.dropping=false;p.landingMotionT=0;p.acro=null;
    p.pos.y=2.3;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
    const humanoid=p.vrmRig.vrm.humanoid;
-   const joints=['chest','leftUpperArm','rightUpperArm',
-    'leftLowerLeg','rightLowerLeg'].map(name=>humanoid.getNormalizedBoneNode(name));
+   const joints=['chest','leftUpperArm','rightUpperArm','leftHand','rightHand',
+    'leftLowerLeg','rightLowerLeg','leftFoot','rightFoot']
+    .map(name=>humanoid.getNormalizedBoneNode(name));
    const samples=[],heights=[];
    for(let i=0;i<165;i++){
     p.t+=1/60;p.animate(1/60);
@@ -232,18 +233,23 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    }
    const deltas=samples[0].map((q,i)=>q.angleTo(samples[1][i]));
    return {active:a.active,style:a.flightBodyExpression,amplitude:a.flightBodyDegrees,
-    difference:deltas[0],arms:deltas.slice(1,3),legs:deltas.slice(3),
+    difference:deltas[0],arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
+    legs:deltas.slice(5,7),ankles:deltas.slice(7),
     heights,owner:a.owner,source:a.flightAuthoredVariant,error:a.error};
   });
   assert.equal(livingFlight.active,'flight');
   assert.equal(livingFlight.style,'V166 gentle living hover preview');
-  assert(livingFlight.amplitude>1&&livingFlight.amplitude<3.6);
+  assert(livingFlight.amplitude>2.5&&livingFlight.amplitude<7.5);
   assert(livingFlight.difference>.001&&livingFlight.difference<.022,
    'Real Kairo ribs should breathe but not repeatedly bow');
   assert(livingFlight.arms.some(d=>d>.008),
    'At least one real Kairo arm must move through the hover expression');
-  assert(livingFlight.legs.some(d=>d>.004),
-   'Real Kairo knees must subtly follow the hover expression');
+  assert(livingFlight.legs.some(d=>d>.008),
+   'Real Kairo knees must visibly follow the hover expression');
+  assert(livingFlight.wrists.some(d=>d>.010),
+   'Real Kairo hands need visible gentle wrist motion');
+  assert(livingFlight.ankles.some(d=>d>.005),
+   'Real Kairo feet must gently follow');
   assert(livingFlight.heights.every(h=>h===2.3),'visual breathing must not shift physics root');
   assert(!livingFlight.error,'V100 flight preview must not throw');
   // The previous flight preview accidentally dropped studioPlaytest=local,
@@ -272,8 +278,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.jumping=false;p.dropping=false;p.landingMotionT=0;p.acro=null;
    p.pos.y=2.3;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
    const humanoid=p.vrmRig.vrm.humanoid;
-   const joints=['chest','leftUpperArm','rightUpperArm',
-    'leftLowerLeg','rightLowerLeg'].map(name=>humanoid.getNormalizedBoneNode(name));
+   const joints=['chest','leftUpperArm','rightUpperArm','leftHand','rightHand',
+    'leftLowerLeg','rightLowerLeg','leftFoot','rightFoot']
+    .map(name=>humanoid.getNormalizedBoneNode(name));
    const samples=[];
    for(let i=0;i<165;i++){
     p.t+=1/60;p.animate(1/60);
@@ -282,7 +289,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const deltas=samples[0].map((q,i)=>q.angleTo(samples[1][i]));
    const flight={slot:p.v72StudioPack.slot,owner:s.localPlaytest.flightBodyOwner,
     amplitude:s.localPlaytest.flightBodyDegrees,difference:deltas[0],
-    arms:deltas.slice(1,3),legs:deltas.slice(3)};
+    arms:deltas.slice(1,3),wrists:deltas.slice(3,5),
+    legs:deltas.slice(5,7),ankles:deltas.slice(7)};
    p.pos.y=0;p.punchT=.35;p.attackKind='hook';p.attackVariant='overhand';
    p.punchSide=1;p.attackSerial=(p.attackSerial||0)+1;
    p.attackElapsed=.08;p.attackTotal=.68;p.t+=1/60;p.animate(1/60);
@@ -296,14 +304,18 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(combined.indicator.includes('local moves active'));
   assert.equal(combined.flight.slot,'floating');
   assert.equal(combined.flight.owner,'V72 Studio flight');
-  assert(combined.flight.amplitude>1&&combined.flight.amplitude<3.6,
+  assert(combined.flight.amplitude>2.5&&combined.flight.amplitude<7.5,
    'Studio hover expression must remain gentle');
   assert(combined.flight.difference>.001&&combined.flight.difference<.022,
    'Studio floating torso must breathe without visible bowing');
   assert(combined.flight.arms.some(d=>d>.008),
    'Studio-owned flight must move real Kairo arms naturally');
-  assert(combined.flight.legs.some(d=>d>.004),
+  assert(combined.flight.legs.some(d=>d>.008),
    'Studio-owned flight must animate real Kairo knees');
+  assert(combined.flight.wrists.some(d=>d>.010),
+   'Studio flight must animate real Kairo wrists');
+  assert(combined.flight.ankles.some(d=>d>.005),
+   'Studio flight must animate real Kairo ankles');
   assert.equal(combined.punchSlot,'punch3');
   assert.equal(combined.punchSource,'local-repeated-punch3.fbx',
    'Combined flight preview must keep the saved Studio punch3');
