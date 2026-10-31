@@ -2383,42 +2383,44 @@
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   // Player review: keep the V156 Q torso nearly still, and let the
-   // extremities breathe independently. Preserve some life in cruise.
-   // This is only sampled by the currently active V100/V72 pose owner.
-   const w=smooth(entry)*(1-.25*cruise);
+   // Keep V156 Q torso nearly upright, but don't damp arms and legs
+   // into invisibility during powered cruise. A single expression feeds
+   // whichever existing pose writer owns this flight state.
+   const w=smooth(entry)*(1-.16*cruise);
    const breath=Math.sin(t*1.54-.35)+.18*Math.sin(t*.77+.7);
    const armL=Math.sin(t*1.68-.8)+.18*Math.sin(t*.83+.4);
    const armR=Math.sin(t*1.62-.14)+.17*Math.sin(t*.93+1.1);
    const elbowL=Math.sin(t*1.68-1.35),elbowR=Math.sin(t*1.62-.72);
+   const wristL=Math.sin(t*1.3-1.12),wristR=Math.sin(t*1.24-.37);
    const legL=Math.sin(t*1.18+.20),legR=Math.sin(t*1.08-.80);
    const kneeL=Math.sin(t*1.18-.42),kneeR=Math.sin(t*1.08-1.42);
+   const ankleL=Math.sin(t*1.18-1.05),ankleR=Math.sin(t*1.08-2.05);
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
    const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   // Under 1 degree of combined waist/rib pitch: no repeated bowing.
-   set(0,-.16*legL,.18*breath);      // pelvis only counterbalances
-   set(1,.14*breath,-.12*armL);      // subtle waist breathing
-   set(2,.25*breath,-.16*armR);      // ribs stay upright
+   // The accepted torso/neck remain steady (<1 degree combined pitch).
+   set(0,-.16*legL,.18*breath);
+   set(1,.14*breath,-.12*armL);
+   set(2,.25*breath,-.16*armR);
    set(3,.13*breath,-.08*legR);
-   set(4,-.10*breath,.05*armL);     // head/neck keep steady gaze
+   set(4,-.10*breath,.05*armL);
    set(5,-.08*breath,.05*armR);
-   // Gentle staggered shoulder / upper arm / forearm / hand motion.
-   set(6,-.52*armL,.42*breath);
-   set(7,2.6*armL,-.55*breath);
-   set(8,-1.45*elbowL,.25*armL);
-   set(9,-.52*elbowL,.16*armL);
-   set(10,-.50*armR,-.42*breath);
-   set(11,2.5*armR,.55*breath);
-   set(12,-1.40*elbowR,-.25*armR);
-   set(13,-.50*elbowR,-.16*armR);
-   // Relaxed, non-synchronized thigh, knee and ankle follow-through.
-   // No faux running or foot planting in the air.
-   set(14,-1.28*legL,.40*legR);
-   set(15,1.85*kneeL,.20*legR);
-   set(16,-.55*kneeL,.15*legL);
-   set(17,-1.22*legR,-.40*legL);
-   set(18,1.80*kneeR,-.20*legL);
-   set(19,-.52*kneeR,-.15*legR);
+   // Upper arms move hands through space; delayed elbows and wrists
+   // make the movement visible without a mechanical synchronized swing.
+   set(6,-.85*armL,.50*breath);
+   set(7,5.8*armL,-.78*breath);
+   set(8,-3.6*elbowL,.38*armL);
+   set(9,2.5*wristL,.30*elbowL);
+   set(10,-.80*armR,-.50*breath);
+   set(11,5.6*armR,.78*breath);
+   set(12,-3.4*elbowR,-.38*armR);
+   set(13,2.4*wristR,-.30*elbowR);
+   // Asymmetric thigh, knee, ankle follow-through; no air running.
+   set(14,-2.55*legL,.58*legR);
+   set(15,3.5*kneeL,.32*legR);
+   set(16,-1.45*ankleL,.20*legL);
+   set(17,-2.45*legR,-.58*legL);
+   set(18,3.4*kneeR,-.32*legL);
+   set(19,-1.4*ankleR,-.20*legR);
    return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
     Math.hypot(j.x,j.z)))};
   }
