@@ -49,6 +49,7 @@ jobs:
         env:
           VISUAL_CAPTURE_MODE: stills
           VISUAL_PREVIEWS: v156,v168
+          VISUAL_LIVING_QA: '1'
           VISUAL_VIDEO_FPS: '24'
         run: node tools/capture-flight-video.cjs
       - name: Verify real WebGL expression and original baseline
@@ -61,7 +62,7 @@ jobs:
           assert set(captures)=={'v156','v168'}
           for name,c in captures.items():
               assert c['info']['realVRM'] and c['info']['webgl']
-              assert len(c['timeline'])==60 and len(c['files'])==27
+              assert len(c['timeline'])==216 and len(c['files'])==27
               for view in ('front','side','back'):
                   assert (p/f'comparison-{view}.png').stat().st_size>10000
               for f in c['files']: assert (p/f).stat().st_size>2500
@@ -72,9 +73,20 @@ jobs:
               else:
                   active=[r for r in flight if r['flightBodyExpression']!='off']
                   assert len(active)>15,'opt-in body expression never reaches visible VRM'
-                  assert max(r['flightBodyDegrees'] for r in active)>3.0
-                  assert all(0<=r['flightBodyDegrees']<7.5 for r in active)
-          print('PASS real Kairo V156 vs living wrist/arm/knee/ankle VRM + 3-view capture')
+                  assert max(r['flightBodyDegrees'] for r in active)>4.0
+                  assert all(0<=r['flightBodyDegrees']<5.6 for r in active)
+                  import math
+                  def angle(a,b):
+                      dot=min(1,abs(sum(x*y for x,y in zip(a,b))))
+                      return 2*math.acos(dot)
+                  frame={r['frame']:r for r in c['timeline']}
+                  # Early in hover only the left arm adjusts. After it
+                  # settles the right arm adjusts, never both together.
+                  assert angle(frame[30]['leftUpperArmQ'],frame[48]['leftUpperArmQ'])>.015
+                  assert angle(frame[30]['rightUpperArmQ'],frame[48]['rightUpperArmQ'])<.016
+                  assert angle(frame[105]['rightUpperArmQ'],frame[132]['rightUpperArmQ'])>.015
+                  assert angle(frame[105]['leftUpperArmQ'],frame[132]['leftUpperArmQ'])<.016
+          print('PASS real Kairo one-arm-at-a-time choreography over nine seconds; original Q remains default')
           PY
       - uses: actions/upload-artifact@v4
         if: always()

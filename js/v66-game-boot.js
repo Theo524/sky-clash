@@ -248,7 +248,7 @@
     // approved loader URL, with no new pose activated by default.
     if(src.includes('v100-pose-authority')&&
        params.get('flightBody')==='alive')
-      e.src+='&body=169';
+      e.src+='&body=170';
    e.async=false;
    e.onload=resolve;e.onerror=()=>reject(Error('Could not load '+src));document.body.appendChild(e);
   });

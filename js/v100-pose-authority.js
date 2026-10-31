@@ -2383,44 +2383,54 @@
   function v166FlightBodyExpression(seconds,travel=0,entry=1){
    const t=Math.max(0,Number.isFinite(seconds)?seconds:0);
    const cruise=clamp(Number.isFinite(travel)?travel:0,0,1);
-   // Keep V156 Q torso nearly upright, but don't damp arms and legs
-   // into invisibility during powered cruise. A single expression feeds
-   // whichever existing pose writer owns this flight state.
-   const w=smooth(entry)*(1-.16*cruise);
+   const w=smooth(entry)*(1-.12*cruise);
+   // A staged 8.8-second breathing hover, not two mirrored pendulums.
+   // One arm makes a small lateral adjustment while the other rests;
+   // delayed elbow/hand follow-through finishes BEFORE the other starts.
+   // Smoothstep rise/hold/release means no jerks at loop wrap.
+   const phase=t%8.8;
+   const pulse=(start,rise,fall,end)=>
+    smooth((phase-start)/(rise-start))*
+    (1-smooth((phase-fall)/(end-fall)));
+   const left=pulse(.55,1.65,2.45,3.65);
+   const leftElbow=pulse(.85,1.95,2.85,4.10);
+   const leftWrist=pulse(1.10,2.15,3.05,4.20);
+   const right=pulse(4.45,5.65,6.35,7.70);
+   const rightElbow=pulse(4.75,5.95,6.75,8.15);
+   const rightWrist=pulse(4.95,6.15,7.05,8.30);
+   // Separate non-mirrored leg rhythms, not a walking/kicking cycle.
    const breath=Math.sin(t*1.54-.35)+.18*Math.sin(t*.77+.7);
-   const armL=Math.sin(t*1.68-.8)+.18*Math.sin(t*.83+.4);
-   const armR=Math.sin(t*1.62-.14)+.17*Math.sin(t*.93+1.1);
-   const elbowL=Math.sin(t*1.68-1.35),elbowR=Math.sin(t*1.62-.72);
-   const wristL=Math.sin(t*1.3-1.12),wristR=Math.sin(t*1.24-.37);
-   const legL=Math.sin(t*1.18+.20),legR=Math.sin(t*1.08-.80);
-   const kneeL=Math.sin(t*1.18-.42),kneeR=Math.sin(t*1.08-1.42);
-   const ankleL=Math.sin(t*1.18-1.05),ankleR=Math.sin(t*1.08-2.05);
+   const lLeg=Math.sin(t*.75+.20)+.18*Math.sin(t*.31+.70);
+   const rLeg=Math.sin(t*.52+2.1)+.17*Math.sin(t*.29+1.40);
+   const lKnee=Math.sin(t*.82-.60),rKnee=Math.sin(t*.57+2.20);
+   const lAnkle=Math.sin(t*.82-1.1),rAnkle=Math.sin(t*.57+1.45);
    const joints=Array.from({length:BONES.length},()=>({x:0,z:0}));
    const set=(index,x,z=0)=>{joints[index]={x:x*w,z:z*w};};
-   // The accepted torso/neck remain steady (<1 degree combined pitch).
-   set(0,-.16*legL,.18*breath);
-   set(1,.14*breath,-.12*armL);
-   set(2,.25*breath,-.16*armR);
-   set(3,.13*breath,-.08*legR);
-   set(4,-.10*breath,.05*armL);
-   set(5,-.08*breath,.05*armR);
-   // Upper arms move hands through space; delayed elbows and wrists
-   // make the movement visible without a mechanical synchronized swing.
-   set(6,-.85*armL,.50*breath);
-   set(7,5.8*armL,-.78*breath);
-   set(8,-3.6*elbowL,.38*armL);
-   set(9,2.5*wristL,.30*elbowL);
-   set(10,-.80*armR,-.50*breath);
-   set(11,5.6*armR,.78*breath);
-   set(12,-3.4*elbowR,-.38*armR);
-   set(13,2.4*wristR,-.30*elbowR);
-   // Asymmetric thigh, knee, ankle follow-through; no air running.
-   set(14,-2.55*legL,.58*legR);
-   set(15,3.5*kneeL,.32*legR);
-   set(16,-1.45*ankleL,.20*legL);
-   set(17,-2.45*legR,-.58*legL);
-   set(18,3.4*kneeR,-.32*legL);
-   set(19,-1.4*ankleR,-.20*legR);
+   // V156 Q source silhouette remains upright; no large trunk pitch.
+   set(0,-.16*lLeg,.18*breath);
+   set(1,.14*breath,-.12*Math.sin(t*.45-.2));
+   set(2,.25*breath,-.16*Math.sin(t*.43+.5));
+   set(3,.13*breath,-.08*rLeg);
+   set(4,-.10*breath,.05*lLeg);
+   set(5,-.08*breath,.05*rLeg);
+   // Outward arcs dominate arm movement, not simultaneous up/down x.
+   // Follow-through is progressively later from upper arm to hand.
+   set(6,-.25*left,.45*left);
+   set(7,-1.8*left,4.7*left);
+   set(8,-1.30*leftElbow,2.6*leftElbow);
+   set(9,1.2*leftWrist,-.90*leftWrist);
+   set(10,.18*right,-.35*right);
+   set(11,-1.1*right,-3.8*right);
+   set(12,-1.1*rightElbow,-2.25*rightElbow);
+   set(13,-1.05*rightWrist,.85*rightWrist);
+   // Small independent thigh, knee, ankle flex keeps air legs alive
+   // without introducing synchronized pedalling or root movement.
+   set(14,-1.15*lLeg,.35*rLeg);
+   set(15,2.35*lKnee,.22*lLeg);
+   set(16,-1.05*lAnkle,.17*lLeg);
+   set(17,-.95*rLeg,-.33*lLeg);
+   set(18,1.90*rKnee,-.25*rLeg);
+   set(19,-.92*rAnkle,-.14*rLeg);
    return {joints,breath:breath*w,maxDegrees:Math.max(...joints.map(j=>
     Math.hypot(j.x,j.z)))};
   }
