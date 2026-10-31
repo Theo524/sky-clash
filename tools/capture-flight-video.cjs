@@ -79,9 +79,12 @@ function motionDescriptor(i){
  const common={elapsed:i/fps,height:2,forward:0,side:0,vertical:0};
  if(livingReview){
   if(i<4)return {...common,name:'ground',height:0};
-  if(i<112)return {...common,name:'hover'};
-  if(i<202)return {...common,name:'cruise',forward:6.2};
-  if(i<207)return {...common,name:'boost',forward:6.2};
+  // Keep both arm-action comparisons entirely in hover: otherwise
+  // V156's natural hover-to-cruise blend would affect both arms and
+  // falsely look like synchronized flight expression.
+  if(i<192)return {...common,name:'hover'};
+  if(i<211)return {...common,name:'cruise',forward:6.2};
+  if(i<214)return {...common,name:'boost',forward:6.2};
   return {...common,name:'recover'};
  }
  if(process.env.VISUAL_V163_QA==='1'){
