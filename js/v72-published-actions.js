@@ -362,6 +362,16 @@
   }
   if((fighter.blastT||0)>0)return actions.superblast?'superblast':null;
   if(fighter.charging)return actions.charge?'charge':null;
+  // Locally applied landing must win on the first real touchdown,
+  // even if jumping/dropping is still true on this physics frame.
+  // Public, Boost and damage routing remain unchanged.
+  const localLanding=fighter.characterId==='kairo_venn'&&
+   root.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
+   root.SkyClashPublishedActions.localPlaytest.slots.includes('landing')&&
+   fighter.landingMotionT>0&&!fighter.flying&&
+   !fighter.sprinting&&!fighter.dashing&&
+   !(fighter.acro&&fighter.acro.type!=='landing');
+  if(localLanding)return actions.landing?'landing':null;
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
@@ -535,17 +545,15 @@
     state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
     state.localLandingWasActive=false;
    }
-   // The compiled fighter gives landing only .48 seconds before
-   // gameplay returns to idle. For THIS explicitly applied Studio
-   // landing, make its full recorded 1x duration playable. The public
-   // published pipeline and Kairo's physics/ground contact remain intact.
+   // Physics gives static contact .48s and moving contact only .205s.
+   // Applied Studio landing must get its actual full source duration at
+   // 1x in BOTH cases, without changing physics or saved animations.
    const appliedLanding=!options.choose&&
     this===root.SkyClash?.Game?.heroes?.kairo_venn&&
     status.localPlaytest?.state==='ready'&&
     status.localPlaytest.slots.includes('landing')&&actions.landing;
    if(appliedLanding&&this.landingMotionT>0&&!state.localLandingWasActive&&
-      !this.sprinting&&!this.dashing&&
-      (this.v109LandingDuration||.48)>.22){
+      !this.sprinting&&!this.dashing){
     const span=Math.min(1.25,Math.max(this.landingMotionT,
      actions.landing.seconds/(actions.landing.speed||1)));
     this.landingMotionT=span;

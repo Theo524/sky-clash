@@ -75,6 +75,10 @@ assert(runtimeSource.includes("if(slot==='landing'&&!localLanding)rate*=2.1"));
 assert(runtimeSource.includes("entry.slot==='landing'&&!localLanding&&i===0"));
 assert(runtimeSource.includes("entry.slot==='runStop'&&!localRunStop&&(i===0||i>=14)"));
 assert(runtimeSource.includes('this.landingMotionT=span;'));
+assert(runtimeSource.includes('if(localLanding)return actions.landing'),
+ 'Studio landing must precede airborne jump/fall routing');
+assert(!runtimeSource.includes('(this.v109LandingDuration||.48)>.22'),
+ 'moving landing may not be truncated to 205ms');
 assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive')"),
  'Apply/Restore may not silently discard the accepted flight body option');
 const runStop=runtime.localStopContactTime({

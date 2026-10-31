@@ -26,6 +26,12 @@
   if(f.stun>0&&f.nativeCombatReaction&&f.v72StudioPack?.nativePreviewActive)return 'damage';
   if(f.punchT>0||f.blastT>0||f.superHitT>0||f.slamming)return 'attack';
   if(f.blockHeld||f.blocking)return 'guard';
+  // Match the Studio landing owner on the first collision frame while
+  // the old drop/jump flag is still clearing.
+  const local=root.SkyClashPublishedActions?.localPlaytest;
+  if(f.characterId==='kairo_venn'&&local?.state==='ready'&&
+     local.slots.includes('landing')&&f.landingMotionT>0&&
+     !f.flying&&!f.sprinting&&!f.dashing)return 'landing';
   if(f.dropping)return 'fall';
   if(f.jumping)return f.vel?.y<0?'fall':'jump';
   if(f.flying)return f.sprinting?'flight-boost':'flight';
@@ -112,7 +118,12 @@
     }
     st.elapsed+=safe;
     // Faster transitions into combat; no masking strike/contact frames.
-    const seconds=next==='landing'?.23:
+    // Studio landing includes its own impact and recovery. Don't hide
+    // the first .23s behind another crossfade.
+    const localLanding=next==='landing'&&
+     root.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
+     root.SkyClashPublishedActions.localPlaytest.slots.includes('landing');
+    const seconds=next==='landing'?(localLanding?.075:.23):
       next==='guard'?.16:next==='boost-stop'?.14:next==='fall'?.20:.18;
     // V87: strikes should enter fast but not snap in one frame from
     // the preceding stance; damage reactions remain instantaneous.
