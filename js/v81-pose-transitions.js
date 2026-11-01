@@ -95,6 +95,23 @@
    try{
     if(st.rig!==this.vrmRig)capture(this.vrmRig);
     const next=stateOf(this);
+    // The 20 normalized VRM joints of a local Studio fall/landing are
+    // already authored by V72. No second 60-75ms full-body blend,
+    // artificial finger grip, or wrist constraint may overwrite them.
+    // The transition controller remains intact for every other state.
+    if((next==='fall'&&appliedStudioSlot(this,'fallingIdle'))||
+       (next==='landing'&&appliedStudioSlot(this,'landing'))){
+     st.mode=null;st.airWristAnchor=null;st.handGrip=0;
+     st.nativeRelease=false;st.previousHips=null;
+     for(let i=0;i<st.fingerNodes.length;i++)
+      st.fingerNodes[i].node.quaternion.copy(st.fingerRest[i]);
+     this.vrmRig.vrm.update(0);
+     status.active=next;status.transition=1;
+     status.airHands=next==='fall'?'Studio Falling Idle wrists preserved':
+      'Studio Landing original hands preserved';
+     status.frames=++st.frames;
+     return;
+    }
     // V99 opt-in: V73's native Kairo fingers are already correct in the
     // approved standing pose. V81's global Y-axis grip plus an independently
     // retargeted UE5 jump wrist can form the pinched-hand gesture.

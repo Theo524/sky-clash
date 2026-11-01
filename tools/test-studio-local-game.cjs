@@ -351,7 +351,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     {...fall,sourceFile:'studio-assigned-falling-idle-test.fbx'}
    ]});
   });
-  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive&studioPoseAudit=1');
   const realFalling=await page.evaluate(()=>{
    const p=window.SkyClash.Game.player,s=window.SkyClashPublishedActions;
    window.SkyClash.Game.enterDojo();window.SkyClash.Game.update=()=>{};
@@ -368,6 +368,15 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     p.update(1/60);
     if([5,14,30,48,63].includes(i))samples.push({
      frame:i,slot:p.v72StudioPack.slot,
+     poseDrift:p.v72StudioPack.studioPoseSnapshot?
+      Math.max(...p.v72StudioPack.studioPoseSnapshot.map((q,j)=>
+       q?.angleTo(hum.getNormalizedBoneNode([
+        'hips','spine','chest','upperChest','neck','head',
+        'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+        'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+        'leftUpperLeg','leftLowerLeg','leftFoot',
+        'rightUpperLeg','rightLowerLeg','rightFoot'][j]).quaternion)||0)):
+      null,
      owner:window.SkyClashPoseAuthority.active,
      transition:window.SkyClashPoseTransitions.active,
      airHands:window.SkyClashPoseTransitions.airHands,
@@ -397,6 +406,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   for(const sample of airborneFall){
    assert.equal(sample.slot,'fallingIdle','real gravity fall did not select Studio Falling Idle');
    assert.equal(sample.source,'studio-assigned-falling-idle-test.fbx');
+   assert(sample.poseDrift!==null&&sample.poseDrift<.001,
+    'A later animation controller altered the assigned Falling Idle pose');
    assert.equal(sample.owner,'yielded-to-combat-or-flight',
     'published V100 falling controller overwrote the assigned Studio clip');
    assert.equal(sample.transition,'fall');
@@ -458,7 +469,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      footContacts:'0'.repeat(11)+'3'.repeat(stop.frames-11)}
    ]});
   });
-  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive&studioPoseAudit=1');
   const groundRecovery=await page.evaluate(()=>{
    const g=window.SkyClash.Game,p=g.player,s=window.SkyClashPublishedActions;
    g.enterDojo();g.update=()=>{};
@@ -472,10 +483,20 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const hip=hum.getNormalizedBoneNode('hips');
    const thigh=hum.getNormalizedBoneNode('leftUpperLeg');
    const landingBefore=hip.quaternion.clone(),hipYBefore=hip.position.y;
-   const landPelvisOffsets=[];
+   const landPelvisOffsets=[],landPoseDrift=[];
+   const boneNames=['hips','spine','chest','upperChest','neck','head',
+    'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+    'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+    'leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const visibleDrift=()=>p.v72StudioPack.studioPoseSnapshot?
+    Math.max(...p.v72StudioPack.studioPoseSnapshot.map((q,j)=>
+     q?.angleTo(hum.getNormalizedBoneNode(boneNames[j]).quaternion)||0)):
+    null;
    for(let i=0;i<45;i++){
     p.t+=1/60;p.animate(1/60);
     landPelvisOffsets.push(hip.position.y-hipYBefore);
+    landPoseDrift.push(visibleDrift());
     p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
    }
    const landingResult={slot:p.v72StudioPack.slot,
@@ -486,6 +507,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     pelvisLow:Math.min(...landPelvisOffsets),
     pelvisHighest:Math.max(...landPelvisOffsets),
     pelvisVisual:s.localPlaytest.localLandingPelvisCm,
+    maxPoseDrift:Math.max(...landPoseDrift.filter(Number.isFinite)),
+    poseAuditFrames:landPoseDrift.filter(Number.isFinite).length,
     source:s.motionClips.landing.sourceFile};
    // Release the previous landing's one-shot latch before simulating
    // another physical touchdown in this same disposable test scene.
@@ -503,6 +526,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      movingSamples.push({frame:i,slot:p.v72StudioPack.slot,
       timer:p.landingMotionT,clock:p.v72StudioPack.clock,
       grounded:p.pos.y<=p.floor+.025,
+      poseDrift:visibleDrift(),
       stepMode:p.v89Step?.mode||null,
       jumping:p.jumping,dropping:p.dropping});
    }
@@ -540,6 +564,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Studio landing must play uncompressed at 1x, not 2.1x');
   assert(groundRecovery.landing.frames>=40,'Landing did not own enough live frames');
   assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
+  assert(groundRecovery.landing.poseAuditFrames>=35&&
+   groundRecovery.landing.maxPoseDrift<.001,
+   'A later controller altered the assigned Studio landing joints');
   assert(groundRecovery.landing.pelvisLow<-.08&&
    groundRecovery.landing.pelvisLow>-.33,
    'Studio source downward hip motion was lost during gameplay');
@@ -547,9 +574,12 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Studio source hips did not start at the correct rest height');
   assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
    'Real contact routed to jump/fall instead of assigned Studio landing');
-  for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0))
+  for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0)){
+   assert(sample.poseDrift!==null&&sample.poseDrift<.001,
+    'Later animation wrapper changed the Studio landing at real touchdown');
    assert(sample.stepMode==null||sample.stepMode==='inactive',
     'V89 grounded first-step writer overrode assigned Studio landing');
+  }
   assert(groundRecovery.movingLanding.duration>=1.09,
    'Moving contact truncated assigned landing to .205s');
   assert(groundRecovery.movingLanding.samples[0].jumping||

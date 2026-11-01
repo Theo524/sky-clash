@@ -619,6 +619,15 @@
     serial!==state.localHandoffSerial&&state.bones?
     state.bones.map(b=>b?b.quaternion.clone():null):null;
    old.call(this,dt);
+   // The V79 wrapper runs AFTER V72's user-authored full-body layer.
+   // Its fading optional gestures must never overwrite even one bone
+   // of a locally assigned fall/landing, including its first frame.
+   if(options.choose&&['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+    state.slot=null;state.weight=0;state.releasingExtra=false;
+    state.releaseEntry=null;state.localEntryPose=null;
+    return;
+   }
    // Also applies to the V79 optional-action wrapper, which reuses
    // this attach() function. One authoritative pose during air.
    if(root.SkyClashV100Animator?.ownsAir(this))return;
@@ -792,6 +801,10 @@
     const localLanding=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('landing');
+    const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
+     entry.slot==='fallingIdle'&&status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes('fallingIdle');
+    const authoredAir=localLanding||localFalling;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('runStop')&&!!entry.sampleSupport;
@@ -961,8 +974,12 @@
      node.parent.getWorldQuaternion(parentQ);
      target.copy(parentQ).invert().multiply(wanted).normalize();
      const angle=node.quaternion.angleTo(target),limit=i===0?Math.PI:2.7;
-     if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
-     node.quaternion.slerp(target,state.weight);
+     // Earlier safety clamps limited large rotations against whichever
+     // procedural pose happened to run first. An expressly applied
+     // Mixamo fall/landing must reproduce its *actual* retargeted pose.
+     if(!authoredAir&&angle>limit)
+      target.copy(node.quaternion).slerp(target,limit/angle);
+     node.quaternion.slerp(target,authoredAir?1:state.weight);
      if(handoffEase<1&&state.localEntryPose?.[i]){
       const applied=node.quaternion.clone();
       node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
@@ -1046,6 +1063,14 @@
         'arched bent-body flight with folded knees':'baked-flight + authored streamline'):'none';
     }
     state.rig.vrm.update(0);
+    // Opt-in real-VRM ownership audit: snapshot EXACT V72 output
+    // before V79, V81, V89 and V100 run. Browser E2E compares the
+    // finished visible frame to this to catch silent pose overrides.
+    if(new URLSearchParams(root.location?.search||'')
+      .get('studioPoseAudit')==='1'&&authoredAir)
+     state.studioPoseSnapshot=state.bones.map(n=>
+      n?n.quaternion.clone():null);
+    else state.studioPoseSnapshot=null;
     state.frames++;
     status.active=state.releasingExtra?'extra-blend-out':
       state.releasingIdle?'idle-blend-to-walk':slot;

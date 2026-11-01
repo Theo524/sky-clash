@@ -71,6 +71,13 @@
   }
   fighter.animate=function(dt){
    original.call(this,dt);
+   // The player's applied Falling Idle/Landing is a *full-body* Mixamo
+   // recording. Do not keep the older walking-gait limbs underneath it.
+   // Retain the compiled Fighter.animate physics and every other state.
+   if(['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+    state.weight=0;state.last='yield-to-studio-air';return;
+   }
    // V100: jump/fall/landing belong to the single final recorded pose
    // authority. Do not let this independent gait writer touch air bones.
    if(root.SkyClashV100Animator?.ownsAir(this)){

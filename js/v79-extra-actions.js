@@ -32,6 +32,15 @@
    STATE.set(f,s);
   }
   dt=clamp(Number.isFinite(dt)?dt:0,0,.08);
+  // V72 owns explicitly applied falling/landing in its entirety.
+  // Cancel optional old Falling Idle/roll gestures rather than fading
+  // them over the user's imported full-body source.
+  if(['fallingIdle','landing'].includes(
+      root.SkyClashV100Animator?.localStudioAirSlot?.(f))){
+   s.active=null;s.elapsed=0;s.rest=0;
+   s.wasAir=!!(f.jumping||f.flying);s.wasDescending=!!f.dropping;
+   return null;
+  }
   const speed=speedOf(f);
   // V96: Kairo's optional Adventure Idle lifts the hands high. At very
   // small joystick deflections speed remains below the idle threshold,
