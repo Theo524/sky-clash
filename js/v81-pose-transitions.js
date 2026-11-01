@@ -152,7 +152,8 @@
      // receiver before reading the target. Passing node.quaternion as
      // BOTH receiver and target makes the new clip pose disappear until
      // the last frame, then snap into view. Hold the target separately.
-     if(new URLSearchParams(root.location?.search||'')
+     if(authoredFall||authoredLanding||
+        new URLSearchParams(root.location?.search||'')
         .get('stance')==='handoff'||stormV3){
       const incoming=node.quaternion.clone();
       node.quaternion.slerpQuaternions(st.previous[i],incoming,w).normalize();
@@ -174,7 +175,11 @@
       next==='jump'||next==='fall'?.52:next==='landing'?.40:0;
     // Source-controlled jump/fall uses the V73 VRoid native fingers;
     // never overlay V81's artificial pinching/curl on these two states.
-    const fingerTarget=stabilize&&naturalAir?0:grip;
+    // Keep original Kairo finger rests for player-assigned clips.
+    // The old hard-coded .52 falling / .40 landing fist distorted the
+    // Studio action even after its 20 recorded bones were correctly owned.
+    const fingerTarget=authoredFall||authoredLanding||
+     stabilize&&naturalAir?0:grip;
     st.handGrip+=(fingerTarget-st.handGrip)*(1-Math.exp(-safe*13));
     for(let i=0;i<st.fingerNodes.length;i++){
      const {node,sign,angle}=st.fingerNodes[i];

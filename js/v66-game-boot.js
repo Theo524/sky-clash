@@ -110,7 +110,7 @@
       (src.includes('v81-pose-transitions')||
        src.includes('v89-grounded-step')||
        src.includes('v72-published-actions')))
-     e.src+='&studioAirOwner=177';
+     e.src+='&studioAirOwner=177&studioPelvis=178';
    // Refresh only Studio landing owners, preserving public flight and combat.
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v72-published-actions')||

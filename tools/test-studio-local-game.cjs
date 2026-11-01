@@ -440,7 +440,20 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    if(!landing||!stop)throw Error('Missing shipped real Mixamo landing/stop fixtures');
    await bridge.save({...original.pack,motions:[
     ...original.pack.motions,
-    {...landing,sourceFile:'studio-landing-test.fbx'},
+    {...landing,sourceFile:'studio-landing-test.fbx',
+     // A source-authored landing with visible crouch/impact includes a
+     // downward pelvis track. This isolates game rendering fidelity
+     // from whether the old shipped V86 pack has that new optional field.
+     hipYEncoding:'int16-normalized-height-delta',
+     hipYTrack:(()=>{
+      const raw=new Uint8Array(landing.frames*2),view=new DataView(raw.buffer);
+      for(let i=0;i<landing.frames;i++){
+       const phase=i/(landing.frames-1);
+       const crouch=-.12*Math.sin(Math.PI*phase);
+       view.setInt16(i*2,Math.round(crouch*32767),true);
+      }
+      return btoa(Array.from(raw,b=>String.fromCharCode(b)).join(''));
+     })()},
     {...stop,sourceFile:'studio-grounded-stop-test.fbx',
      footContacts:'0'.repeat(11)+'3'.repeat(stop.frames-11)}
    ]});
@@ -458,9 +471,11 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const hum=p.vrmRig.vrm.humanoid;
    const hip=hum.getNormalizedBoneNode('hips');
    const thigh=hum.getNormalizedBoneNode('leftUpperLeg');
-   const landingBefore=hip.quaternion.clone();
+   const landingBefore=hip.quaternion.clone(),hipYBefore=hip.position.y;
+   const landPelvisOffsets=[];
    for(let i=0;i<45;i++){
     p.t+=1/60;p.animate(1/60);
+    landPelvisOffsets.push(hip.position.y-hipYBefore);
     p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
    }
    const landingResult={slot:p.v72StudioPack.slot,
@@ -468,6 +483,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     frames:s.localPlaytest.localLandingFrames,
     clock:s.localPlaytest.localLandingClock,
     hipDifference:landingBefore.angleTo(hip.quaternion),
+    pelvisLow:Math.min(...landPelvisOffsets),
+    pelvisHighest:Math.max(...landPelvisOffsets),
+    pelvisVisual:s.localPlaytest.localLandingPelvisCm,
     source:s.motionClips.landing.sourceFile};
    // Release the previous landing's one-shot latch before simulating
    // another physical touchdown in this same disposable test scene.
@@ -522,6 +540,11 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Studio landing must play uncompressed at 1x, not 2.1x');
   assert(groundRecovery.landing.frames>=40,'Landing did not own enough live frames');
   assert(groundRecovery.landing.hipDifference>.01,'Landing pelvis was masked');
+  assert(groundRecovery.landing.pelvisLow<-.08&&
+   groundRecovery.landing.pelvisLow>-.33,
+   'Studio source downward hip motion was lost during gameplay');
+  assert(Math.abs(groundRecovery.landing.pelvisHighest)<.025,
+   'Studio source hips did not start at the correct rest height');
   assert.equal(groundRecovery.movingLanding.samples[0].slot,'landing',
    'Real contact routed to jump/fall instead of assigned Studio landing');
   for(const sample of groundRecovery.movingLanding.samples.filter(s=>s.timer>0))
