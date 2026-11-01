@@ -602,6 +602,62 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    groundRecovery.runStop.rootYBeforeStop,
    'The visual stop must not move physics root above its actual floor');
   assert.equal(groundRecovery.error,null);
+  // Long local landing regression: source speed and hip depth must survive
+  // the game handoff. Fixture stays in Playwright's disposable IndexedDB;
+  // no browser-saved user files are touched or read by CI.
+  await page.evaluate(async()=>{
+   const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
+   const savedLanding=current.pack.motions.find(m=>m.slot==='landing');
+   const raw=new Uint8Array(savedLanding.frames*2),view=new DataView(raw.buffer);
+   for(let i=0;i<savedLanding.frames;i++){
+    const phase=i/(savedLanding.frames-1);
+    view.setInt16(i*2,Math.round(-.32*Math.sin(Math.PI*phase)*32767),true);
+   }
+   const deep={...savedLanding,speed:.5,sourceFile:'saved-long-landing-test.fbx',
+    hipYEncoding:'int16-normalized-height-delta',
+    hipYTrack:btoa(Array.from(raw,b=>String.fromCharCode(b)).join(''))};
+   await bridge.save({...current.pack,
+    motions:current.pack.motions.map(m=>m.slot==='landing'?deep:m)});
+  });
+  await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive&studioPoseAudit=1');
+  const longLanding=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player,s=window.SkyClashPublishedActions;
+   g.enterDojo();g.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.blockHeld=false;p.blocking=false;
+   p.punchT=0;p.blastT=0;p.sprinting=false;p.dashing=false;
+   p.jumping=false;p.flying=false;p.dropping=false;p.acro=null;
+   p.pos.y=p.floor;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   p.landingMotionT=.48;p.v109LandingDuration=.48;
+   const hips=p.vrmRig.vrm.humanoid.getNormalizedBoneNode('hips');
+   const origin=hips.position.y,rootBefore=p.pos.y;
+   let lowest=0,midSlot=null,midClock=0,frames=0;
+   for(let i=0;i<175;i++){
+    p.t+=1/60;p.animate(1/60);
+    lowest=Math.min(lowest,hips.position.y-origin);
+    if(i===95){midSlot=p.v72StudioPack.slot;midClock=p.v72StudioPack.clock;}
+    if(p.v72StudioPack.slot==='landing')frames++;
+    p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
+   }
+   return {source:s.motionClips.landing.sourceFile,
+    duration:s.localPlaytest.localLandingDuration,
+    minCrouch:lowest,midSlot,midClock,frames,
+    physicsUnchanged:p.pos.y===rootBefore,error:s.error};
+  });
+  assert.equal(longLanding.source,'saved-long-landing-test.fbx');
+  assert(longLanding.duration>1.8,
+   'Long saved landing was cut off at the old 1.25s cap');
+  assert.equal(longLanding.midSlot,'landing',
+   'Long saved landing ended before 1.5 seconds');
+  assert(longLanding.midClock>.6&&longLanding.midClock<1,
+   'Locally assigned 0.5x Studio playback speed was not preserved');
+  assert(longLanding.frames>100,
+   'Extended landing did not play its recorded source frames');
+  assert(longLanding.minCrouch<-.34&&longLanding.minCrouch>-1.11,
+   'Deep source pelvis motion still hit the old 32cm clamp');
+  assert(longLanding.physicsUnchanged,
+   'Visual source movement must not affect the fighter physics root');
+  assert.equal(longLanding.error,null);
   await page.evaluate(async()=>{
    const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
    await bridge.save({...current.pack,
