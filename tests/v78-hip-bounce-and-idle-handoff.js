@@ -42,7 +42,7 @@ assert(!bounce.apply(THREE,{hips:hip},rest).applied,'Missing first-frame referen
 const studioHTML=read('animation-studio.html'),studioJS=read('js/animation-studio.js'),
  preview=read('js/character-motion-preview.js');
 assert(studioHTML.includes('js/v78-studio-hip-bounce.js?v=780'),'Load solver before the preview');
-assert(studioHTML.includes('animation-studio.js?v=837'),'Refresh animation studio import');
+assert(studioHTML.includes('animation-studio.js?v=838'),'Refresh animation studio import');
 assert(studioJS.includes('rig.previewHipBaseY=hips.getWorldPosition'),'Measure hip in post-scale world meters');
 assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest)'));
 
