@@ -518,7 +518,12 @@ function renderLoop(now){
   if(isPlaying)currentT=(currentT+dt*rate*motionSpeed)%dur;
   poseRig(mainStage,currentT,$('rootMotion').checked);
   if(viewMode==='character'&&charPreview?.hasModel()&&charPreview.who()===actionFighter){
-   try{charPreview.sample(mainRig,currentT,(opts&&Action.findImport(imported,opts)===current)?opts.yaw:0);charPreview.render();}
+   try{
+     const selectedAssigned=!!(opts&&Action.findImport(imported,opts)===current);
+     const sourceAir=selectedAssigned&&['landing','fallingIdle'].includes(activeAction);
+     charPreview.sample(mainRig,currentT,selectedAssigned?opts.yaw:0,sourceAir);
+     charPreview.render();
+    }
    catch(e){console.warn('Character preview stopped safely',e);setActionHelp('Retarget preview issue: '+e.message+' · Original animation remains available.');switchView('master');}
   }
   $('scrub').value=Math.round(1000*currentT/dur);

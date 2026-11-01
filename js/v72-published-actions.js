@@ -477,7 +477,7 @@
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
-    hipVisualOffsetY:0,avatarHeight:1.6,
+    hipVisualOffsetY:0,hipVisualOffsetLocal:new THREE.Vector3(),avatarHeight:1.6,
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
@@ -506,7 +506,7 @@
    const rf=get('rightFoot')?.getWorldPosition(new THREE.Vector3());
    const floor=lf&&rf?Math.min(lf.y,rf.y):head?.y-1.6;
    state.avatarHeight=head?Math.max(.9,Math.min(2.2,Math.abs(head.y-floor))):1.6;
-   state.hipVisualOffsetY=0;
+   state.hipVisualOffsetY=0;state.hipVisualOffsetLocal.set(0,0,0);
    state.rig=rig;state.bones=bones;state.bind=bind;state.targetSide=side;
   }
   // Contact correction belongs to this same full-body owner. The authored
@@ -559,8 +559,10 @@
    // The previous frame's optional Studio hip offset belongs to this
    // visual writer ONLY. Remove it before other controllers sample bones,
    // or repeated landings would progressively lower Kairo's entire rig.
-   if(state.hipVisualOffsetY&&state.bones?.[0]){
-    state.bones[0].position.y-=state.hipVisualOffsetY;
+   if(state.hipVisualOffsetLocal.lengthSq()>0&&state.bones?.[0]){
+    // Undo the EXACT prior offset in parent-local space, not only local Y.
+    state.bones[0].position.sub(state.hipVisualOffsetLocal);
+    state.hipVisualOffsetLocal.set(0,0,0);
     state.hipVisualOffsetY=0;
    }
    // Fighter instances survive rematches/dojo resets. A reset discards old
@@ -575,16 +577,18 @@
     state.localLandingWasActive=false;
    }
    // Physics gives static contact .48s and moving contact only .205s.
-   // Applied Studio landing must get its actual full source duration at
-   // 1x in BOTH cases, without changing physics or saved animations.
+   // A locally assigned landing keeps its FULL recorded source duration
+   // at the selected speed. The prior 1.25-second cap truncated longer
+   // Mixamo landings even though the Studio preview showed the full clip.
+   // Only visual playback timing changes; physics/root motion is untouched.
    const appliedLanding=!options.choose&&
     this===root.SkyClash?.Game?.heroes?.kairo_venn&&
     status.localPlaytest?.state==='ready'&&
     status.localPlaytest.slots.includes('landing')&&actions.landing;
    if(appliedLanding&&this.landingMotionT>0&&!state.localLandingWasActive&&
       !this.sprinting&&!this.dashing){
-    const span=Math.min(1.25,Math.max(this.landingMotionT,
-     actions.landing.seconds/(actions.landing.speed||1)));
+    const span=Math.max(this.landingMotionT,
+     actions.landing.seconds/(actions.landing.speed||1));
     this.landingMotionT=span;
     this.v109LandingDuration=span;
     status.localPlaytest.localLandingDuration=+span.toFixed(3);
@@ -996,15 +1000,29 @@
      node.updateMatrixWorld(true);
     }
     if(handoff>=1)state.localEntryPose=null;
-    if(localLanding&&entry.sampleHipY&&state.bones?.[0]){
-     // Reproduce the source pelvis squat/dip on the *visual normalized*
-     // hips only. Keep Kairo's physics root, collision, world position,
-     // feet contact and all input responsiveness exactly as before.
-     const scaled=entry.sampleHipY(state.clock,false)*state.avatarHeight;
-     const delta=Math.max(-.32,Math.min(.18,scaled));
-     state.bones[0].position.y+=delta;
-     state.hipVisualOffsetY=delta;
-     status.localPlaytest.localLandingPelvisCm=+((delta)*100).toFixed(1);
+    if(authoredAir&&entry.sampleHipY&&state.bones?.[0]?.parent){
+     // Studio's V78 displays the SOURCE world-up pelvis displacement,
+     // including deeper crouches. Match its +/-1.1m visual bound instead
+     // of the game's old -32/+18cm truncation. Translate the world-up
+     // vector into the hips parent's local coordinate frame so rotations
+     // and parent scale cannot redirect it sideways.
+     const scaled=entry.sampleHipY(state.clock,
+      entry.slot==='fallingIdle')*state.avatarHeight;
+     const delta=Math.max(-1.1,Math.min(1.1,scaled));
+     const hips=state.bones[0],parent=hips.parent;
+     const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+     const parentScale=parent.getWorldScale(new THREE.Vector3());
+     if([parentScale.x,parentScale.y,parentScale.z].every(v=>
+        Number.isFinite(v)&&Math.abs(v)>1e-6)){
+      const localOffset=new THREE.Vector3(0,delta,0).applyQuaternion(parentInverse);
+      localOffset.set(localOffset.x/parentScale.x,
+       localOffset.y/parentScale.y,localOffset.z/parentScale.z);
+      hips.position.add(localOffset);
+      state.hipVisualOffsetLocal.copy(localOffset);
+      state.hipVisualOffsetY=delta;
+      if(localLanding)status.localPlaytest.localLandingPelvisCm=+(delta*100).toFixed(1);
+      else status.localPlaytest.localFallingPelvisCm=+(delta*100).toFixed(1);
+     }
     }
     if(localLanding){
      status.localPlaytest.localLandingFrames=

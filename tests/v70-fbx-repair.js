@@ -42,5 +42,5 @@ assert(/animation-studio\.js\?v=\d{3,}/.test(html),'Cache-busted FBX-aware Studi
 assert(studio.includes('SkyClashFBXRepair?.normalize(buffer)'),'Both ZIP & loose FBX buffers pass through repair');
 assert(studio.includes('if(result?.repaired)item.repaired=true'),'Mark fixed preview');
 assert(studio.includes('SkyClashHumanoidRetarget')===false,'Keep V68 retarget in separate working module');
-assert(html.includes('js/v68-humanoid-retarget.js?v=680'),'Do not alter V68 correct animation transfer');
+assert(html.includes('js/v68-humanoid-retarget.js?v=681'),'Do not alter V68 correct animation transfer');
 console.log('PASS: V70 repaired append-only LF on FBX7700, FBXLoader footer boundary, exact footer magic, source immutability and studio wiring');

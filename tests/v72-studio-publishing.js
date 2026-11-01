@@ -90,8 +90,16 @@ assert(source.includes("hipYEncoding:'int16-normalized-height-delta'")&&
  'Studio export must preserve vertical pelvis movement in new game packs');
 assert(fidelityRuntime.includes('sampleHipY')&&fidelityRuntime.includes('state.hipVisualOffsetY=delta'),
  'game must reproduce source landing dip on visual hips only');
-assert(fidelityRuntime.includes('state.bones[0].position.y-=state.hipVisualOffsetY'),
- 'temporary Studio pelvis adjustment must be removed before the next frame');
+assert(fidelityRuntime.includes('state.bones[0].position.sub(state.hipVisualOffsetLocal)'),
+ 'game must undo the exact parent-local pelvis offset before another pose writer');
+assert(fidelityRuntime.includes('const delta=Math.max(-1.1,Math.min(1.1,scaled))'),
+ 'Studio and local game must allow the same full recorded crouch depth');
+assert(!fidelityRuntime.includes('Math.min(1.25,Math.max(this.landingMotionT'),
+ 'longer user-authored landings must not end at the old 1.25-second cap');
+assert(fidelityRuntime.includes("entry.slot==='fallingIdle'"),
+ 'Source pelvis motion must also survive a locally assigned falling idle');
+assert(read('js/character-motion-preview.js').includes('{preserveFullSource}'),
+ 'Character preview must apply the same full source air joint rotations as game');
 assert(read('js/animation-studio.js').includes('GameExporter.bake(THREE,fbx,'));
 assert(read('js/v72-published-actions.js').includes('assets/animations/gameplay/studio-actions-v1.json'));
 console.log('PASS: V72 natural Mixamo elbows/wrists, attack-priority, real Studio FBX keyframe export and published-game decode');

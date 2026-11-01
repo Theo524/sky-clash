@@ -73,9 +73,9 @@ function create(canvas){
   })();
   try{return await loadPromise;}catch(e){loaded=null;throw e;}finally{loadPromise=null;}
  }
- function sample(sourceRig,time,adjustYaw=0){
+ function sample(sourceRig,time,adjustYaw=0,preserveFullSource=false){
   if(!current||!sourceRig)return {applied:0};
-  const report=mapper.sample(sourceRig,current.rest,map,adjustYaw);
+  const report=mapper.sample(sourceRig,current.rest,map,adjustYaw,{preserveFullSource});
   if(report.applied<10)throw Error('Only '+report.applied+' VRM joints moved; check Mixamo humanoid track bindings');
   // Restore vertical Mixamo hip travel AFTER world-rest joint rotations.
   // This is exactly the jog bounce shown by Bone Diagnostic, without letting

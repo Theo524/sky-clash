@@ -40,7 +40,7 @@
    const yaw=Math.atan2(cross,dot)+(Number(yawDeg)||0)*Math.PI/180;
    return new THREE.Quaternion().setFromAxisAngle(UP,yaw);
   }
-  function sample(rig,rest,targets,yawDeg=0){
+  function sample(rig,rest,targets,yawDeg=0,options={}){
    if(!rig?.bones||!rig?.restWorld||!rig?.restPoints||!rest)throw Error('Missing FBX/VRM bind pose for preview');
    // Restore every target local bind transform — source clips never stack
    // onto previous poses (seeking/restarting is deterministic).
@@ -73,7 +73,11 @@
       src.includes('leg')||src.includes('foot')?2.4:1.9;
     const angle=rec.local.angleTo(local);
     maximum=Math.max(maximum,angle);
-    if(angle>limit)local.copy(rec.local).slerp(local,limit/angle);
+    // Locally assigned Falling Idle/Landing are unbounded by the game
+    // joint-limit rule. Match that source rotation in their Studio preview.
+    // Keep the previous safety limit for all other action slots.
+    if(!options.preserveFullSource&&angle>limit)
+     local.copy(rec.local).slerp(local,limit/angle);
     if(![local.x,local.y,local.z,local.w].every(Number.isFinite)){skipped++;continue;}
     node.quaternion.copy(local);
     node.updateMatrixWorld(true);
