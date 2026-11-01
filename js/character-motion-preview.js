@@ -80,7 +80,12 @@ function create(canvas){
   // Restore vertical Mixamo hip travel AFTER world-rest joint rotations.
   // This is exactly the jog bounce shown by Bone Diagnostic, without letting
   // the character drift horizontally or accumulate per-frame offsets.
-  const bounce=root.SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest);
+  // Match the game's exclusive Studio Falling Idle/Landing visual root
+  // retarget: Y and optional source XZ travel, in the same facing basis.
+  const basis=preserveFullSource?
+   mapper.faceCorrection(sourceRig.restPoints,current.rest,adjustYaw):null;
+  const bounce=root.SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest,
+   {horizontal:preserveFullSource,basis,scene:current.vrm.scene});
   if(bounce?.applied)report.verticalHipBounce=bounce.vertical;
   // VRM copies normalized humanoid motion to the actual skinned mesh bones.
   current.vrm.update(0);
