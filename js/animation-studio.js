@@ -330,7 +330,11 @@ function setupRig(stage,fbx){
  // V78: record source FBX Y-origin after the first sampled frame AND after
  // scaling the diagnostic skeleton to 2.33m. On Character can reproduce
  // real jogging bounce without copying horizontal/root translation.
- if(hips)rig.previewHipBaseY=hips.getWorldPosition(new THREE.Vector3()).y;
+ if(hips){
+   const origin=hips.getWorldPosition(new THREE.Vector3());
+   rig.previewHipBaseY=origin.y;
+   rig.previewHipBaseXZ=origin.clone();
+  }
  return rig;
 }
 function disposeSetup(stage){if(!stage?.loaded)return;const r=stage.loaded;cleanupRig(stage);for(const g of r.geometries)g.dispose();for(const m of r.materials)m.dispose();}
