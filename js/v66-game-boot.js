@@ -110,7 +110,7 @@
       (src.includes('v81-pose-transitions')||
        src.includes('v89-grounded-step')||
        src.includes('v72-published-actions')))
-     e.src+='&studioAirOwner=177&studioPelvis=178&studioExclusive=179';
+     e.src+='&studioAirOwner=177&studioPelvis=178&studioExclusive=179&studioLandingFidelity=180';
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v71-mixamo-gameplay')||
        src.includes('v76-upper-body')||
