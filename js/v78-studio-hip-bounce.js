@@ -13,7 +13,7 @@
  */
 (function(root){
  'use strict';
- function apply(THREE,source,rest){
+ function apply(THREE,source,rest,options={}){
   const dst=rest?.get('hips'),src=source?.hips;
   if(!THREE?.Vector3||!dst?.node||!dst?.localPosition||!src||
      !Number.isFinite(source.previewHipBaseY))return {applied:false,vertical:0};
@@ -28,7 +28,21 @@
   const scale=parent.getWorldScale(new THREE.Vector3());
   if(![scale.x,scale.y,scale.z].every(x=>Number.isFinite(x)&&Math.abs(x)>1e-6))
    return {applied:false,vertical:0};
-  const local=new THREE.Vector3(0,vertical,0).applyQuaternion(parentQ);
+  // Assigned air clips can carry source XZ weight shift, while ordinary
+  // previews still lock horizontal travel exactly as before.
+  const horizontal=new THREE.Vector3();
+  if(options.horizontal&&options.basis&&source.previewHipBaseXZ){
+   horizontal.set(world.x-source.previewHipBaseXZ.x,0,
+    world.z-source.previewHipBaseXZ.z).applyQuaternion(options.basis);
+   horizontal.y=0;
+   if(horizontal.length()>1.1)horizontal.setLength(1.1);
+   if(options.scene){
+    horizontal.applyQuaternion(
+     options.scene.getWorldQuaternion(new THREE.Quaternion()));
+   }
+  }
+  const local=new THREE.Vector3(0,vertical,0).add(horizontal)
+   .applyQuaternion(parentQ);
   local.set(local.x/scale.x,local.y/scale.y,local.z/scale.z);
   // Reset to bind position every frame: no accumulated root drift.
   dst.node.position.copy(dst.localPosition).add(local);

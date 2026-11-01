@@ -79,7 +79,8 @@
   // impact. Previously game packs contained rotations ONLY: all source
   // pelvis travel was silently discarded. Encode just a normalized,
   // visual-only vertical track, with no FBX, root motion, or physics.
-  const hipY=new Int16Array(frames),sourceHips=bones.get('hips');
+  const hipY=new Int16Array(frames),hipXZ=new Int16Array(frames*2),
+        sourceHips=bones.get('hips');
   const head0=bones.get('head')?.getWorldPosition(new THREE.Vector3());
   const feet0=['leftfoot','rightfoot'].map(n=>
    bones.get(n)?.getWorldPosition(new THREE.Vector3())).filter(Boolean);
@@ -89,7 +90,7 @@
   // Use the first ANIMATED pose for the reference, not the FBX bind/T
   // pose. Otherwise a pelvis translation already present at time zero
   // becomes a false giant impact dip when the clip is applied.
-  let hipBaseY=null;
+  let hipBaseWorld=null;
   // Record when each source sole actually supports weight. Quaternion-only
   // retarget cannot recover these contact moments afterward. Keeping a
   // moving Mixamo foot unpinned avoids impossible two-foot IK constraints.
@@ -99,10 +100,18 @@
   for(let frame=0;frame<frames;frame++){
    mixer.setTime(clip.duration*frame/(frames-1));
    fbx.updateMatrixWorld(true);
-   const currentHipY=sourceHips.getWorldPosition(new THREE.Vector3()).y;
-   if(hipBaseY===null)hipBaseY=currentHipY;
-   const deltaY=(currentHipY-hipBaseY)/sourceHeight;
+   const currentHip=sourceHips.getWorldPosition(new THREE.Vector3());
+   if(!hipBaseWorld)hipBaseWorld=currentHip.clone();
+   const deltaY=(currentHip.y-hipBaseWorld.y)/sourceHeight;
    hipY[frame]=Math.round(Math.max(-1,Math.min(1,deltaY))*32767);
+   // A Mixamo landing may include forward/lateral hip travel *inside*
+   // the source skeleton rather than as scene-root motion. Keeping only
+   // Y erased that weight shift in-game. Preserve source X/Z relative to
+   // first animated frame, scaled to the same source character height.
+   hipXZ[frame*2]=Math.round(Math.max(-1,Math.min(1,
+    (currentHip.x-hipBaseWorld.x)/sourceHeight))*32767);
+   hipXZ[frame*2+1]=Math.round(Math.max(-1,Math.min(1,
+    (currentHip.z-hipBaseWorld.z)/sourceHeight))*32767);
    for(let foot=0;foot<2;foot++)
     if(sourceFeet[foot])soleSamples[foot].push(sourceFeet[foot].getWorldPosition(new THREE.Vector3()));
    for(let i=0;i<MAP.length;i++){
@@ -145,6 +154,8 @@
   for(let i=0;i<values.length;i++)view.setInt16(i*2,values[i],true);
   const hipBytes=new Uint8Array(frames*2),hipView=new DataView(hipBytes.buffer);
   for(let i=0;i<frames;i++)hipView.setInt16(i*2,hipY[i],true);
+  const hipXZBytes=new Uint8Array(frames*4),hipXZView=new DataView(hipXZBytes.buffer);
+  for(let i=0;i<hipXZ.length;i++)hipXZView.setInt16(i*2,hipXZ[i],true);
   return {
    slot:opts.slot,character:opts.character||'kairo',
    sourceArchive:opts.sourceArchive||'',sourceFile:opts.sourceFile||'',
@@ -157,6 +168,10 @@
    // Older browser-local packs are still valid: missing hipYTrack means
    // the old quaternion-only animation, never a synthetic crouch.
    hipYEncoding:'int16-normalized-height-delta',hipYTrack:encode(hipBytes),
+   // Only Studio-owned air clips need independent in-place source travel.
+   // Older packs lacking hipXZTrack decode and play exactly as before.
+   ...(['landing','fallingIdle'].includes(opts.slot)?{
+    hipXZEncoding:'int16-normalized-height-xz-delta',hipXZTrack:encode(hipXZBytes)}:{}),
    data:encode(bytes)
   };
  }

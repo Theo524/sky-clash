@@ -347,8 +347,11 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const fall=source.motions.find(m=>m.slot==='fallingIdle');
    if(!fall)throw Error('Missing real baked UE5 Falling Idle test fixture');
    await bridge.save({...current.pack,motions:[
-    ...current.pack.motions,
-    {...fall,sourceFile:'studio-assigned-falling-idle-test.fbx'}
+    ...current.pack.motions.filter(m=>!['jump','fallingIdle'].includes(m.slot)),
+    {...fall,slot:'jump',sourceId:'same-recorded-arc-181',
+     sourceFile:'studio-assigned-falling-idle-test.fbx'},
+    {...fall,slot:'fallingIdle',sourceId:'same-recorded-arc-181',
+     sourceFile:'studio-assigned-falling-idle-test.fbx'}
    ]});
   });
   await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive&studioPoseAudit=1');
@@ -430,12 +433,45 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(realFalling.error,null);
   assert.equal(realFalling.transitionError,null);
   assert.equal(realFalling.ownerError,null);
+  // Rising and falling from the SAME saved FBX must advance on one
+  // continuous clock. The old transition rewound Falling Idle to frame 0,
+  // producing a sudden extra torso lean at the apex.
+  const sameSourceArc=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player;
+   g.enterDojo();g.update=()=>{};
+   window.SkyClash.CameraRig.update=()=>{};window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.punchT=0;
+   p.blockHeld=false;p.blocking=false;p.sprinting=false;p.dashing=false;
+   p.landingMotionT=0;p.acro=null;p.jumping=true;p.dropping=false;
+   p.pos.y=p.floor+7;p.vel.set(0,5,0);p.moveIntent.set(0,0,0);
+   for(let i=0;i<15;i++){p.t+=1/60;p.animate(1/60);}
+   const beforeClock=p.v72StudioPack.clock;
+   const hum=p.vrmRig.vrm.humanoid;
+   const joints=['hips','spine','chest','upperChest','leftUpperArm','rightUpperArm'];
+   const before=joints.map(n=>hum.getNormalizedBoneNode(n).quaternion.clone());
+   const beforeSlot=p.v72StudioPack.slot;
+   p.vel.y=-2.5;p.dropping=true;
+   p.t+=1/60;p.animate(1/60);
+   const afterClock=p.v72StudioPack.clock;
+   const maxChange=Math.max(...joints.map((n,i)=>
+    before[i].angleTo(hum.getNormalizedBoneNode(n).quaternion)));
+   return {beforeClock,afterClock,beforeSlot,afterSlot:p.v72StudioPack.slot,
+    maxChange,error:window.SkyClashPublishedActions.error};
+  });
+  assert.equal(sameSourceArc.beforeSlot,'jump');
+  assert.equal(sameSourceArc.afterSlot,'fallingIdle');
+  assert(sameSourceArc.beforeClock>.2&&
+   sameSourceArc.afterClock>sameSourceArc.beforeClock,
+   'Jump and Falling Idle from the SAME source restarted at the apex');
+  assert(sameSourceArc.maxChange<.35,
+   'Same FBX abruptly leaned Kairo forward at the rise-to-fall boundary');
+  assert.equal(sameSourceArc.error,null);
   // Put this temporary browser fixture away before the next landing
   // suite section; never modify the player's real local saved data.
   await page.evaluate(async()=>{
    const bridge=window.SkyClashStudioLiveBridge,current=await bridge.load();
    await bridge.save({...current.pack,motions:
-    current.pack.motions.filter(m=>m.slot!=='fallingIdle')});
+    current.pack.motions.filter(m=>!['fallingIdle','jump'].includes(m.slot))});
   });
   await navigate('?scene=dojo&studioPlaytest=local&flightBody=alive');
   // Real Kairo + VRM: a locally assigned landing must complete at
@@ -613,9 +649,17 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     const phase=i/(savedLanding.frames-1);
     view.setInt16(i*2,Math.round(-.32*Math.sin(Math.PI*phase)*32767),true);
    }
+   const rawXZ=new Uint8Array(savedLanding.frames*4),xzView=new DataView(rawXZ.buffer);
+   for(let i=0;i<savedLanding.frames;i++){
+    const phase=i/(savedLanding.frames-1),travel=Math.sin(Math.PI*phase);
+    xzView.setInt16(i*4,Math.round(.25*travel*32767),true);
+    xzView.setInt16(i*4+2,Math.round(-.1*travel*32767),true);
+   }
    const deep={...savedLanding,speed:.5,sourceFile:'saved-long-landing-test.fbx',
     hipYEncoding:'int16-normalized-height-delta',
-    hipYTrack:btoa(Array.from(raw,b=>String.fromCharCode(b)).join(''))};
+    hipYTrack:btoa(Array.from(raw,b=>String.fromCharCode(b)).join('')),
+    hipXZEncoding:'int16-normalized-height-xz-delta',
+    hipXZTrack:btoa(Array.from(rawXZ,b=>String.fromCharCode(b)).join(''))};
    await bridge.save({...current.pack,
     motions:current.pack.motions.map(m=>m.slot==='landing'?deep:m)});
   });
@@ -630,18 +674,20 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.pos.y=p.floor;p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
    p.landingMotionT=.48;p.v109LandingDuration=.48;
    const hips=p.vrmRig.vrm.humanoid.getNormalizedBoneNode('hips');
-   const origin=hips.position.y,rootBefore=p.pos.y;
-   let lowest=0,midSlot=null,midClock=0,frames=0;
+   const origin=hips.position.clone(),rootBefore=p.pos.y;
+   let lowest=0,largestXZ=0,midSlot=null,midClock=0,frames=0;
    for(let i=0;i<175;i++){
     p.t+=1/60;p.animate(1/60);
-    lowest=Math.min(lowest,hips.position.y-origin);
+    lowest=Math.min(lowest,hips.position.y-origin.y);
+    largestXZ=Math.max(largestXZ,Math.hypot(
+     hips.position.x-origin.x,hips.position.z-origin.z));
     if(i===95){midSlot=p.v72StudioPack.slot;midClock=p.v72StudioPack.clock;}
     if(p.v72StudioPack.slot==='landing')frames++;
     p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
    }
    return {source:s.motionClips.landing.sourceFile,
     duration:s.localPlaytest.localLandingDuration,
-    minCrouch:lowest,midSlot,midClock,frames,
+    minCrouch:lowest,largestXZ,midSlot,midClock,frames,
     physicsUnchanged:p.pos.y===rootBefore,error:s.error};
   });
   assert.equal(longLanding.source,'saved-long-landing-test.fbx');
@@ -655,6 +701,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Extended landing did not play its recorded source frames');
   assert(longLanding.minCrouch<-.34&&longLanding.minCrouch>-1.11,
    'Deep source pelvis motion still hit the old 32cm clamp');
+  assert(longLanding.largestXZ>.1,
+   'Saved FBX horizontal pelvis motion never reaches the rendered Kairo rig');
   assert(longLanding.physicsUnchanged,
    'Visual source movement must not affect the fighter physics root');
   assert.equal(longLanding.error,null);

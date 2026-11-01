@@ -330,7 +330,11 @@ function setupRig(stage,fbx){
  // V78: record source FBX Y-origin after the first sampled frame AND after
  // scaling the diagnostic skeleton to 2.33m. On Character can reproduce
  // real jogging bounce without copying horizontal/root translation.
- if(hips)rig.previewHipBaseY=hips.getWorldPosition(new THREE.Vector3()).y;
+ if(hips){
+   const origin=hips.getWorldPosition(new THREE.Vector3());
+   rig.previewHipBaseY=origin.y;
+   rig.previewHipBaseXZ=origin.clone();
+  }
  return rig;
 }
 function disposeSetup(stage){if(!stage?.loaded)return;const r=stage.loaded;cleanupRig(stage);for(const g of r.geometries)g.dispose();for(const m of r.materials)m.dispose();}
@@ -514,13 +518,16 @@ function renderLoop(now){
  const dt=Math.min(.08,Math.max(0,(now-(renderLoop.last||now))/1000));renderLoop.last=now;
  if(current&&mainRig){const dur=mainRig.clip.duration;
   const opts=actionData[actionFighter]?.[activeAction];
-  const motionSpeed=(viewMode==='character'&&opts&&Action.findImport(imported,opts)===current)?opts.speed:1;
+  const selectedAssigned=!!(viewMode==='character'&&opts&&
+   Action.findImport(imported,opts)===current);
+  const sourceAir=selectedAssigned&&['landing','fallingIdle'].includes(activeAction);
+  const motionSpeed=selectedAssigned?opts.speed:1;
   if(isPlaying)currentT=(currentT+dt*rate*motionSpeed)%dur;
-  poseRig(mainStage,currentT,$('rootMotion').checked);
+  // Source XZ is normally locked. Let the assigned air preview sample
+  // original FBX hips X/Z so Kairo can reproduce the same weight shift.
+  poseRig(mainStage,currentT,$('rootMotion').checked||sourceAir);
   if(viewMode==='character'&&charPreview?.hasModel()&&charPreview.who()===actionFighter){
    try{
-     const selectedAssigned=!!(opts&&Action.findImport(imported,opts)===current);
-     const sourceAir=selectedAssigned&&['landing','fallingIdle'].includes(activeAction);
      charPreview.sample(mainRig,currentT,selectedAssigned?opts.yaw:0,sourceAir);
      charPreview.render();
     }
