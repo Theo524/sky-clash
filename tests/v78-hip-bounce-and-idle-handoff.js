@@ -43,7 +43,9 @@ const studioHTML=read('animation-studio.html'),studioJS=read('js/animation-studi
  preview=read('js/character-motion-preview.js');
 assert(studioHTML.includes('js/v78-studio-hip-bounce.js?v=781'),'Load solver before the preview');
 assert(studioHTML.includes('animation-studio.js?v=839'),'Refresh animation studio import');
-assert(studioJS.includes('rig.previewHipBaseY=hips.getWorldPosition'),'Measure hip in post-scale world meters');
+assert(studioJS.includes('rig.previewHipBaseY=origin.y')&&
+ studioJS.includes('rig.previewHipBaseXZ=origin.clone()'),
+ 'Measure source hip XYZ relative to the post-scale first frame');
 assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest)'));
 
 // Actual published idle data and runtime transition with VRM skinned bones.
