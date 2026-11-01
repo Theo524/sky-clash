@@ -39,12 +39,31 @@ hip.position.y+=.0564;source.updateMatrixWorld(true);
 bounce.apply(THREE,sourceRig,rest);
 assert(vrmHip.position.distanceTo(rest.get('hips').localPosition)<.00001,'Returning to original frame returns hip bind position');
 assert(!bounce.apply(THREE,{hips:hip},rest).applied,'Missing first-frame reference must safely disable');
+// Only assigned Falling Idle/Landing may transfer authored source horizontal
+// hip travel. Other previews above prove it stays locked for walk/run.
+sourceRig.previewHipBaseXZ=new THREE.Vector3(0,firstY,0);
+hip.position.x=.31;hip.position.z=-.17;source.updateMatrixWorld(true);
+const moved=bounce.apply(THREE,sourceRig,rest,{
+ horizontal:true,basis:new THREE.Quaternion(),scene:dst});
+const shifted=vrmHip.getWorldPosition(new THREE.Vector3());
+assert(moved.applied&&Math.hypot(shifted.x-before.x,shifted.z-before.z)>.1,
+ 'Assigned air preview did not reproduce source hip X/Z displacement');
+bounce.apply(THREE,sourceRig,rest,{
+ horizontal:true,basis:new THREE.Quaternion(),scene:dst});
+assert(shifted.distanceTo(vrmHip.getWorldPosition(new THREE.Vector3()))<1e-5,
+ 'Source horizontal preview movement accumulated each seek');
+hip.position.x=0;hip.position.z=0;source.updateMatrixWorld(true);
+bounce.apply(THREE,sourceRig,rest,{
+ horizontal:true,basis:new THREE.Quaternion(),scene:dst});
+assert(vrmHip.position.distanceTo(rest.get('hips').localPosition)<1e-5,
+ 'Returning source hips to first frame must clear visual X/Z shift');
 const studioHTML=read('animation-studio.html'),studioJS=read('js/animation-studio.js'),
  preview=read('js/character-motion-preview.js');
 assert(studioHTML.includes('js/v78-studio-hip-bounce.js?v=781'),'Load solver before the preview');
 assert(studioHTML.includes('animation-studio.js?v=839'),'Refresh animation studio import');
 assert(studioJS.includes('rig.previewHipBaseY=origin.y')&&
- studioJS.includes('rig.previewHipBaseXZ=origin.clone()'),
+ studioJS.includes('rig.previewHipBaseXZ=origin.clone()')&&
+ studioJS.includes("poseRig(mainStage,currentT,$('rootMotion').checked||sourceAir)"),
  'Measure source hip XYZ relative to the post-scale first frame');
 assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest,')&&
  preview.includes('horizontal:preserveFullSource'),
