@@ -1375,6 +1375,7 @@
       item.textContent=name+' — '+(entry.sourceFile||'unknown source')+
        ' ('+seconds+'s, '+entry.speed+'×)'+
        (entry.sampleSupport?' · foot contact captured':'')+
+       (entry.sampleHipXZ?' · source pelvis XYZ captured':'')+
        (name==='punch2'&&entry.attackBeats?.length>1?
         ' · '+entry.attackBeats.length+' original strikes; first beat selected':'');
       item.style.cssText='margin:4px 0;overflow-wrap:anywhere';
@@ -1420,6 +1421,7 @@
         localLandingFrames:status.localPlaytest.localLandingFrames||0,
         localLandingDuration:status.localPlaytest.localLandingDuration||null,
         localLandingClock:status.localPlaytest.localLandingClock||null,
+         localLandingHorizontalCm:status.localPlaytest.localLandingHorizontalCm||0,
         localStopFrames:status.localPlaytest.localStopFrames||0,
         falling:!!fighter.dropping||!!fighter.jumping&&(fighter.vel?.y||0)<-1,
         landingMotionT:+(fighter.landingMotionT||0).toFixed(3),
@@ -1435,7 +1437,7 @@
          impact:m.attackImpact,kickImpact:m.kickImpact,
          selectedImpact:m.slot==='punch2'&&m.attackBeats?.length>1?
           m.attackBeats[0]:m.attackImpact,beatCount:m.attackBeats?.length||1,
-         footContacts:!!m.sampleSupport};
+         footContacts:!!m.sampleSupport,sourceHipXYZ:!!m.sampleHipXZ};
        })
       };
       try{
