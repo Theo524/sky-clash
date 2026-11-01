@@ -75,6 +75,21 @@
   action.play();
   const frames=Math.max(3,Math.min(MAX_FRAMES,Math.round(clip.duration*FPS)+1));
   const values=new Int16Array(frames*MAP.length*4);
+  // A landing's hip-height displacement is essential to its crouch and
+  // impact. Previously game packs contained rotations ONLY: all source
+  // pelvis travel was silently discarded. Encode just a normalized,
+  // visual-only vertical track, with no FBX, root motion, or physics.
+  const hipY=new Int16Array(frames),sourceHips=bones.get('hips');
+  const head0=bones.get('head')?.getWorldPosition(new THREE.Vector3());
+  const feet0=['leftfoot','rightfoot'].map(n=>
+   bones.get(n)?.getWorldPosition(new THREE.Vector3())).filter(Boolean);
+  const sourceFloor=feet0.length?Math.min(...feet0.map(p=>p.y)):
+   (head0?.y||1)-1.6;
+  const sourceHeight=Math.max(.01,Math.abs((head0?.y||sourceFloor+1.6)-sourceFloor));
+  // Use the first ANIMATED pose for the reference, not the FBX bind/T
+  // pose. Otherwise a pelvis translation already present at time zero
+  // becomes a false giant impact dip when the clip is applied.
+  let hipBaseY=null;
   // Record when each source sole actually supports weight. Quaternion-only
   // retarget cannot recover these contact moments afterward. Keeping a
   // moving Mixamo foot unpinned avoids impossible two-foot IK constraints.
@@ -84,6 +99,10 @@
   for(let frame=0;frame<frames;frame++){
    mixer.setTime(clip.duration*frame/(frames-1));
    fbx.updateMatrixWorld(true);
+   const currentHipY=sourceHips.getWorldPosition(new THREE.Vector3()).y;
+   if(hipBaseY===null)hipBaseY=currentHipY;
+   const deltaY=(currentHipY-hipBaseY)/sourceHeight;
+   hipY[frame]=Math.round(Math.max(-1,Math.min(1,deltaY))*32767);
    for(let foot=0;foot<2;foot++)
     if(sourceFeet[foot])soleSamples[foot].push(sourceFeet[foot].getWorldPosition(new THREE.Vector3()));
    for(let i=0;i<MAP.length;i++){
@@ -124,6 +143,8 @@
   }
   const bytes=new Uint8Array(values.length*2),view=new DataView(bytes.buffer);
   for(let i=0;i<values.length;i++)view.setInt16(i*2,values[i],true);
+  const hipBytes=new Uint8Array(frames*2),hipView=new DataView(hipBytes.buffer);
+  for(let i=0;i<frames;i++)hipView.setInt16(i*2,hipY[i],true);
   return {
    slot:opts.slot,character:opts.character||'kairo',
    sourceArchive:opts.sourceArchive||'',sourceFile:opts.sourceFile||'',
@@ -133,6 +154,9 @@
    bones:MAP.map(x=>x[1]),side:[side.x,side.z],
    ...(footContacts?{footContacts}:{}),
    encoding:'int16-le-xyzw-world-bind-delta-base64',
+   // Older browser-local packs are still valid: missing hipYTrack means
+   // the old quaternion-only animation, never a synthetic crouch.
+   hipYEncoding:'int16-normalized-height-delta',hipYTrack:encode(hipBytes),
    data:encode(bytes)
   };
  }

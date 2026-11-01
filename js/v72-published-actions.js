@@ -280,8 +280,23 @@
   const view=new DataView(bytes.buffer),d=new Int16Array(entry.frames*stride);
   for(let i=0;i<d.length;i++)d[i]=view.getInt16(i*2,true);
   const qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
+  let hipSamples=null;
+  if(entry.hipYTrack!==undefined){
+   if(entry.hipYEncoding!=='int16-normalized-height-delta')
+    throw Error('Invalid Studio pelvis track encoding');
+   const encoded=atob(entry.hipYTrack);
+   if(encoded.length!==entry.frames*2)throw Error('Damaged Studio pelvis track');
+   const hipView=new DataView(Uint8Array.from(encoded,c=>c.charCodeAt(0)).buffer);
+   hipSamples=Array.from({length:entry.frames},(_,i)=>hipView.getInt16(i*2,true)/32767);
+  }
+  const sampleHipY=hipSamples?(seconds,loop=false)=>{
+   let frame=seconds*entry.fps,last=entry.frames-1;
+   frame=loop?((frame%last)+last)%last:Math.max(0,Math.min(last,frame));
+   const i=Math.floor(frame),j=Math.min(last,i+1);
+   return hipSamples[i]+(hipSamples[j]-hipSamples[i])*(frame-i);
+  }:null;
   return {
-   ...entry,
+   ...entry,sampleHipY,
    attackImpact:recordedPunchImpact(entry,d),
    attackBeats:entry.slot==='punch2'?recordedPunchBeats(entry,d):[],
    kickImpact:entry.slot==='kick'?recordedKickImpact(entry,d):null,
@@ -462,6 +477,7 @@
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
     samples:BONES.map(()=>new THREE.Quaternion()),
+    hipVisualOffsetY:0,avatarHeight:1.6,
     v154Run:BONES.map(()=>new THREE.Quaternion()),v154Motion:null,frames:0};
   const sceneQ=new THREE.Quaternion(),inverseSceneQ=new THREE.Quaternion(),
         parentQ=new THREE.Quaternion(),target=new THREE.Quaternion(),wanted=new THREE.Quaternion(),
@@ -485,6 +501,12 @@
    if(side.lengthSq()<.1)throw Error('Target character shoulders cannot determine facing');
    for(let i=0;i<all.length;i++)all[i].quaternion.copy(saved[i]);
    scene.updateMatrixWorld(true);
+   const head=get('head')?.getWorldPosition(new THREE.Vector3());
+   const lf=get('leftFoot')?.getWorldPosition(new THREE.Vector3());
+   const rf=get('rightFoot')?.getWorldPosition(new THREE.Vector3());
+   const floor=lf&&rf?Math.min(lf.y,rf.y):head?.y-1.6;
+   state.avatarHeight=head?Math.max(.9,Math.min(2.2,Math.abs(head.y-floor))):1.6;
+   state.hipVisualOffsetY=0;
    state.rig=rig;state.bones=bones;state.bind=bind;state.targetSide=side;
   }
   // Contact correction belongs to this same full-body owner. The authored
@@ -534,6 +556,13 @@
   }
   const localPlant={sampleSupport:()=>({left:true,right:true})};
   fighter.animate=function(dt){
+   // The previous frame's optional Studio hip offset belongs to this
+   // visual writer ONLY. Remove it before other controllers sample bones,
+   // or repeated landings would progressively lower Kairo's entire rig.
+   if(state.hipVisualOffsetY&&state.bones?.[0]){
+    state.bones[0].position.y-=state.hipVisualOffsetY;
+    state.hipVisualOffsetY=0;
+   }
    // Fighter instances survive rematches/dojo resets. A reset discards old
    // world contact anchors and animation events even if guarding resumes
    // before another idle frame has been drawn.
@@ -590,6 +619,15 @@
     serial!==state.localHandoffSerial&&state.bones?
     state.bones.map(b=>b?b.quaternion.clone():null):null;
    old.call(this,dt);
+   // The V79 wrapper runs AFTER V72's user-authored full-body layer.
+   // Its fading optional gestures must never overwrite even one bone
+   // of a locally assigned fall/landing, including its first frame.
+   if(options.choose&&['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+    state.slot=null;state.weight=0;state.releasingExtra=false;
+    state.releaseEntry=null;state.localEntryPose=null;
+    return;
+   }
    // Also applies to the V79 optional-action wrapper, which reuses
    // this attach() function. One authoritative pose during air.
    if(root.SkyClashV100Animator?.ownsAir(this))return;
@@ -763,6 +801,10 @@
     const localLanding=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('landing');
+    const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
+     entry.slot==='fallingIdle'&&status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes('fallingIdle');
+    const authoredAir=localLanding||localFalling;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('runStop')&&!!entry.sampleSupport;
@@ -932,8 +974,12 @@
      node.parent.getWorldQuaternion(parentQ);
      target.copy(parentQ).invert().multiply(wanted).normalize();
      const angle=node.quaternion.angleTo(target),limit=i===0?Math.PI:2.7;
-     if(angle>limit)target.copy(node.quaternion).slerp(target,limit/angle);
-     node.quaternion.slerp(target,state.weight);
+     // Earlier safety clamps limited large rotations against whichever
+     // procedural pose happened to run first. An expressly applied
+     // Mixamo fall/landing must reproduce its *actual* retargeted pose.
+     if(!authoredAir&&angle>limit)
+      target.copy(node.quaternion).slerp(target,limit/angle);
+     node.quaternion.slerp(target,authoredAir?1:state.weight);
      if(handoffEase<1&&state.localEntryPose?.[i]){
       const applied=node.quaternion.clone();
       node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
@@ -950,6 +996,16 @@
      node.updateMatrixWorld(true);
     }
     if(handoff>=1)state.localEntryPose=null;
+    if(localLanding&&entry.sampleHipY&&state.bones?.[0]){
+     // Reproduce the source pelvis squat/dip on the *visual normalized*
+     // hips only. Keep Kairo's physics root, collision, world position,
+     // feet contact and all input responsiveness exactly as before.
+     const scaled=entry.sampleHipY(state.clock,false)*state.avatarHeight;
+     const delta=Math.max(-.32,Math.min(.18,scaled));
+     state.bones[0].position.y+=delta;
+     state.hipVisualOffsetY=delta;
+     status.localPlaytest.localLandingPelvisCm=+((delta)*100).toFixed(1);
+    }
     if(localLanding){
      status.localPlaytest.localLandingFrames=
       (status.localPlaytest.localLandingFrames||0)+1;
@@ -1007,6 +1063,14 @@
         'arched bent-body flight with folded knees':'baked-flight + authored streamline'):'none';
     }
     state.rig.vrm.update(0);
+    // Opt-in real-VRM ownership audit: snapshot EXACT V72 output
+    // before V79, V81, V89 and V100 run. Browser E2E compares the
+    // finished visible frame to this to catch silent pose overrides.
+    if(new URLSearchParams(root.location?.search||'')
+      .get('studioPoseAudit')==='1'&&authoredAir)
+     state.studioPoseSnapshot=state.bones.map(n=>
+      n?n.quaternion.clone():null);
+    else state.studioPoseSnapshot=null;
     state.frames++;
     status.active=state.releasingExtra?'extra-blend-out':
       state.releasingIdle?'idle-blend-to-walk':slot;

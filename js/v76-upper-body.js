@@ -117,6 +117,13 @@
    // Call the original gameplay animation exactly once. It still controls
    // physics, attacks, animations outside upper body and VRM expressions.
    previous.call(this,dt);
+   // The applied Studio fall/landing includes its own elbows and wrists.
+   // No lingering V76 controlled-air blend of the old fighting-idle arms.
+   if(['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+    state.airWeight=0;state.transition=0;
+    state.mode='yield-to-studio-air';return;
+   }
    // V100 airborne recorded clips own shoulders/elbows/wrists outright.
    // The approved V97 idle arms resume only after the air authority yields.
    if(root.SkyClashV100Animator?.ownsAir(this)){
