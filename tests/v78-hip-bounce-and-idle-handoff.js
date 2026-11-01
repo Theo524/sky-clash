@@ -46,7 +46,9 @@ assert(studioHTML.includes('animation-studio.js?v=839'),'Refresh animation studi
 assert(studioJS.includes('rig.previewHipBaseY=origin.y')&&
  studioJS.includes('rig.previewHipBaseXZ=origin.clone()'),
  'Measure source hip XYZ relative to the post-scale first frame');
-assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest)'));
+assert(preview.includes('SkyClashStudioHipBounce?.apply(T,sourceRig,current.rest,')&&
+ preview.includes('horizontal:preserveFullSource'),
+ 'Retargeted Studio Kairo must show saved source air pelvis XYZ in assigned slots');
 
 // Actual published idle data and runtime transition with VRM skinned bones.
 const pack=JSON.parse(read('assets/animations/gameplay/studio-actions-v1.json'));
