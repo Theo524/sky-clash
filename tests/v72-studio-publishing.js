@@ -84,13 +84,13 @@ assert(boot.includes('SkyClashPublishedGamePack.start(window)'));
 assert(html.includes('id="exportGamePack"'));
 assert(html.includes('js/v72-studio-game-export.js?v=721'));
 const source=read('js/v72-studio-game-export.js');
-const runtime=read('js/v72-published-actions.js');
+const fidelityRuntime=read('js/v72-published-actions.js');
 assert(source.includes("hipYEncoding:'int16-normalized-height-delta'")&&
  source.includes('hipYTrack:encode(hipBytes)'),
  'Studio export must preserve vertical pelvis movement in new game packs');
-assert(runtime.includes('sampleHipY')&&runtime.includes('state.hipVisualOffsetY=delta'),
+assert(fidelityRuntime.includes('sampleHipY')&&fidelityRuntime.includes('state.hipVisualOffsetY=delta'),
  'game must reproduce source landing dip on visual hips only');
-assert(runtime.includes('state.bones[0].position.y-=state.hipVisualOffsetY'),
+assert(fidelityRuntime.includes('state.bones[0].position.y-=state.hipVisualOffsetY'),
  'temporary Studio pelvis adjustment must be removed before the next frame');
 assert(read('js/animation-studio.js').includes('GameExporter.bake(THREE,fbx,'));
 assert(read('js/v72-published-actions.js').includes('assets/animations/gameplay/studio-actions-v1.json'));
