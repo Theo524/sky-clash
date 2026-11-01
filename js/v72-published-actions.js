@@ -280,7 +280,7 @@
   const view=new DataView(bytes.buffer),d=new Int16Array(entry.frames*stride);
   for(let i=0;i<d.length;i++)d[i]=view.getInt16(i*2,true);
   const qa=new THREE.Quaternion(),qb=new THREE.Quaternion();
-  let hipSamples=null;
+  let hipSamples=null,hipXZSamples=null;
   if(entry.hipYTrack!==undefined){
    if(entry.hipYEncoding!=='int16-normalized-height-delta')
     throw Error('Invalid Studio pelvis track encoding');
@@ -289,6 +289,24 @@
    const hipView=new DataView(Uint8Array.from(encoded,c=>c.charCodeAt(0)).buffer);
    hipSamples=Array.from({length:entry.frames},(_,i)=>hipView.getInt16(i*2,true)/32767);
   }
+  // Optional horizontal source pelvis movement, omitted from old packs.
+  if(entry.hipXZTrack!==undefined){
+   if(entry.hipXZEncoding!=='int16-normalized-height-xz-delta')
+    throw Error('Invalid Studio horizontal pelvis encoding');
+   const encoded=atob(entry.hipXZTrack);
+   if(encoded.length!==entry.frames*4)
+    throw Error('Damaged Studio horizontal pelvis track');
+   const view=new DataView(Uint8Array.from(encoded,c=>c.charCodeAt(0)).buffer);
+   hipXZSamples=Array.from({length:entry.frames},(_,i)=>[
+    view.getInt16(i*4,true)/32767,view.getInt16(i*4+2,true)/32767]);
+  }
+  const sampleHipXZ=hipXZSamples?(seconds,loop=false)=>{
+   let frame=seconds*entry.fps,last=entry.frames-1;
+   frame=loop?((frame%last)+last)%last:Math.max(0,Math.min(last,frame));
+   const i=Math.floor(frame),j=Math.min(last,i+1),t=frame-i;
+   return {x:hipXZSamples[i][0]+(hipXZSamples[j][0]-hipXZSamples[i][0])*t,
+    z:hipXZSamples[i][1]+(hipXZSamples[j][1]-hipXZSamples[i][1])*t};
+  }:null;
   const sampleHipY=hipSamples?(seconds,loop=false)=>{
    let frame=seconds*entry.fps,last=entry.frames-1;
    frame=loop?((frame%last)+last)%last:Math.max(0,Math.min(last,frame));
@@ -296,7 +314,7 @@
    return hipSamples[i]+(hipSamples[j]-hipSamples[i])*(frame-i);
   }:null;
   return {
-   ...entry,sampleHipY,
+   ...entry,sampleHipY,sampleHipXZ,
    attackImpact:recordedPunchImpact(entry,d),
    attackBeats:entry.slot==='punch2'?recordedPunchBeats(entry,d):[],
    kickImpact:entry.slot==='kick'?recordedKickImpact(entry,d):null,
@@ -472,7 +490,7 @@
     nativeEpoch:null,nativeAttackSerial:null,nativeAttackClip:null,
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
-    localLandingWasActive:false,
+    localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -574,7 +592,7 @@
     state.nativePreviewActive=false;state.nativeAttackSerial=null;state.nativeAttackClip=null;
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
     state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
-    state.localLandingWasActive=false;
+    state.localLandingWasActive=false;state.airHandoffFrom=null;state.airHandoffAge=0;
    }
    // Physics gives static contact .48s and moving contact only .205s.
    // A locally assigned landing keeps its FULL recorded source duration
@@ -619,6 +637,11 @@
    // with procedural bones. Only on a new local attack; no frame-level
    // allocation or extra skeleton owner during ordinary gameplay.
    const serial=Number(this.attackSerial||0);
+   // Capture the final previous-frame rise pose BEFORE legacy animators run.
+   const outgoingRise=!options.choose&&state.slot==='jump'&&
+    status.localPlaytest?.state==='ready'&&
+    status.localPlaytest.slots.includes('fallingIdle')&&state.bones?
+    state.bones.map(n=>n?n.quaternion.clone():null):null;
    const visibleBefore=status.localPlaytest?.state==='ready'&&this.punchT>0&&
     serial!==state.localHandoffSerial&&state.bones?
     state.bones.map(b=>b?b.quaternion.clone():null):null;
@@ -774,7 +797,20 @@
       state.slot=null;state.releasingIdle=true;
       // Retain the LAST published idle keyframe and fade its influence.
      }else{
-      state.slot=slot;state.clock=
+      const previousSlot=state.slot,previousClock=state.clock;
+      const localFall=!options.choose&&slot==='fallingIdle'&&
+       status.localPlaytest?.state==='ready'&&
+       status.localPlaytest.slots.includes('fallingIdle');
+      const rising=previousSlot==='jump'&&localFall&&actions.jump;
+      const sameSource=rising&&actions.jump.yaw===actions.fallingIdle.yaw&&
+       ((actions.jump.sourceId&&actions.fallingIdle.sourceId&&
+         actions.jump.sourceId===actions.fallingIdle.sourceId)||
+        actions.jump.data===actions.fallingIdle.data);
+      // One FBX assigned to both phases stays on ONE source clock: the
+      // old forced rewind caused an instant unwanted body tilt at the apex.
+      state.airHandoffFrom=rising&&!sameSource?outgoingRise:null;
+      state.airHandoffAge=0;
+      state.slot=slot;state.clock=sameSource?previousClock:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
         localStopContactTime(actions.runStop):0;
@@ -871,6 +907,9 @@
     state.localFullBodyPunchActive=fullBodyPunch;
     state.localFullBodyKickActive=localKick;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
+    if(state.airHandoffFrom&&entry.slot==='fallingIdle')
+     state.airHandoffAge+=elapsed;
+    else if(entry.slot!=='fallingIdle')state.airHandoffFrom=null;
     if(state.localEntryPose)state.localEntryAge+=elapsed;
     // V81 sees chained punches as the SAME attack state, so it does not
     // soften a punch1 -> punch2 -> punch3 switch. This short handoff is
@@ -984,6 +1023,14 @@
      if(!authoredAir&&angle>limit)
       target.copy(node.quaternion).slerp(target,limit/angle);
      node.quaternion.slerp(target,authoredAir?1:state.weight);
+     // Different jump/fall FBXs need a short visible-pose handoff rather
+     // than the old one-frame snap. No extra controller writes this pose.
+     if(localFalling&&state.airHandoffFrom?.[i]){
+      const t=Math.min(1,state.airHandoffAge/state.airHandoffDuration);
+      const w=t*t*(3-2*t);
+      node.quaternion.slerpQuaternions(state.airHandoffFrom[i],
+       node.quaternion.clone(),w).normalize();
+     }
      if(handoffEase<1&&state.localEntryPose?.[i]){
       const applied=node.quaternion.clone();
       node.quaternion.slerpQuaternions(state.localEntryPose[i],applied,handoffEase).normalize();
@@ -1000,27 +1047,41 @@
      node.updateMatrixWorld(true);
     }
     if(handoff>=1)state.localEntryPose=null;
-    if(authoredAir&&entry.sampleHipY&&state.bones?.[0]?.parent){
+    if(state.airHandoffFrom&&state.airHandoffAge>=state.airHandoffDuration)
+     state.airHandoffFrom=null;
+    if(authoredAir&&(entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
      // Studio's V78 displays the SOURCE world-up pelvis displacement,
      // including deeper crouches. Match its +/-1.1m visual bound instead
      // of the game's old -32/+18cm truncation. Translate the world-up
      // vector into the hips parent's local coordinate frame so rotations
      // and parent scale cannot redirect it sideways.
-     const scaled=entry.sampleHipY(state.clock,
-      entry.slot==='fallingIdle')*state.avatarHeight;
+     const sampleTime=state.clock,loop=entry.slot==='fallingIdle';
+     const scaled=(entry.sampleHipY?.(sampleTime,loop)||0)*state.avatarHeight;
      const delta=Math.max(-1.1,Math.min(1.1,scaled));
      const hips=state.bones[0],parent=hips.parent;
      const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
      const parentScale=parent.getWorldScale(new THREE.Vector3());
      if([parentScale.x,parentScale.y,parentScale.z].every(v=>
         Number.isFinite(v)&&Math.abs(v)>1e-6)){
-      const localOffset=new THREE.Vector3(0,delta,0).applyQuaternion(parentInverse);
+      // Horizontal source travel is visual-only: same facing correction as
+      // source quaternions. Physics root, collision, and hitboxes stay put.
+      const xz=entry.sampleHipXZ?.(sampleTime,loop);
+      const horizontal=new THREE.Vector3(xz?.x||0,0,xz?.z||0)
+       .multiplyScalar(state.avatarHeight).applyQuaternion(qBasis);
+      horizontal.y=0;
+      if(horizontal.length()>1.1)horizontal.setLength(1.1);
+      horizontal.applyQuaternion(sceneQ);
+      const localOffset=new THREE.Vector3(0,delta,0).add(horizontal)
+       .applyQuaternion(parentInverse);
       localOffset.set(localOffset.x/parentScale.x,
        localOffset.y/parentScale.y,localOffset.z/parentScale.z);
       hips.position.add(localOffset);
       state.hipVisualOffsetLocal.copy(localOffset);
       state.hipVisualOffsetY=delta;
-      if(localLanding)status.localPlaytest.localLandingPelvisCm=+(delta*100).toFixed(1);
+      if(localLanding){
+       status.localPlaytest.localLandingPelvisCm=+(delta*100).toFixed(1);
+       status.localPlaytest.localLandingHorizontalCm=+(horizontal.length()*100).toFixed(1);
+      }
       else status.localPlaytest.localFallingPelvisCm=+(delta*100).toFixed(1);
      }
     }
