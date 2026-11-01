@@ -86,7 +86,10 @@
   const sourceFloor=feet0.length?Math.min(...feet0.map(p=>p.y)):
    (head0?.y||1)-1.6;
   const sourceHeight=Math.max(.01,Math.abs((head0?.y||sourceFloor+1.6)-sourceFloor));
-  const hipBaseY=sourceHips.getWorldPosition(new THREE.Vector3()).y;
+  // Use the first ANIMATED pose for the reference, not the FBX bind/T
+  // pose. Otherwise a pelvis translation already present at time zero
+  // becomes a false giant impact dip when the clip is applied.
+  let hipBaseY=null;
   // Record when each source sole actually supports weight. Quaternion-only
   // retarget cannot recover these contact moments afterward. Keeping a
   // moving Mixamo foot unpinned avoids impossible two-foot IK constraints.
@@ -96,7 +99,9 @@
   for(let frame=0;frame<frames;frame++){
    mixer.setTime(clip.duration*frame/(frames-1));
    fbx.updateMatrixWorld(true);
-   const deltaY=(sourceHips.getWorldPosition(new THREE.Vector3()).y-hipBaseY)/sourceHeight;
+   const currentHipY=sourceHips.getWorldPosition(new THREE.Vector3()).y;
+   if(hipBaseY===null)hipBaseY=currentHipY;
+   const deltaY=(currentHipY-hipBaseY)/sourceHeight;
    hipY[frame]=Math.round(Math.max(-1,Math.min(1,deltaY))*32767);
    for(let foot=0;foot<2;foot++)
     if(sourceFeet[foot])soleSamples[foot].push(sourceFeet[foot].getWorldPosition(new THREE.Vector3()));
