@@ -75,6 +75,30 @@ const idx=runtime.bones.indexOf('leftUpperArm');
 assert(start[idx].angleTo(end[idx])>.5,'Actual left arm movement survived encode/decode');
 assert(published.choose({hp:100,vel:new THREE.Vector3(0,0,4),punchT:0}, {walk:runtime})==='walk');
 assert(published.choose({hp:100,vel:new THREE.Vector3(0,0,4),punchT:.4,attackKind:'kick'},{walk:runtime,kick:runtime})==='kick');
+// Roundtrip the *actual* source pelvis position curves, not a synthetic
+// replacement dip injected only in the browser test. Landing loses real
+// source X/Z motion if the exporter includes just rotation and Y.
+root.animations=[new THREE.AnimationClip('saved source landing',1,[
+ track,new THREE.VectorKeyframeTrack('Hips.position',[0,1],
+  [0,0,0,.36,-.24,.21])])];
+const sourceLanding=writer.bake(THREE,root,{character:'kairo',
+ slot:'landing',sourceFile:'assigned-landing.fbx'});
+assert(sourceLanding.hipXZTrack,'Assigned landing must encode horizontal source hip travel');
+const decodedLanding=published.decode(THREE,sourceLanding);
+const travel=decodedLanding.sampleHipXZ(1,false);
+assert(Math.abs(travel.x-.36/1.6)<.005&&Math.abs(travel.z-.21/1.6)<.005,
+ 'Game landing lost original source forward/lateral hip movement');
+assert(Math.abs(decodedLanding.sampleHipY(1,false)+.24/1.6)<.005,
+ 'Saved landing lost original source vertical weight drop');
+const oldLanding={...sourceLanding};delete oldLanding.hipXZTrack;
+delete oldLanding.hipXZEncoding;
+assert.strictEqual(published.decode(THREE,oldLanding).sampleHipXZ,null,
+ 'Previously applied packs without source XZ must still load');
+assert.throws(()=>published.decode(THREE,{...sourceLanding,hipXZTrack:'AA=='}),
+ 'Malformed saved horizontal motion must fail safely');
+const fallExport=writer.bake(THREE,root,{character:'kairo',
+ slot:'fallingIdle',sourceFile:'assigned-fall.fbx'});
+assert(fallExport.hipXZTrack,'Assigned Falling Idle must retain source pelvis movement');
 const boot=read('js/v66-game-boot.js'),html=read('animation-studio.html');
 assert(boot.includes('SkyClashV76UpperBody.start(window)'),
  'Default game must use one recorded upper-body controller for idle and walk');
@@ -82,7 +106,7 @@ assert(boot.includes("upperMode==='legacy'")&&boot.includes('SkyClashV72Arms.sta
  'Legacy walk-only arm path remains a manual rollback');
 assert(boot.includes('SkyClashPublishedGamePack.start(window)'));
 assert(html.includes('id="exportGamePack"'));
-assert(html.includes('js/v72-studio-game-export.js?v=721'));
+assert(html.includes('js/v72-studio-game-export.js?v=722'));
 const source=read('js/v72-studio-game-export.js');
 const fidelityRuntime=read('js/v72-published-actions.js');
 assert(source.includes("hipYEncoding:'int16-normalized-height-delta'")&&
@@ -100,6 +124,13 @@ assert(fidelityRuntime.includes("entry.slot==='fallingIdle'"),
  'Source pelvis motion must also survive a locally assigned falling idle');
 assert(read('js/character-motion-preview.js').includes('{preserveFullSource}'),
  'Character preview must apply the same full source air joint rotations as game');
+assert(fidelityRuntime.includes('state.airHandoffFrom=rising&&!sameSource?outgoingRise:null'),
+ 'Different source clips must blend from the last displayed rise pose');
+assert(fidelityRuntime.includes('state.slot=slot;state.clock=sameSource?previousClock:'),
+ 'Same saved FBX for Jump and Falling Idle must not rewind at apex');
+assert(source.includes("hipXZEncoding:'int16-normalized-height-xz-delta'")&&
+ read('js/v78-studio-hip-bounce.js').includes('options.horizontal'),
+ 'Source horizontal pelvis motion must match Studio and game playback');
 assert(read('js/animation-studio.js').includes('GameExporter.bake(THREE,fbx,'));
 assert(read('js/v72-published-actions.js').includes('assets/animations/gameplay/studio-actions-v1.json'));
 console.log('PASS: V72 natural Mixamo elbows/wrists, attack-priority, real Studio FBX keyframe export and published-game decode');
