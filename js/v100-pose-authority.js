@@ -2372,7 +2372,7 @@
   if(context.SkyClashPublishedActions?.jumpSequence?.active&&
      !context.SkyClashPublishedActions?.localPlaytest?.requested&&
      f===context.SkyClash?.Game?.heroes?.kairo_venn&&
-     ['jump','fall','landing'].includes(phase))return false;
+     ['prep','jump','fall','landing'].includes(phase))return false;
   // Only the explicitly assigned local Kairo state yields to V72.
   if(localStudioAirSlot(f,context))return false;
   return isPreview(context)&&

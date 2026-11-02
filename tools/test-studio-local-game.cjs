@@ -777,6 +777,52 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(bad.state,'fallback');
   assert(bad.ready,'Corrupt local data must not break shipped combat');
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
+  // Real input buffer + late-animation writer regression: the previous
+  // PR only forced jumping=true, missing the procedural push that a player
+  // actually sees when pressing Jump in normal Training.
+  await navigate('?scene=dojo&studioPoseAudit=1');
+  const realPress=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player,s=window.SkyClashPublishedActions;
+   g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.slamLagT=0;p.awakenChargeT=0;
+   p.punchT=0;p.blastT=0;p.blockHeld=false;p.blocking=false;
+   p.sprinting=false;p.dashing=false;p.acro=null;p.landingMotionT=0;
+   p.jumping=false;p.dropping=false;p.pos.y=p.floor;
+   p.vel.set(0,0,0);p.moveIntent.set(0,0,0);
+   const accepted=p.tryJump(),buffer=p.v108JumpPrepT;
+   p.t+=1/60;p.animate(1/60);
+   const first=p.v72StudioPack.slot,firstClock=p.v72StudioPack.clock;
+   const ownsPrep=window.SkyClashV100Animator?.ownsAir(p);
+   p.v108JumpPrepT=buffer/2;p.t+=1/60;p.animate(1/60);
+   const middleClock=p.v72StudioPack.clock;
+   p.v108JumpPrepT=.0001;p.t+=1/60;p.animate(1/60);
+   const endClock=p.v72StudioPack.clock;
+   p.v108JumpPrepT=0;p.jumping=true;p.vel.y=5;
+   p.pos.y=p.floor+.3;p.t+=1/60;p.animate(1/60);
+   const takeoff=p.v72StudioPack.slot,takeoffClock=p.v72StudioPack.clock;
+   // Boost's optional legacy flip must not displace the recorded jump.
+   p.sprinting=true;p.vel.set(5,5,0);p.acro={type:'flip',t:0,duration:.64,direction:1};
+   p.t+=1/60;p.animate(1/60);
+   const boosted=p.v72StudioPack.slot,flipRemoved=p.acro===null;
+   return {active:s.jumpSequence?.active,accepted,buffer,first,firstClock,
+    middleClock,endClock,ownsPrep,takeoff,takeoffClock,boosted,flipRemoved,
+    error:s.error};
+  });
+  assert(realPress.active&&realPress.accepted&&realPress.buffer>.05,
+   'Real Kairo input did not start the recorded buffered jump');
+  assert.equal(realPress.first,'jump','Procedural preparation stole the real Mixamo takeoff');
+  assert.equal(realPress.ownsPrep,false,'V100 still owns the Mixamo preparation');
+  assert(realPress.firstClock<realPress.middleClock&&
+   realPress.middleClock<realPress.endClock&&realPress.endClock<=.41,
+   'Mixamo source anticipation was skipped instead of played during ground contact');
+  assert.equal(realPress.takeoff,'jump');
+  assert(realPress.takeoffClock>=realPress.endClock,
+   'Recorded takeoff restarted instead of continuing after buffered physical launch');
+  assert.equal(realPress.boosted,'jumpQuick',
+   'Boost jump incorrectly used a flight or procedural animation');
+  assert(realPress.flipRemoved,'Legacy random flip still rotates Kairo over Mixamo');
+  assert.equal(realPress.error,null);
   // The five player-selected Mixamo FBXs are now part of ORDINARY
   // Kairo gameplay. No Jump Lab URL, importer, or browser save is used.
   await navigate('?scene=dojo&studioPoseAudit=1');

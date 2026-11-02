@@ -106,7 +106,9 @@
     const recordedJump=root.SkyClashPublishedActions?.jumpSequence?.active&&
      !root.SkyClashPublishedActions?.localPlaytest?.requested&&
      this===root.SkyClash?.Game?.heroes?.kairo_venn&&
-     ['jump','fall','landing'].includes(next);
+     (['jump','fall','landing'].includes(next)||
+      this.v108JumpPrepT>0&&
+      ['jump','jumpQuick'].includes(this.v72StudioPack?.slot));
     if(recordedJump||
        (next==='fall'&&appliedStudioSlot(this,'fallingIdle'))||
        (next==='landing'&&appliedStudioSlot(this,'landing'))){
