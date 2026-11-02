@@ -937,6 +937,64 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Boost jump incorrectly used a flight or procedural animation');
   assert(realPress.flipRemoved,'Legacy random flip still rotates Kairo over Mixamo');
   assert.equal(realPress.error,null);
+  // Exercise the full real Fighter.update -> V108 buffer -> physical
+  // ascent -> contact -> recovery path. Earlier forced-state tests missed
+  // full-jump source discontinuities and abrupt leg rotations.
+  await navigate('?scene=dojo&studioPoseAudit=1');
+  const physicalJumps=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player;g.enterDojo();
+   g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   const joints=['leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const hum=p.vrmRig.vrm.humanoid;
+   const nodes=joints.map(n=>hum.getNormalizedBoneNode(n));
+   const trials=[];
+   for(const moving of [false,true]){
+    p.hp=100;p.stun=0;p.downT=0;p.slamLagT=0;
+    p.punchT=0;p.blastT=0;p.blockHeld=false;p.blocking=false;
+    p.sprinting=false;p.dashing=false;p.acro=null;
+    p.jumping=false;p.dropping=false;p.v108JumpPrepT=0;
+    p.v108JumpPrepDuration=0;p.vert=0;p.landingMotionT=0;
+    p.pos.y=p.floor;p.pos.x=0;p.pos.z=0;
+    p.vel.set(moving?5:0,0,0);
+    p.moveIntent.set(moving?1:0,0,0);
+    p.v72StudioPack.slot=null;p.v72StudioPack.clock=0;
+    p.v72StudioPack.jumpMode=null;p.v72StudioPack.landingVisualUntil=0;
+    p.v72StudioPack.jumpLandingFinished=false;
+    const started=p.tryJump(),seq=[],trace=[];
+    let previous=nodes.map(n=>n.quaternion.clone());
+    let maxLegStep=0,maxLegName=null,maxLegFrame=0;
+    for(let i=0;i<125;i++){
+     p.update(1/60);
+     const slot=p.v72StudioPack.slot||'none';
+     if(seq.at(-1)!==slot)seq.push(slot);
+     if(i%4===0)trace.push([i,slot,+p.v72StudioPack.clock.toFixed(2),
+      +((p.pos.y||0)-p.floor).toFixed(2)]);
+     nodes.forEach((n,j)=>{
+      const delta=previous[j].angleTo(n.quaternion)*180/Math.PI;
+      if(delta>maxLegStep){maxLegStep=delta;maxLegName=joints[j];maxLegFrame=i;}
+      previous[j].copy(n.quaternion);
+     });
+    }
+    trials.push({moving,started,seq,trace,maxLegStep:+maxLegStep.toFixed(2),
+     maxLegName,maxLegFrame,airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
+   }
+   return trials;
+  });
+  console.log('KAIRO_REAL_PHYSICS_MIXAMO_JUMPS '+JSON.stringify(physicalJumps));
+  for(const trial of physicalJumps){
+   assert(trial.started,'Actual jump input was refused in full physics trace');
+   assert(trial.seq.includes(trial.moving?'jumpQuick':'jump'),
+    'Actual physics jump failed to choose the correct Mixamo takeoff');
+   assert(trial.seq.includes('landing'),
+    'Actual jump failed to enter the original source-matched landing');
+   assert(!trial.seq.includes('jumpDown')&&!trial.seq.includes('fallingIdle'),
+    'Old partial descent or disconnected Falling Idle hijacked an ordinary jump');
+   assert(trial.maxLegStep<80,
+    'Visible VRM leg rotated more than 80 degrees in one gameplay frame');
+   assert(!trial.airborne,'Actual jump did not return to grounded physics');
+  }
   // The five player-selected Mixamo FBXs are now part of ORDINARY
   // Kairo gameplay. No Jump Lab URL, importer, or browser save is used.
   await navigate('?scene=dojo&studioPoseAudit=1');
