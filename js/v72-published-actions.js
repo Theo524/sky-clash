@@ -405,6 +405,18 @@
    !fighter.sprinting&&!fighter.dashing&&
    !(fighter.acro&&fighter.acro.type!=='landing');
   if(localLanding)return actions.landing?'landing':null;
+   // Opt-in local five-piece test: a physical jump takes precedence over
+   // the height-based 'flying' getter without affecting powered flight.
+   const lab=root.SkyClashPublishedActions?.localPlaytest?.jumpLab;
+   if(lab&&fighter.characterId==='kairo_venn'&&!fighter.sprinting&&
+      !fighter.dashing&&(fighter.jumping||fighter.dropping)&&
+      !(fighter.acro&&fighter.acro.type!=='landing'&&fighter.acro.type!=='ninjaLeap')&&
+      !fighter.launched&&!fighter.spiked){
+    const descending=fighter.dropping||(fighter.vel?.y||0)<-.7;
+    if(!descending)return lab==='quick'?'jumpQuick':'jump';
+    if(lab==='quick')return fighter.v72StudioPack?.quickFallDone?'fallingIdle':'jumpDown';
+    return 'fallingIdle';
+   }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
@@ -491,6 +503,7 @@
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
+     quickFallDone:false,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -638,7 +651,8 @@
    // allocation or extra skeleton owner during ordinary gameplay.
    const serial=Number(this.attackSerial||0);
    // Capture the final previous-frame rise pose BEFORE legacy animators run.
-   const outgoingRise=!options.choose&&state.slot==='jump'&&
+   const outgoingRise=!options.choose&&
+    ['jump','jumpQuick','jumpDown'].includes(state.slot)&&
     status.localPlaytest?.state==='ready'&&
     status.localPlaytest.slots.includes('fallingIdle')&&state.bones?
     state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -798,18 +812,23 @@
       // Retain the LAST published idle keyframe and fade its influence.
      }else{
       const previousSlot=state.slot,previousClock=state.clock;
-      const localFall=!options.choose&&slot==='fallingIdle'&&
+      const localFall=!options.choose&&
+       ['fallingIdle','jumpDown'].includes(slot)&&
        status.localPlaytest?.state==='ready'&&
-       status.localPlaytest.slots.includes('fallingIdle');
-      const rising=previousSlot==='jump'&&localFall&&actions.jump;
+       status.localPlaytest.slots.includes(slot);
+      const rising=previousSlot==='jump'&&slot==='fallingIdle'&&
+       localFall&&actions.jump;
+      const transition=localFall&&
+       ['jump','jumpQuick','jumpDown'].includes(previousSlot);
       const sameSource=rising&&actions.jump.yaw===actions.fallingIdle.yaw&&
        ((actions.jump.sourceId&&actions.fallingIdle.sourceId&&
          actions.jump.sourceId===actions.fallingIdle.sourceId)||
         actions.jump.data===actions.fallingIdle.data);
       // One FBX assigned to both phases stays on ONE source clock: the
       // old forced rewind caused an instant unwanted body tilt at the apex.
-      state.airHandoffFrom=rising&&!sameSource?outgoingRise:null;
+      state.airHandoffFrom=transition&&!sameSource?outgoingRise:null;
       state.airHandoffAge=0;
+      if(['jump','jumpQuick','landing'].includes(slot))state.quickFallDone=false;
       state.slot=slot;state.clock=sameSource?previousClock:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
@@ -842,9 +861,13 @@
      entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('landing');
     const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
-     entry.slot==='fallingIdle'&&status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes('fallingIdle');
-    const authoredAir=localLanding||localFalling;
+     ['fallingIdle','jumpDown'].includes(entry.slot)&&
+     status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes(entry.slot);
+    const localJump=!options.choose&&this.characterId==='kairo_venn'&&
+     ['jump','jumpQuick'].includes(entry.slot)&&
+     status.localPlaytest?.jumpLab&&status.localPlaytest.slots.includes(entry.slot);
+    const authoredAir=localLanding||localFalling||localJump;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('runStop')&&!!entry.sampleSupport;
@@ -962,6 +985,7 @@
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
      }
+     if(slot==='jumpDown'&&state.clock>=entry.seconds)state.quickFallDone=true;
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
      if(boostClip&&slot==='boost'&&actions.run&&state.v154Motion?.ground>.001){
       // 18-frame old sprint had frantic lower-body pedalling. Retain its
@@ -1025,7 +1049,7 @@
      node.quaternion.slerp(target,authoredAir?1:state.weight);
      // Different jump/fall FBXs need a short visible-pose handoff rather
      // than the old one-frame snap. No extra controller writes this pose.
-     if(localFalling&&state.airHandoffFrom?.[i]){
+     if((localFalling||localJump)&&state.airHandoffFrom?.[i]){
       const t=Math.min(1,state.airHandoffAge/state.airHandoffDuration);
       const w=t*t*(3-2*t);
       node.quaternion.slerpQuaternions(state.airHandoffFrom[i],
@@ -1319,6 +1343,29 @@
      (context.console||console).warn('Local Studio moves unavailable; published combat preserved',err);
     }
    }
+   // Jump Lab exists ONLY under the explicit URL and a separate browser key.
+   // Never replace the user's saved active Studio pack or protected Base.
+   const jumpLab=flags.get('jumpLab');
+   if(localRequested&&['full','quick'].includes(jumpLab)){
+    try{
+     const savedLab=await context.SkyClashStudioLiveBridge?.loadJumpLab?.();
+     if(!savedLab)throw Error('No five-clip Jump Lab installed. Open jump-lab.html.');
+     const overrides={};
+     for(const entry of savedLab.pack.motions)
+      overrides[entry.slot]=decode(context.THREE,entry);
+     for(const name of ['jump','jumpQuick','jumpDown','fallingIdle','landing'])
+      if(!overrides[name])throw Error('Jump Lab missing '+name);
+     Object.assign(actions,overrides);
+     status.localPlaytest.state='ready';
+     status.localPlaytest.error=null;
+     status.localPlaytest.slots=[...new Set([...status.localPlaytest.slots,...Object.keys(overrides)])];
+     status.localPlaytest.jumpLab=jumpLab;
+     status.localPlaytest.jumpLabSources=savedLab.pack.motions.map(m=>m.sourceFile);
+    }catch(err){
+     status.localPlaytest.jumpLabError=String(err);
+     (context.console||console).warn('Jump Lab unavailable; approved clips retained',err);
+    }
+   }
    // Pass the actual approved idle recording (NOT the old fighting-idle
    // fallback) to the continuous V76 upper-body owner for the V92 lab.
    // This is the same clip already used by V72 for torso and legs.
@@ -1345,7 +1392,8 @@
     notice.style.cssText='position:fixed;z-index:99999;top:8px;right:8px;max-width:290px;padding:8px 11px;border-radius:8px;background:#0b1b28ee;color:#e6f9ff;font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 10px #0009';
     const title=context.document.createElement('div');
     title.textContent=status.localPlaytest.state==='ready'?
-     'Kairo: '+status.localPlaytest.slots.length+' local moves active':
+     'Kairo: '+status.localPlaytest.slots.length+' local moves active'+
+     (status.localPlaytest.jumpLab?' · JUMP LAB '+status.localPlaytest.jumpLab.toUpperCase():''):
      'Local moves not loaded — original game active';
     notice.appendChild(title);
     if(status.localPlaytest.baseVersion){

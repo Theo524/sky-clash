@@ -777,7 +777,89 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(bad.state,'fallback');
   assert(bad.ready,'Corrupt local data must not break shipped combat');
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
-  assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
+  // Opt-in five-piece Jump Lab: exercise the actual browser importer,
+  // independent IndexedDB key, and Kairo VRM on both jump sequence modes.
+  // Use shipped recorded source clips as synthetic CI fixtures only:
+  // the player's five ORIGINAL FBXs stay in their local downloadable pack.
+  const jumpFixture=await page.evaluate(async()=>{
+   const source=await (await fetch('assets/animations/gameplay/studio-actions-v1.json')).json();
+   const recorded=source.motions.find(m=>m.character==='kairo'&&m.slot==='idle');
+   if(!recorded)throw Error('No recorded Kairo motion for test');
+   const slots=['jump','jumpQuick','jumpDown','fallingIdle','landing'];
+   return {schema:source.schema,revision:1,jumpLabVersion:1,
+    motions:slots.map((slot,i)=>{
+     const short=slot==='jumpDown',frames=short?12:recorded.frames;
+     return {...recorded,slot,sourceFile:'ci-'+slot+'.fbx',
+      sourceId:'test-jump-'+i,speed:1,frames,
+      seconds:(frames-1)/30,
+      data:short?btoa(atob(recorded.data).slice(0,frames*20*4*2)):recorded.data,
+      ...(short&&recorded.hipYTrack?
+       {hipYTrack:btoa(atob(recorded.hipYTrack).slice(0,frames*2))}:{})};
+    })};
+  });
+  await page.goto(base+'jump-lab.html',{waitUntil:'domcontentloaded'});
+  await page.waitForFunction(()=>window.SkyClashStudioLiveBridge?.saveJumpLab,
+   null,{timeout:20000});
+  await page.locator('#pack').setInputFiles({
+   name:'sky-clash-five-jump-lab-pack.json',
+   mimeType:'application/json',
+   buffer:Buffer.from(JSON.stringify(jumpFixture))
+  });
+  await page.waitForFunction(()=>
+   document.querySelector('#full')&&!document.querySelector('#full').classList.contains('disabled'),
+   null,{timeout:30000});
+  assert((await page.locator('#sources li').allTextContents()).length===5,
+   'Jump Lab did not install five isolated FBX clips');
+  await navigate('?scene=dojo&studioPlaytest=local&jumpLab=full&airLab=jump');
+  const fullJump=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player;
+   g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.punchT=0;p.blastT=0;
+   p.blockHeld=false;p.blocking=false;p.sprinting=false;p.dashing=false;
+   p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
+   p.moveIntent.set(0,0,0);p.pos.y=p.floor+5;p.vel.set(0,5,0);
+   p.animate(1/60);const rise=p.v72StudioPack.slot;
+   p.vel.y=-3;p.animate(1/60);const fall=p.v72StudioPack.slot;
+   p.jumping=false;p.dropping=false;p.pos.y=p.floor;p.landingMotionT=1.2;
+   p.animate(1/60);const land=p.v72StudioPack.slot;
+   return {lab:window.SkyClashPublishedActions.localPlaytest.jumpLab,
+    rise,fall,land,error:window.SkyClashPublishedActions.error,
+    controlRoot:!!p.model?.root};
+  });
+  assert.equal(fullJump.lab,'full');
+  assert.deepEqual([fullJump.rise,fullJump.fall,fullJump.land],
+   ['jump','fallingIdle','landing'],
+   'Full Jump Lab must beat the height-based flight selector and land');
+  assert.equal(fullJump.error,null);
+  await navigate('?scene=dojo&studioPlaytest=local&jumpLab=quick&airLab=jump');
+  const quickJump=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player;
+   g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   p.hp=100;p.stun=0;p.downT=0;p.punchT=0;p.blastT=0;
+   p.blockHeld=false;p.blocking=false;p.sprinting=false;p.dashing=false;
+   p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
+   p.moveIntent.set(0,0,0);p.pos.y=p.floor+5;p.vel.set(0,5,0);
+   p.animate(1/60);const rise=p.v72StudioPack.slot;
+   p.vel.y=-3;let down=false,idle=false;
+   for(let i=0;i<130;i++){p.animate(1/60);
+    if(p.v72StudioPack.slot==='jumpDown')down=true;
+    if(p.v72StudioPack.slot==='fallingIdle')idle=true;
+    if(idle)break;
+   }
+   return {rise,down,idle,lab:window.SkyClashPublishedActions.localPlaytest.jumpLab,
+    error:window.SkyClashPublishedActions.error};
+  });
+  assert.equal(quickJump.lab,'quick');
+  assert.equal(quickJump.rise,'jumpQuick');
+  assert(quickJump.down,'Quick Jump did not show Jump Down');
+  assert(quickJump.idle,'Jump Down must play ONCE then hand off to Falling Idle');
+  assert.equal(quickJump.error,null);
+  await navigate('?scene=dojo');
+  assert.equal(await page.evaluate(()=>window.SkyClashPublishedActions.localPlaytest.state),'off',
+   'Normal game must not read or play the installed Jump Lab');
+    assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
   await page.evaluate(()=>window.SkyClashStudioLiveBridge.clear());
   // Studio's browser-local FBX/ZIP gallery must keep Rokoko Superhero
   // clips independent from the originally imported Mixamo collection.

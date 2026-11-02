@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sky Clash · Five-Mixamo Jump Lab</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui,sans-serif;background:#09131d;color:#eef5fc}
+*{box-sizing:border-box}body{max-width:760px;margin:auto;padding:clamp(16px,4vw,50px)}
+h1{font-size:clamp(29px,4vw,43px);line-height:1.08}
+p{line-height:1.58;color:#bacbd8}article{background:#142535;border:1px solid #365268;border-radius:15px;padding:19px;margin:20px 0}
+label{display:block;margin:12px 0;color:#cce3f2}input{width:100%;padding:12px;background:#081520;border:1px dashed #759ab0;border-radius:9px;color:inherit}
+a.action,button{display:inline-block;margin:8px 9px 8px 0;padding:12px 17px;border:0;border-radius:9px;background:#45b7e5;color:#06121b;font-weight:700;text-decoration:none;cursor:pointer}
+a.alt{background:#c6daed}button.clear{background:#374c5b;color:#eef5fc}
+a.disabled{opacity:.35;pointer-events:none}
+small{color:#b3c6d7}code{color:#c9e5ed}li{padding:3px}#status{font-weight:600;color:#c5e8dc}
+</style></head><body><small>SKY CLASH · PRIVATE BROWSER TEST</small>
+<h1>Five-piece Mixamo Jump Lab</h1>
+<p>Compare two jump combinations on Kairo without changing your saved Animation Studio assignments, working game pack, protected Base, combat, or flight. The five keyframe animations stay in this browser only.</p>
+<article>
+<h2>1. Install the prepared test pack</h2>
+<p>Choose <strong>sky-clash-five-jump-lab-pack.json</strong> from this chat. This pack contains five baked animations from the FBXs you uploaded, not their original meshes.</p>
+<label for="pack">Your five-clip JSON</label>
+<input id="pack" type="file" accept=".json,application/json">
+<p id="status" role="status">Checking whether a jump lab is already installed…</p>
+<div id="sources"></div>
+</article>
+<article>
+<h2>2. Compare full versus quick</h2>
+<p><strong>Full jump:</strong> Jumping Up(1) → Falling Idle(1) → Falling To Landing(1).</p>
+<p><strong>Quick jump:</strong> Jumping Up (1) → one-shot Jumping Down(1) → Falling Idle(1) for any longer descent → Falling To Landing(1).</p>
+<p>Both test sequences use the existing Kairo gravity and collision. Press the normal Jump control in Training. The original landing clip is kept available as soon as this lab is off.</p>
+<a class="action disabled" id="full" href="index.html?scene=dojo&amp;studioPlaytest=local&amp;jumpLab=full&amp;airLab=jump">Test full jump</a>
+<a class="action alt disabled" id="quick" href="index.html?scene=dojo&amp;studioPlaytest=local&amp;jumpLab=quick&amp;airLab=jump">Test quick jump</a>
+</article>
+<article>
+<h2>3. Return to approved gameplay</h2>
+<a class="action alt" href="index.html?scene=dojo">Play original game</a>
+<button class="clear" id="clear" type="button">Remove only the Jump Lab</button>
+<p><small>Your browser-local saved Mixamo assignments and approved Base are separate and never deleted by this page. If the result looks wrong, switch back here and compare the other mode.</small></p>
+</article>
+<script src="js/studio-live-bridge.js?v=4"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id),bridge=window.SkyClashStudioLiveBridge;
+const required=['jump','jumpQuick','jumpDown','fallingIdle','landing'];
+function reveal(saved){
+ const ok=!!saved;
+ $('full').classList.toggle('disabled',!ok);
+ $('quick').classList.toggle('disabled',!ok);
+ $('status').textContent=ok?'Five-piece Jump Lab installed in this browser. Ready to test.':
+  'No Jump Lab installed yet. Choose the five-clip JSON above.';
+ $('sources').replaceChildren();
+ if(ok){
+  const ul=document.createElement('ul');
+  for(const m of saved.pack.motions){const li=document.createElement('li');
+   li.textContent=m.slot+': '+m.sourceFile+' · '+m.seconds.toFixed(2)+'s';
+   ul.appendChild(li);
+  }
+  $('sources').appendChild(ul);
+ }
+}
+async function refresh(){try{reveal(await bridge.loadJumpLab())}catch(e){$('status').textContent='Storage unavailable: '+e.message;}}
+$('pack').addEventListener('change',async function(){
+ const file=this.files?.[0];if(!file)return;
+ $('status').textContent='Validating all five animations…';
+ try{
+  const data=JSON.parse(await file.text());
+  if(data.jumpLabVersion!==1||data.motions?.length!==5||
+    required.some(name=>!data.motions.some(m=>m.slot===name)))
+   throw Error('This is not the five-piece Jump Lab JSON.');
+  await bridge.saveJumpLab(data);
+  await refresh();
+ }catch(e){$('status').textContent='Could not install: '+e.message;}
+});
+$('clear').addEventListener('click',async()=>{
+ try{await bridge.clearJumpLab();await refresh()}catch(e){$('status').textContent=e.message;}
+});
+refresh();
+</script></body></html>
