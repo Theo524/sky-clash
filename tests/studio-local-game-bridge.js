@@ -21,6 +21,21 @@ for(const bad of [
 assert(bridge.supportedSlots.includes('punch1'));
 assert(bridge.supportedSlots.includes('kick'));
 assert.equal(bridge.baseVersion,1);
+assert(bridge.supportedSlots.includes('jumpQuick')&&
+ bridge.supportedSlots.includes('jumpDown'),
+ 'Two alternate Jump Lab clips must decode in the isolated test store');
+for(const action of ['saveJumpLab','loadJumpLab','clearJumpLab'])
+ assert.equal(typeof bridge[action],'function',action+' must be available');
+const jumpLabPage=read('jump-lab.html'),jumpBridge=read('js/studio-live-bridge.js');
+assert(jumpLabPage.includes('id="full"')&&jumpLabPage.includes('id="quick"'));
+assert(jumpLabPage.includes('bridge.saveJumpLab(data)')&&
+ jumpLabPage.includes('bridge.clearJumpLab()'));
+assert(jumpBridge.includes("JUMP_LAB_KEY='kairo-five-jump-lab-v1'"));
+assert(jumpBridge.includes('store.put({id:JUMP_LAB_KEY,pack,updatedAt})'));
+assert(!jumpLabPage.includes('bridge.save(data)')&&
+ !jumpLabPage.includes('bridge.saveBase('),
+ 'Jump Lab cannot overwrite working Studio moves or approved Base');
+
 for(const method of ['saveBase','loadBase','restoreBase','importBase'])
  assert.equal(typeof bridge[method],'function','Protected baseline API '+method);
 const bridgeSource=read('js/studio-live-bridge.js');
@@ -183,6 +198,26 @@ assert(html.includes('animation-studio.js?v=839&fix=87&studioLocal=2'));
 assert(!read('assets/animations/gameplay/studio-actions-v1.json').includes('local-apply-to-game-test'));
 // The named editor moves must be used by actual special-attack kinds
 // when and ONLY when that slot was explicitly applied in the local pack.
+// A test jump uses the locally authored motion even when the 'flying'
+ // height getter is already true. Public flight remains unchanged.
+const testJumpFighter={characterId:'kairo_venn',hp:100,jumping:true,
+ flying:true,vel:{x:0,y:4,z:0},punchT:0,landingMotionT:0};
+const jumpChoices={jump:{},jumpQuick:{},jumpDown:{},fallingIdle:{},landing:{},
+ floating:{},flying:{}};
+const labStatus=globalThis.SkyClashPublishedActions;
+globalThis.SkyClashPublishedActions={localPlaytest:{
+ state:'ready',jumpLab:'full',slots:Object.keys(jumpChoices)}};
+assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jump');
+assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices),
+ 'fallingIdle');
+globalThis.SkyClashPublishedActions.localPlaytest.jumpLab='quick';
+assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jumpQuick');
+assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices),
+ 'jumpDown');
+assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{quickFallDone:true},
+ vel:{x:0,y:-4,z:0}},jumpChoices),'fallingIdle');
+if(labStatus===undefined)delete globalThis.SkyClashPublishedActions;
+else globalThis.SkyClashPublishedActions=labStatus;
 const priorStatus=globalThis.SkyClashPublishedActions;
 const fighter={hp:100,vel:{x:0,z:0},punchT:.3,punchSide:1,attackSerial:3};
 const available={punch3:{},kick:{},uppercut:{},meteor:{}};
