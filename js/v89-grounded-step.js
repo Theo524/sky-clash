@@ -38,6 +38,9 @@
  const eligible=f=>!!(f&&f.hp>0&&!f.flying&&!f.jumping&&!f.dropping&&
   // Do not layer V89 procedural steps/foot pins over an expressly
   // assigned Studio landing on its first grounded movement frame.
+  !(root.SkyClashPublishedActions?.jumpSequence?.active&&
+    !root.SkyClashPublishedActions?.localPlaytest?.requested&&
+    (f.v72StudioPack?.landingVisualUntil||0)>(f.t||0))&&
   !(f.landingMotionT>0&&
     root.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
     root.SkyClashPublishedActions.localPlaytest.slots.includes('landing')&&
