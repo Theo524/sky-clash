@@ -426,7 +426,10 @@
    if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
    if(fighter.jumping){
     const descending=(fighter.vel?.y||0)<-.7;
-    const quick=pose?.jumpMode?pose.jumpMode==='quick':
+    const continuing=pose&&['jump','jumpQuick','jumpDown','fallingIdle']
+     .includes(pose.slot);
+    const quick=continuing&&pose.jumpMode?
+     pose.jumpMode==='quick':
      Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
     if(!descending)return quick&&actions.jumpQuick?'jumpQuick':
      actions.jump?'jump':null;
@@ -1115,7 +1118,11 @@
     if(handoff>=1)state.localEntryPose=null;
     if(state.airHandoffFrom&&state.airHandoffAge>=state.airHandoffDuration)
      state.airHandoffFrom=null;
-    if(authoredAir&&(entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
+    if(authoredAir&&
+       // Physical jump already raises/lowers the capsule. Applying the
+       // full source takeoff Y on top doubles the ascent and looks wrong.
+       (!direct||!['jump','jumpQuick','jumpDown'].includes(slot))&&
+       (entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
      // Studio's V78 displays the SOURCE world-up pelvis displacement,
      // including deeper crouches. Match its +/-1.1m visual bound instead
      // of the game's old -32/+18cm truncation. Translate the world-up
