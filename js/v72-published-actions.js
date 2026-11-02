@@ -412,11 +412,22 @@
   const recorded=root.SkyClashPublishedActions?.jumpSequence?.active&&
    fighter.characterId==='kairo_venn'&&
    !root.SkyClashPublishedActions?.localPlaytest?.requested;
-  if(recorded&&!fighter.dashing&&!fighter.sprinting&&
+  if(recorded&&!fighter.dashing&&
+     (!fighter.sprinting||fighter.jumping||fighter.dropping)&&
      !(fighter.acro&&fighter.acro.type!=='landing'&&
-       fighter.acro.type!=='ninjaLeap')&&
+       fighter.acro.type!=='ninjaLeap'&&fighter.acro.type!=='flip')&&
      !fighter.launched&&!fighter.spiked){
    const pose=fighter.v72StudioPack;
+   // During the existing V108 input buffer the real Mixamo takeoff must
+   // own Kairo's crouch, not the unrelated procedural V100 push pose.
+   if(fighter.v108JumpPrepT>0&&!fighter.jumping&&!fighter.flying){
+    // Keep the selected Mixamo clip through the existing input buffer,
+    // even if horizontal velocity crosses the short/full threshold.
+    const quick=pose&&['jump','jumpQuick'].includes(pose.slot)&&pose.jumpMode?
+     pose.jumpMode==='quick':
+     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
+    return quick&&actions.jumpQuick?'jumpQuick':actions.jump?'jump':null;
+   }
    // Physical collision starts landing, visual recovery finishes on its
    // OWN clock. Do not extend landingMotionT: it gates actual gameplay.
    if(!fighter.flying&&!fighter.jumping&&!fighter.dropping&&
@@ -671,6 +682,12 @@
    // with procedural bones. Only on a new local attack; no frame-level
    // allocation or extra skeleton owner during ordinary gameplay.
    const serial=Number(this.attackSerial||0);
+   // A sprinting Kairo jump can randomly request the legacy cosmetic
+   // flip. Cancel ONLY that decoration: it rotates the whole model and
+   // hides the user-authored Mixamo jump, without affecting jump physics.
+   if(status.jumpSequence?.active&&!status.localPlaytest?.requested&&
+      this.characterId==='kairo_venn'&&this.jumping&&this.acro?.type==='flip')
+    this.acro=null;
    // Capture the final previous-frame rise pose BEFORE legacy animators run.
    const outgoingRise=!options.choose&&
     ['jump','jumpQuick','jumpDown','fallingIdle'].includes(state.slot)&&
@@ -688,7 +705,7 @@
        root.SkyClashV100Animator?.localStudioAirSlot?.(this))||
        status.jumpSequence?.active&&this.characterId==='kairo_venn'&&
        !status.localPlaytest?.requested&&
-       (this.jumping||this.dropping||
+       (this.jumping||this.dropping||this.v108JumpPrepT>0||
         this.landingMotionT>0||
         state.landingVisualUntil>(this.t||0)))){
     state.slot=null;state.weight=0;state.releasingExtra=false;
@@ -872,7 +889,8 @@
       }
       state.slot=slot;state.clock=sameSource?previousClock:
        directLanding?state.landingSampleStart:
-       slot==='jump'&&status.jumpSequence?.active&&!status.localPlaytest?.requested?
+       slot==='jump'&&status.jumpSequence?.active&&!status.localPlaytest?.requested&&
+        !(this.v108JumpPrepT>0)?
         .40:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
@@ -975,9 +993,12 @@
     state.localFullBodyPunchActive=fullBodyPunch;
     state.localFullBodyKickActive=localKick;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
-    if(state.airHandoffFrom&&entry.slot==='fallingIdle')
-     state.airHandoffAge+=elapsed;
-    else if(entry.slot!=='fallingIdle')state.airHandoffFrom=null;
+    // A moving Jump Up -> Jump Down handoff needs the same short crossfade
+    // as Jump Up -> Falling Idle. Previously this reset immediately and
+    // exposed a one-frame discontinuity in the uploaded source poses.
+    const handoffAir=['fallingIdle','jumpDown','landing'].includes(entry.slot);
+    if(state.airHandoffFrom&&handoffAir)state.airHandoffAge+=elapsed;
+    else if(!handoffAir)state.airHandoffFrom=null;
     if(state.localEntryPose)state.localEntryAge+=elapsed;
     // V81 sees chained punches as the SAME attack state, so it does not
     // soften a punch1 -> punch2 -> punch3 switch. This short handoff is
@@ -1028,7 +1049,15 @@
       if(slot==='runStop'&&!localRunStop&&new URLSearchParams(root.location?.search||'')
         .get('animationV85')!=='legacy')
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
-      state.clock+=elapsed*rate;
+      if(direct&&this.v108JumpPrepT>0&&this.v108JumpPrepDuration>0&&
+         (slot==='jump'||slot==='jumpQuick')){
+       // Sample EVERY Mixamo anticipation frame during the actual buffered
+       // ground contact, reaching the source push-off as physics releases.
+       const sourcePush=slot==='jump'?.40:Math.min(.10,entry.seconds*.45);
+       const used=this.v108JumpPrepDuration-this.v108JumpPrepT;
+       state.clock=Math.max(0,Math.min(sourcePush,
+        sourcePush*used/this.v108JumpPrepDuration));
+      }else state.clock+=elapsed*rate;
      }
      if(slot==='jumpDown'&&state.clock>=entry.seconds)state.quickFallDone=true;
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));

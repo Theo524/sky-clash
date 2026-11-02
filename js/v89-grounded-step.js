@@ -40,7 +40,9 @@
   // assigned Studio landing on its first grounded movement frame.
   !(root.SkyClashPublishedActions?.jumpSequence?.active&&
     !root.SkyClashPublishedActions?.localPlaytest?.requested&&
-    (f.v72StudioPack?.landingVisualUntil||0)>(f.t||0))&&
+    f.characterId==='kairo_venn'&&
+    (f.v108JumpPrepT>0||
+     (f.v72StudioPack?.landingVisualUntil||0)>(f.t||0)))&&
   !(f.landingMotionT>0&&
     root.SkyClashPublishedActions?.localPlaytest?.state==='ready'&&
     root.SkyClashPublishedActions.localPlaytest.slots.includes('landing')&&
