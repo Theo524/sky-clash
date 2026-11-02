@@ -221,6 +221,42 @@ assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
  jumpLandingFinished:true},vel:{x:0,y:-4,z:0}},jumpChoices),
  'fallingIdle','A prolonged jump may need the separate Falling Idle');
+// Source quaternion continuity is a numeric contract, not evidence of
+// artistic perfection. Sample the actual five pre-baked Mixamo takes.
+const jumpPack=JSON.parse(read('assets/animations/gameplay/kairo-mixamo-jumps-v1.json'));
+const jumpBakes=Object.fromEntries(jumpPack.motions.map(m=>[
+ m.slot,{...m,raw:Buffer.from(m.data,'base64')}]));
+function normalizedBone(slot,seconds,index){
+ const m=jumpBakes[slot],frame=Math.max(0,Math.min(m.frames-1,
+  Math.round(seconds*m.fps))),offset=(frame*20+index)*8;
+ const q=Array.from({length:4},(_,i)=>m.raw.readInt16LE(offset+i*2)/32767);
+ const norm=Math.hypot(...q);return q.map(v=>v/norm);
+}
+function sourceMeanSeam(a,at,b,bt){
+ let sum=0,max=0;
+ for(let i=0;i<20;i++){
+  const x=normalizedBone(a,at,i),y=normalizedBone(b,bt,i);
+  const dot=Math.abs(x.reduce((v,k,j)=>v+k*y[j],0));
+  const deg=2*Math.acos(Math.min(1,dot))*180/Math.PI;
+  sum+=deg;max=Math.max(max,deg);
+ }
+ return {mean:sum/20,max};
+}
+assert(sourceMeanSeam('jump',jumpBakes.jump.seconds,'landing',0).max<8,
+ 'Standing recorded takeoff no longer matches the landing descent');
+assert(sourceMeanSeam('jumpQuick',jumpBakes.jumpQuick.seconds,'jumpDown',0).max<5,
+ 'Moving jump no longer matches the opening recorded descent');
+assert(sourceMeanSeam('jumpDown',.1,'landing',.1333333333).max<16,
+ 'Moving short descent has no compatible landing frame');
+assert(sourceMeanSeam('jump',jumpBakes.jump.seconds,'fallingIdle',0).mean>25,
+ 'Review source boundaries before re-introducing direct Falling Idle');
+assert(sourceMeanSeam('jumpDown',jumpBakes.jumpDown.seconds,'fallingIdle',0).mean>40,
+ 'Review source boundaries before re-introducing direct Falling Idle');
+const jumpHips=Buffer.from(jumpBakes.jump.hipYTrack,'base64');
+const sourceCrouch=Array.from({length:jumpBakes.jump.frames},
+ (_,i)=>jumpHips.readInt16LE(i*2)/32767);
+assert(Math.min(...sourceCrouch)<-.24,
+ 'Mixamo grounded crouch is missing from source pelvis channel');
 assert.equal(runtime.choose({...testJumpFighter,jumping:false,
  flying:false,vel:{x:0,y:0,z:0},t:2,landingMotionT:0,
  v72StudioPack:{landingVisualUntil:2.3}},jumpChoices),'landing',
