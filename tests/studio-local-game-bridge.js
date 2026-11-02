@@ -220,8 +220,9 @@ assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
  jumpMode:'quick',slot:'jumpDown',clock:.15},vel:{x:5,y:-4,z:0}},jumpChoices),
  'landing','Old partial Jump Down must yield to the clean full landing take');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
- jumpLandingFinished:true},vel:{x:0,y:-4,z:0}},jumpChoices),
- 'fallingIdle','A prolonged jump may need the separate Falling Idle');
+ cleanJump:{phase:'descent',peak:4,slot:'landing',time:.2}},
+ vel:{x:0,y:-4,z:0},pos:{y:2},floor:0},jumpChoices),
+ 'landing','A real falling jump must keep the recorded landing descent');
 // Source quaternion continuity is a numeric contract, not evidence of
 // artistic perfection. Sample the actual five pre-baked Mixamo takes.
 const jumpPack=JSON.parse(read('assets/animations/gameplay/kairo-mixamo-jumps-v1.json'));
@@ -260,8 +261,8 @@ assert(Math.min(...sourceCrouch)<-.24,
  'Mixamo grounded crouch is missing from source pelvis channel');
 assert.equal(runtime.choose({...testJumpFighter,jumping:false,
  flying:false,vel:{x:0,y:0,z:0},t:2,landingMotionT:0,
- v72StudioPack:{landingVisualUntil:2.3}},jumpChoices),'landing',
- 'Recorded landing recovery should not be cut at the physics timer');
+ v72StudioPack:{cleanJump:{phase:'recovery',contactAt:1.7}}},jumpChoices),'landing',
+ 'Recorded landing recovery should follow real contact time, not the physics timer');
 globalThis.SkyClashPublishedActions.localPlaytest.requested=true;
 assert.notEqual(runtime.choose(testJumpFighter,jumpChoices),'jump',
  'Experimental native clip must not replace explicitly applied Studio moves');

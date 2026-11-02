@@ -337,6 +337,91 @@
    }
   };
  }
+ // Only Kairo's NORMAL jump visual clock is replaced here. This function
+ // selects SOURCE FBX keyframes; it never writes bones, root position or
+ // physics, and it never installs another Fighter.animate wrapper.
+ // Rise progresses with measured upward velocity. Recorded landing's
+ // 0..0.30s airborne frames progress with height above ground, reaching the
+ // contact keyframe on the ACTUAL collision frame. Recovery continues at 1x.
+ function recordedJumpTimeline(fighter,actions){
+  const pose=fighter.v72StudioPack;
+  const now=Number(fighter.t)||0;
+  const h=Math.max(0,(fighter.pos?.y||0)-(fighter.floor||0));
+  const prep=(fighter.v108JumpPrepT||0)>0;
+  let plan=pose?.cleanJump||null;
+  const clamp01=x=>Math.max(0,Math.min(1,x));
+  const interrupted=fighter.hp<=0||fighter.stun>0||fighter.downT>0||
+   fighter.launched||fighter.spiked||fighter.slamming||fighter.dashing||
+   fighter.punchT>0||fighter.blastT>0||fighter.superHitT>0||
+   fighter.blockHeld||fighter.blocking||fighter.charging||
+   (fighter.acro&&fighter.acro.type!=='landing'&&
+    fighter.acro.type!=='ninjaLeap'&&fighter.acro.type!=='flip')||
+   (fighter.flying&&!fighter.jumping&&!fighter.dropping&&h>.1);
+  if(interrupted){
+   if(pose)pose.cleanJump=null;
+   return undefined; // Preserve flight/combat/knockback owners.
+  }
+  if(fighter.jumping||prep){
+   if(!plan||plan.phase==='done'){
+    const moving=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
+    const rise=moving&&actions.jumpQuick?'jumpQuick':'jump';
+    if(!actions[rise]||!actions.landing)return undefined;
+    plan={phase:'rise',rise,launchVy:Math.max(.01,fighter.vel?.y||0),
+     peak:h,prepped:prep,contactAt:null,slot:rise,time:0};
+    if(pose)pose.cleanJump=plan;
+   }
+   const riseEntry=actions[plan.rise]||actions.jump;
+   if(!riseEntry||!actions.landing)return undefined;
+   plan.peak=Math.max(plan.peak,h);
+   if(plan.phase==='rise'){
+    if(!prep&&(fighter.vel?.y||0)<=0){
+     plan.phase='descent';plan.peak=Math.max(.01,plan.peak,h);
+    }else{
+     const duration=Math.max(.01,riseEntry.seconds||.8);
+     if(prep){
+      plan.prepped=true;
+      const total=Math.max(.001,fighter.v108JumpPrepDuration||.095);
+      const used=clamp01(1-fighter.v108JumpPrepT/total);
+      plan.time=(plan.rise==='jump'?Math.min(.40,duration*.49):
+       Math.min(.09,duration*.4))*used;
+     }else{
+      plan.launchVy=Math.max(plan.launchVy,fighter.vel?.y||0,.01);
+      const start=plan.prepped?
+       (plan.rise==='jump'?Math.min(.40,duration*.49):
+        Math.min(.09,duration*.4)):0;
+      const fraction=clamp01(1-Math.max(0,fighter.vel?.y||0)/plan.launchVy);
+      plan.time=start+(duration-start)*fraction;
+     }
+     plan.slot=plan.rise;
+     return plan.rise;
+    }
+   }
+   if(plan.phase==='descent'){
+    const contactFrame=Math.min(.30,actions.landing.seconds||.30);
+    plan.time=contactFrame*clamp01(1-h/Math.max(.01,plan.peak));
+    plan.slot='landing';
+    return 'landing';
+   }
+  }
+  if(plan&&(plan.phase==='descent'||plan.phase==='rise')&&
+     !fighter.jumping&&!prep){
+   // Fighter.update has already clamped the physical capsule to floor.
+   // Contact (not a guessed timer) begins the source recovery frames.
+   plan.phase='recovery';plan.contactAt=now;
+  }
+  if(plan?.phase==='recovery'){
+   const seconds=Math.max(.31,actions.landing?.seconds||1.066667);
+   const time=Math.min(seconds,.30+Math.max(0,now-plan.contactAt));
+   if(time<seconds-.0001){
+    plan.slot='landing';plan.time=time;return 'landing';
+   }
+   plan.phase='done';plan.slot=null;plan.time=seconds;
+   return null; // Never replay/re-enter landing after the recovery.
+  }
+  if(plan?.phase==='done')return null;
+  if(fighter.dropping&&actions.fallingIdle)return 'fallingIdle';
+  return undefined;
+ }
  function choose(fighter,actions){
   if(fighter.hp<=0)return null;
   const speed=Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0);
@@ -405,75 +490,14 @@
    !fighter.sprinting&&!fighter.dashing&&
    !(fighter.acro&&fighter.acro.type!=='landing');
   if(localLanding)return actions.landing?'landing':null;
-  // The recorded Mixamo jump sequence is Kairo's NORMAL animation.
-  // The old controller checked the height-based flying getter before
-  // physical jump ascent, silently stealing the assigned Jump clip.
-  // Never rewrite physics or an intentional powered-fly input.
+  // Normal Kairo is now driven by ONE recorded source timeline.
+  // Combat/local Studio selections above keep their existing priority.
   const recorded=root.SkyClashPublishedActions?.jumpSequence?.active&&
    fighter.characterId==='kairo_venn'&&
    !root.SkyClashPublishedActions?.localPlaytest?.requested;
-  if(recorded&&!fighter.dashing&&
-     (!fighter.sprinting||fighter.jumping||fighter.dropping)&&
-     !(fighter.acro&&fighter.acro.type!=='landing'&&
-       fighter.acro.type!=='ninjaLeap'&&fighter.acro.type!=='flip')&&
-     !fighter.launched&&!fighter.spiked){
-   const pose=fighter.v72StudioPack;
-   // During the existing V108 input buffer the real Mixamo takeoff must
-   // own Kairo's crouch, not the unrelated procedural V100 push pose.
-   if(fighter.v108JumpPrepT>0&&!fighter.jumping&&!fighter.flying){
-    // Keep the selected Mixamo clip through the existing input buffer,
-    // even if horizontal velocity crosses the short/full threshold.
-    const quick=pose&&['jump','jumpQuick'].includes(pose.slot)&&pose.jumpMode?
-     pose.jumpMode==='quick':
-     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
-    return quick&&actions.jumpQuick?'jumpQuick':actions.jump?'jump':null;
-   }
-   // A source-authored landing includes the descent BEFORE ground contact.
-   // Keep its one clock through collision instead of restarting it there.
-   if(pose?.slot==='landing'&&!fighter.dropping&&
-      // 'flying' alone is height; flying WITHOUT jumping is powered
-      // flight. Never keep landing's aerial preview over a fly input.
-      (fighter.jumping||!fighter.flying)){
-    if((pose.landingVisualUntil||0)>(fighter.t||0))
-     return actions.landing?'landing':null;
-    if(fighter.jumping){
-     // Unusually long airtime: the landing clip ended before the physical
-     // ground contact. Finish it once; do not restart on every air frame.
-     pose.jumpLandingFinished=true;
-     return actions.fallingIdle?'fallingIdle':null;
-    }
-   }
-   // Collision owns physics, but the Mixamo recovery owns its own clock.
-   if(!fighter.jumping&&!fighter.dropping&&
-      ((fighter.landingMotionT||0)>0||
-       (pose?.landingVisualUntil||0)>(fighter.t||0)))
-    return actions.landing?'landing':null;
-   if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
-   if(fighter.jumping){
-    // Finishing an authored descent high above ground is a genuine long
-    // fall; only then is the substantially different Falling Idle needed.
-    if(pose?.jumpLandingFinished)return actions.fallingIdle?'fallingIdle':null;
-    const descending=(fighter.vel?.y||0)<-.7;
-    const continuing=pose&&['jump','jumpQuick','jumpDown','landing','fallingIdle']
-     .includes(pose.slot);
-    const quick=continuing&&pose.jumpMode?
-     pose.jumpMode==='quick':
-     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
-    const rise=quick&&actions.jumpQuick?'jumpQuick':'jump';
-    if(!descending)return actions[rise]?rise:null;
-    // The source clips agree at their intended ends, NOT at arbitrary
-    // airborne times. Finish Jumping Up before joining the descent.
-    if(pose?.slot===rise&&pose.clock<actions[rise].seconds-.018)
-     return rise;
-    // Clean source-only animation routing. Both user-supplied Jumping Up
-    // takes finish almost exactly at Falling To Landing's FIRST frame:
-    // ~3.4° average for standing and ~1.4° for moving. Jumping Down is
-    // a different partial take, not a necessary step in every jump.
-    // Splicing its middle into Landing and then Falling Idle caused
-    // large, unnecessary knee/ankle/hip handoffs. Keep those FBXs
-    // available for Studio, but ordinary short hops use one descent.
-    return actions.landing?'landing':actions.fallingIdle?'fallingIdle':null;
-   }
+  if(recorded){
+   const selected=recordedJumpTimeline(fighter,actions);
+   if(selected!==undefined)return selected;
   }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
@@ -562,7 +586,7 @@
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
      quickFallDone:false,jumpMode:null,landingVisualUntil:0,
-     landingSampleStart:0,
+     landingSampleStart:0,cleanJump:null,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -665,6 +689,7 @@
     state.localStrikeKey=null;state.localStrikeFeet={};state.localFullBodyPunchActive=false;
     state.localFullBodyKickActive=false;state.localEntryPose=null;state.localEntryAge=0;state.localHandoffSerial=null;
     state.localLandingWasActive=false;state.airHandoffFrom=null;state.airHandoffAge=0;
+    state.cleanJump=null;
    }
    // Physics gives static contact .48s and moving contact only .205s.
    // A locally assigned landing keeps its FULL recorded source duration
@@ -1092,7 +1117,12 @@
       if(slot==='runStop'&&!localRunStop&&new URLSearchParams(root.location?.search||'')
         .get('animationV85')!=='legacy')
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
-      if(direct&&this.v108JumpPrepT>0&&this.v108JumpPrepDuration>0&&
+      if(direct&&state.cleanJump?.slot===slot&&
+         Number.isFinite(state.cleanJump.time)){
+       // Single source clock: no overlong quick-jump hold and no
+       // landing contact happening half a metre above the ground.
+       state.clock=state.cleanJump.time;
+      }else if(direct&&this.v108JumpPrepT>0&&this.v108JumpPrepDuration>0&&
          (slot==='jump'||slot==='jumpQuick')){
        // Sample EVERY Mixamo anticipation frame during the actual buffered
        // ground contact, reaching the source push-off as physics releases.
