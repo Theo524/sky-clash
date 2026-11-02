@@ -1191,8 +1191,14 @@
      // vector into the hips parent's local coordinate frame so rotations
      // and parent scale cannot redirect it sideways.
      const sampleTime=state.clock,loop=entry.slot==='fallingIdle';
+     // The authored landing starts in the air but only its *contact*
+     // compression should offset a grounded physics capsule. The source
+     // 0.30s contact reference is fixed, even when descent sampling starts
+     // at 0 or .13s. Using the entry time as this base made the first
+     // touchdown plunge the pelvis more than a metre into the ground.
+     const landingContactReference=.30;
      const baseY=direct&&entry.slot==='landing'?
-      (entry.sampleHipY?.(state.landingSampleStart,false)||0):0;
+      (entry.sampleHipY?.(landingContactReference,false)||0):0;
      const scaled=((entry.sampleHipY?.(sampleTime,loop)||0)-baseY)*
       state.avatarHeight;
      const directTakeoff=direct&&slot==='jump';
@@ -1213,7 +1219,7 @@
       const xz=direct&&slot==='landing'&&this.pos.y>this.floor+.025?
        null:entry.sampleHipXZ?.(sampleTime,loop);
       const xzBase=direct&&entry.slot==='landing'?
-       entry.sampleHipXZ?.(state.landingSampleStart,false):null;
+       entry.sampleHipXZ?.(landingContactReference,false):null;
       const horizontal=new THREE.Vector3(
        (xz?.x||0)-(xzBase?.x||0),0,(xz?.z||0)-(xzBase?.z||0))
        .multiplyScalar(state.avatarHeight).applyQuaternion(qBasis);
