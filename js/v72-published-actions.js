@@ -1205,12 +1205,15 @@
      const scaled=((entry.sampleHipY?.(sampleTime,loop)||0)-baseY)*
       state.avatarHeight;
      const directTakeoff=direct&&slot==='jump';
-     // Mixamo's original planted crouch was completely discarded before.
-     // Restore the negative dip until push-off, without adding the upward
-     // half of the same track to already-moving physics.
+     const directBeforeContact=direct&&slot==='landing'&&
+      (this.pos.y>this.floor+.025||sampleTime<landingContactReference);
+     // Mixamo's original planted crouch was discarded before. Restore
+     // only its negative dip to avoid double-counting physics ascent.
+     // Conversely the landing's first .30s is an aerial approach and
+     // must not translate the visual pelvis against a grounded capsule.
      const delta=directTakeoff?
       Math.max(-.65,Math.min(0,scaled)):
-      direct&&slot==='landing'&&this.pos.y>this.floor+.025?0:
+      directBeforeContact?0:
       Math.max(-1.1,Math.min(1.1,scaled));
      const hips=state.bones[0],parent=hips.parent;
      const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
@@ -1219,7 +1222,7 @@
         Number.isFinite(v)&&Math.abs(v)>1e-6)){
       // Horizontal source travel is visual-only: same facing correction as
       // source quaternions. Physics root, collision, and hitboxes stay put.
-      const xz=direct&&slot==='landing'&&this.pos.y>this.floor+.025?
+      const xz=directBeforeContact?
        null:entry.sampleHipXZ?.(sampleTime,loop);
       const xzBase=direct&&entry.slot==='landing'?
        entry.sampleHipXZ?.(landingContactReference,false):null;
