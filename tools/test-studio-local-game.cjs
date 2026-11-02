@@ -964,13 +964,20 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     p.v72StudioPack.jumpLandingFinished=false;
     const started=p.tryJump(),seq=[],trace=[];
     let previous=nodes.map(n=>n.quaternion.clone());
-    let maxLegStep=0,maxLegName=null,maxLegFrame=0;
+    let maxLegStep=0,maxLegName=null,maxLegFrame=0,maxWriterDrift=0;
     for(let i=0;i<125;i++){
      p.update(1/60);
      const slot=p.v72StudioPack.slot||'none';
      if(seq.at(-1)!==slot)seq.push(slot);
      if(i%4===0)trace.push([i,slot,+p.v72StudioPack.clock.toFixed(2),
       +((p.pos.y||0)-p.floor).toFixed(2)]);
+     const snapshot=p.v72StudioPack.studioPoseSnapshot;
+     if(['jump','jumpQuick','landing'].includes(slot)&&snapshot)
+      snapshot.forEach((q,j)=>{
+       if(q&&p.v72StudioPack.bones[j])
+        maxWriterDrift=Math.max(maxWriterDrift,
+         q.angleTo(p.v72StudioPack.bones[j].quaternion));
+      });
      nodes.forEach((n,j)=>{
       const delta=previous[j].angleTo(n.quaternion)*180/Math.PI;
       if(delta>maxLegStep){maxLegStep=delta;maxLegName=joints[j];maxLegFrame=i;}
@@ -978,7 +985,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
      });
     }
     trials.push({moving,started,seq,trace,maxLegStep:+maxLegStep.toFixed(2),
-     maxLegName,maxLegFrame,airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
+     maxLegName,maxLegFrame,maxWriterDrift:+maxWriterDrift.toFixed(6),
+     airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
    }
    return trials;
   });
@@ -993,6 +1001,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     'Old partial descent or disconnected Falling Idle hijacked an ordinary jump');
    assert(trial.maxLegStep<80,
     'Visible VRM leg rotated more than 80 degrees in one gameplay frame');
+   assert(trial.maxWriterDrift<.01,
+    'A later controller changed Kairo bones after the source Mixamo pose');
    assert(!trial.airborne,'Actual jump did not return to grounded physics');
   }
   // The five player-selected Mixamo FBXs are now part of ORDINARY
