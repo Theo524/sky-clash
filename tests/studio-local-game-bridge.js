@@ -214,10 +214,11 @@ assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices)
 assert.equal(runtime.choose({...testJumpFighter,vel:{x:5,y:4,z:0}},jumpChoices),
  'jumpQuick','Moving jump should use short Mixamo source');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{jumpMode:'quick'},
- vel:{x:5,y:-4,z:0}},jumpChoices),'jumpDown');
+ vel:{x:5,y:-4,z:0}},jumpChoices),'landing',
+ 'Quick Mixamo rise should join the matching original landing descent');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
  jumpMode:'quick',slot:'jumpDown',clock:.15},vel:{x:5,y:-4,z:0}},jumpChoices),
- 'landing','Moving descent must continue into source-matched landing');
+ 'landing','Old partial Jump Down must yield to the clean full landing take');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
  jumpLandingFinished:true},vel:{x:0,y:-4,z:0}},jumpChoices),
  'fallingIdle','A prolonged jump may need the separate Falling Idle');
@@ -244,8 +245,8 @@ function sourceMeanSeam(a,at,b,bt){
 }
 assert(sourceMeanSeam('jump',jumpBakes.jump.seconds,'landing',0).max<8,
  'Standing recorded takeoff no longer matches the landing descent');
-assert(sourceMeanSeam('jumpQuick',jumpBakes.jumpQuick.seconds,'jumpDown',0).max<5,
- 'Moving jump no longer matches the opening recorded descent');
+assert(sourceMeanSeam('jumpQuick',jumpBakes.jumpQuick.seconds,'landing',0).max<5,
+ 'Moving jump no longer joins the recorded landing descent directly');
 assert(sourceMeanSeam('jumpDown',.1,'landing',.1333333333).max<16,
  'Moving short descent has no compatible landing frame');
 assert(sourceMeanSeam('jump',jumpBakes.jump.seconds,'fallingIdle',0).mean>25,
