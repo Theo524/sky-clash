@@ -874,8 +874,10 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     cases};
   });
   console.log('KAIRO_MIXAMO_STUDIO_VS_GAME_AUDIT '+JSON.stringify(jumpRetargetAudit));
-  // Audit remains informational while investigating the twist source; a
-  // later regression will assert agreement once the underlying cause is fixed.
+  assert(jumpRetargetAudit.maxRestMismatch<.001,
+   'The gameplay jump reference differs from Studio on the same real Kairo');
+  assert(jumpRetargetAudit.cases.every(c=>c.maxDiff<.1&&c.clamped===0),
+   'The game changed original Studio retargeted jump/landing leg poses');
   // Real input buffer + late-animation writer regression: the previous
   // PR only forced jumping=true, missing the procedural push that a player
   // actually sees when pressing Jump in normal Training.
@@ -1008,7 +1010,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
    p.pos.y=p.floor+5;p.vel.set(5,5,0);p.moveIntent.set(0,0,0);
    p.t+=1/60;p.animate(1/60);const rise=p.v72StudioPack.slot;
-   // Let the short source takeoff finish before descending.
+   // The source-compatible quick takeoff joins Landing frame zero
+   // directly; don't force the partial Jump Down or incompatible fall.
    p.v72StudioPack.clock=s.motionClips.jumpQuick.seconds;
    p.vel.y=-3;let downFrames=0,landingFrames=0,fallFrames=0;
    for(let i=0;i<42;i++){
@@ -1020,8 +1023,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    return {rise,downFrames,landingFrames,fallFrames,error:s.error};
   });
   assert.equal(movingJump.rise,'jumpQuick','Moving jump did not select shorter Mixamo rise');
-  assert(movingJump.downFrames>=5&&movingJump.downFrames<=12,
-   'Moving descent did not play its matching Mixamo Jumping Down entry');
+  assert.equal(movingJump.downFrames,0,
+   'The discontinued partial Jump Down still interrupted the clean moving jump');
   assert(movingJump.landingFrames>20,
    'Moving descent did not continue into the original contact/recovery clip');
   assert.equal(movingJump.fallFrames,0,
