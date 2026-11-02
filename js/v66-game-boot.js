@@ -106,6 +106,11 @@
      e.src+='&hands=99';
    // Refresh all three Studio-only handoff owners after their corrections,
    // without altering the public V156 Q flight or user-saved motion packs.
+   // Direct baked Mixamo jump runs in the normal game, not just a lab URL.
+   if(['v72-published-actions','v81-pose-transitions',
+       'v89-grounded-step','v100-pose-authority','v79-extra-actions']
+       .some(name=>src.includes(name)))
+    e.src+='&directMixamoJump=183';
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v81-pose-transitions')||
        src.includes('v89-grounded-step')||
@@ -331,7 +336,7 @@
    await script('js/v155-organic-flight.js?v=1550');
   // The local action pack is loaded ONLY on explicit editor playtest URLs.
   if(new URLSearchParams(location.search).get('studioPlaytest')==='local')
-   await script('js/studio-live-bridge.js?v=4');
+   await script('js/studio-live-bridge.js?v=5');
   await script('js/v72-published-actions.js?v=829&jabPlaytest=1&stormFist=3'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':'')+
    (new URLSearchParams(location.search).get('studioPlaytest')==='local'?'&studioLocal=4':''));
