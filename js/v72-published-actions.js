@@ -836,13 +836,14 @@
      }else{
       const previousSlot=state.slot,previousClock=state.clock;
       const localFall=!options.choose&&
-       ['fallingIdle','jumpDown'].includes(slot)&&
-       status.localPlaytest?.state==='ready'&&
-       status.localPlaytest.slots.includes(slot);
+       ['fallingIdle','jumpDown','landing'].includes(slot)&&
+       (status.jumpSequence?.active&&!status.localPlaytest?.requested||
+        status.localPlaytest?.state==='ready'&&
+        status.localPlaytest.slots.includes(slot));
       const rising=previousSlot==='jump'&&slot==='fallingIdle'&&
        localFall&&actions.jump;
       const transition=localFall&&
-       ['jump','jumpQuick','jumpDown'].includes(previousSlot);
+       ['jump','jumpQuick','jumpDown','fallingIdle'].includes(previousSlot);
       const sameSource=rising&&actions.jump.yaw===actions.fallingIdle.yaw&&
        ((actions.jump.sourceId&&actions.fallingIdle.sourceId&&
          actions.jump.sourceId===actions.fallingIdle.sourceId)||
@@ -851,8 +852,25 @@
       // old forced rewind caused an instant unwanted body tilt at the apex.
       state.airHandoffFrom=transition&&!sameSource?outgoingRise:null;
       state.airHandoffAge=0;
-      if(['jump','jumpQuick','landing'].includes(slot))state.quickFallDone=false;
+      if(['jump','jumpQuick'].includes(slot)){
+       state.quickFallDone=false;state.landingVisualUntil=0;
+       state.jumpMode=slot==='jumpQuick'?'quick':'full';
+      }
+      const directLanding=slot==='landing'&&
+       status.jumpSequence?.active&&!status.localPlaytest?.requested;
+      if(directLanding){
+       // Mixamo's first 0.30s is airborne descent. Physical game collision
+       // has already happened: begin at its contact pose, then play all
+       // of the original absorption + recovery at 1x, visually only.
+       state.landingSampleStart=.30;
+       state.landingVisualUntil=(this.t||0)+
+        Math.max(.05,(actions.landing.seconds-state.landingSampleStart)/
+         Math.max(.25,actions.landing.speed||1));
+      }
       state.slot=slot;state.clock=sameSource?previousClock:
+       directLanding?state.landingSampleStart:
+       slot==='jump'&&status.jumpSequence?.active&&!status.localPlaytest?.requested?
+        .40:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
         localStopContactTime(actions.runStop):0;
@@ -880,16 +898,17 @@
      this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
      !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
     const fullBodyPunch=groundedPunch;
+    const direct=!options.choose&&this.characterId==='kairo_venn'&&
+     status.jumpSequence?.active&&!status.localPlaytest?.requested;
     const localLanding=!options.choose&&this.characterId==='kairo_venn'&&
-     entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes('landing');
+     entry.slot==='landing'&&
+     (direct||status.localPlaytest?.state==='ready'&&
+      status.localPlaytest.slots.includes('landing'));
     const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
      ['fallingIdle','jumpDown'].includes(entry.slot)&&
-     status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes(entry.slot);
-    const localJump=!options.choose&&this.characterId==='kairo_venn'&&
-     ['jump','jumpQuick'].includes(entry.slot)&&
-     status.localPlaytest?.jumpLab&&status.localPlaytest.slots.includes(entry.slot);
+     (direct||status.localPlaytest?.state==='ready'&&
+      status.localPlaytest.slots.includes(entry.slot));
+    const localJump=direct&&['jump','jumpQuick'].includes(entry.slot);
     const authoredAir=localLanding||localFalling||localJump;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
@@ -1072,7 +1091,7 @@
      node.quaternion.slerp(target,authoredAir?1:state.weight);
      // Different jump/fall FBXs need a short visible-pose handoff rather
      // than the old one-frame snap. No extra controller writes this pose.
-     if((localFalling||localJump)&&state.airHandoffFrom?.[i]){
+     if(authoredAir&&state.airHandoffFrom?.[i]){
       const t=Math.min(1,state.airHandoffAge/state.airHandoffDuration);
       const w=t*t*(3-2*t);
       node.quaternion.slerpQuaternions(state.airHandoffFrom[i],
@@ -1103,7 +1122,10 @@
      // vector into the hips parent's local coordinate frame so rotations
      // and parent scale cannot redirect it sideways.
      const sampleTime=state.clock,loop=entry.slot==='fallingIdle';
-     const scaled=(entry.sampleHipY?.(sampleTime,loop)||0)*state.avatarHeight;
+     const baseY=direct&&entry.slot==='landing'?
+      (entry.sampleHipY?.(state.landingSampleStart,false)||0):0;
+     const scaled=((entry.sampleHipY?.(sampleTime,loop)||0)-baseY)*
+      state.avatarHeight;
      const delta=Math.max(-1.1,Math.min(1.1,scaled));
      const hips=state.bones[0],parent=hips.parent;
      const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
@@ -1113,7 +1135,10 @@
       // Horizontal source travel is visual-only: same facing correction as
       // source quaternions. Physics root, collision, and hitboxes stay put.
       const xz=entry.sampleHipXZ?.(sampleTime,loop);
-      const horizontal=new THREE.Vector3(xz?.x||0,0,xz?.z||0)
+      const xzBase=direct&&entry.slot==='landing'?
+       entry.sampleHipXZ?.(state.landingSampleStart,false):null;
+      const horizontal=new THREE.Vector3(
+       (xz?.x||0)-(xzBase?.x||0),0,(xz?.z||0)-(xzBase?.z||0))
        .multiplyScalar(state.avatarHeight).applyQuaternion(qBasis);
       horizontal.y=0;
       if(horizontal.length()>1.1)horizontal.setLength(1.1);
