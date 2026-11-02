@@ -110,7 +110,7 @@
    if(['v72-published-actions','v81-pose-transitions',
        'v89-grounded-step','v100-pose-authority','v79-extra-actions']
        .some(name=>src.includes(name)))
-    e.src+='&directMixamoJump=185';
+    e.src+='&directMixamoJump=186';
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v81-pose-transitions')||
        src.includes('v89-grounded-step')||
