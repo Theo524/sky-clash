@@ -116,8 +116,9 @@ assert(fidelityRuntime.includes('sampleHipY')&&fidelityRuntime.includes('state.h
  'game must reproduce source landing dip on visual hips only');
 assert(fidelityRuntime.includes('state.bones[0].position.sub(state.hipVisualOffsetLocal)'),
  'game must undo the exact parent-local pelvis offset before another pose writer');
-assert(fidelityRuntime.includes('const delta=Math.max(-1.1,Math.min(1.1,scaled))'),
- 'Studio and local game must allow the same full recorded crouch depth');
+assert(fidelityRuntime.includes('Math.max(-1.1,Math.min(1.1,scaled))')&&
+ fidelityRuntime.includes("const directTakeoff=direct&&slot==='jump'"),
+ 'Saved Studio falls/landings must keep their full source pelvis depth while normal Jump restores only the grounded crouch');
 assert(!fidelityRuntime.includes('Math.min(1.25,Math.max(this.landingMotionT'),
  'longer user-authored landings must not end at the old 1.25-second cap');
 assert(fidelityRuntime.includes("entry.slot==='fallingIdle'"),
