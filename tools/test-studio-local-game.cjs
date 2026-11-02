@@ -848,6 +848,10 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
    p.moveIntent.set(0,0,0);p.pos.y=p.floor+5;p.vel.set(0,5,0);
    p.t+=1/60;p.animate(1/60);const rise=p.v72StudioPack.slot;
+   // Advance the authored source clock to its actual end before comparing
+   // the next clip. The source endpoints are compatible, unlike the older
+   // immediate Jump Up -> Falling Idle selection.
+   p.v72StudioPack.clock=s.motionClips.jump.seconds;
    const hum=p.vrmRig.vrm.humanoid;
    const maxDrift=()=>p.v72StudioPack.studioPoseSnapshot?
     Math.max(...p.v72StudioPack.studioPoseSnapshot.map((q,i)=>
@@ -860,6 +864,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const riseDrift=maxDrift();
    p.vel.y=-3;p.t+=1/60;p.animate(1/60);
    const fall=p.v72StudioPack.slot,fallDrift=maxDrift();
+   const aerialLandingClock=p.v72StudioPack.clock;
    p.jumping=false;p.dropping=false;p.pos.y=p.floor;p.vel.y=0;
    p.landingMotionT=.48;
    const physicalBefore=p.pos.y;
@@ -872,7 +877,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     }
     p.landingMotionT=Math.max(0,p.landingMotionT-1/60);
    }
-   return {source:s.jumpSequence,rise,fall,riseDrift,fallDrift,clips,clocks,
+   return {source:s.jumpSequence,rise,fall,aerialLandingClock,riseDrift,fallDrift,clips,clocks,
     physicsUnchanged:p.pos.y===physicalBefore,
     landingTimer:p.landingMotionT,error:s.error};
   });
@@ -880,16 +885,18 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Normal game failed to load the actual five uploaded Mixamo sources');
   assert.equal(standingJump.rise,'jump',
    'Standing takeoff was stolen by a height-based flight animation');
-  assert.equal(standingJump.fall,'fallingIdle',
-   'Falling Idle was stolen by the floating controller');
+  assert.equal(standingJump.fall,'landing',
+   'Normal short jump spliced the mismatched Falling Idle instead of the continuous descent');
+  assert(standingJump.aerialLandingClock<.09,
+   'Standing descent did not start from the original landing source first frame');
   assert(standingJump.riseDrift!==null&&standingJump.riseDrift<.01,
    'V81/V100 overwrote actual recorded standing jump pose');
   assert(standingJump.fallDrift!==null&&standingJump.fallDrift<.01,
    'A later VRM controller overwrote actual Falling Idle');
   assert(standingJump.clips.slice(0,3).every(x=>x==='landing'),
    'Recorded landing recovery was cut by the short physics landing timer');
-  assert(standingJump.clocks[1]>.45,
-   'Landing skipped original Mixamo contact and absorption keyframes');
+  assert(standingJump.clocks[1]>.35,
+   'Landing skipped the original Mixamo contact and absorption sequence');
   assert(standingJump.physicsUnchanged,'Visual Mixamo source moved the physical root');
   assert.equal(standingJump.error,null);
   await navigate('?scene=dojo');
@@ -902,18 +909,24 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
    p.pos.y=p.floor+5;p.vel.set(5,5,0);p.moveIntent.set(0,0,0);
    p.t+=1/60;p.animate(1/60);const rise=p.v72StudioPack.slot;
-   p.vel.y=-3;let downFrames=0,fallFrames=0;
-   for(let i=0;i<56;i++){
+   // Let the short source takeoff finish before descending.
+   p.v72StudioPack.clock=s.motionClips.jumpQuick.seconds;
+   p.vel.y=-3;let downFrames=0,landingFrames=0,fallFrames=0;
+   for(let i=0;i<42;i++){
     p.t+=1/60;p.animate(1/60);
     if(p.v72StudioPack.slot==='jumpDown')downFrames++;
+    if(p.v72StudioPack.slot==='landing')landingFrames++;
     if(p.v72StudioPack.slot==='fallingIdle')fallFrames++;
    }
-   return {rise,downFrames,fallFrames,error:s.error};
+   return {rise,downFrames,landingFrames,fallFrames,error:s.error};
   });
   assert.equal(movingJump.rise,'jumpQuick','Moving jump did not select shorter Mixamo rise');
-  assert(movingJump.downFrames>10&&movingJump.downFrames<36,
-   'Mixamo Jump Down should play once (0.37s), not loop during fall');
-  assert(movingJump.fallFrames>8,'Jump Down did not hand off to Falling Idle');
+  assert(movingJump.downFrames>=5&&movingJump.downFrames<=12,
+   'Moving descent did not play its matching Mixamo Jumping Down entry');
+  assert(movingJump.landingFrames>20,
+   'Moving descent did not continue into the original contact/recovery clip');
+  assert.equal(movingJump.fallFrames,0,
+   'Ordinary short jumps must not twist into the incompatible Falling Idle');
   assert.equal(movingJump.error,null);
   assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
   // Normal Training intentionally DOES NOT load the browser-local Studio

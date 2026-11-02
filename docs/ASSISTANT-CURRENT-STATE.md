@@ -1,5 +1,29 @@
 # Sky Clash — current state
 
+## Mixamo jump source-clip continuity — PR #184, 2026-11-02
+
+Player reports source FBX movement looks correct in Animation Studio but
+the NORMAL game twists between jumps. Identical SHA256 of the five original
+FBX files confirms the game has the intended source takes. Direct analysis
+of baked original source quaternion tracks showed severe pose mismatch at
+the old Jumping Up -> Falling Idle and Jumping Down -> Falling Idle joins;
+by contrast Jumping Up's terminal pose is within a few degrees of Landing
+source frame 0 and moving Jump Up joins Jumping Down at frame 0.
+PR #184 (unmerged until CI checks + visual review) changes *existing*
+V72 recorded gameplay routing: finish authored ascent; enter landing's
+recorded descent before ground contact for standing jumps; moving jumps
+use the matching start of Jump Down and enter Landing at 0.13s; preserve
+the same landing clock through physical contact. Falling Idle remains
+available for intentional uncontrolled/long falls rather than every jump.
+Also preserve the negative source pelvis crouch for standing launch but
+do not double physics-driven upward root travel. The new cache suffix 185
+forces updated source download. Existing local Studio assignments and
+Base v1 never change; no Jump Lab, no new animate wrapper, physics/flight/
+Rin/combat changes. See updated real-Kairo browser source continuity tests.
+A pass validates routing, not aesthetics: player must visually review the
+ordinary Training jumps before calling the movement finally correct.
+
+
 ## Direct Mixamo jump follow-up — 2026-11-02
 
 After PR #182, the player reports that ordinary Training still appears to
