@@ -857,6 +857,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert(movingJump.fallFrames>8,'Jump Down did not hand off to Falling Idle');
   assert.equal(movingJump.error,null);
   assert.equal(errors.length,0,'Browser errors: '+errors.join('; '));
+  // Normal Training intentionally DOES NOT load the browser-local Studio
+  // storage bridge. Inject its cleanup API explicitly for this CI browser.
+  await page.addScriptTag({url:base+'js/studio-live-bridge.js?v=5'});
   await page.evaluate(()=>window.SkyClashStudioLiveBridge.clear());
   // Studio's browser-local FBX/ZIP gallery must keep Rokoko Superhero
   // clips independent from the originally imported Mixamo collection.
