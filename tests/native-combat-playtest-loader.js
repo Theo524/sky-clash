@@ -6,6 +6,7 @@ const THREE=require('../js/vendor/three.min.js');
 const studio=require('../js/v72-published-actions.js');
 const native=require('../assets/animations/kairo/original-jab-playtest.v1.json');
 const base=require('../assets/animations/gameplay/studio-actions-v1.json');
+const authoredJumps=require('../assets/animations/gameplay/kairo-mixamo-jumps-v1.json');
 const path='assets/animations/kairo/original-jab-playtest.v1.json';
 const clone=x=>JSON.parse(JSON.stringify(x));
 function context(search='',nativeFetch){
@@ -20,6 +21,8 @@ function context(search='',nativeFetch){
    if(url==='assets/animations/gameplay/studio-actions-v1.json')
     return {ok:true,status:200,json:async()=>({schema:base.schema,revision:base.revision,
      motions:[base.motions.find(m=>m.slot==='idle')]})};
+   if(url==='assets/animations/gameplay/kairo-mixamo-jumps-v1.json')
+    return {ok:true,status:200,json:async()=>clone(authoredJumps)};
    return {ok:false,status:404};
   }};
  return {out,calls,warnings,timers};
