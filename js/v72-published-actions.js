@@ -430,7 +430,10 @@
    }
    // A source-authored landing includes the descent BEFORE ground contact.
    // Keep its one clock through collision instead of restarting it there.
-   if(pose?.slot==='landing'&&!fighter.dropping){
+   if(pose?.slot==='landing'&&!fighter.dropping&&
+      // 'flying' alone is height; flying WITHOUT jumping is powered
+      // flight. Never keep landing's aerial preview over a fly input.
+      (fighter.jumping||!fighter.flying)){
     if((pose.landingVisualUntil||0)>(fighter.t||0))
      return actions.landing?'landing':null;
     if(fighter.jumping){
