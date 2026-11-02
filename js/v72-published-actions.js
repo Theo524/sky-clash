@@ -405,18 +405,35 @@
    !fighter.sprinting&&!fighter.dashing&&
    !(fighter.acro&&fighter.acro.type!=='landing');
   if(localLanding)return actions.landing?'landing':null;
-   // Opt-in local five-piece test: a physical jump takes precedence over
-   // the height-based 'flying' getter without affecting powered flight.
-   const lab=root.SkyClashPublishedActions?.localPlaytest?.jumpLab;
-   if(lab&&fighter.characterId==='kairo_venn'&&!fighter.sprinting&&
-      !fighter.dashing&&(fighter.jumping||fighter.dropping)&&
-      !(fighter.acro&&fighter.acro.type!=='landing'&&fighter.acro.type!=='ninjaLeap')&&
-      !fighter.launched&&!fighter.spiked){
-    const descending=fighter.dropping||(fighter.vel?.y||0)<-.7;
-    if(!descending)return lab==='quick'?'jumpQuick':'jump';
-    if(lab==='quick')return fighter.v72StudioPack?.quickFallDone?'fallingIdle':'jumpDown';
-    return 'fallingIdle';
+  // The recorded Mixamo jump sequence is Kairo's NORMAL animation.
+  // The old controller checked the height-based flying getter before
+  // physical jump ascent, silently stealing the assigned Jump clip.
+  // Never rewrite physics or an intentional powered-fly input.
+  const recorded=root.SkyClashPublishedActions?.jumpSequence?.active&&
+   fighter.characterId==='kairo_venn'&&
+   !root.SkyClashPublishedActions?.localPlaytest?.requested;
+  if(recorded&&!fighter.dashing&&!fighter.sprinting&&
+     !(fighter.acro&&fighter.acro.type!=='landing'&&
+       fighter.acro.type!=='ninjaLeap')&&
+     !fighter.launched&&!fighter.spiked){
+   const pose=fighter.v72StudioPack;
+   // Physical collision starts landing, visual recovery finishes on its
+   // OWN clock. Do not extend landingMotionT: it gates actual gameplay.
+   if(!fighter.flying&&!fighter.jumping&&!fighter.dropping&&
+      ((fighter.landingMotionT||0)>0||
+       (pose?.landingVisualUntil||0)>(fighter.t||0)))
+    return actions.landing?'landing':null;
+   if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
+   if(fighter.jumping){
+    const descending=(fighter.vel?.y||0)<-.7;
+    const quick=pose?.jumpMode?pose.jumpMode==='quick':
+     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
+    if(!descending)return quick&&actions.jumpQuick?'jumpQuick':
+     actions.jump?'jump':null;
+    return quick&&!pose?.quickFallDone&&actions.jumpDown?'jumpDown':
+     actions.fallingIdle?'fallingIdle':null;
    }
+  }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
@@ -503,7 +520,8 @@
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
-     quickFallDone:false,
+     quickFallDone:false,jumpMode:null,landingVisualUntil:0,
+     landingSampleStart:0,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -652,9 +670,9 @@
    const serial=Number(this.attackSerial||0);
    // Capture the final previous-frame rise pose BEFORE legacy animators run.
    const outgoingRise=!options.choose&&
-    ['jump','jumpQuick','jumpDown'].includes(state.slot)&&
-    status.localPlaytest?.state==='ready'&&
-    status.localPlaytest.slots.includes('fallingIdle')&&state.bones?
+    ['jump','jumpQuick','jumpDown','fallingIdle'].includes(state.slot)&&
+    (status.jumpSequence?.active||status.localPlaytest?.state==='ready')&&
+    state.bones?
     state.bones.map(n=>n?n.quaternion.clone():null):null;
    const visibleBefore=status.localPlaytest?.state==='ready'&&this.punchT>0&&
     serial!==state.localHandoffSerial&&state.bones?
@@ -663,8 +681,13 @@
    // The V79 wrapper runs AFTER V72's user-authored full-body layer.
    // Its fading optional gestures must never overwrite even one bone
    // of a locally assigned fall/landing, including its first frame.
-   if(options.choose&&['fallingIdle','landing'].includes(
-       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+   if(options.choose&&(['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))||
+       status.jumpSequence?.active&&this.characterId==='kairo_venn'&&
+       !status.localPlaytest?.requested&&
+       (this.jumping||this.dropping||
+        this.landingMotionT>0||
+        state.landingVisualUntil>(this.t||0)))){
     state.slot=null;state.weight=0;state.releasingExtra=false;
     state.releaseEntry=null;state.localEntryPose=null;
     return;
