@@ -1391,27 +1391,32 @@
      (context.console||console).warn('Local Studio moves unavailable; published combat preserved',err);
     }
    }
-   // Jump Lab exists ONLY under the explicit URL and a separate browser key.
-   // Never replace the user's saved active Studio pack or protected Base.
-   const jumpLab=flags.get('jumpLab');
-   if(localRequested&&['full','quick'].includes(jumpLab)){
+   // Install the player's real five Mixamo clips into NORMAL Kairo
+   // gameplay. Never require a Jump Lab URL, import, or IndexedDB write.
+   // Local Animation Studio assignments keep their independent playback
+   // and user-saved Base; game load fails open if this asset is missing.
+   status.jumpSequence={active:false,state:'unavailable',sources:[]};
+   if(!localRequested){
     try{
-     const savedLab=await context.SkyClashStudioLiveBridge?.loadJumpLab?.();
-     if(!savedLab)throw Error('No five-clip Jump Lab installed. Open jump-lab.html.');
-     const overrides={};
-     for(const entry of savedLab.pack.motions)
-      overrides[entry.slot]=decode(context.THREE,entry);
+     const response=await context.fetch(
+      'assets/animations/gameplay/kairo-mixamo-jumps-v1.json',{cache:'no-cache'});
+     if(!response.ok)throw Error('Mixamo jump assets HTTP '+response.status);
+     const pack=await response.json();
+     if(pack.schema!=='sky-clash.studio-gamepack.v1'||pack.revision!==1||
+       !Array.isArray(pack.motions)||pack.motions.length!==5)
+      throw Error('Invalid Kairo jump sequence pack');
+     const recorded={};
+     for(const entry of pack.motions)if(entry.character==='kairo')
+      recorded[entry.slot]=decode(context.THREE,entry);
      for(const name of ['jump','jumpQuick','jumpDown','fallingIdle','landing'])
-      if(!overrides[name])throw Error('Jump Lab missing '+name);
-     Object.assign(actions,overrides);
-     status.localPlaytest.state='ready';
-     status.localPlaytest.error=null;
-     status.localPlaytest.slots=[...new Set([...status.localPlaytest.slots,...Object.keys(overrides)])];
-     status.localPlaytest.jumpLab=jumpLab;
-     status.localPlaytest.jumpLabSources=savedLab.pack.motions.map(m=>m.sourceFile);
+      if(!recorded[name])throw Error('Missing recorded jump part '+name);
+     Object.assign(actions,recorded);
+     status.jumpSequence={active:true,state:'ready',
+      sources:pack.motions.map(m=>m.sourceFile)};
     }catch(err){
-     status.localPlaytest.jumpLabError=String(err);
-     (context.console||console).warn('Jump Lab unavailable; approved clips retained',err);
+     status.jumpSequence.state='fallback';
+     status.jumpSequence.error=String(err);
+     (context.console||console).warn('Recorded Mixamo jumps unavailable; original game retained',err);
     }
    }
    // Pass the actual approved idle recording (NOT the old fighting-idle
@@ -1440,8 +1445,7 @@
     notice.style.cssText='position:fixed;z-index:99999;top:8px;right:8px;max-width:290px;padding:8px 11px;border-radius:8px;background:#0b1b28ee;color:#e6f9ff;font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 10px #0009';
     const title=context.document.createElement('div');
     title.textContent=status.localPlaytest.state==='ready'?
-     'Kairo: '+status.localPlaytest.slots.length+' local moves active'+
-     (status.localPlaytest.jumpLab?' · JUMP LAB '+status.localPlaytest.jumpLab.toUpperCase():''):
+     'Kairo: '+status.localPlaytest.slots.length+' local moves active':
      'Local moves not loaded — original game active';
     notice.appendChild(title);
     if(status.localPlaytest.baseVersion){
