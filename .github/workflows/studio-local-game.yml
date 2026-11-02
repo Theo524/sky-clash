@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'animation-studio.html'
-      - 'jump-lab.html'
+      - 'assets/animations/gameplay/kairo-mixamo-jumps-v1.json'
       - 'index.html'
       - 'js/animation-studio.js'
       - 'js/v171-fbx-animation-recovery.js'

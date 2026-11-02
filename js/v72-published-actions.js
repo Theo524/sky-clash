@@ -405,18 +405,38 @@
    !fighter.sprinting&&!fighter.dashing&&
    !(fighter.acro&&fighter.acro.type!=='landing');
   if(localLanding)return actions.landing?'landing':null;
-   // Opt-in local five-piece test: a physical jump takes precedence over
-   // the height-based 'flying' getter without affecting powered flight.
-   const lab=root.SkyClashPublishedActions?.localPlaytest?.jumpLab;
-   if(lab&&fighter.characterId==='kairo_venn'&&!fighter.sprinting&&
-      !fighter.dashing&&(fighter.jumping||fighter.dropping)&&
-      !(fighter.acro&&fighter.acro.type!=='landing'&&fighter.acro.type!=='ninjaLeap')&&
-      !fighter.launched&&!fighter.spiked){
-    const descending=fighter.dropping||(fighter.vel?.y||0)<-.7;
-    if(!descending)return lab==='quick'?'jumpQuick':'jump';
-    if(lab==='quick')return fighter.v72StudioPack?.quickFallDone?'fallingIdle':'jumpDown';
-    return 'fallingIdle';
+  // The recorded Mixamo jump sequence is Kairo's NORMAL animation.
+  // The old controller checked the height-based flying getter before
+  // physical jump ascent, silently stealing the assigned Jump clip.
+  // Never rewrite physics or an intentional powered-fly input.
+  const recorded=root.SkyClashPublishedActions?.jumpSequence?.active&&
+   fighter.characterId==='kairo_venn'&&
+   !root.SkyClashPublishedActions?.localPlaytest?.requested;
+  if(recorded&&!fighter.dashing&&!fighter.sprinting&&
+     !(fighter.acro&&fighter.acro.type!=='landing'&&
+       fighter.acro.type!=='ninjaLeap')&&
+     !fighter.launched&&!fighter.spiked){
+   const pose=fighter.v72StudioPack;
+   // Physical collision starts landing, visual recovery finishes on its
+   // OWN clock. Do not extend landingMotionT: it gates actual gameplay.
+   if(!fighter.flying&&!fighter.jumping&&!fighter.dropping&&
+      ((fighter.landingMotionT||0)>0||
+       (pose?.landingVisualUntil||0)>(fighter.t||0)))
+    return actions.landing?'landing':null;
+   if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
+   if(fighter.jumping){
+    const descending=(fighter.vel?.y||0)<-.7;
+    const continuing=pose&&['jump','jumpQuick','jumpDown','fallingIdle']
+     .includes(pose.slot);
+    const quick=continuing&&pose.jumpMode?
+     pose.jumpMode==='quick':
+     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
+    if(!descending)return quick&&actions.jumpQuick?'jumpQuick':
+     actions.jump?'jump':null;
+    return quick&&!pose?.quickFallDone&&actions.jumpDown?'jumpDown':
+     actions.fallingIdle?'fallingIdle':null;
    }
+  }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
@@ -503,7 +523,8 @@
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
-     quickFallDone:false,
+     quickFallDone:false,jumpMode:null,landingVisualUntil:0,
+     landingSampleStart:0,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -652,9 +673,9 @@
    const serial=Number(this.attackSerial||0);
    // Capture the final previous-frame rise pose BEFORE legacy animators run.
    const outgoingRise=!options.choose&&
-    ['jump','jumpQuick','jumpDown'].includes(state.slot)&&
-    status.localPlaytest?.state==='ready'&&
-    status.localPlaytest.slots.includes('fallingIdle')&&state.bones?
+    ['jump','jumpQuick','jumpDown','fallingIdle'].includes(state.slot)&&
+    (status.jumpSequence?.active||status.localPlaytest?.state==='ready')&&
+    state.bones?
     state.bones.map(n=>n?n.quaternion.clone():null):null;
    const visibleBefore=status.localPlaytest?.state==='ready'&&this.punchT>0&&
     serial!==state.localHandoffSerial&&state.bones?
@@ -663,8 +684,13 @@
    // The V79 wrapper runs AFTER V72's user-authored full-body layer.
    // Its fading optional gestures must never overwrite even one bone
    // of a locally assigned fall/landing, including its first frame.
-   if(options.choose&&['fallingIdle','landing'].includes(
-       root.SkyClashV100Animator?.localStudioAirSlot?.(this))){
+   if(options.choose&&(['fallingIdle','landing'].includes(
+       root.SkyClashV100Animator?.localStudioAirSlot?.(this))||
+       status.jumpSequence?.active&&this.characterId==='kairo_venn'&&
+       !status.localPlaytest?.requested&&
+       (this.jumping||this.dropping||
+        this.landingMotionT>0||
+        state.landingVisualUntil>(this.t||0)))){
     state.slot=null;state.weight=0;state.releasingExtra=false;
     state.releaseEntry=null;state.localEntryPose=null;
     return;
@@ -813,13 +839,14 @@
      }else{
       const previousSlot=state.slot,previousClock=state.clock;
       const localFall=!options.choose&&
-       ['fallingIdle','jumpDown'].includes(slot)&&
-       status.localPlaytest?.state==='ready'&&
-       status.localPlaytest.slots.includes(slot);
+       ['fallingIdle','jumpDown','landing'].includes(slot)&&
+       (status.jumpSequence?.active&&!status.localPlaytest?.requested||
+        status.localPlaytest?.state==='ready'&&
+        status.localPlaytest.slots.includes(slot));
       const rising=previousSlot==='jump'&&slot==='fallingIdle'&&
        localFall&&actions.jump;
       const transition=localFall&&
-       ['jump','jumpQuick','jumpDown'].includes(previousSlot);
+       ['jump','jumpQuick','jumpDown','fallingIdle'].includes(previousSlot);
       const sameSource=rising&&actions.jump.yaw===actions.fallingIdle.yaw&&
        ((actions.jump.sourceId&&actions.fallingIdle.sourceId&&
          actions.jump.sourceId===actions.fallingIdle.sourceId)||
@@ -828,8 +855,25 @@
       // old forced rewind caused an instant unwanted body tilt at the apex.
       state.airHandoffFrom=transition&&!sameSource?outgoingRise:null;
       state.airHandoffAge=0;
-      if(['jump','jumpQuick','landing'].includes(slot))state.quickFallDone=false;
+      if(['jump','jumpQuick'].includes(slot)){
+       state.quickFallDone=false;state.landingVisualUntil=0;
+       state.jumpMode=slot==='jumpQuick'?'quick':'full';
+      }
+      const directLanding=slot==='landing'&&
+       status.jumpSequence?.active&&!status.localPlaytest?.requested;
+      if(directLanding){
+       // Mixamo's first 0.30s is airborne descent. Physical game collision
+       // has already happened: begin at its contact pose, then play all
+       // of the original absorption + recovery at 1x, visually only.
+       state.landingSampleStart=.30;
+       state.landingVisualUntil=(this.t||0)+
+        Math.max(.05,(actions.landing.seconds-state.landingSampleStart)/
+         Math.max(.25,actions.landing.speed||1));
+      }
       state.slot=slot;state.clock=sameSource?previousClock:
+       directLanding?state.landingSampleStart:
+       slot==='jump'&&status.jumpSequence?.active&&!status.localPlaytest?.requested?
+        .40:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
         localStopContactTime(actions.runStop):0;
@@ -857,16 +901,17 @@
      this.punchT>0&&this.hp>0&&this.stun<=0&&!this.downT&&
      !this.attackAir&&!this.flying&&!this.jumping&&!this.launched&&!this.spiked;
     const fullBodyPunch=groundedPunch;
+    const direct=!options.choose&&this.characterId==='kairo_venn'&&
+     status.jumpSequence?.active&&!status.localPlaytest?.requested;
     const localLanding=!options.choose&&this.characterId==='kairo_venn'&&
-     entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes('landing');
+     entry.slot==='landing'&&
+     (direct||status.localPlaytest?.state==='ready'&&
+      status.localPlaytest.slots.includes('landing'));
     const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
      ['fallingIdle','jumpDown'].includes(entry.slot)&&
-     status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes(entry.slot);
-    const localJump=!options.choose&&this.characterId==='kairo_venn'&&
-     ['jump','jumpQuick'].includes(entry.slot)&&
-     status.localPlaytest?.jumpLab&&status.localPlaytest.slots.includes(entry.slot);
+     (direct||status.localPlaytest?.state==='ready'&&
+      status.localPlaytest.slots.includes(entry.slot));
+    const localJump=direct&&['jump','jumpQuick'].includes(entry.slot);
     const authoredAir=localLanding||localFalling||localJump;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
@@ -1049,7 +1094,7 @@
      node.quaternion.slerp(target,authoredAir?1:state.weight);
      // Different jump/fall FBXs need a short visible-pose handoff rather
      // than the old one-frame snap. No extra controller writes this pose.
-     if((localFalling||localJump)&&state.airHandoffFrom?.[i]){
+     if(authoredAir&&state.airHandoffFrom?.[i]){
       const t=Math.min(1,state.airHandoffAge/state.airHandoffDuration);
       const w=t*t*(3-2*t);
       node.quaternion.slerpQuaternions(state.airHandoffFrom[i],
@@ -1073,14 +1118,21 @@
     if(handoff>=1)state.localEntryPose=null;
     if(state.airHandoffFrom&&state.airHandoffAge>=state.airHandoffDuration)
      state.airHandoffFrom=null;
-    if(authoredAir&&(entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
+    if(authoredAir&&
+       // Physical jump already raises/lowers the capsule. Applying the
+       // full source takeoff Y on top doubles the ascent and looks wrong.
+       (!direct||!['jump','jumpQuick','jumpDown'].includes(slot))&&
+       (entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
      // Studio's V78 displays the SOURCE world-up pelvis displacement,
      // including deeper crouches. Match its +/-1.1m visual bound instead
      // of the game's old -32/+18cm truncation. Translate the world-up
      // vector into the hips parent's local coordinate frame so rotations
      // and parent scale cannot redirect it sideways.
      const sampleTime=state.clock,loop=entry.slot==='fallingIdle';
-     const scaled=(entry.sampleHipY?.(sampleTime,loop)||0)*state.avatarHeight;
+     const baseY=direct&&entry.slot==='landing'?
+      (entry.sampleHipY?.(state.landingSampleStart,false)||0):0;
+     const scaled=((entry.sampleHipY?.(sampleTime,loop)||0)-baseY)*
+      state.avatarHeight;
      const delta=Math.max(-1.1,Math.min(1.1,scaled));
      const hips=state.bones[0],parent=hips.parent;
      const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
@@ -1090,7 +1142,10 @@
       // Horizontal source travel is visual-only: same facing correction as
       // source quaternions. Physics root, collision, and hitboxes stay put.
       const xz=entry.sampleHipXZ?.(sampleTime,loop);
-      const horizontal=new THREE.Vector3(xz?.x||0,0,xz?.z||0)
+      const xzBase=direct&&entry.slot==='landing'?
+       entry.sampleHipXZ?.(state.landingSampleStart,false):null;
+      const horizontal=new THREE.Vector3(
+       (xz?.x||0)-(xzBase?.x||0),0,(xz?.z||0)-(xzBase?.z||0))
        .multiplyScalar(state.avatarHeight).applyQuaternion(qBasis);
       horizontal.y=0;
       if(horizontal.length()>1.1)horizontal.setLength(1.1);
@@ -1343,27 +1398,32 @@
      (context.console||console).warn('Local Studio moves unavailable; published combat preserved',err);
     }
    }
-   // Jump Lab exists ONLY under the explicit URL and a separate browser key.
-   // Never replace the user's saved active Studio pack or protected Base.
-   const jumpLab=flags.get('jumpLab');
-   if(localRequested&&['full','quick'].includes(jumpLab)){
+   // Install the player's real five Mixamo clips into NORMAL Kairo
+   // gameplay. Never require a Jump Lab URL, import, or IndexedDB write.
+   // Local Animation Studio assignments keep their independent playback
+   // and user-saved Base; game load fails open if this asset is missing.
+   status.jumpSequence={active:false,state:'unavailable',sources:[]};
+   if(!localRequested){
     try{
-     const savedLab=await context.SkyClashStudioLiveBridge?.loadJumpLab?.();
-     if(!savedLab)throw Error('No five-clip Jump Lab installed. Open jump-lab.html.');
-     const overrides={};
-     for(const entry of savedLab.pack.motions)
-      overrides[entry.slot]=decode(context.THREE,entry);
+     const response=await context.fetch(
+      'assets/animations/gameplay/kairo-mixamo-jumps-v1.json',{cache:'no-cache'});
+     if(!response.ok)throw Error('Mixamo jump assets HTTP '+response.status);
+     const pack=await response.json();
+     if(pack.schema!=='sky-clash.studio-gamepack.v1'||pack.revision!==1||
+       !Array.isArray(pack.motions)||pack.motions.length!==5)
+      throw Error('Invalid Kairo jump sequence pack');
+     const recorded={};
+     for(const entry of pack.motions)if(entry.character==='kairo')
+      recorded[entry.slot]=decode(context.THREE,entry);
      for(const name of ['jump','jumpQuick','jumpDown','fallingIdle','landing'])
-      if(!overrides[name])throw Error('Jump Lab missing '+name);
-     Object.assign(actions,overrides);
-     status.localPlaytest.state='ready';
-     status.localPlaytest.error=null;
-     status.localPlaytest.slots=[...new Set([...status.localPlaytest.slots,...Object.keys(overrides)])];
-     status.localPlaytest.jumpLab=jumpLab;
-     status.localPlaytest.jumpLabSources=savedLab.pack.motions.map(m=>m.sourceFile);
+      if(!recorded[name])throw Error('Missing recorded jump part '+name);
+     Object.assign(actions,recorded);
+     status.jumpSequence={active:true,state:'ready',
+      sources:pack.motions.map(m=>m.sourceFile)};
     }catch(err){
-     status.localPlaytest.jumpLabError=String(err);
-     (context.console||console).warn('Jump Lab unavailable; approved clips retained',err);
+     status.jumpSequence.state='fallback';
+     status.jumpSequence.error=String(err);
+     (context.console||console).warn('Recorded Mixamo jumps unavailable; original game retained',err);
     }
    }
    // Pass the actual approved idle recording (NOT the old fighting-idle
@@ -1392,8 +1452,7 @@
     notice.style.cssText='position:fixed;z-index:99999;top:8px;right:8px;max-width:290px;padding:8px 11px;border-radius:8px;background:#0b1b28ee;color:#e6f9ff;font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 10px #0009';
     const title=context.document.createElement('div');
     title.textContent=status.localPlaytest.state==='ready'?
-     'Kairo: '+status.localPlaytest.slots.length+' local moves active'+
-     (status.localPlaytest.jumpLab?' · JUMP LAB '+status.localPlaytest.jumpLab.toUpperCase():''):
+     'Kairo: '+status.localPlaytest.slots.length+' local moves active':
      'Local moves not loaded — original game active';
     notice.appendChild(title);
     if(status.localPlaytest.baseVersion){

@@ -5,11 +5,11 @@
 (function(root){
  'use strict';
  const DB='sky-clash-studio-game-playtest',STORE='packs',KEY='kairo',
-  BASE_KEY='kairo-studio-approved-base-v1',JUMP_LAB_KEY='kairo-five-jump-lab-v1',MAX_BYTES=20*1024*1024;
+  BASE_KEY='kairo-studio-approved-base-v1',MAX_BYTES=20*1024*1024;
  const SLOTS=Object.freeze(['idle','walk','run','jump','runStop','dodge',
   'punch1','punch2','punch3','uppercut','kick','meteor',
   'charge','superblast','hit','floating','flying','fallingIdle',
-  'landing','boost','guard','jumpQuick','jumpDown']);
+  'landing','boost','guard']);
  const allowed=new Set(SLOTS);
  function validate(pack){
   if(!pack||pack.schema!=='sky-clash.studio-gamepack.v1'||
@@ -75,32 +75,6 @@
   if(!record)return null;
   return {pack:record.pack,slots:validate(record.pack),updatedAt:record.updatedAt};
  }
- // A separate temporary five-clip Jump Lab pack. This never changes the
- // player's saved Studio action map, active motions, or protected Base.
- const JUMP_SLOTS=['jump','jumpQuick','jumpDown','fallingIdle','landing'];
- async function saveJumpLab(pack){
-  const slots=validate(pack);
-  if(pack.jumpLabVersion!==1||slots.length!==5||
-     JUMP_SLOTS.some(s=>!slots.includes(s)))
-   throw Error('Import the five-clip Jump Lab JSON, not a normal Studio export');
-  const updatedAt=Date.now();
-  await transaction('readwrite',store=>{
-   store.put({id:JUMP_LAB_KEY,pack,updatedAt});
-  });
-  return {slots,updatedAt};
- }
- async function loadJumpLab(){
-  const value=await transaction('readonly',(store,set)=>{
-   const request=store.get(JUMP_LAB_KEY);
-   request.onsuccess=()=>set(request.result||null);
-  });
-  if(!value)return null;
-  validate(value.pack);
-  return {pack:value.pack,updatedAt:value.updatedAt};
- }
- async function clearJumpLab(){
-  await transaction('readwrite',store=>store.delete(JUMP_LAB_KEY));
- }
  // A user-saved base is a separate immutable-ish browser snapshot, NOT
  // the current working copy. Editing/applying/resetting the working pack
  // can never overwrite it; only the explicit Save Base action can.
@@ -140,8 +114,7 @@
   // Reset working preview only; NEVER discard the protected base.
   await transaction('readwrite',store=>{store.delete(KEY);});
  }
- const api={save,load,clear,saveJumpLab,loadJumpLab,clearJumpLab,
-  saveBase,loadBase,restoreBase,importBase,validate,
+ const api={save,load,clear,saveBase,loadBase,restoreBase,importBase,validate,
   supportedSlots:SLOTS,baseVersion:1};
  if(typeof module!=='undefined'&&module.exports)module.exports=api;
  root.SkyClashStudioLiveBridge=api;

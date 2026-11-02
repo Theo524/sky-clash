@@ -43,7 +43,11 @@
   if(f.flying)return f.sprinting?'flight-boost':'flight';
   if(f.dashing)return 'dash';
   if(f.sprinting)return 'boost';
-  if(f.landingMotionT>0)return 'landing';
+  if(f.landingMotionT>0||
+     root.SkyClashPublishedActions?.jumpSequence?.active&&
+     !root.SkyClashPublishedActions?.localPlaytest?.requested&&
+     (f.v72StudioPack?.landingVisualUntil||0)>(f.t||0))
+   return 'landing';
   // A grounded Boost stop is distinct from a new run/walk cycle.
   if((f.t||0)<(f._v82BoostStopEnd||-1)&&
      Math.hypot(f.moveIntent?.x||0,f.moveIntent?.z||0)<.8)
@@ -99,7 +103,12 @@
     // already authored by V72. No second 60-75ms full-body blend,
     // artificial finger grip, or wrist constraint may overwrite them.
     // The transition controller remains intact for every other state.
-    if((next==='fall'&&appliedStudioSlot(this,'fallingIdle'))||
+    const recordedJump=root.SkyClashPublishedActions?.jumpSequence?.active&&
+     !root.SkyClashPublishedActions?.localPlaytest?.requested&&
+     this===root.SkyClash?.Game?.heroes?.kairo_venn&&
+     ['jump','fall','landing'].includes(next);
+    if(recordedJump||
+       (next==='fall'&&appliedStudioSlot(this,'fallingIdle'))||
        (next==='landing'&&appliedStudioSlot(this,'landing'))){
      st.mode=null;st.airWristAnchor=null;st.handGrip=0;
      st.nativeRelease=false;st.previousHips=null;

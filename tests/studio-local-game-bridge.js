@@ -21,21 +21,21 @@ for(const bad of [
 assert(bridge.supportedSlots.includes('punch1'));
 assert(bridge.supportedSlots.includes('kick'));
 assert.equal(bridge.baseVersion,1);
-assert(bridge.supportedSlots.includes('jumpQuick')&&
- bridge.supportedSlots.includes('jumpDown'),
- 'Two alternate Jump Lab clips must decode in the isolated test store');
-for(const action of ['saveJumpLab','loadJumpLab','clearJumpLab'])
- assert.equal(typeof bridge[action],'function',action+' must be available');
-const jumpLabPage=read('jump-lab.html'),jumpBridge=read('js/studio-live-bridge.js');
-assert(jumpLabPage.includes('id="full"')&&jumpLabPage.includes('id="quick"'));
-assert(jumpLabPage.includes('bridge.saveJumpLab(data)')&&
- jumpLabPage.includes('bridge.clearJumpLab()'));
-assert(jumpBridge.includes("JUMP_LAB_KEY='kairo-five-jump-lab-v1'"));
-assert(jumpBridge.includes('store.put({id:JUMP_LAB_KEY,pack,updatedAt})'));
-assert(!jumpLabPage.includes('bridge.save(data)')&&
- !jumpLabPage.includes('bridge.saveBase('),
- 'Jump Lab cannot overwrite working Studio moves or approved Base');
-
+assert(!bridge.supportedSlots.includes('jumpQuick')&&
+ !bridge.supportedSlots.includes('jumpDown'),
+ 'Quick fall is built into normal Kairo; Studio does not require a Jump Lab');
+assert(!read('js/studio-live-bridge.js').includes('JUMP_LAB_KEY'),
+ 'Jump Lab browser state must not be used in ordinary gameplay');
+const mixamo=JSON.parse(read('assets/animations/gameplay/kairo-mixamo-jumps-v1.json'));
+assert.equal(mixamo.motions.length,5,'All five original Mixamo motion curves must ship');
+for(const [slot,filename] of [
+ ['jump','Jumping Up(1).fbx'],['jumpQuick','Jumping Up (1).fbx'],
+ ['jumpDown','Jumping Down(1).fbx'],['fallingIdle','Falling Idle(1).fbx'],
+ ['landing','Falling To Landing(1).fbx']]){
+ const found=mixamo.motions.find(x=>x.slot===slot);
+ assert(found&&found.sourceFile===filename&&found.data.length>100,
+  'Missing original user-selected baked Mixamo '+slot);
+}
 for(const method of ['saveBase','loadBase','restoreBase','importBase'])
  assert.equal(typeof bridge[method],'function','Protected baseline API '+method);
 const bridgeSource=read('js/studio-live-bridge.js');
@@ -68,13 +68,13 @@ assert(studio.includes('LiveBridge.importBase(data)'));
 assert(studio.includes('exportAssignedPunchSources'));
 assert(studio.includes("item.zipEntry.async('uint8array')"));
 assert(studio.includes("item.file.arrayBuffer()"));
-assert(html.includes('js/studio-live-bridge.js?v=4'));
+assert(html.includes('js/studio-live-bridge.js?v=5'));
 assert(studio.includes("window.location.assign('index.html?studioPlaytest=local&scene=dojo&flightBody=alive')"));
 assert(studio.includes('LiveBridge.save(result.pack)'));
 assert(studio.includes('GameExporter.bake(THREE,fbx,'));
 assert(studio.includes('if(actionFighter!==\'kairo\')'));
 assert(boot.includes("get('studioPlaytest')==='local'"));
-assert(boot.includes('js/studio-live-bridge.js?v=4'));
+assert(boot.includes('js/studio-live-bridge.js?v=5'));
 assert(runtimeSource.includes('await bridge.load()'));
 assert(runtimeSource.includes('Object.assign(actions,localActions)'));
 assert(runtimeSource.includes("status.localPlaytest.state='fallback'"));
@@ -204,20 +204,29 @@ const testJumpFighter={characterId:'kairo_venn',hp:100,jumping:true,
  flying:true,vel:{x:0,y:4,z:0},punchT:0,landingMotionT:0};
 const jumpChoices={jump:{},jumpQuick:{},jumpDown:{},fallingIdle:{},landing:{},
  floating:{},flying:{}};
-const labStatus=globalThis.SkyClashPublishedActions;
-globalThis.SkyClashPublishedActions={localPlaytest:{
- state:'ready',jumpLab:'full',slots:Object.keys(jumpChoices)}};
-assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jump');
+const previousJumpStatus=globalThis.SkyClashPublishedActions;
+globalThis.SkyClashPublishedActions={
+ jumpSequence:{active:true},localPlaytest:{requested:false}};
+assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jump',
+ 'Normal recorded standing jump must beat height-based Floating');
 assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices),
  'fallingIdle');
-globalThis.SkyClashPublishedActions.localPlaytest.jumpLab='quick';
-assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jumpQuick');
-assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices),
- 'jumpDown');
-assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{quickFallDone:true},
- vel:{x:0,y:-4,z:0}},jumpChoices),'fallingIdle');
-if(labStatus===undefined)delete globalThis.SkyClashPublishedActions;
-else globalThis.SkyClashPublishedActions=labStatus;
+assert.equal(runtime.choose({...testJumpFighter,vel:{x:5,y:4,z:0}},jumpChoices),
+ 'jumpQuick','Moving jump should use short Mixamo source');
+assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{jumpMode:'quick'},
+ vel:{x:5,y:-4,z:0}},jumpChoices),'jumpDown');
+assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
+ jumpMode:'quick',quickFallDone:true},vel:{x:5,y:-4,z:0}},jumpChoices),
+ 'fallingIdle');
+assert.equal(runtime.choose({...testJumpFighter,jumping:false,
+ flying:false,vel:{x:0,y:0,z:0},t:2,landingMotionT:0,
+ v72StudioPack:{landingVisualUntil:2.3}},jumpChoices),'landing',
+ 'Recorded landing recovery should not be cut at the physics timer');
+globalThis.SkyClashPublishedActions.localPlaytest.requested=true;
+assert.notEqual(runtime.choose(testJumpFighter,jumpChoices),'jump',
+ 'Experimental native clip must not replace explicitly applied Studio moves');
+if(previousJumpStatus===undefined)delete globalThis.SkyClashPublishedActions;
+else globalThis.SkyClashPublishedActions=previousJumpStatus;
 const priorStatus=globalThis.SkyClashPublishedActions;
 const fighter={hp:100,vel:{x:0,z:0},punchT:.3,punchSide:1,attackSerial:3};
 const available={punch3:{},kick:{},uppercut:{},meteor:{}};
