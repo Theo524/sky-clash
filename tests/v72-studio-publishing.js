@@ -125,8 +125,9 @@ assert(fidelityRuntime.includes("entry.slot==='fallingIdle'"),
  'Source pelvis motion must also survive a locally assigned falling idle');
 assert(read('js/character-motion-preview.js').includes('{preserveFullSource}'),
  'Character preview must apply the same full source air joint rotations as game');
-assert(fidelityRuntime.includes('state.airHandoffFrom=transition&&!sameSource?outgoingRise:null'),
- 'Different source clips must blend from the last displayed rise pose');
+assert(fidelityRuntime.includes('state.airHandoffFrom=transition&&!sameSource&&!cleanJumpSeam?')&&
+ fidelityRuntime.includes("slot==='landing'&&['jump','jumpQuick'].includes(previousSlot)"),
+ 'Unrelated sources must still blend but already matched Mixamo source seams must not re-twist the old pose');
 assert(fidelityRuntime.includes('state.slot=slot;state.clock=sameSource?previousClock:'),
  'Same saved FBX for Jump and Falling Idle must not rewind at apex');
 assert(source.includes("hipXZEncoding:'int16-normalized-height-xz-delta'")&&

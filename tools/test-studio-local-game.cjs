@@ -777,6 +777,107 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(bad.state,'fallback');
   assert(bad.ready,'Corrupt local data must not break shipped combat');
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
+  // Diagnose the ORIGINAL game retarget against the separately loaded Kairo
+  // reference that Animation Studio actually uses, not a new pose owner.
+  // This is the first source-vs-visible numerical check for the five jumps.
+  await navigate('?scene=dojo&studioPoseAudit=1');
+  const jumpRetargetAudit=await page.evaluate(async()=>{
+   const T=window.THREE,g=window.SkyClash.Game,p=g.player;
+   g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   const response=await fetch('assets/characters/kairo.vrm');
+   if(!response.ok)throw Error('cannot read reference Kairo');
+   const bytes=await response.arrayBuffer();
+   const kit=window.VRMKit,loader=new kit.GLTFLoader();
+   loader.register(q=>new kit.VRMLoaderPlugin(q));
+   const gltf=await new Promise((resolve,reject)=>loader.parse(bytes,'',resolve,reject));
+   const vrm=gltf.userData.vrm;
+   if(kit.VRMUtils.rotateVRM0)kit.VRMUtils.rotateVRM0(vrm);
+   const names=['hips','spine','chest','upperChest','neck','head',
+    'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+    'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+    'leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const nodes=names.map(n=>vrm.humanoid.getNormalizedBoneNode(n));
+   vrm.scene.updateMatrixWorld(true);
+   const localRest=nodes.map(n=>n.quaternion.clone());
+   const worldRest=nodes.map(n=>n.getWorldQuaternion(new T.Quaternion()));
+   const referenceSide=nodes[7].getWorldPosition(new T.Vector3())
+    .sub(nodes[11].getWorldPosition(new T.Vector3()));
+   referenceSide.y=0;referenceSide.normalize();
+   const srcKeys=['hips','spine','spine1','spine2','neck','head',
+    'leftshoulder','leftarm','leftforearm','lefthand',
+    'rightshoulder','rightarm','rightforearm','righthand',
+    'leftupleg','leftleg','leftfoot',
+    'rightupleg','rightleg','rightfoot'];
+   const source=window.SkyClashPublishedActions.motionClips;
+   p.hp=100;p.stun=0;p.downT=0;p.slamLagT=0;
+   p.punchT=0;p.blastT=0;p.superHitT=0;p.blockHeld=false;p.blocking=false;
+   p.sprinting=false;p.dashing=false;p.acro=null;p.landingMotionT=0;
+   p.jumping=true;p.dropping=false;p.pos.y=p.floor+2;
+   p.vel.set(0,5,0);p.v108JumpPrepT=0;p.moveIntent.set(0,0,0);
+   p.t+=1/60;p.animate(1/60);
+   const state=p.v72StudioPack,live=state.bones;
+   const angle=(a,b)=>a.angleTo(b)*180/Math.PI;
+   const sceneQuat=vrm.scene.getWorldQuaternion(new T.Quaternion());
+   const sceneLocalRest=worldRest.map(w=>sceneQuat.clone().invert().multiply(w));
+   const bindErrors=sceneLocalRest.map((w,i)=>angle(w,state.bind[i]));
+   function observe(slot,time,velY){
+    const entry=source[slot],isLanding=slot==='landing';
+    if(!entry)throw Error('missing test clip '+slot);
+    p.jumping=true;p.vel.y=velY;
+    state.slot=slot;state.clock=time;state.weight=1;
+    state.jumpMode='full';state.airHandoffFrom=null;
+    state.localEntryPose=null;state.landingVisualUntil=p.t+3;
+    p.t+=.00001;p.animate(0);
+    if(state.slot!==slot)throw Error('switched '+slot+' to '+state.slot);
+    const sample=names.map(()=>new T.Quaternion());
+    entry.sample(time,sample,false);
+    for(let i=0;i<nodes.length;i++)nodes[i].quaternion.copy(localRest[i]);
+    vrm.scene.updateMatrixWorld(true);
+    const sourceSide=new T.Vector3(entry.side[0],0,entry.side[1]);
+    const cross=sourceSide.z*referenceSide.x-sourceSide.x*referenceSide.z;
+    const dot=sourceSide.x*referenceSide.x+sourceSide.z*referenceSide.z;
+    const basis=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),
+      Math.atan2(cross,dot)+(entry.yaw||0)*Math.PI/180);
+    const inv=basis.clone().invert(),differences=[],rawVsStudio=[];
+    let capped=0;
+    for(let i=0;i<nodes.length;i++){
+     const n=nodes[i],parent=n.parent,rest=localRest[i];
+     const rotated=basis.clone().multiply(sample[i]).multiply(inv);
+     const wanted=rotated.multiply(worldRest[i]);
+     const parentQ=parent.getWorldQuaternion(new T.Quaternion());
+     const intended=parentQ.invert().multiply(wanted).normalize();
+     const cap=srcKeys[i]==='hips'?Math.PI:
+      srcKeys[i].includes('forearm')||srcKeys[i].includes('hand')?2.65:
+      srcKeys[i].includes('arm')||srcKeys[i].includes('shoulder')?2.45:
+      srcKeys[i].includes('leg')||srcKeys[i].includes('foot')?2.4:1.9;
+     const proposedAngle=rest.angleTo(intended);
+     if(proposedAngle>cap){capped++;intended.copy(rest).slerp(intended,cap/proposedAngle);}
+     n.quaternion.copy(intended);
+     n.updateMatrixWorld(true);
+     differences.push({name:names[i],deg:angle(live[i].quaternion,n.quaternion)});
+     rawVsStudio.push({name:names[i],deg:proposedAngle*180/Math.PI});
+    }
+    return {slot,time,clamped:capped,
+     maxDiff:+Math.max(...differences.map(x=>x.deg)).toFixed(2),
+     top: differences.sort((a,b)=>b.deg-a.deg).slice(0,6).map(x=>[x.name,+x.deg.toFixed(2)]),
+     maxRequested:+Math.max(...rawVsStudio.map(x=>x.deg)).toFixed(2)};
+   }
+   const cases=[
+    observe('jump',.1,5),observe('jump',.3,5),
+    observe('jump',.55,5),observe('jump',.78,5),
+    observe('landing',.1,-5),observe('landing',.35,-5)
+   ];
+   return {maxRestMismatch:+Math.max(...bindErrors).toFixed(3),
+    restLocal:localRest.map((q,i)=>[names[i],+angle(q,new T.Quaternion()).toFixed(3)]),
+    cases};
+  });
+  console.log('KAIRO_MIXAMO_STUDIO_VS_GAME_AUDIT '+JSON.stringify(jumpRetargetAudit));
+  assert(jumpRetargetAudit.maxRestMismatch<.001,
+   'The gameplay jump reference differs from Studio on the same real Kairo');
+  assert(jumpRetargetAudit.cases.every(c=>c.maxDiff<.1&&c.clamped===0),
+   'The game changed original Studio retargeted jump/landing leg poses');
   // Real input buffer + late-animation writer regression: the previous
   // PR only forced jumping=true, missing the procedural push that a player
   // actually sees when pressing Jump in normal Training.
@@ -836,6 +937,74 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    'Boost jump incorrectly used a flight or procedural animation');
   assert(realPress.flipRemoved,'Legacy random flip still rotates Kairo over Mixamo');
   assert.equal(realPress.error,null);
+  // Exercise the full real Fighter.update -> V108 buffer -> physical
+  // ascent -> contact -> recovery path. Earlier forced-state tests missed
+  // full-jump source discontinuities and abrupt leg rotations.
+  await navigate('?scene=dojo&studioPoseAudit=1');
+  const physicalJumps=await page.evaluate(()=>{
+   const g=window.SkyClash.Game,p=g.player;g.enterDojo();
+   g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   const joints=['leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const hum=p.vrmRig.vrm.humanoid;
+   const nodes=joints.map(n=>hum.getNormalizedBoneNode(n));
+   const trials=[];
+   for(const moving of [false,true]){
+    p.hp=100;p.stun=0;p.downT=0;p.slamLagT=0;
+    p.punchT=0;p.blastT=0;p.blockHeld=false;p.blocking=false;
+    p.sprinting=false;p.dashing=false;p.acro=null;
+    p.jumping=false;p.dropping=false;p.v108JumpPrepT=0;
+    p.v108JumpPrepDuration=0;p.vert=0;p.landingMotionT=0;
+    p.pos.y=p.floor;p.pos.x=0;p.pos.z=0;
+    p.vel.set(moving?5:0,0,0);
+    p.moveIntent.set(moving?1:0,0,0);
+    p.v72StudioPack.slot=null;p.v72StudioPack.clock=0;
+    p.v72StudioPack.jumpMode=null;p.v72StudioPack.landingVisualUntil=0;
+    p.v72StudioPack.jumpLandingFinished=false;
+    const started=p.tryJump(),seq=[],trace=[];
+    let previous=nodes.map(n=>n.quaternion.clone());
+    let maxLegStep=0,maxLegName=null,maxLegFrame=0,maxWriterDrift=0;
+    for(let i=0;i<125;i++){
+     p.update(1/60);
+     const slot=p.v72StudioPack.slot||'none';
+     if(seq.at(-1)!==slot)seq.push(slot);
+     if(i%4===0)trace.push([i,slot,+p.v72StudioPack.clock.toFixed(2),
+      +((p.pos.y||0)-p.floor).toFixed(2)]);
+     const snapshot=p.v72StudioPack.studioPoseSnapshot;
+     if(['jump','jumpQuick','landing'].includes(slot)&&snapshot)
+      snapshot.forEach((q,j)=>{
+       if(q&&p.v72StudioPack.bones[j])
+        maxWriterDrift=Math.max(maxWriterDrift,
+         q.angleTo(p.v72StudioPack.bones[j].quaternion));
+      });
+     nodes.forEach((n,j)=>{
+      const delta=previous[j].angleTo(n.quaternion)*180/Math.PI;
+      if(delta>maxLegStep){maxLegStep=delta;maxLegName=joints[j];maxLegFrame=i;}
+      previous[j].copy(n.quaternion);
+     });
+    }
+    trials.push({moving,started,seq,trace,maxLegStep:+maxLegStep.toFixed(2),
+     maxLegName,maxLegFrame,maxWriterDrift:+maxWriterDrift.toFixed(6),
+     airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
+   }
+   return trials;
+  });
+  console.log('KAIRO_REAL_PHYSICS_MIXAMO_JUMPS '+JSON.stringify(physicalJumps));
+  for(const trial of physicalJumps){
+   assert(trial.started,'Actual jump input was refused in full physics trace');
+   assert(trial.seq.includes(trial.moving?'jumpQuick':'jump'),
+    'Actual physics jump failed to choose the correct Mixamo takeoff');
+   assert(trial.seq.includes('landing'),
+    'Actual jump failed to enter the original source-matched landing');
+   assert(!trial.seq.includes('jumpDown')&&!trial.seq.includes('fallingIdle'),
+    'Old partial descent or disconnected Falling Idle hijacked an ordinary jump');
+   assert(trial.maxLegStep<80,
+    'Visible VRM leg rotated more than 80 degrees in one gameplay frame');
+   assert(trial.maxWriterDrift<.01,
+    'A later controller changed Kairo bones after the source Mixamo pose');
+   assert(!trial.airborne,'Actual jump did not return to grounded physics');
+  }
   // The five player-selected Mixamo FBXs are now part of ORDINARY
   // Kairo gameplay. No Jump Lab URL, importer, or browser save is used.
   await navigate('?scene=dojo&studioPoseAudit=1');
@@ -909,7 +1078,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.acro=null;p.landingMotionT=0;p.jumping=true;p.dropping=false;
    p.pos.y=p.floor+5;p.vel.set(5,5,0);p.moveIntent.set(0,0,0);
    p.t+=1/60;p.animate(1/60);const rise=p.v72StudioPack.slot;
-   // Let the short source takeoff finish before descending.
+   // The source-compatible quick takeoff joins Landing frame zero
+   // directly; don't force the partial Jump Down or incompatible fall.
    p.v72StudioPack.clock=s.motionClips.jumpQuick.seconds;
    p.vel.y=-3;let downFrames=0,landingFrames=0,fallFrames=0;
    for(let i=0;i<42;i++){
@@ -921,8 +1091,8 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    return {rise,downFrames,landingFrames,fallFrames,error:s.error};
   });
   assert.equal(movingJump.rise,'jumpQuick','Moving jump did not select shorter Mixamo rise');
-  assert(movingJump.downFrames>=5&&movingJump.downFrames<=12,
-   'Moving descent did not play its matching Mixamo Jumping Down entry');
+  assert.equal(movingJump.downFrames,0,
+   'The discontinued partial Jump Down still interrupted the clean moving jump');
   assert(movingJump.landingFrames>20,
    'Moving descent did not continue into the original contact/recovery clip');
   assert.equal(movingJump.fallFrames,0,

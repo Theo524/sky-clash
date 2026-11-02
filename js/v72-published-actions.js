@@ -465,13 +465,13 @@
     // airborne times. Finish Jumping Up before joining the descent.
     if(pose?.slot===rise&&pose.clock<actions[rise].seconds-.018)
      return rise;
-    if(quick&&actions.jumpDown&&
-       !(pose?.slot==='jumpDown'&&pose.clock>=.13)&&
-       pose?.slot!=='landing')return 'jumpDown';
-    // Falling To Landing already contains descent, contact and recovery.
-    // Enter it BEFORE collision and retain that same source clock afterward.
-    // Do not splice Falling Idle into every normal jump: its source pose
-    // differs by 35-59 degrees per joint from the adjacent clips.
+    // Clean source-only animation routing. Both user-supplied Jumping Up
+    // takes finish almost exactly at Falling To Landing's FIRST frame:
+    // ~3.4° average for standing and ~1.4° for moving. Jumping Down is
+    // a different partial take, not a necessary step in every jump.
+    // Splicing its middle into Landing and then Falling Idle caused
+    // large, unnecessary knee/ankle/hip handoffs. Keep those FBXs
+    // available for Studio, but ordinary short hops use one descent.
     return actions.landing?'landing':actions.fallingIdle?'fallingIdle':null;
    }
   }
@@ -897,7 +897,14 @@
         actions.jump.data===actions.fallingIdle.data);
       // One FBX assigned to both phases stays on ONE source clock: the
       // old forced rewind caused an instant unwanted body tilt at the apex.
-      state.airHandoffFrom=transition&&!sameSource?outgoingRise:null;
+      // Never mix the *old gameplay pose* into a source-matched
+      // Mixamo takeoff->descent seam. A 0.16s crossfade from an unrelated
+      // pose was re-twisting legs that match within a few source degrees.
+      const cleanJumpSeam=status.jumpSequence?.active&&
+       !status.localPlaytest?.requested&&this.characterId==='kairo_venn'&&
+       slot==='landing'&&['jump','jumpQuick'].includes(previousSlot);
+      state.airHandoffFrom=transition&&!sameSource&&!cleanJumpSeam?
+       outgoingRise:null;
       state.airHandoffAge=0;
       if(['jump','jumpQuick'].includes(slot)){
        state.quickFallDone=false;state.landingVisualUntil=0;

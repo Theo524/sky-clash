@@ -1,5 +1,33 @@
 # Sky Clash — current state
 
+## Kairo clean Mixamo visual jumps — PR #185, 2026-11-02
+
+The user's visible Kairo leg twists persisted through PRs #182-#184.
+A REAL VRM comparison of six source jump/landing frames against the
+Animation Studio V68 formula gave 0 degrees max delta across all 20
+bones, and the native rest bind was identical (0 degrees difference).
+This rules out the earlier hypothesis of mismatched reference bone
+transforms or an independent incorrect retarget. Source joint clamps
+were never triggered. The remaining issue is sequence and transition
+ownership, not bad FBX or wrong source downloads.
+
+PR #185 (draft during testing) keeps the original VRM, gameplay physics,
+Rin, combat, flight, Animation Studio local packs and Base v1. It changes
+ONLY the NORMAL Kairo V72 source jump selection: standing/moving Mixamo
+Jumping Up joins Falling To Landing at its original first frame, matching
+the original source poses to within a few degrees. The partial Jumping
+Down is retained as a Studio asset but is not forced into every short hop;
+Falling Idle is only for long/uncontrolled falls. The source-matched
+takeoff-to-landing seam no longer crossfades from an old visible pose,
+which had bent legs despite the matching recorded poses. No additional
+Fighter.animate wrapper or lab page is added. The cache suffix 186 forces
+browsers to fetch the updated playback.
+A browser regression compares the game to independently loaded Studio
+rest and samples; also traces real 60Hz physics and final leg writers.
+Numeric passes establish source fidelity, not visual approval. This
+branch must pass CI before merge and needs player visual review.
+
+
 ## Mixamo jump source-clip continuity — PR #184, 2026-11-02
 
 Player reports source FBX movement looks correct in Animation Studio but
