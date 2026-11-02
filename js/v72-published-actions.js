@@ -405,6 +405,18 @@
    !fighter.sprinting&&!fighter.dashing&&
    !(fighter.acro&&fighter.acro.type!=='landing');
   if(localLanding)return actions.landing?'landing':null;
+   // Opt-in local five-piece test: a physical jump takes precedence over
+   // the height-based 'flying' getter without affecting powered flight.
+   const lab=root.SkyClashPublishedActions?.localPlaytest?.jumpLab;
+   if(lab&&fighter.characterId==='kairo_venn'&&!fighter.sprinting&&
+      !fighter.dashing&&(fighter.jumping||fighter.dropping)&&
+      !(fighter.acro&&fighter.acro.type!=='landing'&&fighter.acro.type!=='ninjaLeap')&&
+      !fighter.launched&&!fighter.spiked){
+    const descending=fighter.dropping||(fighter.vel?.y||0)<-.7;
+    if(!descending)return lab==='quick'?'jumpQuick':'jump';
+    if(lab==='quick')return fighter.v72StudioPack?.quickFallDone?'fallingIdle':'jumpDown';
+    return 'fallingIdle';
+   }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
   // throughout flight. Selecting acro before airborne used to suppress it.
   // Controlled Fly Down stays flight; falling is owned by Falling Idle.
@@ -491,6 +503,7 @@
     nativeSupportCorrection:0,
     localStrikeKey:null,localStrikeFeet:{},localFullBodyPunchActive:false,
     localLandingWasActive:false,airHandoffFrom:null,airHandoffAge:0,airHandoffDuration:.16,
+     quickFallDone:false,
     localFullBodyKickActive:false,
     localEntryPose:null,localEntryAge:0,localHandoffSerial:null,
     nativePreviewSerial:null,nativePreviewCancelled:false,
@@ -638,7 +651,8 @@
    // allocation or extra skeleton owner during ordinary gameplay.
    const serial=Number(this.attackSerial||0);
    // Capture the final previous-frame rise pose BEFORE legacy animators run.
-   const outgoingRise=!options.choose&&state.slot==='jump'&&
+   const outgoingRise=!options.choose&&
+    ['jump','jumpQuick','jumpDown'].includes(state.slot)&&
     status.localPlaytest?.state==='ready'&&
     status.localPlaytest.slots.includes('fallingIdle')&&state.bones?
     state.bones.map(n=>n?n.quaternion.clone():null):null;
@@ -798,18 +812,23 @@
       // Retain the LAST published idle keyframe and fade its influence.
      }else{
       const previousSlot=state.slot,previousClock=state.clock;
-      const localFall=!options.choose&&slot==='fallingIdle'&&
+      const localFall=!options.choose&&
+       ['fallingIdle','jumpDown'].includes(slot)&&
        status.localPlaytest?.state==='ready'&&
-       status.localPlaytest.slots.includes('fallingIdle');
-      const rising=previousSlot==='jump'&&localFall&&actions.jump;
+       status.localPlaytest.slots.includes(slot);
+      const rising=previousSlot==='jump'&&slot==='fallingIdle'&&
+       localFall&&actions.jump;
+      const transition=localFall&&
+       ['jump','jumpQuick','jumpDown'].includes(previousSlot);
       const sameSource=rising&&actions.jump.yaw===actions.fallingIdle.yaw&&
        ((actions.jump.sourceId&&actions.fallingIdle.sourceId&&
          actions.jump.sourceId===actions.fallingIdle.sourceId)||
         actions.jump.data===actions.fallingIdle.data);
       // One FBX assigned to both phases stays on ONE source clock: the
       // old forced rewind caused an instant unwanted body tilt at the apex.
-      state.airHandoffFrom=rising&&!sameSource?outgoingRise:null;
+      state.airHandoffFrom=transition&&!sameSource?outgoingRise:null;
       state.airHandoffAge=0;
+      if(['jump','jumpQuick','landing'].includes(slot))state.quickFallDone=false;
       state.slot=slot;state.clock=sameSource?previousClock:
        slot==='runStop'&&status.localPlaytest?.state==='ready'&&
        status.localPlaytest.slots.includes('runStop')?
