@@ -779,7 +779,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
   // The five player-selected Mixamo FBXs are now part of ORDINARY
   // Kairo gameplay. No Jump Lab URL, importer, or browser save is used.
-  await navigate('?scene=dojo');
+  await navigate('?scene=dojo&studioPoseAudit=1');
   const standingJump=await page.evaluate(()=>{
    const g=window.SkyClash.Game,p=g.player,s=window.SkyClashPublishedActions;
    g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
