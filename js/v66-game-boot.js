@@ -110,7 +110,7 @@
       (src.includes('v81-pose-transitions')||
        src.includes('v89-grounded-step')||
        src.includes('v72-published-actions')))
-     e.src+='&studioAirOwner=177&studioPelvis=178&studioExclusive=179&studioLandingFidelity=180&studioAirContinuity=181';
+     e.src+='&studioAirOwner=177&studioPelvis=178&studioExclusive=179&studioLandingFidelity=180&studioAirContinuity=181&fiveJumpLab=182';
    if(params.get('studioPlaytest')==='local'&&
       (src.includes('v71-mixamo-gameplay')||
        src.includes('v76-upper-body')||
@@ -331,7 +331,7 @@
    await script('js/v155-organic-flight.js?v=1550');
   // The local action pack is loaded ONLY on explicit editor playtest URLs.
   if(new URLSearchParams(location.search).get('studioPlaytest')==='local')
-   await script('js/studio-live-bridge.js?v=3');
+   await script('js/studio-live-bridge.js?v=4');
   await script('js/v72-published-actions.js?v=829&jabPlaytest=1&stormFist=3'+
    (boostMode==='v155'?'&boostMotion=155':boostMode==='v154'?'&boostMotion=154':'')+
    (new URLSearchParams(location.search).get('studioPlaytest')==='local'?'&studioLocal=4':''));
