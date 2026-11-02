@@ -807,7 +807,7 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    const clips=[],clocks=[];
    for(let n=0;n<64;n++){
     p.t+=1/60;p.animate(1/60);
-    if(n===0||n===24||n===46||n===63){
+    if(n===0||n===24||n===40||n===63){
      clips.push(p.v72StudioPack.slot);
      clocks.push(p.v72StudioPack.clock);
     }
