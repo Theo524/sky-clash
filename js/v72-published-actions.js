@@ -861,9 +861,13 @@
      entry.slot==='landing'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('landing');
     const localFalling=!options.choose&&this.characterId==='kairo_venn'&&
-     entry.slot==='fallingIdle'&&status.localPlaytest?.state==='ready'&&
-     status.localPlaytest.slots.includes('fallingIdle');
-    const authoredAir=localLanding||localFalling;
+     ['fallingIdle','jumpDown'].includes(entry.slot)&&
+     status.localPlaytest?.state==='ready'&&
+     status.localPlaytest.slots.includes(entry.slot);
+    const localJump=!options.choose&&this.characterId==='kairo_venn'&&
+     ['jump','jumpQuick'].includes(entry.slot)&&
+     status.localPlaytest?.jumpLab&&status.localPlaytest.slots.includes(entry.slot);
+    const authoredAir=localLanding||localFalling||localJump;
     const localRunStop=!options.choose&&this.characterId==='kairo_venn'&&
      entry.slot==='runStop'&&status.localPlaytest?.state==='ready'&&
      status.localPlaytest.slots.includes('runStop')&&!!entry.sampleSupport;
@@ -981,6 +985,7 @@
        rate*=entry.seconds/Math.max(.68,this._v85StopDuration||.70);
       state.clock+=elapsed*rate;
      }
+     if(slot==='jumpDown'&&state.clock>=entry.seconds)state.quickFallDone=true;
      entry.sample(state.clock,state.samples,LOOP.has(slot)||!!options.loopSlots?.includes(slot));
      if(boostClip&&slot==='boost'&&actions.run&&state.v154Motion?.ground>.001){
       // 18-frame old sprint had frantic lower-body pedalling. Retain its
@@ -1044,7 +1049,7 @@
      node.quaternion.slerp(target,authoredAir?1:state.weight);
      // Different jump/fall FBXs need a short visible-pose handoff rather
      // than the old one-frame snap. No extra controller writes this pose.
-     if(localFalling&&state.airHandoffFrom?.[i]){
+     if((localFalling||localJump)&&state.airHandoffFrom?.[i]){
       const t=Math.min(1,state.airHandoffAge/state.airHandoffDuration);
       const w=t*t*(3-2*t);
       node.quaternion.slerpQuaternions(state.airHandoffFrom[i],
@@ -1338,6 +1343,29 @@
      (context.console||console).warn('Local Studio moves unavailable; published combat preserved',err);
     }
    }
+   // Jump Lab exists ONLY under the explicit URL and a separate browser key.
+   // Never replace the user's saved active Studio pack or protected Base.
+   const jumpLab=flags.get('jumpLab');
+   if(localRequested&&['full','quick'].includes(jumpLab)){
+    try{
+     const savedLab=await context.SkyClashStudioLiveBridge?.loadJumpLab?.();
+     if(!savedLab)throw Error('No five-clip Jump Lab installed. Open jump-lab.html.');
+     const overrides={};
+     for(const entry of savedLab.pack.motions)
+      overrides[entry.slot]=decode(context.THREE,entry);
+     for(const name of ['jump','jumpQuick','jumpDown','fallingIdle','landing'])
+      if(!overrides[name])throw Error('Jump Lab missing '+name);
+     Object.assign(actions,overrides);
+     status.localPlaytest.state='ready';
+     status.localPlaytest.error=null;
+     status.localPlaytest.slots=[...new Set([...status.localPlaytest.slots,...Object.keys(overrides)])];
+     status.localPlaytest.jumpLab=jumpLab;
+     status.localPlaytest.jumpLabSources=savedLab.pack.motions.map(m=>m.sourceFile);
+    }catch(err){
+     status.localPlaytest.jumpLabError=String(err);
+     (context.console||console).warn('Jump Lab unavailable; approved clips retained',err);
+    }
+   }
    // Pass the actual approved idle recording (NOT the old fighting-idle
    // fallback) to the continuous V76 upper-body owner for the V92 lab.
    // This is the same clip already used by V72 for torso and legs.
@@ -1364,7 +1392,8 @@
     notice.style.cssText='position:fixed;z-index:99999;top:8px;right:8px;max-width:290px;padding:8px 11px;border-radius:8px;background:#0b1b28ee;color:#e6f9ff;font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 10px #0009';
     const title=context.document.createElement('div');
     title.textContent=status.localPlaytest.state==='ready'?
-     'Kairo: '+status.localPlaytest.slots.length+' local moves active':
+     'Kairo: '+status.localPlaytest.slots.length+' local moves active'+
+     (status.localPlaytest.jumpLab?' · JUMP LAB '+status.localPlaytest.jumpLab.toUpperCase():''):
      'Local moves not loaded — original game active';
     notice.appendChild(title);
     if(status.localPlaytest.baseVersion){
