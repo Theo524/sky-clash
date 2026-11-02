@@ -787,8 +787,15 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    if(!recorded)throw Error('No recorded Kairo motion for test');
    const slots=['jump','jumpQuick','jumpDown','fallingIdle','landing'];
    return {schema:source.schema,revision:1,jumpLabVersion:1,
-    motions:slots.map((slot,i)=>({...recorded,slot,sourceFile:'ci-'+slot+'.fbx',
-     sourceId:'test-jump-'+i,speed:slot==='jumpDown'?2:1}))};
+    motions:slots.map((slot,i)=>{
+     const short=slot==='jumpDown',frames=short?12:recorded.frames;
+     return {...recorded,slot,sourceFile:'ci-'+slot+'.fbx',
+      sourceId:'test-jump-'+i,speed:1,frames,
+      seconds:(frames-1)/30,
+      data:short?btoa(atob(recorded.data).slice(0,frames*20*4*2)):recorded.data,
+      ...(short&&recorded.hipYTrack?
+       {hipYTrack:btoa(atob(recorded.hipYTrack).slice(0,frames*2))}:{})};
+    })};
   });
   await page.goto(base+'jump-lab.html',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.SkyClashStudioLiveBridge?.saveJumpLab,
