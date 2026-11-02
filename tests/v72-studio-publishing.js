@@ -124,7 +124,7 @@ assert(fidelityRuntime.includes("entry.slot==='fallingIdle'"),
  'Source pelvis motion must also survive a locally assigned falling idle');
 assert(read('js/character-motion-preview.js').includes('{preserveFullSource}'),
  'Character preview must apply the same full source air joint rotations as game');
-assert(fidelityRuntime.includes('state.airHandoffFrom=rising&&!sameSource?outgoingRise:null'),
+assert(fidelityRuntime.includes('state.airHandoffFrom=transition&&!sameSource?outgoingRise:null'),
  'Different source clips must blend from the last displayed rise pose');
 assert(fidelityRuntime.includes('state.slot=slot;state.clock=sameSource?previousClock:'),
  'Same saved FBX for Jump and Falling Idle must not rewind at apex');
