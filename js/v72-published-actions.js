@@ -430,9 +430,16 @@
    }
    // A source-authored landing includes the descent BEFORE ground contact.
    // Keep its one clock through collision instead of restarting it there.
-   if(pose?.slot==='landing'&&
-      (pose.landingVisualUntil||0)>(fighter.t||0)&&
-      !fighter.dropping)return actions.landing?'landing':null;
+   if(pose?.slot==='landing'&&!fighter.dropping){
+    if((pose.landingVisualUntil||0)>(fighter.t||0))
+     return actions.landing?'landing':null;
+    if(fighter.jumping){
+     // Unusually long airtime: the landing clip ended before the physical
+     // ground contact. Finish it once; do not restart on every air frame.
+     pose.jumpLandingFinished=true;
+     return actions.fallingIdle?'fallingIdle':null;
+    }
+   }
    // Collision owns physics, but the Mixamo recovery owns its own clock.
    if(!fighter.jumping&&!fighter.dropping&&
       ((fighter.landingMotionT||0)>0||

@@ -210,14 +210,17 @@ globalThis.SkyClashPublishedActions={
 assert.equal(runtime.choose(testJumpFighter,jumpChoices),'jump',
  'Normal recorded standing jump must beat height-based Floating');
 assert.equal(runtime.choose({...testJumpFighter,vel:{x:0,y:-4,z:0}},jumpChoices),
- 'fallingIdle');
+ 'landing','Standing jump must enter the source-matched landing descent');
 assert.equal(runtime.choose({...testJumpFighter,vel:{x:5,y:4,z:0}},jumpChoices),
  'jumpQuick','Moving jump should use short Mixamo source');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{jumpMode:'quick'},
  vel:{x:5,y:-4,z:0}},jumpChoices),'jumpDown');
 assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
- jumpMode:'quick',quickFallDone:true},vel:{x:5,y:-4,z:0}},jumpChoices),
- 'fallingIdle');
+ jumpMode:'quick',slot:'jumpDown',clock:.15},vel:{x:5,y:-4,z:0}},jumpChoices),
+ 'landing','Moving descent must continue into source-matched landing');
+assert.equal(runtime.choose({...testJumpFighter,v72StudioPack:{
+ jumpLandingFinished:true},vel:{x:0,y:-4,z:0}},jumpChoices),
+ 'fallingIdle','A prolonged jump may need the separate Falling Idle');
 assert.equal(runtime.choose({...testJumpFighter,jumping:false,
  flying:false,vel:{x:0,y:0,z:0},t:2,landingMotionT:0,
  v72StudioPack:{landingVisualUntil:2.3}},jumpChoices),'landing',
