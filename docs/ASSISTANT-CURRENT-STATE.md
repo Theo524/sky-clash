@@ -1,5 +1,27 @@
 # Sky Clash — current state
 
+## Direct Mixamo jump follow-up — 2026-11-02
+
+After PR #182, the player reports that ordinary Training still appears to
+play animations other than the five real uploaded Mixamo clips. PR #183 is the
+scoped correction; verify its merge/CI before describing it as shipped.
+The previous browser test forced the physics jumping flag, so it missed
+the normal default V108 buffered, V100 procedural push before takeoff.
+The correction lets V72 play the baked Mixamo anticipation DURING that
+existing physics buffer, samples the source crouch/takeoff rather than
+skipping the first 0.40 seconds, and yields V100/V81/V79 to the recorded
+pose. It also routes sprint jumps to the moving Mixamo source, cancels
+only Kairo's cosmetic legacy flip during that jump, and keeps the moving
+Jump Down crossfade. Root physics is unchanged; holding Up still becomes
+intentional powered flight. The new boot/owner cache suffix 184 ensures
+browsers fetch the corrected JS instead of PR #182's cached controllers.
+Do not add Jump Lab, another animation writer, or change Base v1,
+Studio local packs, models, approved ground/combat/flight or Rin.
+The five source FBX SHA256 prefixes match the gamepack source IDs.
+Test real tryJump input and real-Kairo runtime ownership; only player
+review can establish visual quality in normal gameplay.
+
+
 ## Flight-body expression — player adjustment requested 2026-10-31
 
 The player dislikes exaggerated forward/backward V166 torso pitching. For the

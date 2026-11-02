@@ -420,9 +420,14 @@
    const pose=fighter.v72StudioPack;
    // During the existing V108 input buffer the real Mixamo takeoff must
    // own Kairo's crouch, not the unrelated procedural V100 push pose.
-   if(fighter.v108JumpPrepT>0&&!fighter.jumping&&!fighter.flying)
-    return Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3&&
-      actions.jumpQuick?'jumpQuick':actions.jump?'jump':null;
+   if(fighter.v108JumpPrepT>0&&!fighter.jumping&&!fighter.flying){
+    // Keep the selected Mixamo clip through the existing input buffer,
+    // even if horizontal velocity crosses the short/full threshold.
+    const quick=pose&&['jump','jumpQuick'].includes(pose.slot)&&pose.jumpMode?
+     pose.jumpMode==='quick':
+     Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
+    return quick&&actions.jumpQuick?'jumpQuick':actions.jump?'jump':null;
+   }
    // Physical collision starts landing, visual recovery finishes on its
    // OWN clock. Do not extend landingMotionT: it gates actual gameplay.
    if(!fighter.flying&&!fighter.jumping&&!fighter.dropping&&
