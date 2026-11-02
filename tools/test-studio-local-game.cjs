@@ -801,6 +801,9 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.v108JumpPrepT=0;p.jumping=true;p.vel.y=5;
    p.pos.y=p.floor+.3;p.t+=1/60;p.animate(1/60);
    const takeoff=p.v72StudioPack.slot,takeoffClock=p.v72StudioPack.clock;
+   // Start a NEW moving jump after the standing jump; its previous
+   // standing-mode slot must not be mistaken for the moving takeoff.
+   p.v72StudioPack.slot=null;p.v72StudioPack.jumpMode=null;
    // Boost's optional legacy flip must not displace the recorded jump.
    p.sprinting=true;p.vel.set(5,5,0);p.acro={type:'flip',t:0,duration:.64,direction:1};
    p.t+=1/60;p.animate(1/60);
