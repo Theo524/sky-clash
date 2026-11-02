@@ -2367,6 +2367,12 @@
  function ownsAir(f,context=root){
   const clips=context.SkyClashPublishedActions?.motionClips;
   const phase=stateOf(f);
+  // Recorded jump/landing is already the SINGLE V72 full-body pose.
+  // Do not overwrite it with older procedural V100 Jump in unified mode.
+  if(context.SkyClashPublishedActions?.jumpSequence?.active&&
+     !context.SkyClashPublishedActions?.localPlaytest?.requested&&
+     f===context.SkyClash?.Game?.heroes?.kairo_venn&&
+     ['jump','fall','landing'].includes(phase))return false;
   // Only the explicitly assigned local Kairo state yields to V72.
   if(localStudioAirSlot(f,context))return false;
   return isPreview(context)&&
