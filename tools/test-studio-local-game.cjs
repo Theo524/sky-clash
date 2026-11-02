@@ -777,6 +777,105 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
   assert.equal(bad.state,'fallback');
   assert(bad.ready,'Corrupt local data must not break shipped combat');
   assert.notEqual(bad.sourceFile,'local-apply-to-game-test.fbx');
+  // Diagnose the ORIGINAL game retarget against the separately loaded Kairo
+  // reference that Animation Studio actually uses, not a new pose owner.
+  // This is the first source-vs-visible numerical check for the five jumps.
+  await navigate('?scene=dojo&studioPoseAudit=1');
+  const jumpRetargetAudit=await page.evaluate(async()=>{
+   const T=window.THREE,g=window.SkyClash.Game,p=g.player;
+   g.enterDojo();g.update=()=>{};window.SkyClash.CameraRig.update=()=>{};
+   window.requestAnimationFrame=()=>0;
+   const response=await fetch('assets/characters/kairo.vrm');
+   if(!response.ok)throw Error('cannot read reference Kairo');
+   const bytes=await response.arrayBuffer();
+   const kit=window.VRMKit,loader=new kit.GLTFLoader();
+   loader.register(q=>new kit.VRMLoaderPlugin(q));
+   const gltf=await new Promise((resolve,reject)=>loader.parse(bytes,'',resolve,reject));
+   const vrm=gltf.userData.vrm;
+   if(kit.VRMUtils.rotateVRM0)kit.VRMUtils.rotateVRM0(vrm);
+   const names=['hips','spine','chest','upperChest','neck','head',
+    'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+    'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+    'leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const nodes=names.map(n=>vrm.humanoid.getNormalizedBoneNode(n));
+   vrm.scene.updateMatrixWorld(true);
+   const localRest=nodes.map(n=>n.quaternion.clone());
+   const worldRest=nodes.map(n=>n.getWorldQuaternion(new T.Quaternion()));
+   const referenceSide=nodes[7].getWorldPosition(new T.Vector3())
+    .sub(nodes[11].getWorldPosition(new T.Vector3()));
+   referenceSide.y=0;referenceSide.normalize();
+   const srcKeys=['hips','spine','spine1','spine2','neck','head',
+    'leftshoulder','leftarm','leftforearm','lefthand',
+    'rightshoulder','rightarm','rightforearm','righthand',
+    'leftupleg','leftleg','leftfoot',
+    'rightupleg','rightleg','rightfoot'];
+   const source=window.SkyClashPublishedActions.motionClips;
+   p.hp=100;p.stun=0;p.downT=0;p.slamLagT=0;
+   p.punchT=0;p.blastT=0;p.superHitT=0;p.blockHeld=false;p.blocking=false;
+   p.sprinting=false;p.dashing=false;p.acro=null;p.landingMotionT=0;
+   p.jumping=true;p.dropping=false;p.pos.y=p.floor+2;
+   p.vel.set(0,5,0);p.v108JumpPrepT=0;p.moveIntent.set(0,0,0);
+   p.t+=1/60;p.animate(1/60);
+   const state=p.v72StudioPack,live=state.bones;
+   const angle=(a,b)=>a.angleTo(b)*180/Math.PI;
+   const sceneQuat=vrm.scene.getWorldQuaternion(new T.Quaternion());
+   const sceneLocalRest=worldRest.map(w=>sceneQuat.clone().invert().multiply(w));
+   const bindErrors=sceneLocalRest.map((w,i)=>angle(w,state.bind[i]));
+   function observe(slot,time,velY){
+    const entry=source[slot],isLanding=slot==='landing';
+    if(!entry)throw Error('missing test clip '+slot);
+    p.jumping=true;p.vel.y=velY;
+    state.slot=slot;state.clock=time;state.weight=1;
+    state.jumpMode='full';state.airHandoffFrom=null;
+    state.localEntryPose=null;state.landingVisualUntil=p.t+3;
+    p.t+=.00001;p.animate(0);
+    if(state.slot!==slot)throw Error('switched '+slot+' to '+state.slot);
+    const sample=names.map(()=>new T.Quaternion());
+    entry.sample(time,sample,false);
+    for(let i=0;i<nodes.length;i++)nodes[i].quaternion.copy(localRest[i]);
+    vrm.scene.updateMatrixWorld(true);
+    const sourceSide=new T.Vector3(entry.side[0],0,entry.side[1]);
+    const cross=sourceSide.z*referenceSide.x-sourceSide.x*referenceSide.z;
+    const dot=sourceSide.x*referenceSide.x+sourceSide.z*referenceSide.z;
+    const basis=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),
+      Math.atan2(cross,dot)+(entry.yaw||0)*Math.PI/180);
+    const inv=basis.clone().invert(),differences=[],rawVsStudio=[];
+    let capped=0;
+    for(let i=0;i<nodes.length;i++){
+     const n=nodes[i],parent=n.parent,rest=localRest[i];
+     const rotated=basis.clone().multiply(sample[i]).multiply(inv);
+     const wanted=rotated.multiply(worldRest[i]);
+     const parentQ=parent.getWorldQuaternion(new T.Quaternion());
+     const intended=parentQ.invert().multiply(wanted).normalize();
+     const cap=srcKeys[i]==='hips'?Math.PI:
+      srcKeys[i].includes('forearm')||srcKeys[i].includes('hand')?2.65:
+      srcKeys[i].includes('arm')||srcKeys[i].includes('shoulder')?2.45:
+      srcKeys[i].includes('leg')||srcKeys[i].includes('foot')?2.4:1.9;
+     const proposedAngle=rest.angleTo(intended);
+     if(proposedAngle>cap){capped++;intended.copy(rest).slerp(intended,cap/proposedAngle);}
+     n.quaternion.copy(intended);
+     n.updateMatrixWorld(true);
+     differences.push({name:names[i],deg:angle(live[i].quaternion,n.quaternion)});
+     rawVsStudio.push({name:names[i],deg:proposedAngle*180/Math.PI});
+    }
+    return {slot,time,clamped:capped,
+     maxDiff:+Math.max(...differences.map(x=>x.deg)).toFixed(2),
+     top: differences.sort((a,b)=>b.deg-a.deg).slice(0,6).map(x=>[x.name,+x.deg.toFixed(2)]),
+     maxRequested:+Math.max(...rawVsStudio.map(x=>x.deg)).toFixed(2)};
+   }
+   const cases=[
+    observe('jump',.1,5),observe('jump',.3,5),
+    observe('jump',.55,5),observe('jump',.78,5),
+    observe('landing',.1,-5),observe('landing',.35,-5)
+   ];
+   return {maxRestMismatch:+Math.max(...bindErrors).toFixed(3),
+    restLocal:localRest.map((q,i)=>[names[i],+angle(q,new T.Quaternion()).toFixed(3)]),
+    cases};
+  });
+  console.log('KAIRO_MIXAMO_STUDIO_VS_GAME_AUDIT '+JSON.stringify(jumpRetargetAudit));
+  // Audit remains informational while investigating the twist source; a
+  // later regression will assert agreement once the underlying cause is fixed.
   // Real input buffer + late-animation writer regression: the previous
   // PR only forced jumping=true, missing the procedural push that a player
   // actually sees when pressing Jump in normal Training.
