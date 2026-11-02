@@ -428,24 +428,41 @@
      Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
     return quick&&actions.jumpQuick?'jumpQuick':actions.jump?'jump':null;
    }
-   // Physical collision starts landing, visual recovery finishes on its
-   // OWN clock. Do not extend landingMotionT: it gates actual gameplay.
-   if(!fighter.flying&&!fighter.jumping&&!fighter.dropping&&
+   // A source-authored landing includes the descent BEFORE ground contact.
+   // Keep its one clock through collision instead of restarting it there.
+   if(pose?.slot==='landing'&&
+      (pose.landingVisualUntil||0)>(fighter.t||0)&&
+      !fighter.dropping)return actions.landing?'landing':null;
+   // Collision owns physics, but the Mixamo recovery owns its own clock.
+   if(!fighter.jumping&&!fighter.dropping&&
       ((fighter.landingMotionT||0)>0||
        (pose?.landingVisualUntil||0)>(fighter.t||0)))
     return actions.landing?'landing':null;
    if(fighter.dropping)return actions.fallingIdle?'fallingIdle':null;
    if(fighter.jumping){
+    // Finishing an authored descent high above ground is a genuine long
+    // fall; only then is the substantially different Falling Idle needed.
+    if(pose?.jumpLandingFinished)return actions.fallingIdle?'fallingIdle':null;
     const descending=(fighter.vel?.y||0)<-.7;
-    const continuing=pose&&['jump','jumpQuick','jumpDown','fallingIdle']
+    const continuing=pose&&['jump','jumpQuick','jumpDown','landing','fallingIdle']
      .includes(pose.slot);
     const quick=continuing&&pose.jumpMode?
      pose.jumpMode==='quick':
      Math.hypot(fighter.vel?.x||0,fighter.vel?.z||0)>1.3;
-    if(!descending)return quick&&actions.jumpQuick?'jumpQuick':
-     actions.jump?'jump':null;
-    return quick&&!pose?.quickFallDone&&actions.jumpDown?'jumpDown':
-     actions.fallingIdle?'fallingIdle':null;
+    const rise=quick&&actions.jumpQuick?'jumpQuick':'jump';
+    if(!descending)return actions[rise]?rise:null;
+    // The source clips agree at their intended ends, NOT at arbitrary
+    // airborne times. Finish Jumping Up before joining the descent.
+    if(pose?.slot===rise&&pose.clock<actions[rise].seconds-.018)
+     return rise;
+    if(quick&&actions.jumpDown&&
+       !(pose?.slot==='jumpDown'&&pose.clock>=.13)&&
+       pose?.slot!=='landing')return 'jumpDown';
+    // Falling To Landing already contains descent, contact and recovery.
+    // Enter it BEFORE collision and retain that same source clock afterward.
+    // Do not splice Falling Idle into every normal jump: its source pose
+    // differs by 35-59 degrees per joint from the adjacent clips.
+    return actions.landing?'landing':actions.fallingIdle?'fallingIdle':null;
    }
   }
   // V82: a jump is an actual TAKEOFF animation, not a loop playing
@@ -874,15 +891,19 @@
       state.airHandoffAge=0;
       if(['jump','jumpQuick'].includes(slot)){
        state.quickFallDone=false;state.landingVisualUntil=0;
+       state.jumpLandingFinished=false;
        state.jumpMode=slot==='jumpQuick'?'quick':'full';
       }
       const directLanding=slot==='landing'&&
        status.jumpSequence?.active&&!status.localPlaytest?.requested;
       if(directLanding){
-       // Mixamo's first 0.30s is airborne descent. Physical game collision
-       // has already happened: begin at its contact pose, then play all
-       // of the original absorption + recovery at 1x, visually only.
-       state.landingSampleStart=.30;
+       // The standing rise finishes near the FIRST frame of this source.
+       // Moving Jump Down's first .13s matches Landing near .13-.17s.
+       // A fall/flight directly contacting ground keeps the original .30s
+       // entry so its collision/physics behavior is unchanged.
+       state.landingSampleStart=
+        previousSlot==='jump'||previousSlot==='jumpQuick'?0:
+        previousSlot==='jumpDown'?.13:.30;
        state.landingVisualUntil=(this.t||0)+
         Math.max(.05,(actions.landing.seconds-state.landingSampleStart)/
          Math.max(.25,actions.landing.speed||1));
@@ -993,6 +1014,11 @@
     state.localFullBodyPunchActive=fullBodyPunch;
     state.localFullBodyKickActive=localKick;
     const elapsed=Math.max(0,Math.min(Number.isFinite(dt)?dt:0,.065));
+    // A long aerial fall can outlast the landing take; never restart the
+    // landing at its beginning on the following physics frame.
+    if(direct&&state.slot==='landing'&&
+       state.landingVisualUntil<=(this.t||0)&&this.jumping)
+     state.jumpLandingFinished=true;
     // A moving Jump Up -> Jump Down handoff needs the same short crossfade
     // as Jump Up -> Falling Idle. Previously this reset immediately and
     // exposed a one-frame discontinuity in the uploaded source poses.
@@ -1148,9 +1174,9 @@
     if(state.airHandoffFrom&&state.airHandoffAge>=state.airHandoffDuration)
      state.airHandoffFrom=null;
     if(authoredAir&&
-       // Physical jump already raises/lowers the capsule. Applying the
-       // full source takeoff Y on top doubles the ascent and looks wrong.
-       (!direct||!['jump','jumpQuick','jumpDown'].includes(slot))&&
+       // Only preserve the negative source crouch of the standing takeoff.
+       // Positive Mixamo ascent would double-count physical capsule travel.
+       (!direct||!['jumpQuick','jumpDown'].includes(slot))&&
        (entry.sampleHipY||entry.sampleHipXZ)&&state.bones?.[0]?.parent){
      // Studio's V78 displays the SOURCE world-up pelvis displacement,
      // including deeper crouches. Match its +/-1.1m visual bound instead
@@ -1162,7 +1188,14 @@
       (entry.sampleHipY?.(state.landingSampleStart,false)||0):0;
      const scaled=((entry.sampleHipY?.(sampleTime,loop)||0)-baseY)*
       state.avatarHeight;
-     const delta=Math.max(-1.1,Math.min(1.1,scaled));
+     const directTakeoff=direct&&slot==='jump';
+     // Mixamo's original planted crouch was completely discarded before.
+     // Restore the negative dip until push-off, without adding the upward
+     // half of the same track to already-moving physics.
+     const delta=directTakeoff?
+      Math.max(-.65,Math.min(0,scaled)):
+      direct&&slot==='landing'&&this.pos.y>this.floor+.025?0:
+      Math.max(-1.1,Math.min(1.1,scaled));
      const hips=state.bones[0],parent=hips.parent;
      const parentInverse=parent.getWorldQuaternion(new THREE.Quaternion()).invert();
      const parentScale=parent.getWorldScale(new THREE.Vector3());
@@ -1170,7 +1203,8 @@
         Number.isFinite(v)&&Math.abs(v)>1e-6)){
       // Horizontal source travel is visual-only: same facing correction as
       // source quaternions. Physics root, collision, and hitboxes stay put.
-      const xz=entry.sampleHipXZ?.(sampleTime,loop);
+      const xz=direct&&slot==='landing'&&this.pos.y>this.floor+.025?
+       null:entry.sampleHipXZ?.(sampleTime,loop);
       const xzBase=direct&&entry.slot==='landing'?
        entry.sampleHipXZ?.(state.landingSampleStart,false):null;
       const horizontal=new THREE.Vector3(
