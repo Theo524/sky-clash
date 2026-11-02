@@ -965,9 +965,21 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     const started=p.tryJump(),seq=[],trace=[];
     let previous=nodes.map(n=>n.quaternion.clone());
     let maxLegStep=0,maxLegName=null,maxLegFrame=0,maxWriterDrift=0;
+    const riseClocks=[],riseHeights=[];
+    let contactSourceTime=null,contactHeight=null;
     for(let i=0;i<125;i++){
+     const previousHeight=p.pos.y-p.floor;
      p.update(1/60);
      const slot=p.v72StudioPack.slot||'none';
+     if(slot===(moving?'jumpQuick':'jump')){
+      riseClocks.push(p.v72StudioPack.clock);
+      riseHeights.push(p.pos.y-p.floor);
+     }
+     if(contactSourceTime===null&&previousHeight>.05&&
+        p.pos.y-p.floor<.001){
+      contactSourceTime=p.v72StudioPack.clock;
+      contactHeight=p.pos.y-p.floor;
+     }
      if(seq.at(-1)!==slot)seq.push(slot);
      if(i%4===0)trace.push([i,slot,+p.v72StudioPack.clock.toFixed(2),
       +((p.pos.y||0)-p.floor).toFixed(2)]);
@@ -986,7 +998,13 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     }
     trials.push({moving,started,seq,trace,maxLegStep:+maxLegStep.toFixed(2),
      maxLegName,maxLegFrame,maxWriterDrift:+maxWriterDrift.toFixed(6),
-     airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
+     riseSeconds:riseClocks.length/60,
+     riseFirst:+(riseClocks[0]||0).toFixed(3),
+     riseLast:+(riseClocks.at(-1)||0).toFixed(3),
+     riseClockStalls:riseClocks.filter((x,i)=>i>0&&
+       x-riseClocks[i-1]<.0001).length,
+     contactSourceTime:contactSourceTime===null?null:+contactSourceTime.toFixed(3),
+     contactHeight,airborne:!!p.jumping,height:+(p.pos.y-p.floor).toFixed(3)});
    }
    return trials;
   });
@@ -1003,6 +1021,14 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
     'Visible VRM leg rotated more than 80 degrees in one gameplay frame');
    assert(trial.maxWriterDrift<.01,
     'A later controller changed Kairo bones after the source Mixamo pose');
+   assert(trial.riseClockStalls===0,
+    'Mixamo rising clip held its last keyframe while physics was still rising');
+   const sourceDuration=trial.moving?.2333333333:.8333333333;
+   assert(trial.riseLast>=sourceDuration-.05,
+    'Source Jumping Up never reached its authored end at the real apex');
+   assert(trial.contactSourceTime!==null&&
+     Math.abs(trial.contactSourceTime-.30)<.05,
+     'Mixamo landing contact keyframe did not match physics floor collision');
    assert(!trial.airborne,'Actual jump did not return to grounded physics');
   }
   // The five player-selected Mixamo FBXs are now part of ORDINARY
