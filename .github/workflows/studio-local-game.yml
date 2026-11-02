@@ -69,3 +69,12 @@ jobs:
           curl -fsS http://127.0.0.1:8765/assets/characters/kairo.vrm >/dev/null
       - name: Test editor motion in actual Kairo combat and original fallback
         run: node tools/test-studio-local-game.cjs
+      - name: Capture full real Kairo physics jumps for visual inspection
+        run: node tools/capture-mixamo-jump-review.cjs
+      - name: Upload standing and moving jump visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kairo-mixamo-actual-gameplay-visual-review
+          path: visual-review-output/kairo-source-jumps/
+          if-no-files-found: warn
