@@ -9,7 +9,7 @@ The previous browser test forced the physics jumping flag, so it missed
 the normal default V108 buffered, V100 procedural push before takeoff.
 The correction lets V72 play the baked Mixamo anticipation DURING that
 existing physics buffer, samples the source crouch/takeoff rather than
-skipping the first 0.40 seconds, and yields V100/V81/V79 to the recorded
+skipping the first 0.40 seconds, and yields V100/V81/V79/V89 to the recorded
 pose. It also routes sprint jumps to the moving Mixamo source, cancels
 only Kairo's cosmetic legacy flip during that jump, and keeps the moving
 Jump Down crossfade. Root physics is unchanged; holding Up still becomes

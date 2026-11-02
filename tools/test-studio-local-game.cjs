@@ -794,6 +794,14 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.t+=1/60;p.animate(1/60);
    const first=p.v72StudioPack.slot,firstClock=p.v72StudioPack.clock;
    const ownsPrep=window.SkyClashV100Animator?.ownsAir(p);
+   const hum=p.vrmRig.vrm.humanoid;
+   const joints=['hips','spine','chest','upperChest','neck','head',
+    'leftShoulder','leftUpperArm','leftLowerArm','leftHand',
+    'rightShoulder','rightUpperArm','rightLowerArm','rightHand',
+    'leftUpperLeg','leftLowerLeg','leftFoot',
+    'rightUpperLeg','rightLowerLeg','rightFoot'];
+   const prepDrift=Math.max(...p.v72StudioPack.studioPoseSnapshot.map((q,i)=>
+    q?.angleTo(hum.getNormalizedBoneNode(joints[i]).quaternion)||0));
    p.v108JumpPrepT=buffer/2;p.t+=1/60;p.animate(1/60);
    const middleClock=p.v72StudioPack.clock;
    p.v108JumpPrepT=.0001;p.t+=1/60;p.animate(1/60);
@@ -809,13 +817,15 @@ const base=(process.env.PLAYTEST_BASE_URL||'http://127.0.0.1:8765/').replace(/\/
    p.t+=1/60;p.animate(1/60);
    const boosted=p.v72StudioPack.slot,flipRemoved=p.acro===null;
    return {active:s.jumpSequence?.active,accepted,buffer,first,firstClock,
-    middleClock,endClock,ownsPrep,takeoff,takeoffClock,boosted,flipRemoved,
+    middleClock,endClock,ownsPrep,prepDrift,takeoff,takeoffClock,boosted,flipRemoved,
     error:s.error};
   });
   assert(realPress.active&&realPress.accepted&&realPress.buffer>.05,
    'Real Kairo input did not start the recorded buffered jump');
   assert.equal(realPress.first,'jump','Procedural preparation stole the real Mixamo takeoff');
   assert.equal(realPress.ownsPrep,false,'V100 still owns the Mixamo preparation');
+  assert(realPress.prepDrift<.01,
+   'V89/V81/V100 modified the real Mixamo pre-takeoff bones');
   assert(realPress.firstClock<realPress.middleClock&&
    realPress.middleClock<realPress.endClock&&realPress.endClock<=.41,
    'Mixamo source anticipation was skipped instead of played during ground contact');
